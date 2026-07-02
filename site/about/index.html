@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About · Dogleg Data</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<style>
+/* ---------- about page, scoped under .about-page ---------- */
+.about-page .page-header{max-width:66ch;margin-bottom:44px;}
+.about-page .page-header .kicker{display:block;margin-bottom:14px;}
+.about-page .page-header h1{margin-bottom:16px;}
+.about-page .page-header .dek{
+  font-size:17px;
+  color:var(--ink-soft);
+  max-width:62ch;
+  line-height:1.65;
+}
+
+.about-page section{margin-bottom:48px;}
+.about-page section h2{
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:22px;
+  margin-bottom:14px;
+  padding-bottom:8px;
+  border-bottom:3px double var(--line);
+  max-width:72ch;
+}
+.about-page section p{
+  font-size:15.5px;
+  color:var(--ink-soft);
+  line-height:1.7;
+  max-width:72ch;
+  margin-bottom:16px;
+}
+.about-page section p strong{color:var(--ink);}
+
+.about-page .method-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:var(--gap);
+}
+.about-page .method-item{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:20px 22px;
+}
+.about-page .method-item .num{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--clay-text);
+  letter-spacing:.1em;
+  margin-bottom:10px;
+}
+.about-page .method-item h3{
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:16.5px;
+  margin-bottom:8px;
+}
+.about-page .method-item p{
+  font-size:13.5px;
+  color:var(--ink-soft);
+  line-height:1.6;
+  max-width:none;
+  margin-bottom:0;
+}
+
+.about-page .who-block{max-width:72ch;}
+
+.about-page .invite{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:30px 32px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+  flex-wrap:wrap;
+}
+.about-page .invite h3{
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:21px;
+  max-width:38ch;
+  line-height:1.35;
+}
+
+@media (max-width:760px){
+  .about-page .method-grid{grid-template-columns:1fr;}
+  .about-page .invite{flex-direction:column;align-items:flex-start;}
+  .about-page .who-block{flex-direction:column;}
+}
+</style>
+</head>
+<body class="about-page">
+<div class="wrap">
+
+<header class="site-header">
+  <div class="header-row">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dogleg Data mark">
+        <path d="M8 28 V14 Q8 8 14 8 H21" fill="none" stroke="#1C1B18" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="26" cy="8" r="3.5" fill="#C05A36"/>
+      </svg>
+      <a class="wordmark" href="../index.html">Dogleg Data</a>
+      <span class="tagline">Play the percentages</span>
+    </div>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="../fairway-vs-rough/index.html">Analyses</a>
+      <a href="../fairway-vs-rough/dashboard.html">Dashboard</a>
+      <a href="index.html">About</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="page-header">
+    <span class="kicker">About</span>
+    <h1>Golf's conventional wisdom, run through real data, at every handicap.</h1>
+    <p class="dek">Tour has ShotLink and Data Golf. The 8-to-30 handicap playing a $40 muni gets hand-me-down advice built from tour numbers. Dogleg Data serves that golfer.</p>
+  </div>
+
+  <section aria-labelledby="method-heading">
+    <h2 id="method-heading">The verification standard</h2>
+    <p>Every claim on this site names its source. Every modeled number gets labeled modeled, on every chart, every time, no exceptions. Analyses go through peer review before publishing, and the findings get published too, including what broke and how it got fixed.</p>
+    <div class="method-grid">
+      <div class="method-item">
+        <div class="num">01</div>
+        <h3>Sources named</h3>
+        <p>Broadie's 2011 ShotLink data, Stagner and Arccos amateur numbers, USGA and R&amp;A rough studies, GOLFTEC fitting data. Every claim traces to a name you can look up.</p>
+      </div>
+      <div class="method-item">
+        <div class="num">02</div>
+        <h3>Modeled numbers labeled</h3>
+        <p>When a figure is extrapolated rather than pulled straight from a source, the chart says so. Every time, no exceptions.</p>
+      </div>
+      <div class="method-item">
+        <div class="num">03</div>
+        <h3>Peer review published</h3>
+        <p>Every analysis gets reviewed before it goes up. The write-up names what broke and how it got fixed, alongside the parts that worked.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="who-heading">
+    <h2 id="who-heading">Who runs it</h2>
+    <div class="who-block">
+      <p>I run Dogleg Data, where golf's conventional wisdom gets tested against real data. Most amateur advice descends from tour numbers, so I check what holds for a 10, 20, or 30 handicap, with every source cited and every modeled number labeled.</p>
+      <p>I work in data analytics by day, and the same habits carry over: peer review before publishing, and when the model breaks, the fix gets published too. Bring me a scramble read and I'll run it through the model.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="invite-heading">
+    <div class="section-label" id="invite-heading">Scramble reads</div>
+    <div class="invite">
+      <h3>Bring a real scramble read. I'll run it through the model.</h3>
+      <a class="btn btn-solid" href="https://x.com/DoglegData" target="_blank" rel="noopener">Send it on X</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <div class="footer-copy">
+      <p>Dogleg Data tests golf's conventional wisdom against real data at every handicap, with every source cited and every modeled number labeled.</p>
+      <div class="footer-social">
+        <a href="https://x.com/DoglegData" target="_blank" rel="noopener" title="X">X</a>
+        <a href="#" title="LinkedIn">LinkedIn</a>
+      </div>
+    </div>
+    <img class="footer-mascot" src="../assets/brand/mascot-run.png" width="344" height="175" alt="Dogleg Data mascot dachshund, mid-run">
+  </div>
+  <div class="copyright">&copy; 2026 Dogleg Data &middot; Play the percentages.</div>
+</footer>
+
+</div>
+</body>
+</html>
