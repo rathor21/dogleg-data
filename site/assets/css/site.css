@@ -32,8 +32,9 @@ body{
   color:var(--ink);
   line-height:1.5;
   -webkit-font-smoothing:antialiased;
+  overflow-wrap:break-word; /* safety net: long unbroken strings wrap instead of overflowing */
 }
-img{max-width:100%;display:block;}
+img{max-width:100%;height:auto;display:block;} /* height:auto keeps aspect ratio when width/height attributes reserve layout space */
 a{color:inherit;}
 :focus-visible{outline:2px solid var(--clay);outline-offset:2px;}
 
@@ -169,21 +170,28 @@ figure img{
   border-radius:var(--radius);
   background:var(--bg);
 }
+/* Small mono captions use --ink-soft: --muted fails WCAG AA (3.4:1) on cream
+   below 18.66px. --muted is reserved for large text and decorative elements. */
 figure figcaption{
   font-family:var(--mono);
   font-size:11.5px;
-  color:var(--muted);
+  color:var(--ink-soft);
   margin-top:8px;
   line-height:1.6;
 }
 .source-line{
   font-family:var(--mono);
   font-size:11.5px;
-  color:var(--muted);
+  color:var(--ink-soft);
   line-height:1.6;
 }
 
-/* ---------- article defaults (for post pages, generic) ---------- */
+/* ---------- article defaults (for post pages, generic) ----------
+   Post pages wrap running prose in <div class="article-body"> inside <article>;
+   the article .article-body scope outranks .card h2, so a heading nested in a
+   card keeps article rhythm.
+   Prose width rule: article body text 72ch (long-form reading), .card .sub 80ch
+   (denser UI copy), .home .dek 60ch (teaser). Reuse these; no fourth value. */
 article h1{
   font-family:var(--serif);
   font-weight:900;
@@ -192,7 +200,7 @@ article h1{
   letter-spacing:-0.01em;
   margin-bottom:14px;
 }
-article h2{
+article .article-body h2{
   font-family:var(--serif);
   font-weight:600;
   font-size:22px;
@@ -200,8 +208,8 @@ article h2{
   padding-bottom:8px;
   border-bottom:3px double var(--line);
 }
-article p{font-size:15.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:16px;max-width:72ch;}
-article p strong{color:var(--ink);}
+article .article-body p{font-size:15.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:16px;max-width:72ch;}
+article .article-body p strong{color:var(--ink);}
 
 /* ---------- footer ---------- */
 footer.site-footer{
@@ -246,7 +254,7 @@ footer.site-footer .footer-social a:hover{color:var(--clay-text);border-color:va
 footer.site-footer .copyright{
   font-family:var(--mono);
   font-size:11px;
-  color:var(--muted);
+  color:var(--ink-soft);
   letter-spacing:.04em;
   padding-top:16px;
   border-top:1px solid var(--line);
@@ -299,7 +307,7 @@ footer.site-footer .copyright{
   font-weight:500;
   letter-spacing:.18em;
   text-transform:uppercase;
-  color:var(--muted);
+  color:var(--ink-soft);
   margin-bottom:14px;
 }
 
@@ -330,7 +338,7 @@ footer.site-footer .copyright{
 .home .analysis-card .meta{
   font-family:var(--mono);
   font-size:11.5px;
-  color:var(--muted);
+  color:var(--ink-soft);
   margin-bottom:14px;
 }
 .home .analysis-card .dek{
