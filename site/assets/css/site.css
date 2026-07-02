@@ -10,7 +10,7 @@
   --line:#E2D8C6;      /* warm grid — borders, hairlines, double rules */
   --ink:#1C1B18;        /* primary text, wordmark, tour data */
   --ink-soft:#6B6152;  /* body-secondary */
-  --muted:#8A7F6E;     /* saddle — axis labels, source lines, captions */
+  --muted:#8A7F6E;     /* saddle — large text and decorative use only, fails AA below 18.66px */
   --clay:#C05A36;      /* baked clay — accent, highlights, 20-hcp, the mark's dot */
   --clay-text:#A34A2C; /* clay darkened for text/AA contrast */
   --blue:#5B7FA6;      /* faded denim — 10-hcp, secondary accent */
@@ -95,7 +95,8 @@ nav.site-nav a{
   padding:6px 2px;
   border-bottom:1px solid transparent;
 }
-nav.site-nav a:hover{color:var(--clay-text);border-bottom-color:var(--clay);}
+nav.site-nav a[href]:hover{color:var(--clay-text);border-bottom-color:var(--clay);}
+nav.site-nav a[aria-current="page"]{color:var(--ink);font-weight:600;}
 
 /* ---------- buttons (pill) ---------- */
 .btn{
