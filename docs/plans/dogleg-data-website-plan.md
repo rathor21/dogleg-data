@@ -68,7 +68,7 @@ Post page: full article adapting the long caption (source: `Fairway_vs_Rough_Cap
 - "What peer review caught" section (the three bugs) styled as a distinct feature block — this is the brand's signature move, give it visual weight.
 - Sources section listing all sources with the modeled/measured distinction.
 - Closer: the scramble-read invite.
-- Preserve every number and caveat exactly as the source copy states them (75/80 peak/23/17/12; 8/17/29 severity; 240-250 crossover; 7.5-yard break-even in the anecdote at 160; three peer-review bugs). Edit for web reading (shorter paragraphs, subheads), never for math.
+- Preserve every number and caveat exactly as the source copy states them (75/80 peak/23/17/12; 8/17/29 severity; 240-250 crossover; the scramble anecdote's 8-yard break-even in light rough with a 35-yard edge; three peer-review bugs). Edit for web reading (shorter paragraphs, subheads), never for math. (Correction: this line briefly cited "7.5-yard break-even at 160," which came from the X-thread rendering of the anecdote. The caption is canonical and the shipped post matches it: 8-yard edge, light rough, 35 yards closer.)
 
 About page: positioning paragraph, method/verification standard, Sunny bio (from bios file text in prompt), social links, boilerplate paragraph. Short page, same shell.
 
