@@ -1,4 +1,13 @@
 <!DOCTYPE html>
+<!--
+To create ANALYSIS Nº 002 from this file:
+1. Copy to site/<new-slug>/index.html; keep the ../ relative paths (css, img, brand, home, about).
+2. Renumber the kicker to ANALYSIS Nº 002; rewrite h1, dek, byline.
+3. Update <title>, date, reading time (body word count / 230 wpm, rounded).
+4. Swap chart <figure>s; real width/height via: sips -g pixelWidth -g pixelHeight <file>.
+5. Nav: the current page's item is unlinked text (<a aria-current="page">, no href); re-link Analyses to point at the new page's canonical listing.
+6. Dashboard hrefs are sibling-relative (dashboard.html); update or remove per analysis.
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -191,7 +200,7 @@
       <span class="tagline">Play the percentages</span>
     </div>
     <nav class="site-nav" aria-label="Primary">
-      <a href="index.html">Analyses</a>
+      <a aria-current="page">Analyses</a>
       <a href="dashboard.html">Dashboard</a>
       <a href="../about/index.html">About</a>
     </nav>

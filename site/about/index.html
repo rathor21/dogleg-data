@@ -30,73 +30,17 @@
   border-bottom:3px double var(--line);
   max-width:72ch;
 }
-.about-page section p{
+/* section > p keeps this off the shared .method-item p styles in site.css */
+.about-page section > p,
+.about-page .who-block p{
   font-size:15.5px;
   color:var(--ink-soft);
   line-height:1.7;
   max-width:72ch;
   margin-bottom:16px;
 }
-.about-page section p strong{color:var(--ink);}
-
-.about-page .method-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:var(--gap);
-}
-.about-page .method-item{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--radius);
-  padding:20px 22px;
-}
-.about-page .method-item .num{
-  font-family:var(--mono);
-  font-size:11px;
-  color:var(--clay-text);
-  letter-spacing:.1em;
-  margin-bottom:10px;
-}
-.about-page .method-item h3{
-  font-family:var(--serif);
-  font-weight:600;
-  font-size:16.5px;
-  margin-bottom:8px;
-}
-.about-page .method-item p{
-  font-size:13.5px;
-  color:var(--ink-soft);
-  line-height:1.6;
-  max-width:none;
-  margin-bottom:0;
-}
 
 .about-page .who-block{max-width:72ch;}
-
-.about-page .invite{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--radius);
-  padding:30px 32px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:24px;
-  flex-wrap:wrap;
-}
-.about-page .invite h3{
-  font-family:var(--serif);
-  font-weight:600;
-  font-size:21px;
-  max-width:38ch;
-  line-height:1.35;
-}
-
-@media (max-width:760px){
-  .about-page .method-grid{grid-template-columns:1fr;}
-  .about-page .invite{flex-direction:column;align-items:flex-start;}
-  .about-page .who-block{flex-direction:column;}
-}
 </style>
 </head>
 <body class="about-page">
@@ -115,7 +59,7 @@
     <nav class="site-nav" aria-label="Primary">
       <a href="../fairway-vs-rough/index.html">Analyses</a>
       <a href="../fairway-vs-rough/dashboard.html">Dashboard</a>
-      <a href="index.html">About</a>
+      <a aria-current="page">About</a>
     </nav>
   </div>
 </header>

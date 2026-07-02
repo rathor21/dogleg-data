@@ -261,6 +261,72 @@ footer.site-footer .copyright{
 }
 
 /* ============================================================
+   Shared components (home + about)
+   ============================================================ */
+
+/* mono section label */
+.section-label{
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--ink-soft);
+  margin-bottom:14px;
+}
+
+/* method strip */
+.method-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:var(--gap);
+}
+.method-item{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:20px 22px;
+}
+.method-item .num{
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--clay-text);
+  letter-spacing:.1em;
+  margin-bottom:10px;
+}
+.method-item h3{
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:16.5px;
+  margin-bottom:8px;
+}
+.method-item p{
+  font-size:13.5px;
+  color:var(--ink-soft);
+  line-height:1.6;
+}
+
+/* scramble reads invite */
+.invite{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:30px 32px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+  flex-wrap:wrap;
+}
+.invite h3{
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:21px;
+  max-width:38ch;
+  line-height:1.35;
+}
+
+/* ============================================================
    Home page, scoped under .home
    ============================================================ */
 .home .hero{
@@ -301,15 +367,6 @@ footer.site-footer .copyright{
 }
 
 .home section{margin-bottom:52px;}
-.home .section-label{
-  font-family:var(--mono);
-  font-size:11px;
-  font-weight:500;
-  letter-spacing:.18em;
-  text-transform:uppercase;
-  color:var(--ink-soft);
-  margin-bottom:14px;
-}
 
 /* latest analysis card */
 .home .analysis-card{
@@ -350,57 +407,6 @@ footer.site-footer .copyright{
 }
 .home .analysis-card .dek .badge-modeled{margin-left:4px;}
 
-/* method strip */
-.home .method-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:var(--gap);
-}
-.home .method-item{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--radius);
-  padding:20px 22px;
-}
-.home .method-item .num{
-  font-family:var(--mono);
-  font-size:11px;
-  color:var(--clay-text);
-  letter-spacing:.1em;
-  margin-bottom:10px;
-}
-.home .method-item h3{
-  font-family:var(--serif);
-  font-weight:600;
-  font-size:16.5px;
-  margin-bottom:8px;
-}
-.home .method-item p{
-  font-size:13.5px;
-  color:var(--ink-soft);
-  line-height:1.6;
-}
-
-/* scramble reads invite */
-.home .invite{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--radius);
-  padding:30px 32px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:24px;
-  flex-wrap:wrap;
-}
-.home .invite h3{
-  font-family:var(--serif);
-  font-weight:600;
-  font-size:21px;
-  max-width:38ch;
-  line-height:1.35;
-}
-
 /* ---------- responsive ---------- */
 @media (max-width:760px){
   .wrap{padding:20px 14px 32px;}
@@ -412,8 +418,8 @@ footer.site-footer .copyright{
   .home .analysis-card{grid-template-columns:1fr;}
   .home .analysis-card .thumb{border-right:0;border-bottom:1px solid var(--line);}
   .home .analysis-card .content{padding:22px;}
-  .home .method-grid{grid-template-columns:1fr;}
-  .home .invite{flex-direction:column;align-items:flex-start;}
+  .method-grid{grid-template-columns:1fr;}
+  .invite{flex-direction:column;align-items:flex-start;}
   footer.site-footer .footer-grid{flex-direction:column;align-items:flex-start;}
   footer.site-footer .footer-mascot{width:120px;}
 }
