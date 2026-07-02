@@ -35,6 +35,15 @@ body{
   overflow-wrap:break-word; /* safety net: long unbroken strings wrap instead of overflowing */
 }
 img{max-width:100%;height:auto;display:block;} /* height:auto keeps aspect ratio when width/height attributes reserve layout space */
+/* Base display heading: every page's h1 is Fraunces 900. Page-scoped rules
+   (.home .hero h1, article h1) still override this where they set their own sizes. */
+h1{
+  font-family:var(--serif);
+  font-weight:900;
+  font-size:clamp(28px,4vw,42px);
+  line-height:1.15;
+  letter-spacing:-0.01em;
+}
 a{color:inherit;}
 :focus-visible{outline:2px solid var(--clay);outline-offset:2px;}
 
