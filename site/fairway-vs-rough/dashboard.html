@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fairway vs. Rough, Interactive Explorer · Dogleg Data</title>
+<title>Tools · Dogleg Data</title>
 <!-- seo -->
-<meta name="description" content="Drag your own distance and handicap through the break-even model. Break-even explorer, Monte Carlo GIR simulator, and scramble calculator.">
+<meta name="description" content="The scramble decision tool, the break-even explorer, and a Monte Carlo GIR simulator, built from the Fairway vs. Rough analysis. Enter your lies, get the call.">
 <link rel="canonical" href="https://doglegdata.com/fairway-vs-rough/dashboard.html">
 <meta name="theme-color" content="#F4EDE0">
 <link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../assets/brand/apple-touch-icon.png">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Fairway vs. Rough, Interactive Explorer · Dogleg Data">
-<meta property="og:description" content="Drag your own distance and handicap through the break-even model. Break-even explorer, Monte Carlo GIR simulator, and scramble calculator.">
+<meta property="og:title" content="Tools · Dogleg Data">
+<meta property="og:description" content="The scramble decision tool, the break-even explorer, and a Monte Carlo GIR simulator, built from the Fairway vs. Rough analysis. Enter your lies, get the call.">
 <meta property="og:url" content="https://doglegdata.com/fairway-vs-rough/dashboard.html">
 <meta property="og:site_name" content="Dogleg Data">
 <meta property="og:image" content="https://doglegdata.com/assets/brand/og-banner.jpg">
@@ -24,10 +24,10 @@
 {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  "name": "Fairway vs. Rough, Interactive Explorer",
+  "name": "Dogleg Data Tools",
   "url": "https://doglegdata.com/fairway-vs-rough/dashboard.html",
   "applicationCategory": "Sports",
-  "description": "Three tools built on the Fairway vs. Rough dataset: a break-even explorer for how many yards the fairway is worth, a Monte Carlo GIR simulator for simulated odds of hitting the green from a chosen lie, and a scramble decision calculator that takes both lies and returns the call."
+  "description": "Tools built on the Fairway vs. Rough dataset: a scramble decision calculator that takes both lies and returns the call, a break-even explorer for how many yards the fairway is worth, and a Monte Carlo GIR simulator for simulated odds of hitting the green from a chosen lie."
 }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
@@ -37,7 +37,7 @@
 <style>
 :root{
   --bg:#F4EDE0; --card:#FBF7EE; --line:#E2D8C6;
-  --ink:#1C1B18; --ink-soft:#6B6152; --muted:#8A7F6E;
+  --ink:#1C1B18; --ink-soft:#4A4437; --muted:#665A4B;
   --clay:#C05A36; --clay-text:#A34A2C; --maroon:#7D362E; --blue:#5B7FA6; --blue-text:#46628A;
   --gap:18px; --radius:4px;
   --serif:'Fraunces',Georgia,'Times New Roman',serif;
@@ -130,77 +130,18 @@ footer .review strong{color:var(--ink);}
     <span class="tagline">Play the percentages</span>
     <a class="home-link" href="../index.html">&larr; Dogleg Data home</a>
   </div>
-  <h1>Fairway vs. Rough, Interactive Explorer</h1>
-  <p>Companion to the "stay in the fairway" post. Drag the controls to see the break-even yardage, the simulated GIR%, and your own scramble call, by skill level.</p>
+  <h1>Tools</h1>
+  <p>Built from the analyses, starting with "Fairway vs. Rough, by Handicap." First up: the scramble decision tool. More tools land as new analyses publish.</p>
 </header>
 
 <nav class="tabs">
-  <button class="tab-btn active" data-tab="breakeven">Break-even explorer</button>
+  <button class="tab-btn active" data-tab="scramble">Scramble decision tool</button>
+  <button class="tab-btn" data-tab="breakeven">Break-even explorer</button>
   <button class="tab-btn" data-tab="gir">Monte Carlo GIR%</button>
-  <button class="tab-btn" data-tab="scramble">Scramble decision tool</button>
 </nav>
 
-<!-- TAB 1: BREAK-EVEN -->
-<div class="tabpanel active" id="tab-breakeven">
-  <div class="card">
-    <h2>How far does the rough ball need to be to catch the fairway ball?</h2>
-    <div class="sub">Built from Broadie's Tour ShotLink data and Stagner/Arccos amateur break-even data. 25/30-handicap are extrapolated, not directly published.</div>
-
-    <div class="controls">
-      <div class="control">
-        <label for="be-tier">Skill level</label>
-        <select id="be-tier"></select>
-      </div>
-      <div class="control">
-        <label for="be-sev">Rough severity</label>
-        <select id="be-sev">
-          <option value="light">Light (first cut)</option>
-          <option value="moderate" selected>Moderate (typical)</option>
-          <option value="deep">Deep (thick primary cut)</option>
-        </select>
-      </div>
-      <div class="control" style="flex:2;min-width:260px;">
-        <label for="be-dist">Fairway distance &mdash; <span class="val" id="be-dist-val">150 yd</span></label>
-        <input type="range" id="be-dist" min="20" max="250" step="2" value="150">
-      </div>
-    </div>
-
-    <div class="kpi-row">
-      <div class="kpi"><div class="l">Fairway distance</div><div class="v" id="be-kpi-d">150 yd</div></div>
-      <div class="kpi"><div class="l">Rough ball ties it at</div><div class="v" id="be-kpi-r">— yd</div></div>
-      <div class="kpi"><div class="l">The fairway is worth</div><div class="v" id="be-kpi-w">— yd</div></div>
-    </div>
-
-    <div class="chart-box"><canvas id="be-chart"></canvas></div>
-    <div class="note">Dashed line = no lie advantage (fairway and rough tie at the same distance). The gap between the solid curve and the dashed line, at any point, is what the fairway is worth for that skill level and rough severity.</div>
-  </div>
-</div>
-
-<!-- TAB 2: GIR -->
-<div class="tabpanel" id="tab-gir">
-  <div class="card">
-    <h2>Simulated chance of hitting the green</h2>
-    <div class="sub">Monte Carlo shot-dispersion model, distance-aware via real Stagner/Arccos proximity data. Illustrative, not an official GIR benchmark.</div>
-
-    <div class="controls">
-      <div class="control">
-        <label for="gir-tier">Skill level</label>
-        <select id="gir-tier"></select>
-      </div>
-      <div class="control" style="flex:2;min-width:260px;">
-        <label for="gir-dist">Approach distance &mdash; <span class="val" id="gir-dist-val">150 yd</span></label>
-        <input type="range" id="gir-dist" min="60" max="250" step="5" value="150">
-      </div>
-    </div>
-
-    <div class="chart-box small"><canvas id="gir-bar"></canvas></div>
-    <div class="chart-box"><canvas id="gir-line"></canvas></div>
-    <div class="note">This models single-shot proximity only, not multi-shot scoring — it will not capture the long-range rough roll-out effect that shows up in the real Stagner data (see the post caption). Tour dispersion assumes pros are 25% tighter than a scratch amateur; that figure is a judgment call, not a cited number.</div>
-  </div>
-</div>
-
-<!-- TAB 3: SCRAMBLE -->
-<div class="tabpanel" id="tab-scramble">
+<!-- TAB 1: SCRAMBLE -->
+<div class="tabpanel active" id="tab-scramble">
   <div class="card">
     <h2>Which ball do you play?</h2>
     <div class="sub">Enter your two lies. The call comes straight from the break-even model, same as chart 2 in the post.</div>
@@ -239,7 +180,66 @@ footer .review strong{color:var(--ink);}
         <div class="labels"><span id="sc-label-need">gap needed to break even</span><span id="sc-label-have">gap you actually have</span></div>
       </div>
     </div>
-    <div class="note">The break-even gap comes from the same worth model as tab 1, at your fairway ball's distance, scaled for the rough severity you picked.</div>
+    <div class="note">The break-even gap comes from the same worth model as the break-even explorer, at your fairway ball's distance, scaled for the rough severity you picked.</div>
+  </div>
+</div>
+
+<!-- TAB 2: BREAK-EVEN -->
+<div class="tabpanel" id="tab-breakeven">
+  <div class="card">
+    <h2>How far does the rough ball need to be to catch the fairway ball?</h2>
+    <div class="sub">Built from Broadie's Tour ShotLink data and Stagner/Arccos amateur break-even data. 25/30-handicap are extrapolated, not directly published.</div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="be-tier">Skill level</label>
+        <select id="be-tier"></select>
+      </div>
+      <div class="control">
+        <label for="be-sev">Rough severity</label>
+        <select id="be-sev">
+          <option value="light">Light (first cut)</option>
+          <option value="moderate" selected>Moderate (typical)</option>
+          <option value="deep">Deep (thick primary cut)</option>
+        </select>
+      </div>
+      <div class="control" style="flex:2;min-width:260px;">
+        <label for="be-dist">Fairway distance &mdash; <span class="val" id="be-dist-val">150 yd</span></label>
+        <input type="range" id="be-dist" min="20" max="250" step="2" value="150">
+      </div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi"><div class="l">Fairway distance</div><div class="v" id="be-kpi-d">150 yd</div></div>
+      <div class="kpi"><div class="l">Rough ball ties it at</div><div class="v" id="be-kpi-r">— yd</div></div>
+      <div class="kpi"><div class="l">The fairway is worth</div><div class="v" id="be-kpi-w">— yd</div></div>
+    </div>
+
+    <div class="chart-box"><canvas id="be-chart"></canvas></div>
+    <div class="note">Dashed line = no lie advantage (fairway and rough tie at the same distance). The gap between the solid curve and the dashed line, at any point, is what the fairway is worth for that skill level and rough severity.</div>
+  </div>
+</div>
+
+<!-- TAB 3: GIR -->
+<div class="tabpanel" id="tab-gir">
+  <div class="card">
+    <h2>Simulated chance of hitting the green</h2>
+    <div class="sub">Monte Carlo shot-dispersion model, distance-aware via real Stagner/Arccos proximity data. Illustrative, not an official GIR benchmark.</div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="gir-tier">Skill level</label>
+        <select id="gir-tier"></select>
+      </div>
+      <div class="control" style="flex:2;min-width:260px;">
+        <label for="gir-dist">Approach distance &mdash; <span class="val" id="gir-dist-val">150 yd</span></label>
+        <input type="range" id="gir-dist" min="60" max="250" step="5" value="150">
+      </div>
+    </div>
+
+    <div class="chart-box small"><canvas id="gir-bar"></canvas></div>
+    <div class="chart-box"><canvas id="gir-line"></canvas></div>
+    <div class="note">This models single-shot proximity only, not multi-shot scoring — it will not capture the long-range rough roll-out effect that shows up in the real Stagner data (see the post caption). Tour dispersion assumes pros are 25% tighter than a scratch amateur; that figure is a judgment call, not a cited number.</div>
   </div>
 </div>
 
@@ -265,7 +265,7 @@ const TIER_COLORS = {tour:"#1C1B18",0:"#313C47",5:"#465E77",10:"#5B7FA6",15:"#8F
 const BRAND_SANS = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 const BRAND_MONO = "'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace";
 Chart.defaults.font.family = BRAND_SANS;
-Chart.defaults.color = "#8A7F6E";
+Chart.defaults.color = "#665A4B";
 Chart.defaults.borderColor = "#E2D8C6";
 
 function isExtrapolated(key, section){ return DATA[section].extrapolated.includes(key); }
@@ -335,8 +335,8 @@ function renderBreakeven(){
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{position:'top', labels:{usePointStyle:true, boxWidth:8, color:'#1C1B18', font:{size:11.5}}},
         tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y?.toFixed?.(1) ?? c.parsed.y} yd` } } },
-      scales:{ x:{ title:{display:true,text:'Fairway distance (yd)',color:'#6B6152'}, grid:{display:false}, ticks:{color:'#8A7F6E',font:{family:BRAND_MONO,size:11}} },
-                y:{ title:{display:true,text:'Rough tie distance (yd)',color:'#6B6152'}, beginAtZero:true, grid:{color:'#E2D8C6'}, ticks:{color:'#8A7F6E',font:{family:BRAND_MONO,size:11}} } }
+      scales:{ x:{ title:{display:true,text:'Fairway distance (yd)',color:'#4A4437'}, grid:{display:false}, ticks:{color:'#665A4B',font:{family:BRAND_MONO,size:11}} },
+                y:{ title:{display:true,text:'Rough tie distance (yd)',color:'#4A4437'}, beginAtZero:true, grid:{color:'#E2D8C6'}, ticks:{color:'#665A4B',font:{family:BRAND_MONO,size:11}} } }
     }
   };
   if(beChart){ beChart.data = cfg.data; beChart.update('none'); } else { beChart = new Chart(document.getElementById('be-chart'), cfg); }
@@ -362,7 +362,7 @@ function renderGir(){
   const barCfg = { type:'bar', data:{ labels: lieLabels, datasets:[{ data: barVals, backgroundColor: lieColors, borderRadius:2 }] },
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>`${c.parsed.y.toFixed(1)}% GIR` } } },
-      scales:{ y:{ beginAtZero:true, max:100, title:{display:true,text:'GIR% at '+D+' yd',color:'#6B6152'}, grid:{color:'#E2D8C6'}, ticks:{color:'#8A7F6E',font:{family:BRAND_MONO,size:11}} }, x:{ grid:{display:false}, ticks:{color:'#6B6152',font:{size:11.5}} } } } };
+      scales:{ y:{ beginAtZero:true, max:100, title:{display:true,text:'GIR% at '+D+' yd',color:'#4A4437'}, grid:{color:'#E2D8C6'}, ticks:{color:'#665A4B',font:{family:BRAND_MONO,size:11}} }, x:{ grid:{display:false}, ticks:{color:'#4A4437',font:{size:11.5}} } } } };
   if(girBar){ girBar.data = barCfg.data; girBar.options.scales.y.title.text = 'GIR% at '+D+' yd'; girBar.update('none'); }
   else { girBar = new Chart(document.getElementById('gir-bar'), barCfg); }
 
@@ -371,7 +371,7 @@ function renderGir(){
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{position:'top', labels:{usePointStyle:true, boxWidth:8, color:'#1C1B18', font:{size:11.5}}},
         tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}%` } } },
-      scales:{ x:{ title:{display:true,text:'Distance (yd)',color:'#6B6152'}, grid:{display:false}, ticks:{color:'#8A7F6E',font:{family:BRAND_MONO,size:11}} }, y:{ title:{display:true,text:'GIR%',color:'#6B6152'}, beginAtZero:true, max:100, grid:{color:'#E2D8C6'}, ticks:{color:'#8A7F6E',font:{family:BRAND_MONO,size:11}} } } } };
+      scales:{ x:{ title:{display:true,text:'Distance (yd)',color:'#4A4437'}, grid:{display:false}, ticks:{color:'#665A4B',font:{family:BRAND_MONO,size:11}} }, y:{ title:{display:true,text:'GIR%',color:'#4A4437'}, beginAtZero:true, max:100, grid:{color:'#E2D8C6'}, ticks:{color:'#665A4B',font:{family:BRAND_MONO,size:11}} } } } };
   if(girLine){ girLine.data = lineCfg.data; girLine.update('none'); } else { girLine = new Chart(document.getElementById('gir-line'), lineCfg); }
 }
 ['gir-tier','gir-dist'].forEach(id=> document.getElementById(id).addEventListener('input', renderGir));

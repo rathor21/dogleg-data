@@ -2,11 +2,11 @@
 
 > Golf's conventional wisdom, tested against real data. Sourced analysis for the 8-to-30 handicap.
 
-Dogleg Data is an independent golf analytics publication for the golfer who plays a $40 muni and gets advice built from tour numbers. Every claim traces to a named source: Broadie's ShotLink data, Stagner and Arccos amateur numbers, USGA and R&A rough studies, GOLFTEC fitting data. Where a figure is extrapolated rather than pulled straight from a source, it is labeled modeled, on the chart, every time. Analyses go through peer review before publishing, and the review findings are published alongside the work, including what broke and how it got fixed.
+Dogleg Data is an independent golf analytics publication for the golfer who plays a $65 muni and gets advice built from tour numbers. Every claim traces to a named source: Broadie's ShotLink data, Stagner and Arccos amateur numbers, USGA and R&A rough studies, GOLFTEC fitting data. Where a figure is extrapolated rather than pulled straight from a source, it is labeled modeled, on the chart, every time. Analyses go through peer review before publishing, and the review findings are published alongside the work, including what broke and how it got fixed.
 
 ## Pages
 
 - [Home](https://doglegdata.com/): Site overview and the latest analysis, "Fairway vs. Rough, by Handicap."
 - [Fairway vs. Rough, by Handicap](https://doglegdata.com/fairway-vs-rough/): The fairway is worth 75 yards to a tour pro at 150 out, and 17 to a 20-handicap, with sourced data and a published peer review.
-- [Fairway vs. Rough, Interactive Explorer](https://doglegdata.com/fairway-vs-rough/dashboard.html): A break-even explorer, Monte Carlo GIR simulator, and scramble calculator built on the same dataset as the post.
+- [Tools](https://doglegdata.com/fairway-vs-rough/dashboard.html): A scramble decision calculator, break-even explorer, and Monte Carlo GIR simulator, built on the same dataset as the post.
 - [About](https://doglegdata.com/about/): Who runs Dogleg Data and the verification standard behind every analysis.
