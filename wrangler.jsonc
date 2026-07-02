@@ -7,5 +7,9 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "routes": [
+    { "pattern": "doglegdata.com", "custom_domain": true },
+    { "pattern": "www.doglegdata.com", "custom_domain": true }
+  ]
 }
