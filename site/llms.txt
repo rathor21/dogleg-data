@@ -2,7 +2,7 @@
 
 > Golf's conventional wisdom, tested against real data. Sourced analysis for the 8-to-30 handicap.
 
-Dogleg Data is an independent golf analytics publication for the golfer who plays a $65 muni and gets advice built from tour numbers. Every claim traces to a named source: Broadie's ShotLink data, Stagner and Arccos amateur numbers, USGA and R&A rough studies, GOLFTEC fitting data. Where a figure is extrapolated rather than pulled straight from a source, it is labeled modeled, on the chart, every time. Analyses go through peer review before publishing, and the review findings are published alongside the work, including what broke and how it got fixed.
+Dogleg Data is an independent golf analytics publication for the golfer who plays a $65 muni and gets advice built from tour numbers. Every claim traces to a named source: Broadie's ShotLink data, Stagner and Arccos amateur numbers, USGA and R&A rough studies, GOLFTEC fitting data. Where a figure is extrapolated rather than pulled straight from a source, the chart labels it modeled. Analyses go through peer review before publishing, and the review findings publish alongside the work, including what broke and how it got fixed.
 
 ## Pages
 
