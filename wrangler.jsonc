@@ -4,5 +4,8 @@
   "assets": {
     "directory": "./site",
     "not_found_handling": "404-page"
+  },
+  "observability": {
+    "enabled": false
   }
 }
