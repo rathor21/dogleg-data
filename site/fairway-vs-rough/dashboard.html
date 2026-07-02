@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fairway vs. Rough — Interactive Explorer · Dogleg Data</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4EDE0; --card:#FBF7EE; --line:#E2D8C6;
+  --ink:#1C1B18; --ink-soft:#6B6152; --muted:#8A7F6E;
+  --clay:#C05A36; --clay-text:#A34A2C; --maroon:#7D362E; --blue:#5B7FA6; --blue-text:#46628A;
+  --gap:18px; --radius:4px;
+  --serif:'Fraunces',Georgia,'Times New Roman',serif;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.5;}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 44px;}
+:focus-visible{outline:2px solid var(--clay);outline-offset:2px;}
+header{padding:4px 2px 24px;border-bottom:4px double var(--line);margin-bottom:22px;}
+.brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+.brand .mark{width:34px;height:34px;flex:none;}
+.brand .wordmark{font-family:var(--serif);font-weight:900;font-size:34px;line-height:1;letter-spacing:-0.02em;color:var(--ink);}
+.brand .tagline{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--clay-text);margin-left:4px;position:relative;top:4px;}
+header h1{font-family:var(--serif);font-weight:600;font-size:21px;line-height:1.3;margin-bottom:7px;max-width:60ch;}
+header p{font-size:14px;color:var(--ink-soft);max-width:70ch;}
+nav.tabs{display:flex;gap:8px;margin-bottom:var(--gap);flex-wrap:wrap;}
+nav.tabs button{background:transparent;border:1px solid var(--line);color:var(--ink-soft);
+  padding:9px 18px;border-radius:999px;font-family:var(--sans);font-size:13.5px;font-weight:500;cursor:pointer;}
+nav.tabs button:hover{border-color:var(--clay);color:var(--clay-text);}
+nav.tabs button.active{background:var(--clay-text);color:#FBF7EE;border-color:var(--clay-text);font-weight:600;}
+.tabpanel{display:none;}
+.tabpanel.active{display:block;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;margin-bottom:var(--gap);}
+.card h2{font-family:var(--serif);font-weight:600;font-size:19px;line-height:1.3;padding-bottom:10px;border-bottom:3px double var(--line);margin-bottom:10px;}
+.card .sub{font-size:13px;color:var(--ink-soft);margin-bottom:20px;max-width:80ch;}
+.controls{display:flex;flex-wrap:wrap;gap:22px;margin-bottom:22px;padding-bottom:20px;border-bottom:1px solid var(--line);}
+.control{display:flex;flex-direction:column;gap:7px;min-width:170px;flex:1;}
+.control label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+.control select, .control input[type=range]{width:100%;}
+.control select{padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);font-family:var(--sans);font-size:14px;background:#FFFFFF;color:var(--ink);}
+.control select:hover{border-color:var(--clay);}
+.control input[type=range]{accent-color:var(--clay);height:22px;cursor:pointer;}
+.control .val{font-family:var(--mono);font-size:12.5px;font-weight:500;color:var(--clay-text);text-transform:none;letter-spacing:0;}
+.badge-modeled{display:inline-block;background:transparent;border:1px dashed var(--maroon);color:var(--maroon);
+  font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.06em;
+  padding:1px 8px;border-radius:999px;margin-left:8px;vertical-align:middle;}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:22px;}
+.kpi{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+.kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+.kpi .v{font-family:var(--mono);font-size:23px;font-weight:500;color:var(--ink);}
+.chart-box{position:relative;height:340px;margin-bottom:6px;}
+.chart-box.small{height:280px;}
+.note{font-size:12px;color:var(--ink-soft);line-height:1.6;margin-top:10px;max-width:90ch;}
+.verdict{border-radius:var(--radius);padding:22px 24px;margin-bottom:20px;border:1px solid;}
+.verdict.rough{background:#F6E7DC;border-color:#E0C3AE;}
+.verdict.fairway{background:#E9EEF4;border-color:#C8D3E0;}
+.verdict .headline{font-family:var(--serif);font-size:21px;font-weight:600;margin-bottom:6px;}
+.verdict.rough .headline{color:var(--clay-text);}
+.verdict.fairway .headline{color:var(--blue-text);}
+.verdict .detail{font-family:var(--mono);font-size:13px;color:var(--ink-soft);}
+.gapviz{margin-top:16px;}
+.gapviz .track{position:relative;height:34px;background:#EFE6D4;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+.gapviz .bar{position:absolute;top:0;bottom:0;}
+.gapviz .bar.have{background:var(--clay);}
+.gapviz .bar.need{background:var(--muted);}
+.gapviz .labels{display:flex;justify-content:space-between;gap:12px;font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:7px;}
+footer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px 26px;}
+footer .signoff{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--clay-text);
+  padding-bottom:12px;border-bottom:3px double var(--line);margin-bottom:14px;}
+footer h3{font-family:var(--serif);font-weight:600;font-size:15px;margin-bottom:10px;}
+footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.65;}
+footer .review{font-size:12.5px;color:var(--ink-soft);background:var(--bg);border:1px solid var(--line);
+  border-radius:var(--radius);padding:12px 14px;margin-top:10px;line-height:1.65;}
+footer .review strong{color:var(--ink);}
+@media (max-width:640px){
+  .wrap{padding:20px 14px 32px;}
+  .controls{flex-direction:column;gap:16px;}
+  .control{min-width:0;}
+  .brand .wordmark{font-size:28px;}
+  nav.tabs button{flex:1;min-width:max-content;}
+  .card{padding:18px 16px;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dogleg Data mark">
+      <path d="M8 28 V14 Q8 8 14 8 H21" fill="none" stroke="#1C1B18" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="26" cy="8" r="3.5" fill="#C05A36"/>
+    </svg>
+    <span class="wordmark">Dogleg Data</span>
+    <span class="tagline">Play the percentages.</span>
+  </div>
+  <h1>Fairway vs. rough, by handicap — interactive explorer</h1>
+  <p>Companion to the "stay in the fairway" post. Drag the controls to see the break-even yardage, the simulated GIR%, and your own scramble call, by skill level.</p>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="breakeven">Break-even explorer</button>
+  <button class="tab-btn" data-tab="gir">Monte Carlo GIR%</button>
+  <button class="tab-btn" data-tab="scramble">Scramble decision tool</button>
+</nav>
+
+<!-- TAB 1: BREAK-EVEN -->
+<div class="tabpanel active" id="tab-breakeven">
+  <div class="card">
+    <h2>How far does the rough ball need to be to catch the fairway ball?</h2>
+    <div class="sub">Built from Broadie's Tour ShotLink data and Stagner/Arccos amateur break-even data. 25/30-handicap are extrapolated, not directly published.</div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="be-tier">Skill level</label>
+        <select id="be-tier"></select>
+      </div>
+      <div class="control">
+        <label for="be-sev">Rough severity</label>
+        <select id="be-sev">
+          <option value="light">Light (first cut)</option>
+          <option value="moderate" selected>Moderate (typical)</option>
+          <option value="deep">Deep (thick primary cut)</option>
+        </select>
+      </div>
+      <div class="control" style="flex:2;min-width:260px;">
+        <label for="be-dist">Fairway distance &mdash; <span class="val" id="be-dist-val">150 yd</span></label>
+        <input type="range" id="be-dist" min="20" max="250" step="2" value="150">
+      </div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi"><div class="l">Fairway distance</div><div class="v" id="be-kpi-d">150 yd</div></div>
+      <div class="kpi"><div class="l">Rough ball ties it at</div><div class="v" id="be-kpi-r">— yd</div></div>
+      <div class="kpi"><div class="l">The fairway is worth</div><div class="v" id="be-kpi-w">— yd</div></div>
+    </div>
+
+    <div class="chart-box"><canvas id="be-chart"></canvas></div>
+    <div class="note">Dashed line = no lie advantage (fairway and rough tie at the same distance). The gap between the solid curve and the dashed line, at any point, is what the fairway is worth for that skill level and rough severity.</div>
+  </div>
+</div>
+
+<!-- TAB 2: GIR -->
+<div class="tabpanel" id="tab-gir">
+  <div class="card">
+    <h2>Simulated chance of hitting the green</h2>
+    <div class="sub">Monte Carlo shot-dispersion model, distance-aware via real Stagner/Arccos proximity data. Illustrative, not an official GIR benchmark.</div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="gir-tier">Skill level</label>
+        <select id="gir-tier"></select>
+      </div>
+      <div class="control" style="flex:2;min-width:260px;">
+        <label for="gir-dist">Approach distance &mdash; <span class="val" id="gir-dist-val">150 yd</span></label>
+        <input type="range" id="gir-dist" min="60" max="250" step="5" value="150">
+      </div>
+    </div>
+
+    <div class="chart-box small"><canvas id="gir-bar"></canvas></div>
+    <div class="chart-box"><canvas id="gir-line"></canvas></div>
+    <div class="note">This models single-shot proximity only, not multi-shot scoring — it will not capture the long-range rough roll-out effect that shows up in the real Stagner data (see the post caption). Tour dispersion assumes pros are 25% tighter than a scratch amateur; that figure is a judgment call, not a cited number.</div>
+  </div>
+</div>
+
+<!-- TAB 3: SCRAMBLE -->
+<div class="tabpanel" id="tab-scramble">
+  <div class="card">
+    <h2>Which ball do you play?</h2>
+    <div class="sub">Enter your two lies. The call comes straight from the break-even model, same as chart 2 in the post.</div>
+
+    <div class="controls">
+      <div class="control" style="flex:2;min-width:220px;">
+        <label for="sc-fair">Fairway ball distance &mdash; <span class="val" id="sc-fair-val">160 yd</span></label>
+        <input type="range" id="sc-fair" min="20" max="250" step="1" value="160">
+      </div>
+      <div class="control" style="flex:2;min-width:220px;">
+        <label for="sc-rough">Rough ball distance &mdash; <span class="val" id="sc-rough-val">125 yd</span></label>
+        <input type="range" id="sc-rough" min="20" max="250" step="1" value="125">
+      </div>
+      <div class="control">
+        <label for="sc-tier">Skill level</label>
+        <select id="sc-tier"></select>
+      </div>
+      <div class="control">
+        <label for="sc-sev">Rough severity</label>
+        <select id="sc-sev">
+          <option value="light" selected>Light (first cut)</option>
+          <option value="moderate">Moderate (typical)</option>
+          <option value="deep">Deep (thick primary cut)</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="sc-verdict" class="verdict rough">
+      <div class="headline" id="sc-headline">Play the rough ball</div>
+      <div class="detail" id="sc-detail">—</div>
+      <div class="gapviz">
+        <div class="track">
+          <div class="bar need" id="sc-bar-need"></div>
+          <div class="bar have" id="sc-bar-have"></div>
+        </div>
+        <div class="labels"><span id="sc-label-need">gap needed to break even</span><span id="sc-label-have">gap you actually have</span></div>
+      </div>
+    </div>
+    <div class="note">The break-even gap comes from the same worth model as tab 1, at your fairway ball's distance, scaled for the rough severity you picked.</div>
+  </div>
+</div>
+
+<footer>
+  <p class="signoff">Dogleg Data &middot; Play the percentages.</p>
+  <h3>Sources &amp; methodology</h3>
+  <p>Tour numbers: Broadie (2011), ShotLink Table 9, 8M+ shots. Amateur break-even: Lou Stagner / Arccos, ~1B shots (10/20-index published; 25/30-index extrapolated across the full published 0-20 range). Amateur proximity-by-distance: Stagner/Arccos newsletter #71, used here to make the GIR tool's distance sensitivity real rather than flat. Rough-severity scaling: 2021 USGA/R&amp;A rough-difficulty simulation, cross-checked against a 2025 Golf Digest field test. Dispersion simulation calibrated to GOLFTEC 7-iron fitting data, extrapolated beyond its measured range for higher handicaps and stretched to the full distance range using real proximity-by-distance data — the most heavily modeled piece of this tool.</p>
+  <div class="review">
+    <strong>Peer-reviewed before publishing.</strong> The review caught three real bugs, not wording nits: the 30-index worth extrapolation originally doubled one noisy bin-to-bin difference and produced a false sign-flip around 200yd (fixed by fitting across all five published handicap points); the Monte Carlo dispersion model let high-handicap shot spread shrink instead of grow past 13-handicap, which briefly made a 30-handicap look more accurate than a 20-handicap at some distances (fixed with a non-negative extrapolation slope); and the tour "worth" number at 150yd was 75 in the post's chart 1 but 76.67 everywhere else that reused the underlying model, including this dashboard's first build (fixed by switching to the same fine-grid method chart 1 already used). Full review: Peer_Review_Fairway_vs_Rough.md.
+  </div>
+</footer>
+
+</div>
+
+<script id="dashboard-data" type="application/json">
+{"worth": {"distances": [20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 136, 138, 140, 142, 144, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 166, 168, 170, 172, 174, 176, 178, 180, 182, 184, 186, 188, 190, 192, 194, 196, 198, 200, 202, 204, 206, 208, 210, 212, 214, 216, 218, 220, 222, 224, 226, 228, 230, 232, 234, 236, 238, 240, 242, 244, 246, 248, 250], "tiers": {"tour": "Tour pro", "0": "0-hcp (scratch)", "5": "5-hcp", "10": "10-hcp", "15": "15-hcp", "20": "20-hcp", "25": "25-hcp (modeled)", "30": "30-hcp (modeled)"}, "worth_moderate": {"tour": [7.6, 8.64, 9.68, 10.72, 11.76, 12.8, 14.16, 15.52, 16.88, 18.24, 19.09, 20.0, 20.91, 21.82, 22.73, 23.64, 24.91, 26.18, 27.45, 28.73, 30.0, 31.5, 33.0, 34.5, 36.0, 37.5, 38.75, 40.0, 41.25, 42.5, 43.75, 45.25, 46.75, 48.25, 49.75, 51.25, 52.5, 53.78, 55.11, 56.44, 57.78, 59.22, 60.67, 62.11, 63.56, 65.0, 66.44, 67.89, 69.33, 70.78, 72.22, 73.56, 74.89, 76.22, 77.0, 77.5, 78.0, 78.5, 79.0, 79.5, 80.0, 78.5, 77.0, 75.67, 75.33, 75.0, 74.67, 74.33, 74.0, 73.67, 73.33, 72.0, 70.67, 69.33, 68.0, 66.67, 65.33, 64.0, 62.67, 61.33, 60.0, 58.86, 57.71, 56.57, 55.43, 54.29, 53.14, 52.25, 51.5, 50.75, 50.0, 48.75, 47.5, 46.25, 45.0, 43.75, 42.5, 41.25, 40.0, 38.75, 38.18, 37.82, 37.45, 37.09, 36.73, 36.36, 36.0, 35.64, 35.27, 34.91, 34.55, 34.18, 33.82, 33.45, 33.09, 32.73], "0": [6.0, 5.6, 5.2, 4.8, 4.4, 4.0, 4.6, 5.2, 5.8, 6.4, 7.0, 8.2, 9.4, 10.6, 11.8, 13.0, 14.4, 15.8, 17.2, 18.6, 20.0, 21.8, 23.6, 25.4, 27.2, 29.0, 29.4, 29.8, 30.2, 30.6, 31.0, 29.4, 27.8, 26.2, 24.6, 23.0, 23.6, 24.2, 24.8, 25.4, 26.0, 26.0, 26.0, 26.0, 26.0, 26.0, 26.6, 27.2, 27.8, 28.4, 29.0, 29.0, 29.0, 29.0, 29.0, 29.0, 29.2, 29.4, 29.6, 29.8, 30.0, 29.8, 29.6, 29.4, 29.2, 29.0, 28.2, 27.4, 26.6, 25.8, 25.0, 24.4, 23.8, 23.2, 22.6, 22.0, 21.4, 20.8, 20.2, 19.6, 19.0, 18.2, 17.4, 16.6, 15.8, 15.0, 14.6, 14.2, 13.8, 13.4, 13.0, 12.4, 11.8, 11.2, 10.6, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.2, 10.4, 10.6, 10.8, 11.0, 10.8, 10.6, 10.4, 10.2, 10.0, 9.8, 9.6, 9.4, 9.2, 9.0], "5": [5.0, 4.8, 4.6, 4.4, 4.2, 4.0, 4.6, 5.2, 5.8, 6.4, 7.0, 8.2, 9.4, 10.6, 11.8, 13.0, 14.2, 15.4, 16.6, 17.8, 19.0, 20.4, 21.8, 23.2, 24.6, 26.0, 26.6, 27.2, 27.8, 28.4, 29.0, 28.6, 28.2, 27.8, 27.4, 27.0, 27.6, 28.2, 28.8, 29.4, 30.0, 30.0, 30.0, 30.0, 30.0, 30.0, 30.6, 31.2, 31.8, 32.4, 33.0, 32.0, 31.0, 30.0, 29.0, 28.0, 27.6, 27.2, 26.8, 26.4, 26.0, 25.8, 25.6, 25.4, 25.2, 25.0, 24.4, 23.8, 23.2, 22.6, 22.0, 21.6, 21.2, 20.8, 20.4, 20.0, 19.4, 18.8, 18.2, 17.6, 17.0, 16.8, 16.6, 16.4, 16.2, 16.0, 15.2, 14.4, 13.6, 12.8, 12.0, 11.6, 11.2, 10.8, 10.4, 10.0, 9.6, 9.2, 8.8, 8.4, 8.0, 7.4, 6.8, 6.2, 5.6, 5.0, 5.2, 5.4, 5.6, 5.8, 6.0, 5.8, 5.6, 5.4, 5.2, 5.0], "10": [6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 8.2, 9.4, 10.6, 11.8, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.4, 20.8, 22.2, 23.6, 25.0, 25.6, 26.2, 26.8, 27.4, 28.0, 28.8, 29.6, 30.4, 31.2, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 31.8, 31.6, 31.4, 31.2, 31.0, 30.6, 30.2, 29.8, 29.4, 29.0, 28.6, 28.2, 27.8, 27.4, 27.0, 26.4, 25.8, 25.2, 24.6, 24.0, 23.8, 23.6, 23.4, 23.2, 23.0, 22.4, 21.8, 21.2, 20.6, 20.0, 19.4, 18.8, 18.2, 17.6, 17.0, 16.8, 16.6, 16.4, 16.2, 16.0, 15.4, 14.8, 14.2, 13.6, 13.0, 12.6, 12.2, 11.8, 11.4, 11.0, 10.8, 10.6, 10.4, 10.2, 10.0, 9.4, 8.8, 8.2, 7.6, 7.0, 6.6, 6.2, 5.8, 5.4, 5.0, 4.4, 3.8, 3.2, 2.6, 2.0, 1.8, 1.6, 1.4, 1.2, 1.0], "15": [5.0, 5.4, 5.8, 6.2, 6.6, 7.0, 7.8, 8.6, 9.4, 10.2, 11.0, 11.6, 12.2, 12.8, 13.4, 14.0, 14.8, 15.6, 16.4, 17.2, 18.0, 19.4, 20.8, 22.2, 23.6, 25.0, 25.6, 26.2, 26.8, 27.4, 28.0, 28.8, 29.6, 30.4, 31.2, 32.0, 32.0, 32.0, 32.0, 32.0, 32.0, 31.0, 30.0, 29.0, 28.0, 27.0, 26.8, 26.6, 26.4, 26.2, 26.0, 25.8, 25.6, 25.4, 25.2, 25.0, 24.8, 24.6, 24.4, 24.2, 24.0, 23.4, 22.8, 22.2, 21.6, 21.0, 20.2, 19.4, 18.6, 17.8, 17.0, 16.6, 16.2, 15.8, 15.4, 15.0, 14.8, 14.6, 14.4, 14.2, 14.0, 13.4, 12.8, 12.2, 11.6, 11.0, 10.8, 10.6, 10.4, 10.2, 10.0, 9.4, 8.8, 8.2, 7.6, 7.0, 6.6, 6.2, 5.8, 5.4, 5.0, 4.8, 4.6, 4.4, 4.2, 4.0, 3.4, 2.8, 2.2, 1.6, 1.0, 0.6, 0.2, -0.2, -0.6, -1.0], "20": [4.0, 4.6, 5.2, 5.8, 6.4, 7.0, 7.8, 8.6, 9.4, 10.2, 11.0, 11.8, 12.6, 13.4, 14.2, 15.0, 15.4, 15.8, 16.2, 16.6, 17.0, 18.2, 19.4, 20.6, 21.8, 23.0, 23.8, 24.6, 25.4, 26.2, 27.0, 27.6, 28.2, 28.8, 29.4, 30.0, 29.4, 28.8, 28.2, 27.6, 27.0, 26.4, 25.8, 25.2, 24.6, 24.0, 24.0, 24.0, 24.0, 24.0, 24.0, 24.4, 24.8, 25.2, 25.6, 26.0, 25.2, 24.4, 23.6, 22.8, 22.0, 21.0, 20.0, 19.0, 18.0, 17.0, 16.6, 16.2, 15.8, 15.4, 15.0, 14.8, 14.6, 14.4, 14.2, 14.0, 13.4, 12.8, 12.2, 11.6, 11.0, 10.6, 10.2, 9.8, 9.4, 9.0, 8.4, 7.8, 7.2, 6.6, 6.0, 5.8, 5.6, 5.4, 5.2, 5.0, 4.8, 4.6, 4.4, 4.2, 4.0, 3.4, 2.8, 2.2, 1.6, 1.0, 0.6, 0.2, -0.2, -0.6, -1.0, -1.4, -1.8, -2.2, -2.6, -3.0], "25": [4.0, 4.86, 5.72, 6.58, 7.44, 8.3, 9.08, 9.86, 10.64, 11.42, 12.2, 12.78, 13.36, 13.94, 14.52, 15.1, 15.34, 15.58, 15.82, 16.06, 16.3, 17.38, 18.46, 19.54, 20.62, 21.7, 22.54, 23.38, 24.22, 25.06, 25.9, 27.62, 29.34, 31.06, 32.78, 34.5, 33.72, 32.94, 32.16, 31.38, 30.6, 29.58, 28.56, 27.54, 26.52, 25.5, 25.02, 24.54, 24.06, 23.58, 23.1, 23.34, 23.58, 23.82, 24.06, 24.3, 23.4, 22.5, 21.6, 20.7, 19.8, 18.76, 17.72, 16.68, 15.64, 14.6, 14.14, 13.68, 13.22, 12.76, 12.3, 12.1, 11.9, 11.7, 11.5, 11.3, 10.98, 10.66, 10.34, 10.02, 9.7, 9.3, 8.9, 8.5, 8.1, 7.7, 7.28, 6.86, 6.44, 6.02, 5.6, 5.38, 5.16, 4.94, 4.72, 4.5, 4.06, 3.62, 3.18, 2.74, 2.3, 1.62, 0.94, 0.26, -0.42, -1.1, -1.78, -2.46, -3.14, -3.82, -4.5, -4.96, -5.42, -5.88, -6.34, -6.8], "30": [3.6, 4.72, 5.84, 6.96, 8.08, 9.2, 10.04, 10.88, 11.72, 12.56, 13.4, 13.84, 14.28, 14.72, 15.16, 15.6, 15.6, 15.6, 15.6, 15.6, 15.6, 16.56, 17.52, 18.48, 19.44, 20.4, 21.32, 22.24, 23.16, 24.08, 25.0, 27.28, 29.56, 31.84, 34.12, 36.4, 35.32, 34.24, 33.16, 32.08, 31.0, 29.76, 28.52, 27.28, 26.04, 24.8, 24.12, 23.44, 22.76, 22.08, 21.4, 21.8, 22.2, 22.6, 23.0, 23.4, 22.32, 21.24, 20.16, 19.08, 18.0, 16.76, 15.52, 14.28, 13.04, 11.8, 11.4, 11.0, 10.6, 10.2, 9.8, 9.68, 9.56, 9.44, 9.32, 9.2, 8.92, 8.64, 8.36, 8.08, 7.8, 7.44, 7.08, 6.72, 6.36, 6.0, 5.6, 5.2, 4.8, 4.4, 4.0, 3.84, 3.68, 3.52, 3.36, 3.2, 2.72, 2.24, 1.76, 1.28, 0.8, -0.0, -0.8, -1.6, -2.4, -3.2, -4.0, -4.8, -5.6, -6.4, -7.2, -7.72, -8.24, -8.76, -9.28, -9.8]}, "severity_mult": {"light": 0.5, "moderate": 1.0, "deep": 1.7}, "extrapolated": ["25", "30"]}, "gir": {"distances": [60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215, 220, 225, 230, 235, 240, 245, 250], "tiers": {"tour": "Tour pro", "0": "0-hcp (scratch)", "5": "5-hcp", "10": "10-hcp", "15": "15-hcp", "20": "20-hcp", "25": "25-hcp (modeled)", "30": "30-hcp (modeled)"}, "gir": {"tour": {"fairway": [58.65, 62.91, 66.11, 69.59, 73.11, 74.41, 76.92, 78.87, 80.93, 80.96, 80.85, 80.47, 82.58, 82.0, 80.84, 80.67, 80.91, 80.86, 79.31, 76.81, 74.15, 74.3, 73.11, 72.96, 73.41, 69.85, 64.94, 63.9, 61.22, 58.67, 58.75, 57.22, 52.19, 46.49, 46.37, 46.09, 45.81, 45.1, 46.38], "rough_light": [49.44, 53.88, 57.03, 61.52, 64.28, 65.98, 67.98, 69.42, 71.94, 72.46, 72.67, 72.32, 73.22, 72.97, 72.97, 72.44, 72.19, 72.05, 70.55, 69.02, 65.6, 65.62, 64.38, 64.18, 64.69, 60.98, 55.62, 54.6, 52.68, 50.58, 49.56, 48.83, 43.59, 38.55, 38.16, 38.72, 39.27, 38.12, 38.49], "rough_moderate": [42.48, 45.85, 49.16, 52.05, 55.62, 57.42, 60.1, 61.82, 63.53, 64.92, 64.63, 64.17, 65.58, 65.34, 64.35, 63.65, 64.2, 64.52, 62.83, 60.15, 57.45, 57.7, 55.55, 55.27, 56.17, 53.05, 48.59, 46.92, 44.44, 42.72, 43.88, 41.05, 37.44, 32.83, 32.32, 32.28, 32.29, 32.41, 32.55], "rough_deep": [34.98, 37.98, 40.23, 43.86, 45.69, 48.42, 50.09, 51.81, 53.47, 54.06, 54.38, 53.74, 55.68, 54.62, 54.11, 53.3, 54.53, 54.01, 53.49, 49.69, 47.88, 47.98, 46.39, 46.29, 46.17, 43.42, 39.91, 39.0, 36.85, 35.37, 35.09, 34.02, 29.61, 25.8, 25.98, 25.68, 26.56, 25.87, 26.22]}, "0": {"fairway": [39.92, 42.52, 46.02, 50.09, 53.02, 54.88, 57.42, 59.02, 61.74, 61.43, 61.02, 60.84, 63.14, 62.41, 62.16, 61.86, 62.56, 61.91, 59.59, 56.98, 54.52, 54.72, 52.73, 53.03, 53.14, 49.63, 45.78, 43.95, 41.73, 39.97, 39.75, 38.55, 34.24, 29.27, 29.52, 29.49, 29.24, 29.95, 29.45], "rough_light": [32.84, 35.94, 38.53, 41.59, 44.5, 46.61, 48.4, 50.18, 52.75, 52.74, 52.28, 52.62, 54.08, 53.63, 53.18, 51.93, 52.15, 52.37, 50.74, 48.55, 45.87, 46.58, 45.76, 44.98, 45.16, 41.31, 38.05, 36.99, 35.41, 33.23, 32.45, 31.86, 27.76, 24.48, 24.2, 24.04, 24.22, 23.95, 24.07], "rough_moderate": [27.44, 30.63, 32.27, 35.99, 38.5, 40.11, 41.19, 43.8, 44.88, 45.34, 45.25, 45.3, 46.91, 45.76, 45.98, 45.38, 44.9, 45.09, 43.44, 41.98, 39.32, 39.34, 37.48, 38.24, 38.05, 35.82, 31.64, 30.55, 29.47, 28.09, 27.61, 26.07, 23.23, 20.3, 20.76, 20.32, 19.86, 20.2, 20.36], "rough_deep": [21.49, 24.42, 26.21, 29.04, 30.53, 32.37, 34.16, 35.2, 37.23, 36.96, 36.52, 36.93, 37.97, 37.24, 37.21, 36.43, 36.65, 36.77, 36.29, 33.68, 31.6, 32.26, 31.2, 31.01, 30.2, 28.07, 24.94, 24.56, 22.82, 22.64, 22.05, 20.84, 18.69, 15.46, 15.84, 16.01, 15.93, 16.14, 15.83]}, "5": {"fairway": [21.47, 23.34, 25.52, 27.93, 30.4, 31.13, 33.03, 33.98, 35.2, 35.4, 36.23, 35.84, 36.92, 37.02, 36.59, 36.61, 36.6, 36.09, 35.87, 33.36, 31.91, 32.07, 30.82, 30.14, 29.87, 27.71, 24.36, 23.08, 22.43, 20.16, 18.77, 16.84, 14.97, 12.57, 13.09, 13.36, 13.24, 13.0, 13.31], "rough_light": [17.34, 18.67, 20.8, 22.71, 24.6, 26.49, 26.59, 28.3, 28.69, 29.35, 28.88, 29.98, 31.11, 30.37, 29.74, 30.03, 30.43, 30.32, 29.22, 27.57, 26.2, 25.75, 25.24, 24.85, 24.31, 22.0, 20.21, 19.09, 18.43, 16.89, 14.94, 14.09, 11.97, 10.64, 10.32, 10.64, 10.81, 10.55, 10.15], "rough_moderate": [14.26, 16.2, 17.35, 18.62, 20.12, 20.84, 22.54, 22.87, 24.04, 24.38, 24.73, 24.88, 25.31, 24.79, 25.25, 25.21, 24.78, 24.88, 24.7, 22.73, 21.8, 21.59, 21.11, 20.69, 20.52, 18.82, 16.45, 15.39, 15.24, 13.34, 12.54, 11.24, 10.08, 8.81, 8.74, 8.71, 8.63, 8.67, 8.57], "rough_deep": [11.4, 12.28, 13.16, 14.87, 16.04, 16.59, 17.59, 18.82, 18.77, 19.63, 20.04, 20.28, 20.21, 20.14, 19.78, 19.75, 19.65, 19.71, 19.5, 18.27, 17.39, 16.86, 16.43, 15.87, 16.16, 14.14, 13.06, 12.38, 11.38, 10.68, 9.72, 8.96, 7.6, 6.68, 6.79, 6.73, 6.57, 6.54, 6.65]}, "10": {"fairway": [11.61, 12.58, 14.59, 15.57, 16.86, 17.41, 18.3, 18.73, 18.59, 19.84, 19.55, 19.81, 20.94, 20.31, 21.04, 20.88, 20.62, 20.29, 20.57, 19.43, 19.11, 17.85, 17.18, 17.3, 16.6, 14.95, 13.64, 12.33, 11.62, 10.29, 9.38, 7.97, 6.52, 6.25, 6.26, 6.4, 6.01, 6.0, 5.85], "rough_light": [9.35, 10.22, 11.49, 12.37, 13.81, 13.72, 13.94, 14.87, 15.43, 16.23, 16.34, 15.93, 16.66, 17.12, 17.05, 16.89, 16.58, 16.83, 16.02, 15.52, 14.7, 14.88, 14.06, 13.95, 13.21, 12.38, 10.47, 9.95, 9.32, 8.66, 7.56, 6.41, 5.16, 4.81, 4.9, 4.77, 4.59, 4.72, 4.93], "rough_moderate": [7.83, 8.71, 9.54, 10.13, 11.58, 11.74, 12.26, 12.54, 12.55, 13.2, 13.18, 12.73, 13.14, 14.34, 14.38, 13.99, 14.24, 14.11, 13.35, 12.86, 12.39, 12.17, 11.57, 11.28, 10.85, 10.27, 8.82, 8.21, 7.52, 7.12, 6.21, 4.98, 4.42, 4.04, 4.18, 3.96, 4.06, 3.96, 3.91], "rough_deep": [6.02, 6.54, 7.38, 7.94, 8.8, 8.89, 9.35, 9.93, 9.8, 10.4, 10.19, 10.37, 10.41, 10.88, 11.07, 10.95, 10.96, 10.46, 10.6, 10.26, 9.72, 9.42, 9.21, 9.02, 8.68, 7.94, 6.64, 6.42, 6.0, 5.27, 4.61, 4.04, 3.41, 3.16, 3.01, 3.19, 2.93, 3.15, 3.05]}, "15": {"fairway": [7.88, 9.12, 9.79, 10.5, 11.42, 11.45, 12.67, 13.12, 13.4, 13.92, 13.45, 13.51, 14.17, 14.53, 14.42, 14.29, 13.31, 13.38, 13.28, 12.52, 13.0, 11.68, 10.88, 10.56, 9.84, 9.09, 7.99, 7.07, 6.68, 5.63, 4.99, 4.32, 3.67, 3.67, 3.69, 3.65, 3.62, 3.48, 3.62], "rough_light": [6.49, 7.07, 7.79, 8.57, 9.05, 9.52, 9.61, 10.41, 10.62, 10.67, 10.59, 10.98, 11.53, 11.52, 11.76, 11.47, 10.61, 10.46, 10.8, 10.54, 10.39, 9.47, 8.9, 8.36, 7.78, 7.08, 6.35, 5.85, 5.33, 4.45, 4.14, 3.41, 3.19, 2.99, 2.99, 2.79, 2.77, 2.81, 2.86], "rough_moderate": [5.48, 5.88, 6.14, 6.86, 7.4, 7.77, 8.31, 8.53, 8.93, 8.99, 8.77, 9.36, 9.59, 9.36, 9.64, 9.04, 8.71, 8.76, 8.68, 8.72, 8.01, 7.65, 7.14, 7.06, 6.57, 6.14, 5.21, 4.83, 4.45, 3.68, 3.03, 2.65, 2.71, 2.44, 2.31, 2.4, 2.26, 2.4, 2.24], "rough_deep": [4.28, 4.74, 4.74, 5.45, 5.44, 5.99, 6.62, 6.73, 6.95, 7.01, 7.05, 7.2, 7.48, 7.52, 7.46, 7.33, 6.94, 6.55, 6.67, 6.65, 6.52, 5.91, 5.58, 5.5, 4.98, 4.67, 3.98, 3.6, 3.14, 3.05, 2.35, 1.98, 1.8, 1.98, 1.93, 1.75, 1.9, 1.77, 1.82]}, "20": {"fairway": [6.85, 6.93, 7.7, 8.37, 9.14, 9.44, 9.73, 10.51, 11.07, 10.96, 10.66, 11.09, 12.03, 11.8, 11.79, 11.42, 10.73, 10.29, 10.71, 10.18, 9.96, 8.86, 8.27, 7.58, 6.62, 6.49, 5.88, 4.9, 4.57, 3.86, 3.21, 2.9, 2.65, 2.7, 2.66, 2.85, 2.58, 2.5, 2.66], "rough_light": [5.4, 5.96, 6.34, 6.73, 7.38, 7.17, 8.12, 8.38, 9.28, 8.84, 8.98, 8.9, 10.04, 9.63, 9.12, 8.98, 8.12, 8.46, 7.98, 8.29, 7.63, 7.08, 6.28, 6.02, 5.34, 5.23, 4.61, 4.01, 3.48, 3.12, 2.28, 2.31, 2.23, 2.05, 2.17, 2.06, 2.08, 2.15, 1.99], "rough_moderate": [4.37, 4.92, 5.16, 5.64, 5.77, 6.02, 7.04, 6.95, 7.43, 6.94, 7.42, 7.61, 8.12, 7.72, 7.71, 7.58, 6.87, 6.98, 6.93, 6.74, 6.19, 5.74, 5.22, 5.1, 4.43, 4.27, 3.72, 3.35, 2.96, 2.62, 2.18, 1.69, 1.92, 1.63, 1.71, 1.77, 1.69, 1.79, 1.65], "rough_deep": [3.44, 3.73, 3.79, 4.35, 4.64, 4.72, 5.21, 5.25, 5.38, 5.62, 5.47, 5.67, 6.17, 6.25, 6.16, 5.47, 5.5, 5.18, 5.58, 5.38, 4.96, 4.4, 4.1, 4.08, 3.38, 3.12, 2.9, 2.67, 2.29, 1.99, 1.79, 1.36, 1.18, 1.29, 1.27, 1.34, 1.3, 1.24, 1.31]}, "25": {"fairway": [5.85, 6.16, 6.53, 6.83, 7.4, 7.98, 8.58, 8.85, 9.04, 9.22, 8.88, 9.44, 10.05, 9.7, 9.88, 9.59, 8.79, 8.81, 8.65, 8.63, 7.92, 7.45, 6.93, 6.15, 5.66, 5.2, 4.78, 3.81, 3.6, 3.21, 2.58, 2.04, 1.94, 1.88, 1.9, 1.74, 1.73, 2.05, 1.97], "rough_light": [4.71, 5.14, 5.29, 5.59, 5.7, 6.49, 6.38, 6.92, 7.05, 7.52, 6.97, 7.67, 7.95, 7.87, 7.76, 7.61, 6.78, 6.78, 6.84, 7.09, 6.49, 5.75, 5.48, 5.08, 4.49, 4.08, 3.62, 3.16, 2.79, 2.49, 1.89, 1.68, 1.59, 1.46, 1.6, 1.75, 1.46, 1.62, 1.49], "rough_moderate": [3.89, 4.36, 4.06, 4.88, 4.83, 4.95, 5.58, 5.73, 5.75, 6.02, 5.99, 6.02, 6.44, 6.84, 6.35, 6.19, 5.77, 5.34, 5.71, 5.79, 5.63, 5.08, 4.21, 4.25, 3.16, 3.38, 3.14, 2.71, 2.27, 2.21, 1.49, 1.31, 1.24, 1.3, 1.2, 1.27, 1.27, 1.17, 1.26], "rough_deep": [2.85, 3.08, 3.23, 3.75, 3.79, 3.96, 4.25, 4.42, 4.59, 4.57, 4.45, 4.77, 5.12, 5.03, 4.83, 4.79, 4.46, 4.43, 4.17, 4.29, 4.31, 3.96, 3.69, 3.28, 2.67, 2.5, 2.32, 1.91, 1.57, 1.41, 1.38, 0.97, 1.01, 0.96, 1.06, 0.99, 1.11, 1.06, 1.0]}, "30": {"fairway": [5.66, 5.67, 6.17, 6.38, 6.74, 7.0, 7.43, 7.88, 8.06, 8.05, 7.74, 8.4, 8.87, 8.95, 8.82, 8.6, 7.72, 7.85, 7.44, 7.9, 7.46, 6.5, 6.35, 5.45, 4.61, 4.58, 4.01, 3.52, 3.09, 2.7, 1.94, 1.7, 1.58, 1.47, 1.58, 1.65, 1.64, 1.6, 1.53], "rough_light": [4.36, 4.47, 4.74, 5.16, 5.37, 5.71, 5.75, 6.16, 6.46, 6.39, 6.24, 6.72, 7.18, 7.08, 7.22, 6.99, 6.12, 6.4, 6.02, 6.39, 6.04, 5.24, 4.73, 4.42, 3.71, 3.65, 3.26, 2.69, 2.35, 2.02, 1.68, 1.34, 1.16, 1.29, 1.23, 1.32, 1.41, 1.13, 1.31], "rough_moderate": [3.48, 3.86, 3.93, 4.1, 4.26, 4.58, 5.32, 5.19, 5.27, 5.71, 5.07, 5.11, 5.93, 5.76, 5.71, 5.49, 5.23, 4.93, 5.22, 5.59, 4.67, 4.23, 3.94, 3.52, 2.88, 2.88, 2.67, 2.21, 1.96, 1.7, 1.31, 1.03, 1.04, 1.04, 1.07, 0.96, 1.03, 0.99, 0.97], "rough_deep": [2.97, 2.84, 3.15, 3.22, 3.31, 3.65, 3.98, 3.84, 3.93, 4.32, 4.14, 4.0, 4.59, 4.42, 4.49, 4.51, 3.91, 3.69, 4.01, 4.15, 3.77, 3.31, 2.99, 2.87, 2.27, 2.33, 2.15, 1.54, 1.46, 1.43, 1.03, 0.89, 0.78, 0.85, 0.7, 0.81, 0.69, 0.82, 0.71]}}, "extrapolated": ["25", "30"]}}
+</script>
+<script>
+const DATA = JSON.parse(document.getElementById('dashboard-data').textContent);
+const TIER_ORDER = ["tour","0","5","10","15","20","25","30"];
+// Dogleg Data tier ramp: ink -> slate blue -> baked clay -> maroon (25/30 modeled tiers sit on the maroon end)
+const TIER_COLORS = {tour:"#1C1B18",0:"#313C47",5:"#465E77",10:"#5B7FA6",15:"#8F6C6E",20:"#C05A36",25:"#9E4832",30:"#7D362E"};
+const BRAND_SANS = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+const BRAND_MONO = "'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace";
+Chart.defaults.font.family = BRAND_SANS;
+Chart.defaults.color = "#8A7F6E";
+Chart.defaults.borderColor = "#E2D8C6";
+
+function isExtrapolated(key, section){ return DATA[section].extrapolated.includes(key); }
+
+function fillTierSelect(sel){
+  TIER_ORDER.forEach(k=>{
+    const opt = document.createElement('option');
+    opt.value = k; opt.textContent = DATA.worth.tiers[k];
+    sel.appendChild(opt);
+  });
+}
+['be-tier','gir-tier','sc-tier'].forEach(id=>fillTierSelect(document.getElementById(id)));
+document.getElementById('be-tier').value = "20";
+document.getElementById('gir-tier').value = "20";
+document.getElementById('sc-tier').value = "20";
+
+function interp(xs, ys, x){
+  if(x<=xs[0]) return ys[0];
+  if(x>=xs[xs.length-1]) return ys[ys.length-1];
+  let i=0; while(xs[i+1]<x) i++;
+  const t=(x-xs[i])/(xs[i+1]-xs[i]);
+  return ys[i] + t*(ys[i+1]-ys[i]);
+}
+
+// ---------------- TAB SWITCHING ----------------
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ---------------- TAB 1: BREAK-EVEN ----------------
+const beDist = DATA.worth.distances;
+let beChart = null;
+function renderBreakeven(){
+  const tier = document.getElementById('be-tier').value;
+  const sev = document.getElementById('be-sev').value;
+  const D = Number(document.getElementById('be-dist').value);
+  const mult = DATA.worth.severity_mult[sev];
+
+  document.getElementById('be-dist-val').textContent = D + ' yd';
+  document.getElementById('be-kpi-d').textContent = D + ' yd';
+
+  const worthCurve = DATA.worth.worth_moderate[tier].map(w => w*mult);
+  const roughTieCurve = beDist.map((d,i)=> d - worthCurve[i]);
+
+  const worthAtD = interp(beDist, worthCurve, D);
+  const roughTieAtD = D - worthAtD;
+  document.getElementById('be-kpi-r').textContent = roughTieAtD.toFixed(0) + ' yd';
+  document.getElementById('be-kpi-w').textContent = worthAtD.toFixed(0) + ' yd';
+
+  const label = document.querySelector('label[for="be-tier"]');
+  label.innerHTML = 'Skill level' + (isExtrapolated(tier,'worth') ? '<span class="badge-modeled">modeled</span>' : '');
+
+  const cfg = {
+    type:'line',
+    data:{ labels: beDist,
+      datasets:[
+        { label:'No lie advantage (reference)', data: beDist.map(d=>d), borderColor:'#CBBFA9', borderDash:[5,4], borderWidth:1.5, pointRadius:0 },
+        { label: DATA.worth.tiers[tier] + ' — rough ties at', data: roughTieCurve, borderColor: TIER_COLORS[tier], backgroundColor: TIER_COLORS[tier]+'22', borderWidth:2.5, pointRadius:0, fill:true, tension:0.15 },
+        { label:'Selected distance', data: beDist.map(d=> d===Math.round(D/2)*2 ? roughTieAtD : null),
+          type:'scatter', backgroundColor: TIER_COLORS[tier], pointRadius:6, showLine:false }
+      ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top', labels:{usePointStyle:true, boxWidth:8, color:'#1C1B18', font:{size:11.5}}},
+        tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${c.parsed.y?.toFixed?.(1) ?? c.parsed.y} yd` } } },
+      scales:{ x:{ title:{display:true,text:'Fairway distance (yd)',color:'#6B6152'}, grid:{display:false}, ticks:{color:'#8A7F6E',font:{family:BRAND_MONO,size:11}} },
+                y:{ title:{display:true,text:'Rough tie distance (yd)',color:'#6B6152'}, beginAtZero:true, grid:{color:'#E2D8C6'}, ticks:{color:'#8A7F6E',font:{family:BRAND_MONO,size:11}} } }
+    }
+  };
+  if(beChart){ beChart.data = cfg.data; beChart.update('none'); } else { beChart = new Chart(document.getElementById('be-chart'), cfg); }
+}
+['be-tier','be-sev','be-dist'].forEach(id=> document.getElementById(id).addEventListener('input', renderBreakeven));
+renderBreakeven();
+
+// ---------------- TAB 2: GIR ----------------
+const girDist = DATA.gir.distances;
+let girBar=null, girLine=null;
+function renderGir(){
+  const tier = document.getElementById('gir-tier').value;
+  const D = Number(document.getElementById('gir-dist').value);
+  document.getElementById('gir-dist-val').textContent = D + ' yd';
+  const label = document.querySelector('label[for="gir-tier"]');
+  label.innerHTML = 'Skill level' + (isExtrapolated(tier,'gir') ? '<span class="badge-modeled">modeled</span>' : '');
+
+  const lies = ['fairway','rough_light','rough_moderate','rough_deep'];
+  const lieLabels = ['Fairway','Rough (light)','Rough (moderate)','Rough (deep)'];
+  const lieColors = ['#5B7FA6','#D0906B','#C05A36','#7D362E'];
+  const barVals = lies.map(l => interp(girDist, DATA.gir.gir[tier][l], D));
+
+  const barCfg = { type:'bar', data:{ labels: lieLabels, datasets:[{ data: barVals, backgroundColor: lieColors, borderRadius:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>`${c.parsed.y.toFixed(1)}% GIR` } } },
+      scales:{ y:{ beginAtZero:true, max:100, title:{display:true,text:'GIR% at '+D+' yd',color:'#6B6152'}, grid:{color:'#E2D8C6'}, ticks:{color:'#8A7F6E',font:{family:BRAND_MONO,size:11}} }, x:{ grid:{display:false}, ticks:{color:'#6B6152',font:{size:11.5}} } } } };
+  if(girBar){ girBar.data = barCfg.data; girBar.options.scales.y.title.text = 'GIR% at '+D+' yd'; girBar.update('none'); }
+  else { girBar = new Chart(document.getElementById('gir-bar'), barCfg); }
+
+  const lineDatasets = lies.map((l,i)=>({ label: lieLabels[i], data: DATA.gir.gir[tier][l], borderColor: lieColors[i], backgroundColor:'transparent', borderWidth:2, pointRadius:0, tension:0.25 }));
+  const lineCfg = { type:'line', data:{ labels: girDist, datasets: lineDatasets },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top', labels:{usePointStyle:true, boxWidth:8, color:'#1C1B18', font:{size:11.5}}},
+        tooltip:{ callbacks:{ label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(1)}%` } } },
+      scales:{ x:{ title:{display:true,text:'Distance (yd)',color:'#6B6152'}, grid:{display:false}, ticks:{color:'#8A7F6E',font:{family:BRAND_MONO,size:11}} }, y:{ title:{display:true,text:'GIR%',color:'#6B6152'}, beginAtZero:true, max:100, grid:{color:'#E2D8C6'}, ticks:{color:'#8A7F6E',font:{family:BRAND_MONO,size:11}} } } } };
+  if(girLine){ girLine.data = lineCfg.data; girLine.update('none'); } else { girLine = new Chart(document.getElementById('gir-line'), lineCfg); }
+}
+['gir-tier','gir-dist'].forEach(id=> document.getElementById(id).addEventListener('input', renderGir));
+renderGir();
+
+// ---------------- TAB 3: SCRAMBLE ----------------
+function renderScramble(){
+  const fair = Number(document.getElementById('sc-fair').value);
+  let rough = Number(document.getElementById('sc-rough').value);
+  const tier = document.getElementById('sc-tier').value;
+  const sev = document.getElementById('sc-sev').value;
+  document.getElementById('sc-fair-val').textContent = fair + ' yd';
+  document.getElementById('sc-rough-val').textContent = rough + ' yd';
+
+  const label = document.querySelector('label[for="sc-tier"]');
+  label.innerHTML = 'Skill level' + (isExtrapolated(tier,'worth') ? '<span class="badge-modeled">modeled</span>' : '');
+
+  const mult = DATA.worth.severity_mult[sev];
+  const worthAtFair = interp(beDist, DATA.worth.worth_moderate[tier], fair) * mult;
+  const actualGap = fair - rough;
+  const playRough = actualGap > worthAtFair;
+  const margin = actualGap - worthAtFair;
+
+  const verdictEl = document.getElementById('sc-verdict');
+  verdictEl.className = 'verdict ' + (playRough ? 'rough' : 'fairway');
+  document.getElementById('sc-headline').textContent = playRough ? 'Play the rough ball' : 'Play the fairway ball';
+  document.getElementById('sc-detail').textContent =
+    `Break-even needed: ${worthAtFair.toFixed(1)} yd closer. You have: ${actualGap.toFixed(0)} yd. `+
+    `Margin: ${margin>=0?'+':''}${margin.toFixed(1)} yd ${playRough ? 'in favor of the rough ball.' : 'not enough to leave the fairway ball.'}`;
+
+  const maxScale = Math.max(actualGap, worthAtFair, 10) * 1.15;
+  const needPct = Math.max(0, Math.min(100, (worthAtFair/maxScale)*100));
+  const havePct = Math.max(0, Math.min(100, (Math.max(actualGap,0)/maxScale)*100));
+  document.getElementById('sc-bar-need').style.width = needPct + '%';
+  document.getElementById('sc-bar-have').style.width = havePct + '%';
+  document.getElementById('sc-bar-need').style.opacity = 0.9;
+  document.getElementById('sc-label-need').textContent = `gap needed: ${worthAtFair.toFixed(1)} yd`;
+  document.getElementById('sc-label-have').textContent = `gap you have: ${actualGap.toFixed(0)} yd`;
+}
+['sc-fair','sc-rough','sc-tier','sc-sev'].forEach(id=> document.getElementById(id).addEventListener('input', renderScramble));
+renderScramble();
+</script>
+</body>
+</html>
