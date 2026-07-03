@@ -72,6 +72,7 @@
       <a href="fairway-vs-rough/index.html">Analyses</a>
       <a href="fairway-vs-rough/dashboard.html">Tools</a>
       <a href="about/index.html">About</a>
+      <a href="cite/index.html">Cite</a>
     </nav>
   </div>
 </header>
@@ -103,7 +104,7 @@
         <span class="kicker">Analysis Nº 001</span>
         <h3>Fairway vs. Rough, by Handicap</h3>
         <div class="meta">July 2, 2026</div>
-        <p class="dek">At a 150-yard approach, the fairway is worth 75 yards to a tour pro, 23 yards to a 10-handicap, and 17 yards to a 20-handicap. For a 30-handicap it comes to 12 yards, a figure<span class="badge-modeled">modeled</span> extrapolated from the published data above it.</p>
+        <p class="dek">At a 150-yard approach, the fairway is worth 75 yards to a tour pro, 23 yards to a 10-handicap, and 17 yards to a 20-handicap. For a 30-handicap it comes to 12 yards, a <span class="badge-modeled">modeled</span> figure extrapolated from the published data above it.</p>
         <a class="btn btn-outline" href="fairway-vs-rough/index.html">Read the analysis</a>
       </div>
     </div>
@@ -120,6 +121,26 @@
     </div>
   </section>
 
+  <section aria-labelledby="card-heading">
+    <h2 class="section-label" id="card-heading">The Percentages Card</h2>
+    <div class="invite signup">
+      <div>
+        <h3>The break-even numbers, on one card.</h3>
+        <p class="follow-sub">Fairway-vs-rough break-evens at 100 to 175 yards, the scramble rule, and the 240-yard crossover. Sources named, modeled figures starred. Get the card now and the next analysis when it survives review.</p>
+      </div>
+      <!-- TODO(sunny): create a free Buttondown account with username "doglegdata"
+           (form action below assumes it). In Buttondown: Settings -> Subscribing ->
+           welcome email; paste a link to https://doglegdata.com/assets/percentages-card.pdf
+           so the card is delivered on confirm. If the username differs, update the action URL
+           here and on fairway-vs-rough/index.html. -->
+      <form class="signup-form" action="https://buttondown.com/api/emails/embed-subscribe/doglegdata" method="post" target="_blank">
+        <label class="visually-hidden" for="bd-email">Email address</label>
+        <input type="email" name="email" id="bd-email" required placeholder="you@email.com" autocomplete="email">
+        <button type="submit" class="btn btn-solid">Send me the card</button>
+      </form>
+    </div>
+  </section>
+
 </main>
 
 <footer class="site-footer">
@@ -131,12 +152,19 @@
         <a href="https://www.linkedin.com/in/sunnyrathor" target="_blank" rel="noopener" title="LinkedIn">LinkedIn</a>
         <a href="mailto:sunny@doglegdata.com" title="Email">Email</a>
       </div>
+      <p class="footer-cite">Podcast or video? <a href="cite/index.html">Every chart is free to use with credit.</a></p>
     </div>
     <img class="footer-mascot" src="assets/brand/mascot-run.png" width="344" height="175" alt="Dogleg Data mascot dachshund, mid-run">
   </div>
   <div class="copyright">&copy; 2026 Dogleg Data &middot; Play the percentages.</div>
+  <div class="footer-quip">The dog legs. The data doesn't.</div>
 </footer>
 
 </div>
+<!-- Cloudflare Web Analytics: free, no cookies. TODO(sunny): in the Cloudflare dashboard
+     go to Analytics & Logs -> Web Analytics -> Add a site (doglegdata.com), copy your token,
+     replace YOUR_TOKEN_HERE below, and remove these comment markers on every page.
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "YOUR_TOKEN_HERE"}'></script>
+-->
 </body>
 </html>

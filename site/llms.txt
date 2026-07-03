@@ -10,3 +10,4 @@ Dogleg Data is an independent golf analytics publication for the golfer who play
 - [Fairway vs. Rough, by Handicap](https://doglegdata.com/fairway-vs-rough/): The fairway is worth 75 yards to a tour pro at 150 out, and 17 to a 20-handicap, with sourced data you can check yourself.
 - [Tools](https://doglegdata.com/fairway-vs-rough/dashboard.html): A scramble decision calculator, break-even explorer, and Monte Carlo GIR simulator, built on the same dataset as the post.
 - [About](https://doglegdata.com/about/): Who runs Dogleg Data and the verification standard behind every analysis.
+- [Cite](https://doglegdata.com/cite/): Chart pack for podcasts, video, and articles. Every chart free to use with credit, sources on the image.
