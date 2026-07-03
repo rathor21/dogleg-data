@@ -103,9 +103,6 @@ footer .signoff{font-family:var(--mono);font-size:11px;font-weight:500;letter-sp
   padding-bottom:12px;border-bottom:3px double var(--line);margin-bottom:14px;}
 footer h3{font-family:var(--serif);font-weight:600;font-size:15px;margin-bottom:10px;}
 footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.65;}
-footer .review{font-size:12.5px;color:var(--ink-soft);background:var(--bg);border:1px solid var(--line);
-  border-radius:var(--radius);padding:12px 14px;margin-top:10px;line-height:1.65;}
-footer .review strong{color:var(--ink);}
 @media (max-width:640px){
   .wrap{padding:20px 14px 32px;}
   .home-link{margin-left:0;}
@@ -247,9 +244,6 @@ footer .review strong{color:var(--ink);}
   <p class="signoff">Dogleg Data &middot; Play the percentages.</p>
   <h3>Sources &amp; methodology</h3>
   <p>Tour numbers: Broadie (2011), ShotLink Table 9, 8M+ shots. Amateur break-even: Lou Stagner / Arccos, ~1B shots (10/20-index published; 25/30-index extrapolated across the full published 0-20 range). Amateur proximity-by-distance: Stagner/Arccos newsletter #71, used here to make the GIR tool's distance sensitivity real rather than flat. Rough-severity scaling: 2021 USGA/R&amp;A rough-difficulty simulation, cross-checked against a 2025 Golf Digest field test. Dispersion simulation calibrated to GOLFTEC 7-iron fitting data, extrapolated beyond its measured range for higher handicaps and stretched to the full distance range using real proximity-by-distance data. That simulation is the most model-dependent piece of this tool.</p>
-  <div class="review">
-    <strong>Peer-reviewed before publishing.</strong> The review caught three real bugs: the 30-index worth extrapolation doubled one noisy bin-to-bin difference and produced a false sign-flip around 200yd (fixed by fitting across all five published handicap points); the Monte Carlo dispersion model let high-handicap shot spread shrink instead of grow past 13-handicap, which made a 30-handicap look more accurate than a 20-handicap at some distances (fixed with a non-negative extrapolation slope); and the tour "worth" number at 150yd was 75 in the post's chart 1 but 76.67 everywhere else that reused the underlying model, including this dashboard's first build (fixed by switching to the same fine-grid method chart 1 already used). The post's peer review section has the full write-up.
-  </div>
 </footer>
 
 </div>

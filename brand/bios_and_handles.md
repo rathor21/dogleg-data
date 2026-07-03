@@ -44,14 +44,14 @@ Sunny posts under his own name; the brand travels via the chart badge and the pl
 
 ### About section (first person)
 
-> I run Dogleg Data, where golf's conventional wisdom gets tested against real data. Most amateur advice descends from tour numbers, so I check what holds for a 10, 20, or 30 handicap, with every source cited and every modeled number labeled. I work in data analytics by day, and the same habits carry over: peer review before publishing, and when the model breaks, the fix gets published too. Bring me a scramble read and I'll run it through the model.
+> I run Dogleg Data, where golf's conventional wisdom gets tested against real data. Most amateur advice descends from tour numbers, so I check what holds for a 10, 20, or 30 handicap, with every source cited and every modeled number labeled. I work in data analytics by day, and the same habit carries over: name the source. Bring me a scramble read and I'll run it through the model.
 
 ### Experience entry (Founder, Dogleg Data)
 
-> Independent golf analytics: source-cited, peer-reviewed answers to what the numbers say for a normal golfer, published on X and LinkedIn with an interactive model readers can run themselves.
+> Independent golf analytics: source-cited answers to what the numbers say for a normal golfer, published on X and LinkedIn with an interactive model readers can run themselves.
 
 ---
 
 ## Boilerplate (show notes / collab one-sheets)
 
-> Dogleg Data tests golf's conventional wisdom against real data at every handicap, with every source cited and every modeled number labeled. Built by Sunny, a data analytics professional, it publishes the charts, the models, and the peer reviews behind them under one tagline: play the percentages.
+> Dogleg Data tests golf's conventional wisdom against real data at every handicap, with every source cited and every modeled number labeled. Built by Sunny, a data analytics professional, it publishes the charts and the models behind them under one tagline: play the percentages.

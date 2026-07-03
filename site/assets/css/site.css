@@ -173,12 +173,17 @@ nav.site-nav a[aria-current="page"]{color:var(--ink);font-weight:600;}
 }
 
 /* ---------- figure / source-line styles ---------- */
-figure{margin:0;}
-figure img{
-  width:100%;
+figure{
+  margin:0;
+  background:var(--card);
   border:1px solid var(--line);
   border-radius:var(--radius);
-  background:var(--bg);
+  padding:16px;
+}
+figure img{
+  width:100%;
+  display:block;
+  border-radius:calc(var(--radius) - 2px);
 }
 /* Small mono captions use --ink-soft for the strongest contrast at this size. */
 figure figcaption{
@@ -287,7 +292,7 @@ footer.site-footer .copyright{
 /* method strip */
 .method-grid{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
   gap:var(--gap);
 }
 .method-item{
@@ -393,7 +398,7 @@ footer.site-footer .copyright{
   overflow:hidden;
 }
 .home .analysis-card .thumb{
-  background:var(--bg);
+  background:var(--card);
   border-right:1px solid var(--line);
   display:flex;
   align-items:center;

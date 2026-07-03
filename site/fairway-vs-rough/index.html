@@ -6,7 +6,7 @@ To create ANALYSIS Nº 002 from this file:
 3. Update <title>, date, reading time (body word count / 230 wpm, rounded).
 4. Swap chart <figure>s; real width/height via: sips -g pixelWidth -g pixelHeight <file>.
 5. Nav: the current page's item is unlinked text (<a aria-current="page">, no href); re-link Analyses to point at the new page's canonical listing.
-6. Dashboard hrefs are sibling-relative (dashboard.html); update or remove per analysis.
+6. Tools-page hrefs are sibling-relative (dashboard.html); update or remove per analysis.
 -->
 <html lang="en">
 <head>
@@ -129,64 +129,6 @@ To create ANALYSIS Nº 002 from this file:
 }
 .post .cta-card .btn{margin-top:4px;}
 
-/* ---------- peer review feature block ---------- */
-.post .review-block{
-  border-top:4px double var(--line);
-  border-bottom:4px double var(--line);
-  padding:32px 0 36px;
-  margin:44px 0;
-}
-.post .review-block .kicker{display:block;margin-bottom:10px;}
-.post .review-block h2{
-  font-family:var(--serif);
-  font-weight:600;
-  font-size:24px;
-  margin-bottom:10px;
-  border-bottom:none !important;
-  padding-bottom:0 !important;
-}
-.post .review-block > p{
-  font-size:15px;
-  color:var(--ink-soft);
-  max-width:70ch;
-  line-height:1.7;
-  margin-bottom:24px;
-}
-.post .review-list{
-  display:flex;
-  flex-direction:column;
-  gap:22px;
-}
-.post .review-item{
-  display:grid;
-  grid-template-columns:56px 1fr;
-  gap:18px;
-  padding-top:20px;
-  border-top:1px solid var(--line);
-}
-.post .review-item:first-child{border-top:0;padding-top:0;}
-.post .review-item .review-num{
-  font-family:var(--mono);
-  font-size:28px;
-  font-weight:500;
-  color:var(--clay-text);
-  line-height:1;
-}
-.post .review-item h3{
-  font-family:var(--serif);
-  font-weight:600;
-  font-size:16.5px;
-  margin-bottom:6px;
-  color:var(--ink);
-}
-.post .review-item p{
-  font-size:14.5px;
-  color:var(--ink-soft);
-  line-height:1.65;
-  max-width:66ch;
-}
-.post .review-item .badge-modeled{margin-left:0;margin-top:8px;display:inline-block;}
-
 /* ---------- sources ---------- */
 .post .sources h2{margin-top:44px;}
 .post .sources dl{max-width:72ch;}
@@ -223,10 +165,6 @@ To create ANALYSIS Nº 002 from this file:
   margin-bottom:16px;
 }
 
-@media (max-width:640px){
-  .post .review-item{grid-template-columns:40px 1fr;gap:12px;}
-  .post .review-item .review-num{font-size:22px;}
-}
 </style>
 </head>
 <body class="post">
@@ -257,7 +195,7 @@ To create ANALYSIS Nº 002 from this file:
       <span class="kicker">Analysis Nº 001</span>
       <h1>Fairway vs. Rough, by Handicap</h1>
       <p class="dek">The fairway is worth 75 yards to a tour pro at 150 out. To a 20-handicap, it's worth 17. The old advice was written for the pro.</p>
-      <div class="byline">Sunny Rathor · Founder, Dogleg Data<span class="sep">·</span>July 2, 2026<span class="sep">·</span>8 min read</div>
+      <div class="byline">Sunny Rathor · Founder, Dogleg Data<span class="sep">·</span>July 2, 2026<span class="sep">·</span>7 min read</div>
     </div>
 
     <div class="article-body">
@@ -315,13 +253,13 @@ To create ANALYSIS Nº 002 from this file:
       <div class="cta-card">
         <span class="kicker">Run your own numbers</span>
         <h3>Don't take my scramble read on faith. Run yours.</h3>
-        <p>The dashboard behind this post is the working model itself. Drag your own distance and handicap through it.</p>
+        <p>The tools page behind this post is the working model itself. Drag your own distance and handicap through it.</p>
         <ul>
           <li>Break-even explorer: how many yards the fairway is worth, at any distance and handicap</li>
           <li>Monte Carlo GIR simulator: simulated odds of hitting the green from a lie you pick</li>
           <li>Scramble calculator: enter both lies, get the call</li>
         </ul>
-        <a class="btn btn-solid" href="dashboard.html">Open the dashboard</a>
+        <a class="btn btn-solid" href="dashboard.html">Open the tools</a>
       </div>
 
       <h2>The 240-yard crossover</h2>
@@ -357,40 +295,6 @@ To create ANALYSIS Nº 002 from this file:
         <figcaption><strong>Chart 3.</strong> Same-distance GIR%, fairway versus rough severity, for a 20-handicap at 150 yards. <span class="source-line">Source: Monte Carlo dispersion simulation, calibrated to GOLFTEC fitting data.</span> <span class="badge-modeled">modeled</span></figcaption>
       </figure>
 
-      <section class="review-block" aria-labelledby="review-heading">
-        <span class="kicker">From the peer review</span>
-        <h2 id="review-heading">Three bugs the review caught</h2>
-        <p>Every analysis here goes through peer review before it publishes, and the findings publish with it. This round, between the review and the dashboard build, caught three real bugs.</p>
-
-        <div class="review-list">
-          <div class="review-item">
-            <div class="review-num">01</div>
-            <div>
-              <h3>A fake sign flip at 200 yards</h3>
-              <p>The 30-index extrapolation doubled a single noisy bin-to-bin difference from the published table, which produced a fake sign flip in the 30-handicap "worth" number around 200 yards. The flip was an artifact of the method. I refit it using all five published handicap points instead of two, which killed the flip and moved the 150-yard, 30-handicap number from 9 to 12 yards.</p>
-              <span class="badge-modeled">modeled</span>
-            </div>
-          </div>
-          <div class="review-item">
-            <div class="review-num">02</div>
-            <div>
-              <h3>Dispersion that shrank instead of grew</h3>
-              <p>For a narrow band of distances, the Monte Carlo dispersion model showed a 30-handicap hitting greens more often than a 20-handicap, which is backwards. It traced to an extrapolation formula that let shot dispersion shrink past 13-handicap instead of continuing to grow. A non-negative extrapolation slope fixed it.</p>
-              <span class="badge-modeled">modeled</span>
-            </div>
-          </div>
-          <div class="review-item">
-            <div class="review-num">03</div>
-            <div>
-              <h3>75 in one place, 76.67 in another</h3>
-              <p>This one turned up while wiring the dashboard to the same code chart 2 uses. The tour "worth" number at 150 yards came out as 75 in chart 1 but 76.67 in chart 2 and the CSV, one claim with two answers, because chart 1 computed it on a fine grid while everything else interpolated between a handful of sparse points.</p>
-            </div>
-          </div>
-        </div>
-
-        <p style="margin-top:24px;">All three are fixed, everything downstream is regenerated, and chart 1's numbers moved a touch as a result. I'd rather you hear that from me than find it yourself.</p>
-      </section>
-
       <section class="sources" aria-labelledby="sources-heading">
         <h2 id="sources-heading">Sources</h2>
         <dl>
@@ -415,7 +319,7 @@ To create ANALYSIS Nº 002 from this file:
         <span class="kicker">Run your own numbers</span>
         <h3>Take the model with you to the course</h3>
         <p>Same three tools as above: the break-even explorer, the Monte Carlo GIR simulator, and the scramble calculator. Built on the same data this post cites, source lines included.</p>
-        <a class="btn btn-solid" href="dashboard.html">Open the dashboard</a>
+        <a class="btn btn-solid" href="dashboard.html">Open the tools</a>
       </div>
 
       <div class="closer">
