@@ -66,3 +66,69 @@ def tee_outcomes(club, tier, drive_mean=None):
     weights = np.append(clean_weights, p_miss)
     lies = [dict(clean_lie) for _ in range(len(clean_carries))] + [{"fairway": 0.0, "rough": 1.0, "trouble": 0.0}]
     return carries, weights, lies
+
+
+from functools import lru_cache
+
+DRIVE_GRID = np.arange(140, 321, 2)
+COST_MARGIN = 0.10  # strokes; the cost line's default margin (one shot per ten rounds)
+
+def expected_score(hole_yards, tier, club="driver", drive_mean=None):
+    """Full-hole expected strokes on a par 4 of hole_yards for tier."""
+    carries, weights, lies = tee_outcomes(club, tier, drive_mean)
+    total = 1.0  # the tee stroke
+    for carry, w, lp in zip(carries, weights, lies):
+        leftover = max(hole_yards - carry, 8.0)
+        e_fair = strokes_to_holeout(leftover, "fairway", tier)
+        e_rough = strokes_to_holeout(leftover, "rough", tier)
+        e_trouble = e_rough + data.TROUBLE_COST[tier]
+        total += w * (lp["fairway"] * e_fair + lp["rough"] * e_rough + lp["trouble"] * e_trouble)
+    return float(total)
+
+@lru_cache(maxsize=4096)
+def _benchmark_cached(hole_yards_rounded, tier):
+    return expected_score(float(hole_yards_rounded), tier)
+
+def benchmark_score(hole_yards, tier):
+    """Typical score for this tier on a par 4 of this length.
+
+    MODELED: this is the model's own expected score at the tier's average
+    drive and dispersion. Its level is pinned to the published Shot Scope
+    aggregate par-4 scores (data.BENCHMARK_AGG) by the Task 7 calibration.
+    No published (tier x length) scoring table exists; see the source log's
+    Benchmark decision.
+    """
+    return _benchmark_cached(round(float(hole_yards), 1), tier)
+
+def neutral_distance(hole_yards, tier, club="driver", margin=COST_MARGIN):
+    """The cost line: smallest drive distance where expected score stays
+    within `margin` strokes of the tier benchmark on this hole.
+
+    Returns {"threshold": yd or None, "always_at_benchmark": bool,
+    "never_at_benchmark": bool}. Edge cases: a short hole can sit within
+    margin across the whole grid (threshold None, always True); a brutal
+    hole can exceed margin everywhere (threshold None, never True).
+    """
+    bench = benchmark_score(hole_yards, tier)
+    scores = np.array([expected_score(hole_yards, tier, club, float(d)) for d in DRIVE_GRID])
+    within = scores <= bench + margin
+    if within.all():
+        return {"threshold": None, "always_at_benchmark": True, "never_at_benchmark": False}
+    if not within.any():
+        return {"threshold": None, "always_at_benchmark": False, "never_at_benchmark": True}
+    i = int(np.argmax(within))
+    if i == 0:
+        return {"threshold": float(DRIVE_GRID[0]), "always_at_benchmark": False, "never_at_benchmark": False}
+    x0, x1 = float(DRIVE_GRID[i - 1]), float(DRIVE_GRID[i])
+    y0, y1 = float(scores[i - 1]), float(scores[i])
+    if y0 == y1:
+        t = x1
+    else:
+        t = x0 + (y0 - (bench + margin)) * (x1 - x0) / (y0 - y1)
+    return {"threshold": float(t), "always_at_benchmark": False, "never_at_benchmark": False}
+
+def club_verdict(hole_yards, tier, drive_mean=None):
+    """Expected score per club at this golfer's distances; best = lowest."""
+    scores = {club: expected_score(hole_yards, tier, club, drive_mean) for club in data.CLUBS}
+    best = min(scores, key=scores.get)
+    return {"best": best, "scores": scores}
