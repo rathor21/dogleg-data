@@ -358,7 +358,7 @@ LENGTH_MIX = [(320, 0.25), (360, 0.30), (400, 0.30), (440, 0.15)]
 SOURCES = {
     "DRIVER": {
         "log": "docs/sources/002_Source_Log.md#anchor-a",
-        "status": "published (means, fairway %); sd_lat computed-from-published; sd_dist_frac modeled; tier 30 modeled",
+        "status": "means published (anchor A); sd_lat computed-from-published, then LSQ-smoothed across tiers (modeled); sd_dist_frac modeled; tier 30 modeled",
     },
     "CLUBS": {
         "log": "docs/sources/002_Source_Log.md#anchor-c",

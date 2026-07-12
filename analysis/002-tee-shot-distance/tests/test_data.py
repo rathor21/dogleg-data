@@ -53,3 +53,42 @@ def test_every_anchor_carries_source():
     assert isinstance(data.SOURCES, dict)
     for key in ("DRIVER", "CLUBS", "E_HOLEOUT", "BENCHMARK_AGG", "GEOMETRY", "MISHIT", "TROUBLE_COST"):
         assert key in data.SOURCES and "002_Source_Log.md" in data.SOURCES[key]["log"]
+
+def test_mishit_well_formed():
+    for t in data.TIERS:
+        assert t in data.MISHIT
+    assert "carry_frac" in data.MISHIT and "sensitivity_p" in data.MISHIT
+    probs = [data.MISHIT[t] for t in data.TIERS]
+    assert all(0.0 < p < 0.25 for p in probs)
+    assert all(a <= b for a, b in zip(probs, probs[1:])), "mishit rate must not fall as handicap rises"
+    assert 0.2 < data.MISHIT["carry_frac"] < 0.7
+
+def test_trouble_cost_well_formed():
+    for t in data.TIERS:
+        assert t in data.TROUBLE_COST
+    costs = [data.TROUBLE_COST[t] for t in data.TIERS]
+    assert all(0.2 < c < 2.0 for c in costs)
+    assert all(a <= b for a, b in zip(costs, costs[1:])), "trouble cost must not fall as handicap rises"
+
+def test_holeout_scale_well_formed():
+    for t in data.TIERS:
+        assert t in data.HOLEOUT_SCALE
+        assert data.HOLEOUT_SCALE[t] > 0
+
+def test_length_mix_well_formed():
+    weights = [w for _, w in data.LENGTH_MIX]
+    assert abs(sum(weights) - 1.0) < 1e-9
+    for yd, _ in data.LENGTH_MIX:
+        assert 280 < yd < 500
+
+def test_geometry_well_formed():
+    assert set(data.GEOMETRY) >= {"fairway_half_width", "rough_band"}
+    assert 5 < data.GEOMETRY["fairway_half_width"] < 40
+    assert 5 < data.GEOMETRY["rough_band"] < 40
+
+def test_values_physically_sane():
+    for t in data.TIERS:
+        assert 15 < data.DRIVER[t]["sd_lat"] < 45
+        for lie in ("fairway", "rough"):
+            for _, strokes in data.E_HOLEOUT[t][lie]:
+                assert 1.0 < strokes < 8.0
