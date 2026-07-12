@@ -2,9 +2,14 @@
 
 Own-tier baseline. All interpolation between published anchors is MODELED.
 """
+from functools import lru_cache
+from math import erf, sqrt
+
 import numpy as np
 import data
-from math import erf, sqrt
+
+DRIVE_GRID = np.arange(140, 321, 2)
+COST_MARGIN = data.COST_MARGIN  # strokes; the cost line's default margin (see data.py)
 
 def strokes_to_holeout(dist, lie, tier):
     """Expected strokes to hole out from dist yards, given lie, for tier.
@@ -68,23 +73,22 @@ def tee_outcomes(club, tier, drive_mean=None):
     return carries, weights, lies
 
 
-from functools import lru_cache
-
-DRIVE_GRID = np.arange(140, 321, 2)
-COST_MARGIN = 0.10  # strokes; the cost line's default margin (one shot per ten rounds)
-
 def expected_score(hole_yards, tier, club="driver", drive_mean=None):
     """Full-hole expected strokes on a par 4 of hole_yards for tier."""
     carries, weights, lies = tee_outcomes(club, tier, drive_mean)
     total = 1.0  # the tee stroke
     for carry, w, lp in zip(carries, weights, lies):
-        leftover = max(hole_yards - carry, 8.0)
+        leftover = max(hole_yards - carry, data.LEFTOVER_FLOOR_YD)
         e_fair = strokes_to_holeout(leftover, "fairway", tier)
         e_rough = strokes_to_holeout(leftover, "rough", tier)
         e_trouble = e_rough + data.TROUBLE_COST[tier]
         total += w * (lp["fairway"] * e_fair + lp["rough"] * e_rough + lp["trouble"] * e_trouble)
     return float(total)
 
+# Cache key must track benchmark_score's full argument list: today that is
+# (hole_yards, tier) with club/drive_mean fixed at tier defaults. If
+# benchmark_score ever gains club or drive_mean parameters, extend this key
+# in lockstep or stale cross-club values will be served.
 @lru_cache(maxsize=4096)
 def _benchmark_cached(hole_yards_rounded, tier):
     return expected_score(float(hole_yards_rounded), tier)

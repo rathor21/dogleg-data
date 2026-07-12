@@ -120,3 +120,27 @@ def test_club_verdict_returns_known_club():
     v = club_verdict(400, 15)
     assert v["best"] in data.CLUBS
     assert set(v["scores"]) == set(data.CLUBS)
+
+def test_cost_line_always_at_benchmark_branch():
+    r = neutral_distance(300, 0, margin=5.0)  # absurdly forgiving margin
+    assert r == {"threshold": None, "always_at_benchmark": True, "never_at_benchmark": False}
+
+def test_cost_line_never_at_benchmark_branch():
+    r = neutral_distance(400, 15, margin=-1.0)  # unreachable margin
+    assert r == {"threshold": None, "always_at_benchmark": False, "never_at_benchmark": True}
+
+def test_expected_score_golden_pin():
+    # regression pin of the current verified model output, not a published number;
+    # update deliberately (with the peer-review doc) if the model changes
+    assert abs(expected_score(400, 15) - 4.991488064215653) < 1e-6
+
+def test_club_scores_differ():
+    v = club_verdict(400, 15)
+    vals = sorted(v["scores"].values())
+    assert vals[0] < vals[-1]  # clubs are actually differentiated
+
+def test_leftover_floor_engages():
+    # identical scores once every carry overshoots hole - floor
+    s1 = expected_score(150, 0, drive_mean=300)
+    s2 = expected_score(150, 0, drive_mean=310)
+    assert abs(s1 - s2) < 0.05  # both dominated by the floored holeout value

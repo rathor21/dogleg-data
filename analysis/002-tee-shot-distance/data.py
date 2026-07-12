@@ -349,6 +349,23 @@ HOLEOUT_SCALE = {t: 1.0 for t in TIERS}
 
 LENGTH_MIX = [(320, 0.25), (360, 0.30), (400, 0.30), (440, 0.15)]
 
+# ---------------------------------------------------------------------------
+# LEFTOVER_FLOOR_YD: minimum leftover distance fed into the holeout table by
+# expected_score. Below this the ball is effectively at the green complex and
+# the holeout table's first anchor applies. MODELED judgment call; sensitivity
+# range (5, 15).
+# ---------------------------------------------------------------------------
+
+LEFTOVER_FLOOR_YD = 8.0
+
+# ---------------------------------------------------------------------------
+# COST_MARGIN: the cost line's margin in strokes, one shot per ten rounds:
+# below the cost line, driving costs more than this vs the tier benchmark.
+# MODELED choice; charts may also show 0.25.
+# ---------------------------------------------------------------------------
+
+COST_MARGIN = 0.10
+
 
 # ---------------------------------------------------------------------------
 # SOURCES: one row per exported constant; log fragments point at the anchor
@@ -395,6 +412,14 @@ SOURCES = {
     "LENGTH_MIX": {
         "log": "docs/sources/002_Source_Log.md#anchor-e",
         "status": "modeled (calibration length mix, sensitivity-checked)",
+    },
+    "LEFTOVER_FLOOR_YD": {
+        "log": "docs/sources/002_Source_Log.md#anchor-d",
+        "status": "modeled",
+    },
+    "COST_MARGIN": {
+        "log": "docs/sources/002_Source_Log.md#anchor-e",
+        "status": "modeled",
     },
     "TOUR_CURVES": {
         "log": "docs/sources/002_Source_Log.md#anchor-d",
