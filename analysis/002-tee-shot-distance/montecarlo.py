@@ -8,6 +8,15 @@ import numpy as np
 import data
 
 def simulate_hole(hole_yards, tier, club="driver", drive_mean=None, n=200_000, rng=None):
+    """Simulate n plays of a par 4 and return mean strokes.
+
+    Mirrors model.expected_score's distributions exactly: carry is normal
+    (mean = drive_mean-or-tier-average times the club's dist_ratio), a
+    tier-probability mishit branch lands in the rough at carry_frac of the
+    intended distance, lateral error sets the lie via GEOMETRY, and holeout
+    uses the same anchor tables, scale, and trouble cost. drive_mean is the
+    golfer's DRIVER distance; rng an optional np.random.Generator.
+    """
     rng = rng if rng is not None else np.random.default_rng()
     c = data.CLUBS[club]
     base = drive_mean if drive_mean is not None else data.DRIVER[tier]["mean"]
