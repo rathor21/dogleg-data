@@ -21,10 +21,13 @@ def test_holeout_worse_tier_worse_everywhere():
             assert all(a <= b + 1e-9 for a, b in zip(vals, vals[1:])), (lie, d)
 
 def test_holeout_hits_anchors_exactly():
+    # strokes_to_holeout multiplies the raw anchor table by HOLEOUT_SCALE[tier]
+    # (see its docstring); updated at Task 7 calibration to compare against
+    # the scaled anchor value, not the raw table value.
     for tier in data.TIERS:
         for lie in ("fairway", "rough"):
             for d, s in data.E_HOLEOUT[tier][lie]:
-                assert abs(strokes_to_holeout(d, lie, tier) - s) < 1e-9
+                assert abs(strokes_to_holeout(d, lie, tier) - s * data.HOLEOUT_SCALE[tier]) < 1e-9
 
 def test_holeout_extends_beyond_last_anchor():
     tier = 20
@@ -131,8 +134,9 @@ def test_cost_line_never_at_benchmark_branch():
 
 def test_expected_score_golden_pin():
     # regression pin of the current verified model output, not a published number;
-    # update deliberately (with the peer-review doc) if the model changes
-    assert abs(expected_score(400, 15) - 4.991488064215653) < 1e-6
+    # update deliberately (with the peer-review doc) if the model changes.
+    # updated at Task 7 calibration (HOLEOUT_SCALE[15] moved off 1.0).
+    assert abs(expected_score(400, 15) - 5.204051925307641) < 1e-6
 
 def test_club_scores_differ():
     v = club_verdict(400, 15)

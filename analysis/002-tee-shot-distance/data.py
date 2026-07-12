@@ -332,13 +332,24 @@ TROUBLE_COST = {0: 0.55, 5: 0.60, 10: 0.65, 15: 0.70, 20: 0.75, 25: 0.80, 30: 0.
 
 # ---------------------------------------------------------------------------
 # HOLEOUT_SCALE: per-tier multiplicative scale applied to E_HOLEOUT values by
-# the model. The third calibration knob named by the gate addendum: if MISHIT
-# and TROUBLE_COST cannot reproduce anchor E's aggregate scores within
-# tolerance on their own, Task 7 moves these off 1.0 and records it in the
-# log's Calibration section. MODELED.
+# the model. The third calibration knob named by the gate addendum. Task 7
+# calibration: expected_score is exactly affine in HOLEOUT_SCALE[tier] (the
+# trouble-cost term is unscaled, everything else is a linear rescale of the
+# holeout table), so a two-point secant per published tier solves for the
+# scale that zeroes the LENGTH_MIX-weighted aggregate gap against
+# BENCHMARK_AGG exactly, to four decimal places. MISHIT and TROUBLE_COST are
+# left at their documented values; scale alone reached tolerance on all six
+# published tiers (see docs/sources/002_Source_Log.md, Calibration section).
+# Tier 30 is the least-squares line across the six calibrated published
+# scales, evaluated at 30, per the standing tier-30 rule.
 # ---------------------------------------------------------------------------
 
-HOLEOUT_SCALE = {t: 1.0 for t in TIERS}
+_HOLEOUT_SCALE_PUB = {0: 1.0151, 5: 1.0206, 10: 1.0481, 15: 1.0547, 20: 1.0568, 25: 1.1267}
+
+HOLEOUT_SCALE = dict(_HOLEOUT_SCALE_PUB)
+HOLEOUT_SCALE[30] = round(
+    _lsq_at(PUBLISHED_TIERS, [_HOLEOUT_SCALE_PUB[t] for t in PUBLISHED_TIERS], 30), 4
+)  # MODELED
 
 # ---------------------------------------------------------------------------
 # LENGTH_MIX: par-4 hole-length mix used to average the model's expected score

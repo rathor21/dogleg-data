@@ -178,3 +178,58 @@ The pre-approved reframe trigger was "if anchor C fails at handicap resolution."
 **Fallback calibration path is in play.** Anchor E produced a real external benchmark at handicap-band resolution (Shot Scope's average par-4 score, fairway%, GIR%, and putts-per-GIR by handicap, via MyGolfSpy), but that benchmark is a single aggregate number per tier across every par-4 length in Shot Scope's sample — it is not broken out by (handicap band × hole length). The Stagner/Arccos source that could have supplied length-resolved scoring (Newsletter #56) is scoped to one handicap tier only and its table was inaccessible behind a metered subscription wall on this visit.
 
 Per the design spec's own fallback ("if only aggregate exists, benchmark becomes model-calibrated"), the model tasks should treat the Anchor E aggregate table as a **calibration target**, not a per-length ground truth: derive hole-length sensitivity from the expected-strokes-to-holeout mechanics (Anchor D, Broadie tour and amateur data) applied across the tee-shot and approach-shot chain, then calibrate that curve so its output — averaged across whatever hole-length mix the model assumes for a tier's home course — reproduces the tier's published aggregate par-4 score above. Every chart and caption built on the length-resolved benchmark must label it MODELED (calibrated to a published aggregate), not PUBLISHED at that resolution.
+
+---
+
+## Calibration (Task 7)
+
+Before calibration, `HOLEOUT_SCALE` sat at 1.0 for every tier and the `LENGTH_MIX`-weighted model average missed the published aggregate at every published tier, worse at the harder tiers:
+
+| Tier | Model (pre) | Published | Gap (pre) |
+|---|---|---|---|
+| 0 | 4.1535 | 4.2000 | -0.0465 |
+| 5 | 4.4311 | 4.5000 | -0.0689 |
+| 10 | 4.6301 | 4.8000 | -0.1699 |
+| 15 | 4.8928 | 5.1000 | -0.2072 |
+| 20 | 5.1695 | 5.4000 | -0.2305 |
+| 25 | 5.3628 | 5.9000 | -0.5372 |
+
+Tier 10 already breached the 0.15-stroke tolerance and every tier past it opened wider, so `HOLEOUT_SCALE` moved off 1.0. `expected_score` turns out to be exactly affine in `HOLEOUT_SCALE[tier]`: `strokes_to_holeout` rescales the anchor table linearly, and the trouble-cost term added on top is a flat per-tier constant that does not touch the scale. That linearity let a two-point secant per published tier solve the exact scale that zeroes its aggregate gap, no iteration needed. `MISHIT` and `TROUBLE_COST` stayed at their documented starting values; scale alone closed every published tier's gap to under 0.0001 strokes, well inside the ranges those two knobs are allowed.
+
+Final knob values:
+
+| Tier | HOLEOUT_SCALE | MISHIT | TROUBLE_COST |
+|---|---|---|---|
+| 0 | 1.0151 | 0.01 | 0.55 |
+| 5 | 1.0206 | 0.02 | 0.60 |
+| 10 | 1.0481 | 0.03 | 0.65 |
+| 15 | 1.0547 | 0.05 | 0.70 |
+| 20 | 1.0568 | 0.07 | 0.75 |
+| 25 | 1.1267 | 0.09 | 0.80 |
+| 30 (modeled) | 1.1210 | 0.11 | 0.85 |
+
+Tier 30's `HOLEOUT_SCALE` is the least-squares line across the six calibrated published scales above, evaluated at 30, matching the standing tier-30 rule used everywhere else in `data.py`. `MISHIT[30]` and `TROUBLE_COST[30]` were untouched by this task; they already sat on the same LSQ-style extrapolation from the prior release.
+
+After calibration, every published tier lands within 0.0001 strokes of its target:
+
+| Tier | Model (post) | Published | Gap (post) |
+|---|---|---|---|
+| 0 | 4.1999 | 4.2000 | -0.0001 |
+| 5 | 4.4999 | 4.5000 | -0.0001 |
+| 10 | 4.8000 | 4.8000 | +0.0000 |
+| 15 | 5.1000 | 5.1000 | -0.0000 |
+| 20 | 5.3999 | 5.4000 | -0.0001 |
+| 25 | 5.9001 | 5.9000 | +0.0001 |
+
+Max gap after calibration: 0.0001 strokes (tier 25), against a 0.15-stroke tolerance.
+
+The mid-handicap and high-handicap tiers needed the biggest scale moves because the pre-calibration holeout construction under-weighted how much worse a bogey golfer's short game gets relative to a scratch player's, so nudging `HOLEOUT_SCALE` up (never past 1.13, well inside the declared [0.8, 1.6] range) closed each tier's gap without touching any published anchor. Tier 25 needed the largest single move because its published aggregate (5.9) sat furthest from what the uncalibrated tour-to-scratch offset chain alone produced (5.36), a 0.54-stroke starting gap versus 0.05-0.23 strokes at the other five published tiers.
+
+One test needed updating alongside this change: `test_holeout_hits_anchors_exactly` in `tests/test_model.py` compared `strokes_to_holeout()` (which applies `HOLEOUT_SCALE`) against the raw, unscaled `E_HOLEOUT` anchor value. That comparison only held while `HOLEOUT_SCALE` was uniformly 1.0; `model.py`'s docstring for `strokes_to_holeout` already flagged this as temporary ("this factor is 1.0 for all tiers today and may be calibrated in Task 7"). The test now compares against `s * data.HOLEOUT_SCALE[tier]`, preserving the same exact-match rigor at the new scale. The golden pin `test_expected_score_golden_pin` also moved, from 4.991488064215653 to 5.204051925307641, because `HOLEOUT_SCALE[15]` moved off 1.0; both changes are noted in the test file comments and travel with this commit.
+
+Recalibrated headline numbers:
+
+- `neutral_distance(400, 10)["threshold"]` = 236.6 yd; `benchmark_score(400, 10)` = 4.899
+- `neutral_distance(400, 15)["threshold"]` = 217.8 yd; `benchmark_score(400, 15)` = 5.204
+- `neutral_distance(400, 20)["threshold"]` = 209.2 yd; `benchmark_score(400, 20)` = 5.516
+- `club_verdict(360, 20)["best"]` = driver (scores: driver 5.306, wood 5.347, hybrid 5.430, iron 5.460)
