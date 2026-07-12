@@ -47,9 +47,9 @@ def tee_outcomes(club, tier, drive_mean=None):
     """Discretized tee-shot outcome distribution for one swing.
 
     Returns (carries, weights, lie_probs_per_node). The distribution is a
-    mixture: clean strike (gauss quadrature over the distance sd) plus a
-    tier-specific severe-mishit branch that lands in the rough at
-    MISHIT carry_frac of the intended distance.
+    mixture: clean strike (gauss quadrature nodes scaled by the distance
+    standard deviation) plus a tier-specific severe-mishit branch that lands
+    in the rough at the MISHIT carry_frac fraction of the intended distance.
     """
     c = data.CLUBS[club]
     base = drive_mean if drive_mean is not None else data.DRIVER[tier]["mean"]
@@ -64,5 +64,5 @@ def tee_outcomes(club, tier, drive_mean=None):
 
     carries = np.append(clean_carries, mean * data.MISHIT["carry_frac"])
     weights = np.append(clean_weights, p_miss)
-    lies = [clean_lie] * len(clean_carries) + [{"fairway": 0.0, "rough": 1.0, "trouble": 0.0}]
+    lies = [dict(clean_lie) for _ in range(len(clean_carries))] + [{"fairway": 0.0, "rough": 1.0, "trouble": 0.0}]
     return carries, weights, lies

@@ -58,3 +58,11 @@ def test_better_tier_finds_more_fairways():
         _, w, l = tee_outcomes("driver", tier)
         return float(sum(wi * lp["fairway"] for wi, lp in zip(w, l)))
     assert p_fw(0) > p_fw(15) > p_fw(30)
+
+def test_tee_outcomes_structure():
+    carries, weights, lies = tee_outcomes("driver", 15, drive_mean=250)
+    assert len(carries) == len(weights) == len(lies) == 16
+    assert abs(carries[-1] - 250 * data.MISHIT["carry_frac"]) < 1e-9
+    assert lies[-1] == {"fairway": 0.0, "rough": 1.0, "trouble": 0.0}
+    lies[0]["fairway"] = -1.0  # mutation must not leak across nodes
+    assert lies[1]["fairway"] != -1.0
