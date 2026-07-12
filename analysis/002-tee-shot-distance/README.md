@@ -17,3 +17,7 @@ Own-tier baseline: strokes gained 0 = you played the hole like a typical
 golfer at your handicap. Full-hole expected strokes, drive dispersion ->
 lie odds -> approach expected strokes to hole-out. Tier 30 and all
 between-anchor interpolation are MODELED and labeled.
+
+## Environment
+Use the package venv: `.venv/bin/python -m pytest`. Create it with
+`/opt/homebrew/bin/python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt`.
