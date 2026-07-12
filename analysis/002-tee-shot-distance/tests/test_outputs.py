@@ -20,3 +20,14 @@ def test_build_outputs_writes_valid_tool_json():
         assert len(blob["benchmark"][tier]) == len(blob["holes"])
         assert len(blob["cost_line"][tier]) == len(blob["holes"])
     assert os.path.exists(os.path.join(HERE, "outputs", "002_results.csv"))
+
+
+def test_tool_page_embeds_current_tool_data():
+    import re
+    page = open(os.path.join(HERE, "..", "..", "site", "tee-shot-distance", "tool.html")).read()
+    m = re.search(r'<script type="application/json" id="tool-data">(.*?)</script>', page, re.S)
+    assert m, "tool-data blob missing"
+    embedded = json.loads(m.group(1))
+    with open(os.path.join(HERE, "outputs", "tool_data.json")) as f:
+        built = json.load(f)
+    assert embedded == built, "tool.html blob is stale; re-embed outputs/tool_data.json"
