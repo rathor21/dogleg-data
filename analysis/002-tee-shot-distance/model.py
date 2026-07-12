@@ -19,7 +19,8 @@ def strokes_to_holeout(dist, lie, tier):
     the last segment's slope (long-leftover extrapolation, MODELED).
 
     Result is multiplied by data.HOLEOUT_SCALE[tier] before returning; this
-    factor is 1.0 for all tiers today and may be calibrated in Task 7.
+    factor is calibrated per tier (see data.HOLEOUT_SCALE and the Task 7
+    Calibration section of docs/sources/002_Source_Log.md).
     """
     table = data.E_HOLEOUT[tier][lie]
     xs = np.array([p[0] for p in table], dtype=float)
