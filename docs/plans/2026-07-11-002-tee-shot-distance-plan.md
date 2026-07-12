@@ -8,6 +8,15 @@
 
 **Tech Stack:** Python 3 (numpy, matplotlib, pytest), vanilla JS + Chart.js 4 (CDN, same pinned version as the existing dashboard), static HTML matching existing site pages.
 
+## Gate outcome addendum (2026-07-11, binds Tasks 3 through 19)
+
+The source hunt (Task 2) completed; `docs/sources/002_Source_Log.md` and the spec's gate outcome addendum govern. Where task text below conflicts with this addendum, the addendum wins:
+
+1. **`data.py` changes.** `BENCHMARK_PAR4` (per-length published table) does not exist; replace with `BENCHMARK_AGG = {tier: avg_par4_score}` from anchor E (published), plus the anchor E context columns (fairway %, GIR %, putts per GIR). `DRIVER` means come from anchor A's Shot Scope P-Avg table. `sd_lat` is computed in code by inverting anchor A's fairway-hit % through `GEOMETRY["fairway_half_width"] = 18` (Stagner's published 36-yard fairway): solve P(fairway) = 2*Phi(18/sd)-1 for sd. `E_HOLEOUT` per-tier tables are constructed in code from 001's Broadie 2011 tour curves scaled using anchor D and E ratios, MODELED. Tests adapt: benchmark tests target `BENCHMARK_AGG` monotonicity; holeout structure tests unchanged.
+2. **`model.py` changes.** `benchmark_score(hole_yards, tier)` = `expected_score(hole_yards, tier)` at tier defaults (memoized), MODELED-calibrated. `neutral_distance(hole_yards, tier, club="driver", margin=0.10)` finds where expected score crosses `benchmark + margin` (the cost line). Contract keys unchanged.
+3. **Calibration (Task 7).** The external test is aggregate reproduction: expected score at tier defaults, averaged over the par-4 length mix `LENGTH_MIX = [(320, 0.25), (360, 0.30), (400, 0.30), (440, 0.15)]` (MODELED, sensitivity-checked), must match `BENCHMARK_AGG[tier]` within 0.15 strokes for published tiers. Calibration knobs remain MISHIT and TROUBLE_COST, plus a per-tier holeout scale factor if needed (documented in the log's Calibration section).
+4. **Charts and tool.** "Neutral distance" becomes "the cost line" in all copy: chart 1 plots the 0.10 cost line (optionally 0.25 as a lighter series); the tool's KPI shows strokes gained vs tier benchmark and the cost line for the hole, with the modeled-benchmark label. Everything else stands.
+
 **Two facts every task must respect:**
 
 1. **Numbers in this plan are provisional.** Every anchor value shown in `data.py` below is a placeholder from memory or from 001. Task 2 (the verification gate) produces `docs/sources/002_Source_Log.md` with the real published values, and Task 3 copies values from that log, never from this plan. Tests assert structure and internal consistency, never the provisional values.

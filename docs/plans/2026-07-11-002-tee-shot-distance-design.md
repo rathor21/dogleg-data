@@ -20,6 +20,16 @@ One-line hook: "You don't need to hit it as far as you think. Here's the number,
 5. **Tool scope at launch:** par 4s, three inputs (hole length, handicap, typical drive distance).
 6. **Ship date:** July 20, 2026, holding the biweekly cadence from the July 6 launch.
 
+## Gate outcome addendum (2026-07-11, post source hunt)
+
+The verification gate ran and `docs/sources/002_Source_Log.md` is the record. Three outcomes bind the build:
+
+1. **Gate decision: CLUB VERDICT.** Shot Scope publishes the club ladder at handicap resolution (anchor C). The club framing stands.
+2. **Benchmark decision: calibration path.** No published (band x length) par-4 scoring table exists. The benchmark becomes the calibrated model evaluated at tier-typical driving, with its level pinned to Shot Scope's published aggregate par-4 score per band (anchor E): the model's expected score, averaged over a stated par-4 length mix, must reproduce each tier's published aggregate. The length-resolved benchmark is MODELED (calibrated to a published aggregate) and labeled that way everywhere.
+3. **Threshold redefinition: the cost line.** With a calibrated benchmark, the strict SG = 0 crossing is degenerate: the benchmark is the model at tier-average driving, so the crossing sits at the tier's average drive by construction. The headline metric is therefore the cost line: the drive distance below which expected score exceeds the tier benchmark by more than 0.10 strokes (one shot per ten rounds). The API keeps the same shape with an explicit `margin` parameter (default 0.10); charts may also show a 0.25 line. The strokes-gained readout in the tool (benchmark minus expected score at your drive) is unchanged. Both spec edge cases (always at benchmark, never at benchmark) apply to the margin-adjusted line.
+
+Data-source bindings from the log: driver means use Shot Scope P-Avg (internal consistency with the anchor C club ladder), with the Arccos discrepancy disclosed as a sensitivity check; lateral dispersion per band is derived in code by inverting Shot Scope's fairway-hit percentages through Stagner's published 36-yard fairway geometry, cross-checked against Broadie 2008 angular dispersion; distance-sd fraction is MODELED with a stated sensitivity range; amateur strokes-to-holeout curves are constructed from Broadie 2011 tour curves scaled by anchor D/E ratios and are MODELED; Shot Scope penalty % vs Arccos trouble rate are reconciled as a MODELED trouble parameter with both published values quoted.
+
 ## The model
 
 Analytic chain, per handicap tier:
