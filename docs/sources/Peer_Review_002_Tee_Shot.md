@@ -189,3 +189,12 @@ Chart 1 marks tier 30 with a dashed line and "(modeled)" in the legend. Chart 4 
 
 **Reviewer sign-off:** Claude — 2026-07-12
 *(sensitivity range rule checked and does not trigger; calibration and Monte Carlo numbers independently reproduced; 44/44 tests pass; ten sampled data.py literals all trace to the source log; cross-release Broadie curves match 001 exactly)*
+
+---
+
+## Resolution record (2026-07-12, post-review)
+
+- **Should-fix 1 (MC precision claim): FIXED.** Caption and article now say "within 0.003 strokes," a bound the reproducible 0.0021 max gap clears with headroom.
+- **Should-fix 2 (site nav): FIXED.** "Analyses" in the primary nav now points at the 002 article on the home, about, cite, 404, and 001-article pages. The Tools hub keeps its URL and gains a link to the 002 calculator; the calculator remains linked from the hero, the home card, the article, and the /cite page.
+- **Minor 1 (TROUBLE_COST insensitivity): noted, no change.** Structural to the own-tier cost-line metric; recorded here as the methodology note the review asked for.
+- **Minor 2 (inline modeled flag): FIXED for the "80 more yards" sentence** in the article ("a modeled tier" inline). The "230" sentence rests on the published tier 10 band; its benchmark-is-modeled disclosure stands in the adjacent chart caption and the disclosure paragraph.
