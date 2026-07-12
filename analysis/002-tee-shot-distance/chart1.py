@@ -100,7 +100,7 @@ def build_figure(figsize, dpi, outpath):
     ax.legend(loc='lower right', frameon=False, fontsize=11, labelcolor=style.INK, ncol=2)
 
     fig.suptitle(
-        f'Scratch golfers need about {GAP_400_YD} more yards than 30-handicaps to protect par',
+        f'Scratch needs about {GAP_400_YD} more yards than a 30-handicap to stay at their own number',
         color=style.INK, fontsize=18, fontweight='bold', x=0.09, y=0.965, ha='left',
         fontfamily=style.TITLE_FONT)
     fig.text(0.09, 0.915,
