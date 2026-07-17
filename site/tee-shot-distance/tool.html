@@ -68,6 +68,12 @@ header p{font-size:14px;color:var(--ink-soft);max-width:70ch;margin-bottom:4px;}
 .control select:hover{border-color:var(--clay);}
 .control input[type=range]{accent-color:var(--clay);height:22px;cursor:pointer;}
 .control .val{font-family:var(--mono);font-size:12.5px;font-weight:500;color:var(--clay-text);text-transform:none;letter-spacing:0;}
+.control .hint{font-size:10.5px;color:var(--muted);line-height:1.4;margin-top:2px;}
+nav.tabs{display:flex;gap:8px;margin-bottom:var(--gap);flex-wrap:wrap;}
+nav.tabs .tab-btn{background:transparent;border:1px solid var(--line);color:var(--ink-soft);
+  padding:9px 18px;border-radius:999px;font-family:var(--sans);font-size:13.5px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-block;}
+nav.tabs .tab-btn:hover{border-color:var(--clay);color:var(--clay-text);}
+nav.tabs .tab-btn.active{background:var(--clay-text);color:#FBF7EE;border-color:var(--clay-text);font-weight:600;cursor:default;}
 .badge-modeled{display:inline-block;background:transparent;border:1px dashed var(--maroon);color:var(--maroon);
   font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.06em;
   padding:1px 8px;border-radius:999px;margin-left:8px;vertical-align:middle;}
@@ -95,6 +101,7 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
   .controls{flex-direction:column;gap:16px;}
   .control{min-width:0;}
   .brand .wordmark{font-size:28px;}
+  nav.tabs .tab-btn{flex:1;min-width:max-content;}
   .card{padding:18px 16px;}
 }
 </style>
@@ -117,6 +124,13 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
   <p>The benchmark line is modeled: the model's own expected score at your tier's average drive, calibrated to published Shot Scope aggregates.</p>
 </header>
 
+<nav class="tabs">
+  <span class="tab-btn active">Tee shot calculator</span>
+  <a class="tab-btn" href="../fairway-vs-rough/dashboard.html#scramble">Scramble decision</a>
+  <a class="tab-btn" href="../fairway-vs-rough/dashboard.html#breakeven">Break-even explorer</a>
+  <a class="tab-btn" href="../fairway-vs-rough/dashboard.html#gir">Monte Carlo GIR%</a>
+</nav>
+
 <div class="card">
   <h2>Set your hole and your numbers</h2>
   <div class="sub">Every value below updates live as you move the sliders or change handicap.</div>
@@ -133,6 +147,20 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
     <div class="control" style="flex:2;min-width:220px;">
       <label for="ts-drive">Typical drive &mdash; <span class="val" id="ts-drive-val">220 yd</span></label>
       <input type="range" id="ts-drive" min="140" max="320" step="5" value="220">
+    </div>
+    <div class="control">
+      <label for="ts-club">Backup club</label>
+      <select id="ts-club">
+        <option value="wood" selected>3-wood</option>
+        <option value="hybrid">5-wood / 7-wood / hybrid</option>
+        <option value="iron">Long iron (3-4i)</option>
+        <option value="seven_iron">7-iron</option>
+      </select>
+      <div class="hint">5-wood and 7-wood use the hybrid dispersion rung, the closest published anchor.</div>
+    </div>
+    <div class="control" style="flex:2;min-width:220px;">
+      <label for="ts-backup">Backup club distance &mdash; <span class="val" id="ts-backup-val">195 yd</span></label>
+      <input type="range" id="ts-backup" min="120" max="280" step="5" value="195">
     </div>
   </div>
 
@@ -151,6 +179,19 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
 
   <div class="chart-box"><canvas id="ts-chart"></canvas></div>
   <div class="note" id="ts-note">&mdash;</div>
+</div>
+
+<div class="card">
+  <h2>Driver or the backup?</h2>
+  <div class="sub">Same hole, same tier, but your driver drive compared against your backup club at the distance you actually carry it.</div>
+
+  <div id="ts-backup-verdict" class="verdict fairway">
+    <div class="headline" id="ts-backup-headline">&mdash;</div>
+    <div class="detail" id="ts-backup-detail">&mdash;</div>
+  </div>
+
+  <div class="note" id="ts-backup-lie-note">&mdash;</div>
+  <div class="note">The curves already price the lie mix above into every expected score. OB odds enter only through the break-even line: how much more often the driver would have to find OB, over the backup club's own OB risk, before the driver stops being the play.</div>
 </div>
 
 <footer>
@@ -191,6 +232,20 @@ function scoreAt(tier, club, hole, drive){
   return DATA.curves[tier][club][holeIdx(hole)][driveIdx(drive)];
 }
 
+// scoreAt requires drive to land exactly on the DRIVES grid (5-yd steps).
+// The backup club's equivalent-driver distance rarely does, so this
+// linearly interpolates the same hole's curve row between the two nearest
+// grid points instead of looking up a single cell.
+function scoreAtInterp(tier, club, hole, drive){
+  const row = DATA.curves[tier][club][holeIdx(hole)];
+  if(drive <= DRIVES[0]) return row[0];
+  if(drive >= DRIVES[DRIVES.length - 1]) return row[row.length - 1];
+  let i = 0;
+  while(DRIVES[i + 1] < drive) i++;
+  const t = (drive - DRIVES[i]) / (DRIVES[i + 1] - DRIVES[i]);
+  return row[i] + t * (row[i + 1] - row[i]);
+}
+
 function tierShortLabel(tier){
   return tier === "0" ? "scratch" : tier + '-hcp';
 }
@@ -198,6 +253,19 @@ function tierShortLabel(tier){
 const CLUB_ORDER = Object.keys(DATA.clubs); // driver, wood, hybrid, iron, seven_iron, in data.py's CLUBS order
 
 let tsChart = null;
+let backupTouched = false;
+
+// Default/auto-sync: the backup slider tracks the driver slider and club
+// choice until the golfer moves it themselves. dist_ratio converts a
+// driver-equivalent distance into a real distance for that club.
+function syncBackupDefault(){
+  const drive = Number(document.getElementById('ts-drive').value);
+  const club = document.getElementById('ts-club').value;
+  const ratio = DATA.clubs[club].dist_ratio;
+  const target = Math.round((drive * ratio) / 5) * 5;
+  const clamped = Math.max(120, Math.min(280, target));
+  document.getElementById('ts-backup').value = clamped;
+}
 
 function render(){
   const hole = Number(document.getElementById('ts-hole').value);
@@ -261,8 +329,46 @@ function render(){
     }
   });
   document.getElementById('ts-detail').textContent = shortest === 'driver'
-    ? 'This hole wants the driver.'
-    : `Your ${DATA.clubs[shortest].label} gives up nothing on this hole.`;
+    ? 'Hit driver here.'
+    : `You give up nothing hitting the ${DATA.clubs[shortest].label} here.`;
+
+  // ---------------- backup club verdict ----------------
+  const club = document.getElementById('ts-club').value;
+  const backup = Number(document.getElementById('ts-backup').value);
+  document.getElementById('ts-backup-val').textContent = backup + ' yd';
+
+  const ratio = DATA.clubs[club].dist_ratio;
+  // The curves' drive axis is the golfer's DRIVER distance; the model
+  // applies each club's dist_ratio internally. A real backup-club carry
+  // distance D_b therefore reads on that same axis at D_b / ratio, the
+  // driver distance that would produce this club's D_b carry.
+  const backupEquiv = Math.max(140, Math.min(320, backup / ratio));
+  const eDriver = scoreAt(tier, 'driver', hole, drive);
+  const eBackup = scoreAtInterp(tier, club, hole, backupEquiv);
+  const delta = eBackup - eDriver;
+  const clubLabel = DATA.clubs[club].label;
+
+  const backupVerdictEl = document.getElementById('ts-backup-verdict');
+  if(delta <= 0){
+    backupVerdictEl.className = 'verdict fairway';
+    document.getElementById('ts-backup-headline').textContent = 'Hit the backup.';
+    document.getElementById('ts-backup-detail').textContent = 'At your distances it scores even with the driver or better.';
+  } else {
+    backupVerdictEl.className = 'verdict rough';
+    document.getElementById('ts-backup-headline').textContent = 'Hit driver, unless the OB math says otherwise';
+    const obCost = DATA.ob_cost;
+    const p = (delta / obCost) * 100;
+    const n = Math.round(obCost / delta);
+    const r = n / DATA.driver_holes_per_round;
+    document.getElementById('ts-backup-detail').textContent =
+      `Your ${clubLabel} costs ${delta.toFixed(2)} strokes a hole here. It breaks even once the driver hits OB ${p.toFixed(1)}% more often than the backup: about one extra OB every ${n} driver holes, or one every ${r.toFixed(1)} rounds.`;
+  }
+
+  const lieDriver = DATA.lies[tier]['driver'];
+  const lieClub = DATA.lies[tier][club];
+  const pct = v => Math.round(v * 100);
+  document.getElementById('ts-backup-lie-note').textContent =
+    `The model has a ${tierShortLabel(tier)} finding ${pct(lieDriver.fairway)}% fairways with driver against ${pct(lieClub.fairway)}% with the ${clubLabel}; trouble ${pct(lieDriver.trouble)}% against ${pct(lieClub.trouble)}%.`;
 
   // ---------------- chart ----------------
   const yVals = driverCurve.concat([benchmark, benchmark + margin]);
@@ -306,7 +412,21 @@ function render(){
         : "No cost line on this hole: distance alone doesn't close the gap on this hole.");
 }
 
-['ts-hole','ts-tier','ts-drive'].forEach(id => document.getElementById(id).addEventListener('input', render));
+['ts-hole','ts-tier'].forEach(id => document.getElementById(id).addEventListener('input', render));
+document.getElementById('ts-drive').addEventListener('input', ()=>{
+  if(!backupTouched) syncBackupDefault();
+  render();
+});
+document.getElementById('ts-club').addEventListener('input', ()=>{
+  backupTouched = false;
+  syncBackupDefault();
+  render();
+});
+document.getElementById('ts-backup').addEventListener('input', ()=>{
+  backupTouched = true;
+  render();
+});
+syncBackupDefault();
 render();
 </script>
 </body>
