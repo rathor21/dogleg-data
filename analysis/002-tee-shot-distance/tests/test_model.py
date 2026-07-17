@@ -148,3 +148,24 @@ def test_leftover_floor_engages():
     s1 = expected_score(150, 0, drive_mean=300)
     s2 = expected_score(150, 0, drive_mean=310)
     assert abs(s1 - s2) < 0.05  # both dominated by the floored holeout value
+
+from model import bailout_threshold
+
+def test_bailout_threshold_positive_and_ordered():
+    # wood is closest to driver, so its threshold is the lowest bar to clear
+    for tier in (5, 15, 25):
+        t_wood = bailout_threshold(400, tier, "wood")
+        t_iron = bailout_threshold(400, tier, "iron")
+        assert t_wood is not None and 0 < t_wood < 0.15
+        assert t_iron is not None and t_iron > t_wood
+
+def test_bailout_threshold_scales_with_ob_cost():
+    a = bailout_threshold(400, 15, "wood", ob_cost=1.5)
+    b = bailout_threshold(400, 15, "wood", ob_cost=2.5)
+    assert a > b  # cheaper OB penalty demands a higher OB rate to justify switching
+
+def test_bailout_threshold_consistency():
+    t = bailout_threshold(400, 15, "wood")
+    e_d = expected_score(400, 15, "driver")
+    e_w = expected_score(400, 15, "wood")
+    assert abs(e_d + t * data.OB_COST - e_w) < 1e-9

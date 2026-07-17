@@ -137,3 +137,21 @@ def club_verdict(hole_yards, tier, drive_mean=None):
     scores = {club: expected_score(hole_yards, tier, club, drive_mean) for club in data.CLUBS}
     best = min(scores, key=scores.get)
     return {"best": best, "scores": scores}
+
+
+def bailout_threshold(hole_yards, tier, alt_club="wood", drive_mean=None, ob_cost=None):
+    """Excess OB rate at which the driver stops beating alt_club off the tee.
+
+    Returns the per-drive probability p* of an out-of-bounds drive, over and
+    above whatever OB risk alt_club carries, at which the driver's expected
+    score plus OB cost equals the alternative club's expected score:
+    p* = (E_alt - E_driver) / OB_COST. MODELED: each OB costs a flat
+    ob_cost strokes (stroke and distance); see the source log. Returns None
+    when the alternative club already beats the driver outright (p* <= 0
+    would be nonsensical to report as an OB rate).
+    """
+    cost = ob_cost if ob_cost is not None else data.OB_COST
+    e_driver = expected_score(hole_yards, tier, "driver", drive_mean)
+    e_alt = expected_score(hole_yards, tier, alt_club, drive_mean)
+    p = (e_alt - e_driver) / cost
+    return float(p) if p > 0 else None

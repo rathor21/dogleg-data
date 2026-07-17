@@ -389,6 +389,16 @@ LEFTOVER_FLOOR_YD = 8.0
 
 COST_MARGIN = 0.10
 
+# ---------------------------------------------------------------------------
+# OB_COST: strokes charged per out-of-bounds tee shot (stroke and distance).
+# MODELED: the standard strokes-gained rule of thumb for a stroke-and-distance
+# penalty off the tee; no per-handicap published table used. Sensitivity
+# range (1.5, 2.5), carried in the peer-review addendum. See
+# docs/sources/002_Source_Log.md, "Bailout threshold constant" section.
+# ---------------------------------------------------------------------------
+
+OB_COST = 2.0
+
 
 # ---------------------------------------------------------------------------
 # SOURCES: one row per exported constant; log fragments point at the anchor
@@ -443,6 +453,10 @@ SOURCES = {
     "COST_MARGIN": {
         "log": "docs/sources/002_Source_Log.md#anchor-e",
         "status": "modeled",
+    },
+    "OB_COST": {
+        "log": "docs/sources/002_Source_Log.md#bailout-threshold-constant-added-2026-07-12",
+        "status": "modeled (stroke and distance rule of thumb; sensitivity 1.5 to 2.5)",
     },
     "TOUR_CURVES": {
         "log": "docs/sources/002_Source_Log.md#anchor-d",
