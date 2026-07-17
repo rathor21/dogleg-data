@@ -198,3 +198,18 @@ Chart 1 marks tier 30 with a dashed line and "(modeled)" in the legend. Chart 4 
 - **Should-fix 2 (site nav): FIXED.** "Analyses" in the primary nav now points at the 002 article on the home, about, cite, 404, and 001-article pages. The Tools hub keeps its URL and gains a link to the 002 calculator; the calculator remains linked from the hero, the home card, the article, and the /cite page.
 - **Minor 1 (TROUBLE_COST insensitivity): noted, no change.** Structural to the own-tier cost-line metric; recorded here as the methodology note the review asked for.
 - **Minor 2 (inline modeled flag): FIXED for the "80 more yards" sentence** in the article ("a modeled tier" inline). The "230" sentence rests on the published tier 10 band; its benchmark-is-modeled disclosure stands in the adjacent chart caption and the disclosure paragraph.
+
+---
+
+## Rev 2 addendum review (2026-07-12: Hack It Out framing, verdicts, bailout threshold)
+
+Scope: the 7-iron club rung, the bailout-threshold model and chart 6, the reframed article/caption copy, and the launch thread. Method: every number that entered rev 2 copy was re-derived from the model in one script; all twelve checks passed.
+
+- Cost lines at 400 yd as quoted in the stacked post: 256.1 / 236.6 / 217.8 / 209.2 for 0/10/15/20, rounding to the quoted 256/237/218/209.
+- Quote-card claims: 231.2 at 360/10 (quoted as 230, floor rounding consistent with the chart script), 27.8 yards under the 259 tier average (quoted 28).
+- Bailout thresholds: one extra OB every 26 driver holes (15-hcp) and every 23 (20-hcp); tier range 23 to 40, as the caption states. Sensitivity: thresholds scale inversely with OB_COST; at the declared 1.5-to-2.5 range the 15-hcp figure runs 20 to 34 holes. The copy quotes the 2.0-stroke point value with the modeled label; acceptable, range recorded here.
+- Club costs at 400/15: wood 0.076 (dek's "0.08-stroke luxury"), 4-iron 0.226 (quoted 0.23), 7-iron 0.394 (quoted 0.39); wood range across tiers at 400 is 0.051 to 0.088, matching the corrected "0.05 to 0.09" (an earlier "0.04 to 0.09" draft was caught and fixed pre-publication).
+- Origin honesty: the article and caption quote only the episode's published show-notes question, disclose the fairway-conditioning difference, and no in-audio claim is paraphrased. Chart 6 carries the OB_COST modeled label.
+- Test suite after rev 2: 47 passed.
+
+**Rev 2 verdict: cleared for publication, no must-fix items.**
