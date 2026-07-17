@@ -245,3 +245,7 @@ Show notes quote, verbatim: "How far do you need to hit it—in the fairway—to
 ## Bailout threshold constant (added 2026-07-12)
 
 `OB_COST = 2.0` strokes per out-of-bounds drive (stroke and distance). MODELED: the standard strokes-gained rule of thumb for a stroke-and-distance penalty off the tee; no per-handicap published table used. Sensitivity range 1.5 to 2.5, carried in the peer-review addendum. Threshold formula: excess OB probability p* = (E_alt − E_driver) / OB_COST.
+
+## Trouble-rate cross-check (added 2026-07-13)
+
+The model's weighted per-drive trouble probability for the driver (clean-branch lateral tail beyond fairway+rough, plus nothing from the mishit branch, which lands in rough) runs 14.3% (scratch) to 15.3% (tier 30). Published comparison (anchor A/F): Arccos trouble rates ~16.7% (0-4.9 hcp), ~19% (10-14.9), 25% (30+); Shot Scope strict penalty% 1-3%. The model sits inside the published band but flatter across tiers, a direct consequence of the near-flat published fairway-hit rates that set lateral dispersion. Guarded by test_driver_trouble_rate_in_published_band. Cited in the article's driver verdict alongside Fawcett's DECADE framing.

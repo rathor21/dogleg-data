@@ -20,7 +20,7 @@ Chart 4 generalizes that trade. The driver wins every cell of the grid, all seve
 
 Chart 6 prices the exception. Switch to the 3-wood or a 5/7-wood once the driver puts you OB an extra time about every 26 holes, one lost ball every two rounds or so (15-handicap at 400 yards; 23 to 40 across tiers, OB modeled at 2 strokes). Irons stay in the bag on a straight par 4: a 4-iron costs 0.23 strokes, a 7-iron 0.39.
 
-The verdicts, plainly: hit driver on most par 4s; the 3-wood is a 0.05-to-0.09-stroke luxury on an open 400-yard hole; irons off the tee are donations; and you pull the bailout club only past the OB count above.
+The verdicts, plainly: hit driver on most par 4s (the model charges the driver a 14-15% per-swing trouble rate, in line with Arccos's published 17-25%, and it wins anyway: Fawcett's DECADE case with the bill included); the 3-wood is a 0.05-to-0.09-stroke luxury on an open 400-yard hole; irons off the tee are donations; and you pull the bailout club only past the OB count above.
 
 Chart 5 is the number to remember: 230.
 
