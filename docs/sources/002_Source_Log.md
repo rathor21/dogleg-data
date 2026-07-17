@@ -233,3 +233,15 @@ Recalibrated headline numbers:
 - `neutral_distance(400, 15)["threshold"]` = 217.8 yd; `benchmark_score(400, 15)` = 5.204
 - `neutral_distance(400, 20)["threshold"]` = 209.2 yd; `benchmark_score(400, 20)` = 5.516
 - `club_verdict(360, 20)["best"]` = driver (scores: driver 5.306, wood 5.347, hybrid 5.430, iron 5.460)
+
+---
+
+## Origin episode (added 2026-07-12)
+
+**Source:** Hack It Out Golf podcast, Saturday Morning Golf Stat, ["SMS - 400 Yard Hole, Drive Length for 0SG, Scratch and 10"](https://www.hackitoutgolf.com/sms-400-yard-hole-drive-length-for-0sg-scratch-and-10/), released Jul 3, 2026. Retrieved 2026-07-12 (episode page; Apple Podcasts URL returned HTTP 500 on this visit). Hosts: Mark Crossfield (@4golfonline), Lou Stagner (@LouStagner), Greg Chalmers (@GregChalmersPGA); show account @HackItOutGolf (x.com/HackItOutGolf, retrieved 2026-07-12). Episode data source per show notes: Arccos Golf.
+
+Show notes quote, verbatim: "How far do you need to hit it—in the fairway—to break even on a strokes gained against your handicap peers?" The show-notes page publishes no numeric answers and no transcript; the in-audio numbers are NOT recorded here and must not be quoted or paraphrased without listening (standing rule). Framing difference to disclose wherever the episode is credited: the episode's question conditions on the drive finding the fairway; the 002 model prices fairway/rough/trouble odds instead of conditioning on fairway.
+
+## Bailout threshold constant (added 2026-07-12)
+
+`OB_COST = 2.0` strokes per out-of-bounds drive (stroke and distance). MODELED: the standard strokes-gained rule of thumb for a stroke-and-distance penalty off the tee; no per-handicap published table used. Sensitivity range 1.5 to 2.5, carried in the peer-review addendum. Threshold formula: excess OB probability p* = (E_alt − E_driver) / OB_COST.

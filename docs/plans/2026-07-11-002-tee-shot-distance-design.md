@@ -1,9 +1,19 @@
 # Release 002 — How Far Do You Need to Hit It? (Design Spec)
 
-Date: 2026-07-11 · Status: approved by Sunny (decisions confirmed in session) · Author: Claude, direction by Sunny
+Date: 2026-07-11 (rev 2, 2026-07-12: podcast origin + verdicts addendum, below) · Status: approved by Sunny (decisions confirmed in session) · Author: Claude, direction by Sunny
 Ship date: Monday, July 20, 2026 · Cadence context: pipeline moves to one flagship every two weeks (see pipeline doc rev 3)
 
 ---
+
+## Revision addendum (2026-07-12, Sunny's direction)
+
+**Origin and credit.** The idea came from the Hack It Out Golf podcast's Saturday Morning Golf Stat episode "SMS: 400 Yard Hole, Drive Length for 0SG, Scratch and 10" (Jul 3, 2026), hosted by Mark Crossfield (@4golfonline), Lou Stagner (@LouStagner), and Greg Chalmers (@GregChalmersPGA); show handle @HackItOutGolf. The show notes pose the question verbatim: "How far do you need to hit it—in the fairway—to break even on a strokes gained against your handicap peers?" No public transcript exists and the in-audio numbers were not published, so the article credits the episode as the prompt, quotes only the show-notes question, and does not paraphrase in-audio claims (standing rule). One stated difference: their framing conditions on finding the fairway; this model prices the miss odds too. The article opens with this origin; the X post tags the show and all three hosts.
+
+**Clearer verdicts.** The article gains an explicit verdict section ("The move") answering, in order: (1) driver off most tees, yes or no; (2) is the 3-wood ever worth it off the tee; (3) should you ever hit a 4-iron or 7-iron off the tee on a straight par 4; (4) if your driver leaks OB, at what excess OB rate does a 5-wood/7-wood/thriver-style club beat it. Each verdict is one bold sentence backed by a model number.
+
+**Model extensions.** (a) Add a 7-iron rung to the club ladder from anchor C's published 7-iron distances (ratios per tier, same construction as the existing clubs) so the iron-off-the-tee verdict is computed, not asserted. (b) The bailout threshold: for each tier and alternative club, the excess OB-per-drive probability at which the driver's expected score with OB risk equals the alternative club's. OB cost is modeled at 2.0 strokes (stroke and distance, Broadie's rule of thumb; sensitivity 1.5 to 2.5): threshold p* = (E_alt − E_driver) / OB_COST, also expressed as one extra OB every N driver holes. Chart 6 ("the bailout threshold") renders it; the caption and article carry the per-tier numbers. The 5-wood/7-wood verdict interpolates between the published wood and hybrid rungs and says so.
+
+**Headline.** The article title and hook move to a sharper claim chosen at copy time (brand-copywriter pass), anchored to a computed number; the URL slug and canonical stay `tee-shot-distance`.
 
 ## The question
 
