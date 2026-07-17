@@ -58,10 +58,10 @@ header{padding:4px 2px 24px;border-bottom:4px double var(--line);margin-bottom:2
 header h1{font-family:var(--serif);font-weight:600;font-size:21px;line-height:1.3;margin-bottom:7px;max-width:60ch;}
 header p{font-size:14px;color:var(--ink-soft);max-width:70ch;}
 nav.tabs{display:flex;gap:8px;margin-bottom:var(--gap);flex-wrap:wrap;}
-nav.tabs button{background:transparent;border:1px solid var(--line);color:var(--ink-soft);
-  padding:9px 18px;border-radius:999px;font-family:var(--sans);font-size:13.5px;font-weight:500;cursor:pointer;}
-nav.tabs button:hover{border-color:var(--clay);color:var(--clay-text);}
-nav.tabs button.active{background:var(--clay-text);color:#FBF7EE;border-color:var(--clay-text);font-weight:600;}
+nav.tabs .tab-btn{background:transparent;border:1px solid var(--line);color:var(--ink-soft);
+  padding:9px 18px;border-radius:999px;font-family:var(--sans);font-size:13.5px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-block;}
+nav.tabs .tab-btn:hover{border-color:var(--clay);color:var(--clay-text);}
+nav.tabs .tab-btn.active{background:var(--clay-text);color:#FBF7EE;border-color:var(--clay-text);font-weight:600;}
 .tabpanel{display:none;}
 .tabpanel.active{display:block;}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;margin-bottom:var(--gap);}
@@ -109,7 +109,7 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
   .controls{flex-direction:column;gap:16px;}
   .control{min-width:0;}
   .brand .wordmark{font-size:28px;}
-  nav.tabs button{flex:1;min-width:max-content;}
+  nav.tabs .tab-btn{flex:1;min-width:max-content;}
   .card{padding:18px 16px;}
 }
 </style>
@@ -128,10 +128,11 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
     <a class="home-link" href="../index.html">&larr; Dogleg Data home</a>
   </div>
   <h1>Tools</h1>
-  <p>Built from the analyses, starting with "Fairway vs. Rough, by Handicap." New: <a href="../tee-shot-distance/tool.html">the tee shot calculator</a> from Analysis N&ordm; 002. More tools land as new analyses publish.</p>
+  <p>Built from the analyses, starting with "Fairway vs. Rough, by Handicap," and now including the newest, <a href="../tee-shot-distance/tool.html">the tee shot calculator</a> from Analysis N&ordm; 002. More tools land as new analyses publish.</p>
 </header>
 
 <nav class="tabs">
+  <a class="tab-btn" href="../tee-shot-distance/tool.html">Tee shot calculator</a>
   <button class="tab-btn active" data-tab="scramble">Scramble decision tool</button>
   <button class="tab-btn" data-tab="breakeven">Break-even explorer</button>
   <button class="tab-btn" data-tab="gir">Monte Carlo GIR%</button>
@@ -286,14 +287,20 @@ function interp(xs, ys, x){
 }
 
 // ---------------- TAB SWITCHING ----------------
-document.querySelectorAll('.tab-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
-  });
+function activateTab(btn){
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+}
+document.querySelectorAll('.tab-btn[data-tab]').forEach(btn=>{
+  btn.addEventListener('click', ()=> activateTab(btn));
 });
+// Hash-tab activation on load, so links like dashboard.html#breakeven land
+// on the right tab. Reuses the same activateTab used by the click handlers.
+const hashTab = location.hash.slice(1);
+const hashBtn = hashTab && document.querySelector('.tab-btn[data-tab="'+hashTab+'"]');
+if(hashBtn) activateTab(hashBtn);
 
 // ---------------- TAB 1: BREAK-EVEN ----------------
 const beDist = DATA.worth.distances;
