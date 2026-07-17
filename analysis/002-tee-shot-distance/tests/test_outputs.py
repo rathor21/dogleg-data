@@ -19,6 +19,12 @@ def test_build_outputs_writes_valid_tool_json():
             assert all(len(row) == len(blob["drives"]) for row in grid)
         assert len(blob["benchmark"][tier]) == len(blob["holes"])
         assert len(blob["cost_line"][tier]) == len(blob["holes"])
+        assert set(blob["lies"][tier]) == set(blob["clubs"])
+        for club in blob["clubs"]:
+            mix = blob["lies"][tier][club]
+            assert set(mix) == {"fairway", "rough", "trouble"}
+            assert abs(sum(mix.values()) - 1.0) < 1e-6
+    assert blob["ob_cost"] == 2.0
     assert os.path.exists(os.path.join(HERE, "outputs", "002_results.csv"))
 
 
