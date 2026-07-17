@@ -128,12 +128,16 @@ DRIVER = {
 #   iron (4-iron, all six bands):
 #     223/285, 201/261, 199/259, 186/236, 169/225, 151/204
 #     = 0.782, 0.770, 0.768, 0.788, 0.751, 0.740 -> mean 0.767
+#   seven_iron (7-iron, all six bands):
+#     178/285, 164/261, 161/259, 154/236, 146/225, 132/204
+#     = 0.625, 0.628, 0.622, 0.653, 0.649, 0.647 -> mean 0.637
 #
 # lat_ratio: MODELED. Under the constant-angle dispersion in anchor B
 # (Broadie 2008 reports sigma in degrees), lateral spread already scales with
 # distance, and shorter clubs also launch straighter, so
-# lat_ratio = dist_ratio * 0.92 for wood/hybrid/iron. The 0.92 loft-tightening
-# factor is MODELED with sensitivity range (0.85, 1.0). Driver = 1.0.
+# lat_ratio = dist_ratio * 0.92 for wood/hybrid/iron/seven_iron. The 0.92
+# loft-tightening factor is MODELED with sensitivity range (0.85, 1.0).
+# Driver = 1.0.
 # ---------------------------------------------------------------------------
 
 _LOFT_TIGHTEN = 0.92  # MODELED; sensitivity range (0.85, 1.0)
@@ -147,6 +151,9 @@ _HYBRID_RATIO = round(
 _IRON_RATIO = round(
     sum(r for r in (223 / 285, 201 / 261, 199 / 259, 186 / 236, 169 / 225, 151 / 204)) / 6, 3
 )  # anchor C, 4-iron over driver per band
+_SEVEN_IRON_RATIO = round(
+    sum(r for r in (178 / 285, 164 / 261, 161 / 259, 154 / 236, 146 / 225, 132 / 204)) / 6, 3
+)  # anchor C, 7-iron over driver per band
 
 CLUBS = {
     "driver": {"dist_ratio": 1.0, "lat_ratio": 1.0, "label": "Driver"},
@@ -164,6 +171,11 @@ CLUBS = {
         "dist_ratio": _IRON_RATIO,
         "lat_ratio": round(_IRON_RATIO * _LOFT_TIGHTEN, 3),
         "label": "Mid-iron",
+    },
+    "seven_iron": {
+        "dist_ratio": _SEVEN_IRON_RATIO,
+        "lat_ratio": round(_SEVEN_IRON_RATIO * _LOFT_TIGHTEN, 3),
+        "label": "7-iron",
     },
 }
 

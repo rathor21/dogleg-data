@@ -15,6 +15,7 @@ def test_club_ratios_ordered():
     r = data.CLUBS
     assert r["driver"]["dist_ratio"] == 1.0
     assert 1.0 > r["wood"]["dist_ratio"] > r["hybrid"]["dist_ratio"] > r["iron"]["dist_ratio"] > 0.5
+    assert r["iron"]["dist_ratio"] > r["seven_iron"]["dist_ratio"] > 0.5
     for club in r.values():
         assert 0.4 <= club["lat_ratio"] <= 1.0
 
