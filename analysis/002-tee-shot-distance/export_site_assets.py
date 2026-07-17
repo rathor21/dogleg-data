@@ -21,6 +21,7 @@ CHARTS = [
     ("chart3.py", "chart3_decomposition"),
     ("chart4.py", "chart4_club_map"),
     ("chart5.py", "chart5_quote_card"),
+    ("chart6.py", "chart6_bailout"),
 ]
 
 env = dict(os.environ, CITE_EXPORT="1")
