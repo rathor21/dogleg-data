@@ -18,9 +18,9 @@ Chart 3 answers the question that started this analysis. When a 15-handicap driv
 
 Chart 4 generalizes that trade. The driver wins every cell of the grid, all seven handicap tiers by all ten hole lengths, and it never wins by much. The worst case anywhere for the 3-wood is 0.12 strokes. Hit the club you trust; the cost never tops an eighth of a stroke.
 
-Chart 6 prices the exception. The 3-wood or a 5/7-wood earns the tee once your driver donates an extra OB about every 26 holes (a 15-handicap at 400 yards; 23 to 40 across tiers, OB modeled at 2 strokes). Irons never earn it on a straight par 4: a 4-iron costs 0.23, a 7-iron 0.39.
+Chart 6 prices the exception. Switch to the 3-wood or a 5/7-wood once the driver puts you OB an extra time about every 26 holes, one lost ball every two rounds or so (15-handicap at 400 yards; 23 to 40 across tiers, OB modeled at 2 strokes). Irons stay in the bag on a straight par 4: a 4-iron costs 0.23 strokes, a 7-iron 0.39.
 
-The verdicts, plainly: hit driver on most par 4s; the 3-wood is a 0.05-to-0.09-stroke luxury on an open 400-yard hole; irons off the tee are donations; and the bailout club pays only past the OB threshold above.
+The verdicts, plainly: hit driver on most par 4s; the 3-wood is a 0.05-to-0.09-stroke luxury on an open 400-yard hole; irons off the tee are donations; and you pull the bailout club only past the OB count above.
 
 Chart 5 is the number to remember: 230.
 
@@ -40,9 +40,9 @@ I built the model. A 10-handicap needs 230 on a 360-yard par 4. 28 yards UNDER t
 
 h/t @LouStagner @4golfonline @GregChalmersPGA
 
-T2 (247 chars):
+T2 (253 chars):
 
-The full answer, at every handicap, with the approach shot priced in. Plus the one that surprised me: the 3-wood only pays off if your driver donates an extra OB every 26 holes.
+The full answer, at every handicap, with the approach shot priced in. Plus the one that surprised me: the 3-wood only pays off once you lose an extra ball to OB every 26 driver holes.
 
 Article + free calculator: https://doglegdata.com/tee-shot-distance/
 
@@ -65,7 +65,7 @@ I ran @HackItOutGolf's 0SG question at every handicap. Four verdicts:
 
 1. Driver wins every tier, every length
 2. The 3-wood is a 0.05-0.09 stroke luxury
-3. Irons off the tee donate 0.2-0.4
-4. Bench the driver once it costs an extra OB every 26 holes
+3. Irons off the tee cost you 0.2-0.4
+4. Bench the driver once you lose an extra ball every 26 holes
 
 Model + calculator, free:

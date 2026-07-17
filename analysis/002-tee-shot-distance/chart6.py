@@ -33,7 +33,7 @@ ALT_COLORS = {"wood": "#5B7FA6", "hybrid": "#C05A36"}  # denim / baked clay
 
 # p* per tier per alt club. bailout_threshold returns None when the alt club
 # already beats the driver outright; none of the published tiers hit that at
-# 400 yd (the driver's extra distance always earns its keep absent OB risk),
+# 400 yd (absent OB risk the driver's extra distance always pays),
 # but the chart tolerates it (bar simply omitted, annotated "n/a").
 THRESHOLDS = {
     club: {t: bailout_threshold(HOLE_YARDS, t, club) for t in data.TIERS}
@@ -47,8 +47,8 @@ assert _T15_WOOD is not None and _T15_WOOD > 0
 N_HOLES_T15 = round(1.0 / _T15_WOOD)
 
 TITLE = (
-    f'The 3-wood only pays off if your driver donates an extra OB every '
-    f'{N_HOLES_T15} holes'
+    f'The 3-wood only pays off once you lose an extra ball every '
+    f'{N_HOLES_T15} driver holes'
 )
 
 
