@@ -213,3 +213,16 @@ Scope: the 7-iron club rung, the bailout-threshold model and chart 6, the refram
 - Test suite after rev 2: 47 passed.
 
 **Rev 2 verdict: cleared for publication, no must-fix items.**
+
+---
+
+## Rev 3 addendum review (2026-07-13: golfer-as-actor sweep, backup-club calculator, trouble cross-check)
+
+Scope: the copy sweep replacing club-as-actor phrasing (donates / owes / keeps its job / earns) with golfer-as-actor sentences across article, captions, chart 6, and tool; the calculator's backup-club comparison (club select + real backup distance mapped onto the curves via distance ÷ dist_ratio, OB break-even and per-club lie mix shown); the unified tools tabs with the calculator first; and the Fawcett/DECADE passage. Checks:
+
+- Copy: zero remaining hits for the swept phrases across site and captions; the quoted Hack It Out question keeps its verbatim em dashes (quote, exempt).
+- Backup math, independently verified in-browser and against the Python model at 400/15/220/wood: driver 5.291, backup-equivalent axis point 219.1, backup 5.379, delta 0.09, break-even 4.4% excess OB, one extra OB per 23 driver holes, 1.6 rounds at 14 driver holes a round.
+- Lie mixes shown in the tool sum to 1 exactly (rough stored as residual, matching the model's convention) and the driver trouble rate (14.3-15.3% across tiers) sits inside the published Arccos band (17-25%) and above Shot Scope's strict penalty rates (1-3%); guarded by test_driver_trouble_rate_in_published_band.
+- Suite: 48 passed after all rev 3 commits.
+
+**Rev 3 verdict: cleared for publication, no must-fix items.**
