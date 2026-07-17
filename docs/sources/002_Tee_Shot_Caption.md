@@ -20,7 +20,7 @@ Chart 4 generalizes that trade. The driver wins every cell of the grid, all seve
 
 Chart 6 prices the exception. The 3-wood or a 5/7-wood earns the tee once your driver donates an extra OB about every 26 holes (a 15-handicap at 400 yards; 23 to 40 across tiers, OB modeled at 2 strokes). Irons never earn it on a straight par 4: a 4-iron costs 0.23, a 7-iron 0.39.
 
-The verdicts, plainly: hit driver on most par 4s; the 3-wood is a 0.04-to-0.09-stroke luxury on open holes; irons off the tee are donations; and the bailout club pays only past the OB threshold above.
+The verdicts, plainly: hit driver on most par 4s; the 3-wood is a 0.05-to-0.09-stroke luxury on an open 400-yard hole; irons off the tee are donations; and the bailout club pays only past the OB threshold above.
 
 Chart 5 is the number to remember: 230.
 
@@ -64,7 +64,7 @@ Alternative launch (link in reply, 277 chars):
 I ran @HackItOutGolf's 0SG question at every handicap. Four verdicts:
 
 1. Driver wins every tier, every length
-2. The 3-wood is a 0.04-0.09 stroke luxury
+2. The 3-wood is a 0.05-0.09 stroke luxury
 3. Irons off the tee donate 0.2-0.4
 4. Bench the driver once it costs an extra OB every 26 holes
 
