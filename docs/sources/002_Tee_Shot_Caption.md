@@ -1,6 +1,6 @@
 # 002 — How Far Do You Need to Hit It? (Caption)
 
-Ship date: 2026-07-20 · Numbers re-derived from `analysis/002-tee-shot-distance/outputs/002_results.csv` on 2026-07-12. Every figure below traces to the model and the source log; modeled steps named in the disclosure paragraph.
+Ship date: 2026-07-24 · Numbers re-derived from `analysis/002-tee-shot-distance/outputs/002_results.csv` on 2026-07-12; width numbers re-derived 2026-07-24. Every figure below traces to the model and the source log; modeled steps named in the disclosure paragraph.
 
 ## Long-form caption
 
@@ -19,6 +19,8 @@ Chart 3 answers the question that started this analysis. When a 15-handicap driv
 Chart 4 generalizes that trade. The driver wins every cell of the grid, all seven handicap tiers by all ten hole lengths, and it never wins by much. The worst case anywhere for the 3-wood is 0.12 strokes. Hit the club you trust; the cost never tops an eighth of a stroke.
 
 Chart 6 prices the exception. Switch to the 3-wood or a 5/7-wood once the driver puts you OB an extra time about every 26 holes, one lost ball every two rounds or so (15-handicap at 400 yards; 23 to 40 across tiers, OB modeled at 2 strokes). Irons stay in the bag on a straight par 4: a 4-iron costs 0.23 strokes, a 7-iron 0.39.
+
+The calculator now carries a fairway-width control: squeezing the published 36-yard fairway to 25 costs a mid-handicap about 0.08 strokes and moves the 15-handicap cost line out 14 yards, and the driver verdict holds at every width the slider covers, modeled beyond the published 36-yard anchor.
 
 The verdicts, plainly: hit driver on most par 4s (the model charges the driver a 14-15% per-swing trouble rate, in line with Arccos's published 17-25%, and it wins anyway: Fawcett's DECADE case with the bill included); the 3-wood is a 0.05-to-0.09-stroke luxury on an open 400-yard hole; irons off the tee are donations; and you pull the bailout club only past the OB count above.
 
