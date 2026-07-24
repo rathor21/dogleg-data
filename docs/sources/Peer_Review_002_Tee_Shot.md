@@ -226,3 +226,153 @@ Scope: the copy sweep replacing club-as-actor phrasing (donates / owes / keeps i
 - Suite: 48 passed after all rev 3 commits.
 
 **Rev 3 verdict: cleared for publication, no must-fix items.**
+
+---
+
+## Rev 4 addendum review (2026-07-24: fairway-width variable, tool width slider, article width section, July 24 dates)
+
+**Scope:** everything added since rev 3 — the `fairway_width` parameter threaded through `model.py`/`montecarlo.py`, `score_components` and its client-side JS mirror, the tool's fairway-width slider and label clarity pass, the article's "Squeeze the fairway and the answer holds" section, and the July 24 date move — plus a full whole-release regression sweep before launch (suite, rebuild determinism, nav, copy rules, cross-release Broadie curves, tier-30 labeling, reading time).
+
+### Method
+
+1. Ran `pytest -q` (55 tests), then wiped `outputs/` and rebuilt everything from scratch (`build_outputs.py`, all six `chart*.py` with `CITE_EXPORT=1`, `export_site_assets.py`) and diffed the working tree for drift.
+2. Re-derived the width math directly against `model.py`, independent of the source log's own table: the width-25 delta and cost-line shift at (400, 15), the `score_components` decomposition identity at three randomly chosen (tier, club, width) triples, and a fresh Monte Carlo run at width 27 with a seed the suite does not use.
+3. Re-derived every number in the article's width section from live model calls, then swept `club_verdict(400, t, fairway_width=W)` across all seven tiers at W in (20, 36, 50), plus spot checks at 320 and 480 yards at W=20, watching for any club other than driver winning.
+4. Read the tool's embedded JS (`lieProbs`, `scoreAt`, `scoreAtInterp`, `costLineAtWidth`) line by line against `model._lie_probs`/`model.score_components`/`model.neutral_distance` to confirm the client-side math is a faithful port, and checked the width slider's min/max/step and the modeled-badge logic.
+5. Grepped `site/` and `docs/sources/` for stray "July 20"/"2026-07-20", club-as-actor phrasing, em/en dashes, and -ly adverbs in the new copy.
+6. Diffed `TOUR_DIST`/`TOUR_FAIRWAY`/`TOUR_ROUGH` against 001's `data.py` again and confirmed the primary nav still points at the 002 pages site-wide (regression check on rev 1's should-fix #2).
+7. Recounted the article's rendered word count and checked it against the byline's stated reading time.
+
+---
+
+### Must Fix
+
+*Issues that change the conclusion or produce a wrong output.*
+
+None found. The `club_verdict` sweep found zero flips off driver across all seven tiers, three widths (20/36/50) at 400 yards, and the 320/480-yard spot checks at width 20 — the article's "holds at every width the calculator lets you set, from 20 to 50 yards" claim stands.
+
+---
+
+### Should Fix
+
+*Issues that weaken the conclusion or could mislead the audience.*
+
+| # | Location | Issue | Evidence |
+|---|---|---|---|
+| 1 | `site/tee-shot-distance/index.html` line 236 | The width section states "0.080 for a 15[-handicap]." The true value, computed directly from `model.expected_score`, is 0.0794621888302176 strokes, which rounds to 0.079 at three decimal places, not 0.080. The source log's own width-delta table (added this rev) lists the intermediate value as 0.0795 to four places; rounding that already-rounded 4-place figure a second time produces 0.080, a double-rounding error. The 10-handicap (0.076) and 20-handicap (0.083) figures in the same sentence are correct under either method, so only the 15-handicap figure is affected. | `expected_score(400,15,fairway_width=25) - expected_score(400,15)` = 0.0794621888302176; `Decimal(d).quantize(Decimal('0.001'))` = 0.079. Low stakes: the sentence's own headline framing ("about 0.08 strokes more") is accurate either way, and the error is 0.001 strokes on a number never used downstream. |
+| 2 | `docs/sources/002_Post_Copy_LinkedIn.md` line 3; `docs/sources/002_Post_Copy_X.md` line 3 | Both scheduling notes still say the article and tool "live Monday July 20," with ship dates of "Tuesday July 21" and "Wednesday July 22." The actual ship date, confirmed everywhere else (byline, meta, JSON-LD, homepage card, sitemap, caption, pipeline doc), is July 24. These are not the peer-review doc's history — they are live scheduling instructions for the still-upcoming LinkedIn and X posts, and using them as written would post "went live this morning" framing on the wrong calendar day. | `grep -n "July 20\|July 21\|July 22" docs/sources/002_Post_Copy_LinkedIn.md docs/sources/002_Post_Copy_X.md` returns both line-3 hits; no other stray "July 20"/"2026-07-20" found anywhere else in `site/` or `docs/sources/` outside this review doc's own history sections. |
+
+---
+
+### Minor / Optional
+
+*Suggestions for clarity or future improvement. Author's discretion.*
+
+| # | Location | Suggestion |
+|---|---|---|
+| 1 | `site/tee-shot-distance/tool.html` line 475 | The Chart.js dataset label `DATA.tiers[tier] + ' — expected score, driver'` uses an em dash, visible in the chart legend. Pre-existing since the tool page's original commit (`8d3e72a`), not touched by rev 3's golfer-as-actor/dash sweep or this rev. Very low visibility (a legend fragment, not prose) but technically outside the house style now enforced elsewhere. |
+| 2 | `site/tee-shot-distance/index.html` line 236 | Same pattern as rev 1's Minor #2: only the closing "gets back about 0.05 strokes" clause carries the inline `modeled` badge, even though every non-36-yd number in the paragraph (0.076/0.080/0.083, 218→232, the 13-17 yd range) is equally modeled geometry per the source log's new width entry. The section header, the adjacent tool's width-badge logic, and the paragraph below ("Width is a second-order lever...") all disclose the modeling, so a reader who screenshots just the numeric sentence loses the flag, same low-stakes gap as before. |
+
+---
+
+### Width math verification
+
+| Check | Expected (task) | Computed | Match |
+|---|---|---|---|
+| `expected_score(400,15,fw=25) - expected_score(400,15)` | ≈ +0.080 | +0.0794621888302176 | Yes (rounds to 0.079, see Should-Fix 1) |
+| `neutral_distance(400,15,fw=25)["threshold"]` | ≈ 232.0 | 232.0446134534514 | Yes |
+| `score_components` decomposition, 3 random (tier, club, width) triples | agrees to 1e-9 | tier=10/wood/W=31.8: diff -8.9e-16; tier=0/seven_iron/W=22.8: diff +1.8e-15; tier=0/seven_iron/W=26.4: diff +8.9e-16 | Yes, all at float-precision noise floor |
+| `simulate_hole` vs analytic at width 27 | agrees within 0.03 | seed 20260720 (suite's own): gap 0.0011; independent seed 999, n=200,000: gap 0.0011 | Yes |
+
+Also independently reproduced the suite's own `test_decomposition_reproduces_expected_score` and `test_montecarlo_matches_at_nondefault_width` logic outside pytest, not just trusting green output.
+
+---
+
+### Article width-section number audit
+
+| Claim | Article text | Recomputed | Match |
+|---|---|---|---|
+| 10-hcp cost at W=25 vs 36, 400 yd | 0.076 | 0.07623973591721445 | Yes |
+| 15-hcp cost at W=25 vs 36, 400 yd | 0.080 | 0.0794621888302176 | **No — rounds to 0.079** (Should-Fix 1) |
+| 20-hcp cost at W=25 vs 36, 400 yd | 0.083 | 0.08253247154492804 | Yes |
+| 15-hcp cost line, 218 → 232 | 218 → 232 | `neutral_distance` threshold 217.7557 → 232.0446 | Yes |
+| Cost-line jump, 15-hcp | 14-yard jump | 232.0446 - 217.7557 = 14.29 | Yes |
+| 10/20-hcp cost-line shift range | 13-17 yd | tier 10: 16.89 yd; tier 20: 12.96 yd | Yes, both inside range |
+| Widen to 45, golfer gets back | ~0.05 strokes | tier 10: -0.0519; tier 15: -0.0542; tier 20: -0.0564 | Yes, all round to "about 0.05" |
+| Driver verdict holds 20-50 yd, all tiers, 400 yd | holds | 7 tiers x {20,36,50} = 21 cells, all driver | Yes, no flips |
+| Driver verdict spot check, 320/480 yd, W=20 | holds | 7 tiers x 2 holes = 14 cells, all driver | Yes, no flips |
+
+---
+
+### Rebuild determinism
+
+```
+rm -rf outputs && python build_outputs.py && for i in 1 2 3 4 5 6; do CITE_EXPORT=1 python chart$i.py; done && python export_site_assets.py
+git status --short -- site analysis docs
+```
+
+Produced no output — a full from-scratch rebuild reproduces every chart PNG, cite variant, and embedded tool blob byte-for-byte against what is committed. No drift.
+
+---
+
+### Tool integrity
+
+- Embed tests (`test_build_outputs_writes_valid_tool_json`, `test_blob_decomposition_matches_model`, `test_tool_page_embeds_current_tool_data`) pass as part of the 55.
+- Width slider: `min="20" max="50" step="1" value="36"` — 25 is directly reachable.
+- Main slider label: "Your driver distance," hint "The driver's own carry plus roll."
+- Backup slider label: "Your `<span id="ts-backup-club-label">`... distance," populated per club by `DATA.clubs[club].label` in `render()`; hint "That club's own distance, not your driver's."
+- Never-rescales note present: "Every distance here is the named club's own. The model never rescales what you type" (line 173), plus a second width-specific note appended at render time: "The benchmark and dashed line stay pinned to the 36 yd default width, so a narrower fairway shows up here as strokes lost against a fixed goalpost, not a moved one."
+- Modeled badges: width label shows `<span class="badge-modeled">modeled</span>` whenever `width !== 36`; tier label shows it whenever `DATA.modeled.includes(tier)` (tier 30 only); both confirmed by reading the JS, not just assuming from the blob.
+- Client-side `lieProbs`/`scoreAt`/`costLineAtWidth` are a line-for-line port of `model._lie_probs`/`score_components`/`neutral_distance`; the JS comments say so explicitly and the math checks out against the Python side.
+
+---
+
+### Dates
+
+| Location | Value | Status |
+|---|---|---|
+| Article `article:published_time` meta | 2026-07-24 | OK |
+| Article JSON-LD `datePublished` | 2026-07-24 | OK |
+| Article byline | "July 24, 2026" | OK |
+| Homepage card | "July 24, 2026" | OK |
+| Sitemap, `tee-shot-distance/` | lastmod 2026-07-24 | OK |
+| Sitemap, `tee-shot-distance/tool.html` | lastmod 2026-07-24 | OK (two entries, as expected) |
+| Caption ship line | "Ship date: 2026-07-24" | OK |
+| Pipeline doc, 002 row | "Jul 24, 2026 (slipped from Jul 20)" | OK, explicitly notes the slip |
+| `site/` (whole tree) | grep for "July 20"/"2026-07-20" | Clean, zero hits |
+| `docs/sources/` (whole tree) | grep for "July 20"/"2026-07-20" | Two stray hits, both in social scheduling docs (Should-Fix 2); peer-review doc's own history mentions are the accepted exception and were excluded |
+
+---
+
+### Copy rules regression
+
+- Club-as-actor phrases (donates, owes, keeps its job, earns the, wants the): zero hits across `site/` and the 002 caption/post-copy docs.
+- -ly adverbs in the new width section (article paragraphs + heading): zero.
+- Em/en dashes outside the quoted podcast question: one pre-existing hit, a Chart.js legend string in `tool.html` (Minor 1). `site/assets/css/site.css` and `fairway-vs-rough/dashboard.html` also contain dashes but are shared/001 assets outside this release's copy, and the CSS hits are code comments, not reader-facing prose.
+
+---
+
+### Cross-release and labeling spot checks
+
+- `TOUR_DIST`/`TOUR_FAIRWAY`/`TOUR_ROUGH` in 002's `data.py` still match `Fairway_vs_Rough_Post/source/data.py` value-for-value (whitespace only difference), unchanged since rev 1.
+- Primary nav "Analyses"/"Tools" links still point at the 002 article/tool on `index.html`, `about/index.html`, `404.html`, `cite/index.html`, and `fairway-vs-rough/index.html` — rev 1's should-fix #2 has not regressed.
+- Modeled badges present: tool width label at non-36 widths (confirmed in JS), the article width section (Minor 2 notes partial coverage), chart 6's figcaption, and tier 30 everywhere in the tool (tier dropdown label and the benchmark line itself, via `DATA.modeled`).
+
+---
+
+### Reading time
+
+Full rendered word count inside `<article>...</article>` (headings, paragraphs, figcaptions, tables, the sources definition list — everything a reader can see), computed by stripping HTML tags and tokenizing: 2,286 words. 2286 / 230 = 9.94, rounds to 10. Byline reads "10 min read." Match. (For reference, this rev bumped the byline from 8 to 10 minutes alongside the ~178-word width section; the 8-minute figure at rev 3 was already slightly under this same counting method — 2,105 words there would round to 9 — but that predates this review's scope and does not affect the current, correctly-rounded 10.)
+
+---
+
+### Suite
+
+`pytest -q`: 55 passed (up from 48 at rev 3; the width variable adds 5 new tests in `tests/test_width.py` plus 2 more in `tests/test_outputs.py` covering the blob decomposition and embed).
+
+---
+
+**Rev 4 verdict: cleared for publication.** No must-fix items; two should-fix items (the article's "0.080" rounding on the 15-handicap width delta, and stale "July 20" scheduling dates in the LinkedIn/X post-copy docs) are both cosmetic — neither touches the model, the data, the driver-verdict conclusion, or any live site page — but both are worth a quick fix before or immediately after the post-copy docs get used to actually schedule the launch posts.
+
+**Reviewer sign-off:** Claude — 2026-07-24
+*(55/55 tests pass; full rebuild reproduces the committed `site`/`analysis`/`docs` trees byte-for-byte with zero diff; width math independently re-derived against `model.py` and matches within float precision; driver verdict swept across 7 tiers x 3 widths x 3 hole lengths with zero flips; Broadie tour curves still match 001 exactly; nav regression from rev 1's should-fix #2 holds)*
