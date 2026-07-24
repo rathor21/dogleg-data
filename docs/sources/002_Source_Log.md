@@ -249,3 +249,30 @@ Show notes quote, verbatim: "How far do you need to hit it—in the fairway—to
 ## Trouble-rate cross-check (added 2026-07-13)
 
 The model's weighted per-drive trouble probability for the driver (clean-branch lateral tail beyond fairway+rough, plus nothing from the mishit branch, which lands in rough) runs 14.3% (scratch) to 15.3% (tier 30). Published comparison (anchor A/F): Arccos trouble rates ~16.7% (0-4.9 hcp), ~19% (10-14.9), 25% (30+); Shot Scope strict penalty% 1-3%. The model sits inside the published band but flatter across tiers, a direct consequence of the near-flat published fairway-hit rates that set lateral dispersion. Guarded by test_driver_trouble_rate_in_published_band. Cited in the article's driver verdict alongside Fawcett's DECADE framing.
+
+## Fairway width variable (added 2026-07-13)
+
+`_lie_probs` in `model.py` gains an optional `fairway_width` parameter (yards, full width). Default stays the published 36 yd (Stagner, anchor F, `data.GEOMETRY["fairway_half_width"] * 2`). Other widths are MODELED geometry: the same lateral-dispersion-vs-hole-geometry integral, evaluated at a different half-width, with the rough band held at its fixed 22-yd offset from the fairway edge regardless of width. The parameter threads through `tee_outcomes`, `expected_score`, `neutral_distance`, and `club_verdict` as keyword-only, and through `montecarlo.simulate_hole` the same way, mirroring the model exactly (tested by `test_montecarlo_matches_at_nondefault_width`).
+
+`benchmark_score` does not take a `fairway_width` argument and stays pinned to the published default width. The benchmark describes a typical hole, so a narrow fairway should read as strokes lost against that benchmark, not as a moved goalpost; `neutral_distance` compares its width-varied expected-score curve against the fixed-width benchmark for this reason.
+
+`score_components(hole_yards, tier, club, drive_mean)` returns the width-independent decomposition the tool consumes to recompute expected score client-side at any width without re-deriving the model:
+
+```
+E(W) = base + p_fw(W) * gap + p_tr(W) * tc_eff
+base   = 1 + p_miss * e_holeout(mishit leftover, rough) + (1 - p_miss) * E_rough_nodes
+gap    = (1 - p_miss) * (E_fair_nodes - E_rough_nodes)
+tc_eff = (1 - p_miss) * TROUBLE_COST[tier]
+```
+
+`E_fair_nodes` and `E_rough_nodes` are the quadrature-weighted holeout expectations over the clean-strike branch only, weights renormalized to sum to 1 over that branch. `p_fw(W)` and `p_tr(W)` come from `_lie_probs(sd_lat, fairway_width=W)` for the club's lateral sd. `test_decomposition_reproduces_expected_score` checks this identity against the direct `expected_score` call to 1e-9 strokes across tiers 0/15/30, clubs driver/wood/seven_iron, and widths 24/36/48.
+
+Width-delta table, `expected_score(400, tier)` at tier-typical driving, widths 25/30/36/45 yd:
+
+| Tier | W=25 | W=30 | W=36 | W=45 | delta 25 vs 36 | delta 45 vs 36 |
+|---|---|---|---|---|---|---|
+| 10 | 4.9752 | 4.9388 | 4.8989 | 4.8471 | +0.0762 | -0.0519 |
+| 15 | 5.2835 | 5.2456 | 5.2041 | 5.1499 | +0.0795 | -0.0542 |
+| 20 | 5.5988 | 5.5594 | 5.5163 | 5.4599 | +0.0825 | -0.0564 |
+
+The cost line moves right on a narrow fairway rather than disappearing: at tier 15, hole 400, `neutral_distance(400, 15)["threshold"]` is 217.8 yd at the published 36-yd width and 232.0 yd at 25 yd, a 14.3-yd shift, with `never_at_benchmark` false at both widths (tiers 10 and 20 shift by a similar 13-17 yd). No never-at-benchmark edge case surfaced at 25 yd on a 400-yd hole for any tested tier; that branch remains reachable in principle (`test_cost_line_moves_right_when_narrow` accepts it) but was not observed here.

@@ -7,15 +7,18 @@ check on the integration, not independent evidence.
 import numpy as np
 import data
 
-def simulate_hole(hole_yards, tier, club="driver", drive_mean=None, n=200_000, rng=None):
+def simulate_hole(hole_yards, tier, club="driver", drive_mean=None, fairway_width=None, n=200_000, rng=None):
     """Simulate n plays of a par 4 and return mean strokes.
 
     Mirrors model.expected_score's distributions exactly: carry is normal
     (mean = drive_mean-or-tier-average times the club's dist_ratio), a
     tier-probability mishit branch lands in the rough at carry_frac of the
-    intended distance, lateral error sets the lie via GEOMETRY, and holeout
-    uses the same anchor tables, scale, and trouble cost. drive_mean is the
-    golfer's DRIVER distance; rng an optional np.random.Generator.
+    intended distance, lateral error sets the lie via GEOMETRY (and
+    fairway_width, mirroring model._lie_probs), and holeout uses the same
+    anchor tables, scale, and trouble cost. drive_mean is the golfer's
+    DRIVER distance; fairway_width is the full fairway width in yards
+    (None uses the published 36-yd default, matching model._lie_probs);
+    rng an optional np.random.Generator.
     """
     rng = rng if rng is not None else np.random.default_rng()
     c = data.CLUBS[club]
@@ -29,7 +32,8 @@ def simulate_hole(hole_yards, tier, club="driver", drive_mean=None, n=200_000, r
     carry[mishit] = mean * data.MISHIT["carry_frac"]
 
     lateral = np.abs(rng.normal(0.0, sd_lat, n))
-    fw = data.GEOMETRY["fairway_half_width"]
+    width = fairway_width if fairway_width is not None else data.GEOMETRY["fairway_half_width"] * 2
+    fw = width / 2.0
     edge = fw + data.GEOMETRY["rough_band"]
     lie = np.where(lateral <= fw, 0, np.where(lateral <= edge, 1, 2))  # 0 fw, 1 rough, 2 trouble
     lie[mishit] = 1  # mishit lands in rough, never trouble, per tee_outcomes
