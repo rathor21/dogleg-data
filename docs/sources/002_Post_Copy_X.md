@@ -47,7 +47,7 @@ Every one sits under that group's average drive. The number you need is shorter 
 
 ---
 
-## Alternative launch (four answers, link in reply, 272 chars)
+## Alternative launch (four answers, link in reply, 274 chars)
 
 I ran @HackItOutGolf's question at every handicap. Four answers:
 
