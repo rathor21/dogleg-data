@@ -40,6 +40,12 @@ The verification gate ran and `docs/sources/002_Source_Log.md` is the record. Th
 
 Data-source bindings from the log: driver means use Shot Scope P-Avg (internal consistency with the anchor C club ladder), with the Arccos discrepancy disclosed as a sensitivity check; lateral dispersion per band is derived in code by inverting Shot Scope's fairway-hit percentages through Stagner's published 36-yard fairway geometry, cross-checked against Broadie 2008 angular dispersion; distance-sd fraction is MODELED with a stated sensitivity range; amateur strokes-to-holeout curves are constructed from Broadie 2011 tour curves scaled by anchor D/E ratios and are MODELED; Shot Scope penalty % vs Arccos trouble rate are reconciled as a MODELED trouble parameter with both published values quoted.
 
+## Revision addendum 3 (2026-07-13, Sunny's direction: fairway width + tool clarity)
+
+**Fairway width becomes a variable.** The model's `_lie_probs` chain gains an optional `fairway_width` parameter (yards, full width) defaulting to the published 36 (Stagner, anchor F). `benchmark_score` and the Task 7 calibration stay pinned at the default width: the tier benchmark describes a typical hole, so a narrow fairway shows as strokes lost against it, which is the honest reading. Width decomposition for the tool: `E(W) = base + p_fw(W) * gap + p_tr(W) * tc_eff`, where `base = 1 + p_miss * e_mishit + (1 - p_miss) * E_rough_nodes`, `gap = (1 - p_miss) * (E_fair_nodes - E_rough_nodes)`, `tc_eff = (1 - p_miss) * TROUBLE_COST[tier]`, and `p_fw / p_tr` come from the club's lateral sd and W. The tool JSON replaces the single curves grid with base and gap grids plus per-tier-per-club lateral sd, recomputes E and the cost line client-side at any width (exact, tested against the Python model), and gains a fairway-width slider (20 to 50, default 36, labeled with the Stagner anchor and a modeled note for other widths). The rough band stays 22 yards on each side beyond the fairway edge. The article and caption gain a width paragraph with computed sensitivity numbers; the peer review gains a rev 4 addendum.
+
+**Tool distance-label clarity.** The main slider is the golfer's DRIVER distance and says so in its label; the backup slider is the backup club's own distance and says so. A one-line note under the controls states the rule: every distance input is the club's own carry-plus-roll, and the model never rescales what you type.
+
 ## The model
 
 Analytic chain, per handicap tier:
