@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>How far do you need to hit it? · Dogleg Data</title>
 <!-- seo -->
-<meta name="description" content="Enter a par 4, your handicap, and your typical drive. Get the strokes-gained verdict, the cost line for that hole, and the club that gives up nothing.">
+<meta name="description" content="Enter a par 4, your handicap, and your typical drive. Get the strokes-gained verdict, the cost line for that hole, and a driver-or-backup call with the OB break-even.">
 <link rel="canonical" href="https://doglegdata.com/tee-shot-distance/tool.html">
 <meta name="theme-color" content="#F4EDE0">
 <link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../assets/brand/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:title" content="How far do you need to hit it? · Dogleg Data">
-<meta property="og:description" content="Enter a par 4, your handicap, and your typical drive. Get the strokes-gained verdict, the cost line for that hole, and the club that gives up nothing.">
+<meta property="og:description" content="Enter a par 4, your handicap, and your typical drive. Get the strokes-gained verdict, the cost line for that hole, and a driver-or-backup call with the OB break-even.">
 <meta property="og:url" content="https://doglegdata.com/tee-shot-distance/tool.html">
 <meta property="og:site_name" content="Dogleg Data">
 <meta property="og:image" content="https://doglegdata.com/assets/brand/og-banner.jpg">
@@ -27,7 +27,7 @@
   "name": "Dogleg Data Tee Shot Distance Calculator",
   "url": "https://doglegdata.com/tee-shot-distance/tool.html",
   "applicationCategory": "Sports",
-  "description": "Enter a par 4, a handicap, and a typical drive distance. Returns the strokes-gained verdict against the tier benchmark, the cost line for that hole, and the club that gives up the least distance for the same expected score."
+  "description": "Enter a par 4, a handicap, and a typical drive distance. Returns the strokes-gained verdict against the tier benchmark, the cost line for that hole, and a driver-or-backup call with the OB break-even."
 }
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
@@ -120,7 +120,7 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
     <a class="home-link" href="../index.html">&larr; Dogleg Data home</a>
   </div>
   <h1>How far do you need to hit it?</h1>
-  <p>Enter a par 4, your handicap, and your typical drive, and the calibrated tee-shot model returns your expected score, the strokes-gained verdict against your tier, and a driver-or-backup verdict with the OB break-even for the hole.</p>
+  <p>Enter a par 4, your handicap, and your drives. The model scores the hole for you: what you can expect to shoot, how that compares with a typical golfer at your handicap, the shortest drive that keeps you even, and whether driver or your backup club is the play.</p>
   <p>The benchmark line is modeled: the model's own expected score at your tier's average drive, calibrated to published Shot Scope aggregates.</p>
 </header>
 
@@ -181,7 +181,7 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
   <div class="note">Benchmark is modeled: the calibrated model at your tier's average drive, pinned to published Shot Scope aggregates.</div>
 
   <div id="ts-verdict" class="verdict fairway">
-    <div class="headline" id="ts-headline">Distance isn't your problem here</div>
+    <div class="headline" id="ts-headline">&mdash;</div>
     <div class="detail" id="ts-detail">&mdash;</div>
   </div>
 
@@ -394,31 +394,33 @@ function render(){
     costEl.textContent = 'No threshold reachable';
   }
 
-  // ---------------- verdict ----------------
+  // ---------------- verdict: the distance question only ----------------
+  // This card answers one question: is your drive distance costing you
+  // strokes on this hole? Club advice lives in the backup card below.
+  // Color rule, both cards: blue = carry on, clay = change something.
   const verdictEl = document.getElementById('ts-verdict');
-  const gaining = sg >= -0.10;
-  verdictEl.className = 'verdict ' + (gaining ? 'fairway' : 'rough');
-  document.getElementById('ts-headline').textContent = gaining ? "Distance isn't your problem here" : "Distance is costing you strokes here";
-
-  // Every club curve is indexed by the golfer's DRIVER distance: the model
-  // applies each club's dist_ratio internally, so all clubs read at the same
-  // exact drive index as the driver curve.
-  const clubScores = {};
-  CLUB_ORDER.forEach(c=>{
-    clubScores[c] = scoreAt(tier, c, hi, di, width);
-  });
-  let best = CLUB_ORDER[0];
-  CLUB_ORDER.forEach(c=>{ if(clubScores[c] < clubScores[best]) best = c; });
-  const bestScore = clubScores[best];
-  let shortest = null;
-  CLUB_ORDER.forEach(c=>{
-    if(clubScores[c] <= bestScore + 0.05){
-      if(shortest === null || DATA.clubs[c].dist_ratio < DATA.clubs[shortest].dist_ratio) shortest = c;
+  const withinMargin = sg >= -margin;
+  verdictEl.className = 'verdict ' + (withinMargin ? 'fairway' : 'rough');
+  const tierName = tierShortLabel(tier);
+  let head, det;
+  if(withinMargin){
+    head = 'Your distance is fine on this hole';
+    if(costLine !== null){
+      det = `You score within a tenth of a stroke of a typical ${tierName} here (${sg >= 0 ? '+' : ''}${sg.toFixed(2)}). The cost line is ${costLine.toFixed(0)} yd and your ${drive} yd drive sits past it.`;
+    } else if(forgiving){
+      det = `Any drive on the slider keeps you within a tenth of a stroke of a typical ${tierName} here.`;
+    } else {
+      det = `You score within a tenth of a stroke of a typical ${tierName} here (${sg >= 0 ? '+' : ''}${sg.toFixed(2)}).`;
     }
-  });
-  document.getElementById('ts-detail').textContent = shortest === 'driver'
-    ? 'Hit driver here.'
-    : `You give up nothing hitting the ${DATA.clubs[shortest].label} here.`;
+  } else if(costLine !== null){
+    head = 'Your drive is below the cost line here';
+    det = `This hole costs you ${(-sg).toFixed(2)} strokes against a typical ${tierName}. The cost line is ${costLine.toFixed(0)} yd; your ${drive} yd drive is ${(costLine - drive).toFixed(0)} yd short of it.`;
+  } else {
+    head = 'This hole plays over your number at any distance';
+    det = `This hole costs you ${(-sg).toFixed(2)} strokes against a typical ${tierName}, and no drive on the slider closes the gap. Distance alone is not the fix here.`;
+  }
+  document.getElementById('ts-headline').textContent = head;
+  document.getElementById('ts-detail').textContent = det;
 
   // ---------------- backup club verdict ----------------
   const club = document.getElementById('ts-club').value;
@@ -439,12 +441,12 @@ function render(){
 
   const backupVerdictEl = document.getElementById('ts-backup-verdict');
   if(delta <= 0){
-    backupVerdictEl.className = 'verdict fairway';
-    document.getElementById('ts-backup-headline').textContent = 'Hit the backup.';
-    document.getElementById('ts-backup-detail').textContent = 'At your distances it scores even with the driver or better.';
-  } else {
     backupVerdictEl.className = 'verdict rough';
-    document.getElementById('ts-backup-headline').textContent = 'Hit driver, unless the OB math says otherwise';
+    document.getElementById('ts-backup-headline').textContent = 'Hit the backup on this hole';
+    document.getElementById('ts-backup-detail').textContent = `Your ${clubLabel} at ${backup} yd scores even with the driver or better here.`;
+  } else {
+    backupVerdictEl.className = 'verdict fairway';
+    document.getElementById('ts-backup-headline').textContent = 'Stick with the driver';
     const obCost = DATA.ob_cost;
     const p = (delta / obCost) * 100;
     const n = Math.round(obCost / delta);
