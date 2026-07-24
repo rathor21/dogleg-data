@@ -34,50 +34,6 @@ Chart 5 is the number to remember: 230.
 
 **Run your own hole.** Enter a par 4, your handicap, and your typical drive: doglegdata.com/tee-shot-distance/tool.html
 
-## X version (launch thread, quote card on T1, chart 6 on T2)
+## X version (launch thread; canonical, mirrored in 002_Post_Copy_X.md)
 
-T1 (248 chars):
-
-.@HackItOutGolf asked: how far do you need to hit it to break even against your handicap peers?
-
-I built the model. A 10-handicap needs 230 on a 360-yard par 4. 28 yards UNDER the tier's average drive.
-
-h/t @LouStagner @4golfonline @GregChalmersPGA
-
-T2 (231 chars) [convergence]:
-
-On air, their Arccos numbers said 230 for scratch and 200 for a 10-index, with the drive in the fairway.
-
-I ran my model under that exact setup: 228 and 208.
-
-Different dataset, different method, the same answer inside eight yards.
-
-T3 (253 chars):
-
-The full answer, at every handicap, with the approach shot priced in. Plus the one that surprised me: the 3-wood only pays off once you lose an extra ball to OB every 26 driver holes.
-
-Article + free calculator: https://doglegdata.com/tee-shot-distance/
-
-## X alternates
-
-Day-2 standalone (chart 1 as image, 230 chars):
-
-Drive length for zero strokes gained, 400-yard par 4:
-
-Scratch: 256
-10-handicap: 237
-15-handicap: 218
-20-handicap: 209
-
-Every one sits under that tier's average drive. The number you need is shorter than the number you're chasing.
-
-Alternative launch (link in reply, 275 chars):
-
-I ran @HackItOutGolf's 0SG question at every handicap. Four verdicts:
-
-1. Driver wins every tier, every length
-2. The 3-wood is a 0.05-0.09 stroke luxury
-3. Irons off the tee cost you 0.2-0.4
-4. Bench the driver once you lose an extra ball every 26 holes
-
-Model + calculator:
+T1 (242 chars), T2 (231 chars), T3 (235 chars), and the alternates now live in `002_Post_Copy_X.md`, rewritten 2026-07-24 in the article's plain-golfer voice after the humanizer pass. That file is the single copy to post from.
