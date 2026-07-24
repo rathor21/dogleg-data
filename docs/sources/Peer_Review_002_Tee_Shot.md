@@ -376,3 +376,9 @@ Full rendered word count inside `<article>...</article>` (headings, paragraphs, 
 
 **Reviewer sign-off:** Claude — 2026-07-24
 *(55/55 tests pass; full rebuild reproduces the committed `site`/`analysis`/`docs` trees byte-for-byte with zero diff; width math independently re-derived against `model.py` and matches within float precision; driver verdict swept across 7 tiers x 3 widths x 3 hole lengths with zero flips; Broadie tour curves still match 001 exactly; nav regression from rev 1's should-fix #2 holds)*
+
+## Rev 4 resolution record (2026-07-24)
+
+- **Should-fix 1 (0.080 rounding): FIXED.** The article's 15-handicap width delta now reads 0.079, matching the full-precision 0.0794622.
+- **Should-fix 2 (stale post copy): FIXED.** `002_Post_Copy_LinkedIn.md` and `002_Post_Copy_X.md` rewritten for the July 24 launch: Hack It Out origin and credit, the OB and width findings, host tags on the X thread, links in the LinkedIn first comment, all dates July 24/25. Character counts re-verified (T1 248, T2 253, alternates 230/275).
+- **Minors: recorded, no change** (pre-existing legend em dash in a Chart.js string; inline modeled flags follow the rev 1 precedent).

@@ -61,7 +61,7 @@ Scratch: 256
 
 Every one sits under that tier's average drive. The number you need is shorter than the number you're chasing.
 
-Alternative launch (link in reply, 277 chars):
+Alternative launch (link in reply, 275 chars):
 
 I ran @HackItOutGolf's 0SG question at every handicap. Four verdicts:
 
@@ -70,4 +70,4 @@ I ran @HackItOutGolf's 0SG question at every handicap. Four verdicts:
 3. Irons off the tee cost you 0.2-0.4
 4. Bench the driver once you lose an extra ball every 26 holes
 
-Model + calculator, free:
+Model + calculator:
