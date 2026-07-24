@@ -18,6 +18,8 @@ I built the model to answer it at every handicap. Analysis Nº 002 went live thi
 
 The headline: a 10-handicap needs 230 yards off the tee on a 360-yard par 4 to stay within a tenth of a stroke of a typical 10-handicap score. That is 28 yards under the tier's average drive.
 
+And the part that sold me on publishing: their on-air answers were 230 for scratch and 200 for a 10-index with the drive in the fairway, from Arccos data. My model runs on Shot Scope data and never saw those numbers. Under their exact setup it says 228 and 208. Two datasets, two methods, one answer.
+
 Three arguments golfers have on every tee box, priced in strokes:
 
 1️⃣ The cost line sits under your average drive

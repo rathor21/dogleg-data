@@ -2,7 +2,7 @@
 
 Ship: Saturday July 25, morning, the day after the July 24 LinkedIn post (001 mechanics kept: a day between posts so they do not split reach). Article and tool live Friday July 24.
 
-**Posting notes:** The launch thread is two tweets; the canonical copy lives in `002_Tee_Shot_Caption.md` (X version section) and is duplicated here with the ship plan. Keep the two files in sync. T1 carries the tags and 002_chart5_quote_card.png; T2 carries the link and 002_chart6_bailout.png. A t.co link counts as 23 characters. Pin the thread after posting; quote the 001 thread once from it ("Analysis Nº 002 is live") so the old pin hands off. Reply-with-chart standing order: any distance-debate thread gets chart 1 or the quote card, credited.
+**Posting notes:** The launch thread is three tweets; the canonical copy lives in `002_Tee_Shot_Caption.md` (X version section) and is duplicated here with the ship plan. Keep the two files in sync. T1 carries the tags and 002_chart5_quote_card.png; T2 carries the link and 002_chart6_bailout.png. A t.co link counts as 23 characters. Pin the thread after posting; quote the 001 thread once from it ("Analysis Nº 002 is live") so the old pin hands off. Reply-with-chart standing order: any distance-debate thread gets chart 1 or the quote card, credited.
 
 Numbers re-derived 2026-07-24 from `outputs/002_results.csv` and direct model calls. The 230 rounds from a 231.2-yard threshold, disclosed in `Peer_Review_002_Tee_Shot.md`. Rev 4 peer review cleared publication 2026-07-24.
 
@@ -18,7 +18,15 @@ I built the model. A 10-handicap needs 230 on a 360-yard par 4. 28 yards UNDER t
 
 h/t @LouStagner @4golfonline @GregChalmersPGA
 
-**Tweet 2** (253 chars) [attach 002_chart6_bailout.png]
+**Tweet 2** (231 chars) [convergence, attach 002_chart1_cost_line.png]
+
+On air, their Arccos numbers said 230 for scratch and 200 for a 10-index, with the drive in the fairway.
+
+I ran my model under that exact setup: 228 and 208.
+
+Different dataset, different method, the same answer inside eight yards.
+
+**Tweet 3** (253 chars) [attach 002_chart6_bailout.png]
 
 The full answer, at every handicap, with the approach shot priced in. Plus the one that surprised me: the 3-wood only pays off once you lose an extra ball to OB every 26 driver holes.
 

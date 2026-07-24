@@ -382,3 +382,7 @@ Full rendered word count inside `<article>...</article>` (headings, paragraphs, 
 - **Should-fix 1 (0.080 rounding): FIXED.** The article's 15-handicap width delta now reads 0.079, matching the full-precision 0.0794622.
 - **Should-fix 2 (stale post copy): FIXED.** `002_Post_Copy_LinkedIn.md` and `002_Post_Copy_X.md` rewritten for the July 24 launch: Hack It Out origin and credit, the OB and width findings, host tags on the X thread, links in the LinkedIn first comment, all dates July 24/25. Character counts re-verified (T1 248, T2 253, alternates 230/275).
 - **Minors: recorded, no change** (pre-existing legend em dash in a Chart.js string; inline modeled flags follow the rev 1 precedent).
+
+## Rev 4 supplement (2026-07-24, evening): episode transcript cross-check
+
+Sunny supplied the episode's auto-transcript, satisfying the listen-first rule. The on-air Arccos answers (fairway-conditioned, 400-yd par 4): 230 scratch, 200 for a 10-index. The model, run under that exact setup, answers 227.7 and 207.8, within 2 and 8 yards from a different dataset and method; recorded in the source log with the definitional and distance-base differences. The article gained a comparison section ("Their answer, and mine"), the club verdict gained Stagner's one-in-four-straighter-with-3-wood caveat, the width section gained Crossfield's 25-yard-gap anecdote, and the launch thread gained a convergence tweet. Facts only entered the repo; no transcript text was reproduced. Numbers in the new copy re-derived at write time. Verdict unchanged: cleared for publication.

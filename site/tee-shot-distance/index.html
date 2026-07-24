@@ -209,6 +209,14 @@
 
       <p>Read your own row. A 15-handicap on a 400-yard par 4 clears the line at 218 yards, against a 236-yard tier average. A 20-handicap clears it at 209. The gap between tiers is real: scratch needs about 80 more yards than a 30-handicap (a modeled tier) to stay at their own number, because scratch's number is much lower. But within your tier, the drive you already hit carries slack.</p>
 
+      <h2>Their answer, and mine</h2>
+
+      <p>After this analysis was built, I got the episode's own numbers. Stagner ran them from the Arccos database for a drive that finds the fairway: 230 yards for scratch and 200 for a 10-index on the same 400-yard hole, with a rule of thumb that the break-even sits about 30 yards under the typical player's average drive at that level.</p>
+
+      <p>My model never saw those numbers. It runs on Shot Scope's published aggregates, and under their exact setup, drive in the fairway, strict zero strokes gained, it answers 228 for scratch and 208 for the 10-index. Two yards apart on one, eight on the other, from a different dataset and a different method.</p>
+
+      <p>The rest of this analysis prices the misses too, which is why the cost line sits above the fairway-conditioned break-even. The distance bases differ as well: Shot Scope's mishit-filtered averages run about 25 yards longer than Arccos medians, a gap the source log records. The rule survives both framings. Theirs: about 30 yards under your average drive. Mine: 22 to 29 under, at the cost line.</p>
+
       <h2>Your average drive lives past the line</h2>
 
       <p>Chart 2 shows the same fact as a curve. Expected score falls as drives get longer, then flattens, and the shaded zone marks every drive distance that keeps the hole within a tenth of a stroke of your benchmark. The headroom runs from 24 yards for a 5-handicap down to 16 for a 20. Give back that many yards off your average and the hole charges you less than a tenth of a stroke.</p>
@@ -235,7 +243,7 @@
 
       <p>Every number above holds at Stagner's published 36-yard fairway. Squeeze that width to 25 yards and a mid-handicap golfer pays about 0.08 strokes more on a 400-yard hole: 0.076 for a 10-handicap, 0.079 for a 15, 0.083 for a 20. The cost line moves with the fairway: a 15-handicap's line on that hole shifts from 218 yards to 232, a 14-yard jump, and the 10 and 20 tiers shift 13 to 17 yards. Widen the fairway to 45 yards and the golfer gets back about 0.05 strokes<span class="badge-modeled">modeled</span>.</p>
 
-      <p>Width is a second-order lever next to the club-choice numbers above. The driver verdict holds at every width the calculator lets you set, from 20 to 50 yards. The calculator below now carries a fairway-width control, so you can dial in your own course's number instead of the published average. The benchmark still sits at the published 36-yard width, so a tight fairway shows up as strokes lost against it, and that reading matches how the hole plays.</p>
+      <p>Width is a second-order lever next to the club-choice numbers above. The driver verdict holds at every width the calculator lets you set, from 20 to 50 yards. Crossfield measured his home course's landing gap at 25 yards on the same episode; the width control is for that hole. The calculator below now carries a fairway-width control, so you can dial in your own course's number instead of the published average. The benchmark still sits at the published 36-yard width, so a tight fairway shows up as strokes lost against it, and that reading matches how the hole plays.</p>
 
       <div class="cta-card">
         <span class="kicker">Run your own hole</span>
@@ -261,7 +269,7 @@
 
       <p><strong>Do you hit driver on most par 4s?</strong> Yes. The driver wins every tier-by-length cell on average. The longest club you can keep on the planet is the percentage play, and your average drive already clears the cost line everywhere. Scott Fawcett's DECADE system preaches this, and Shot Scope's scoring data backs it: longer drives on a hole go with lower scores. A fair objection is that the raw scoring tables mix the trouble in with the good drives and cannot tell you how much punch-out pain hides inside the average. So this model charges the trouble up front: every driver swing here carries a 14-to-15 percent chance of a punch-out, drop, or penalty, the same range as Arccos's published 17-to-25 percent trouble rates. The driver wins with that bill on the table.</p>
 
-      <p><strong>Is the 3-wood ever worth it off the tee?</strong> On an open hole, no. It runs 0.05 to 0.09 strokes behind the driver on a 400-yard hole, depending on tier, and its tighter dispersion never pays back the full distance it gives up. The studies you have read saying the 3-wood is a placebo hold up in this model. What those studies skip is the next question.</p>
+      <p><strong>Is the 3-wood ever worth it off the tee?</strong> On an open hole, no. It runs 0.05 to 0.09 strokes behind the driver on a 400-yard hole, depending on tier, and its tighter dispersion never pays back the full distance it gives up. The studies you have read saying the 3-wood is a placebo hold up in this model, with the caveat Stagner raised on the episode: about one golfer in four is much straighter with the 3-wood than the driver, and for that quarter the tight-hole switch is real. The calculator's backup-club input is there for them. What the averages skip is the next question.</p>
 
       <p><strong>So when does the safe club pay?</strong> When you hit OB with the driver on drives the safe club would keep in play. Price it: an out-of-bounds drive costs about two strokes. For a 15-handicap on a 400-yard hole, you break even on the 3-wood once the driver puts you OB one extra time every 26 driver holes. A 20-handicap breaks even at one every 23. Call it 14 tee shots a round: if you lose an extra ball about once every two rounds with the driver, the 3-wood pays on the holes where the trouble lives. Lose one a season and you keep hitting driver.</p>
 

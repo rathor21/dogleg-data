@@ -276,3 +276,14 @@ Width-delta table, `expected_score(400, tier)` at tier-typical driving, widths 2
 | 20 | 5.5988 | 5.5594 | 5.5163 | 5.4599 | +0.0825 | -0.0564 |
 
 The cost line moves right on a narrow fairway rather than disappearing: at tier 15, hole 400, `neutral_distance(400, 15)["threshold"]` is 217.8 yd at the published 36-yd width and 232.0 yd at 25 yd, a 14.3-yd shift, with `never_at_benchmark` false at both widths (tiers 10 and 20 shift by a similar 13-17 yd). No never-at-benchmark edge case surfaced at 25 yd on a 400-yd hole for any tested tier; that branch remains reachable in principle (`test_cost_line_moves_right_when_narrow` accepts it) but was not observed here.
+
+## Episode transcript (received from Sunny, 2026-07-24)
+
+Sunny supplied the Apple Podcasts auto-transcript of the origin episode, which satisfies the listen-before-paraphrasing rule. Facts recorded from it (facts, not verbatim text; the transcript is copyrighted and stays out of the repo):
+
+- On-air answers, Arccos data, 400-yd par 4, drive conditioned on finding the fairway, total-delta strokes gained: scratch break-even 230 yd; 10-index break-even 200 yd. Host guesses for context: 240/255 (scratch), 222/235 (10-index).
+- Stagner's stated rule of thumb: the break-even runs about 30 yards under the typical average drive at that level; scratch average about 260, 10-index about 230 (Arccos medians).
+- Stagner on 3-wood accuracy: about 25% of golfers are much straighter with the 3-wood; for the rest, dispersion matches the driver and clubbing down only gives up distance. Crossfield reports being 2 yards wider with his 3-wood than his driver (driver dispersion about 36 yards).
+- Crossfield measured a 25-yard landing gap on his home par 5, the anecdote paired with the fairway-width control.
+
+**Cross-check (2026-07-24):** running the 002 model under their exact setup (drive in the fairway, strict SG = 0, 400 yd) gives 227.7 yd (scratch) and 207.8 yd (10-index), within 2 and 8 yards of the on-air Arccos answers, from a different dataset and method. The unconditioned cost line sits higher because it prices the misses, and Shot Scope P-Avg distances run about 25 yards longer than the Arccos medians quoted on air (see the anchor A discrepancy note). Their 30-yards-under rule compares with this model's 22-to-29-under at the cost line.

@@ -6,6 +6,8 @@ Ship date: 2026-07-24 · Numbers re-derived from `analysis/002-tee-shot-distance
 
 This one started with a podcast. Hack It Out Golf's Saturday Morning Golf Stat (Jul 3, 2026) asked: "How far do you need to hit it—in the fairway—to break even on a strokes gained against your handicap peers?" Crossfield, Stagner, and Chalmers ran it for scratch and a 10-index. This analysis runs it at every handicap, and prices the miss odds instead of conditioning on the fairway.
 
+Their on-air answers, drive conditioned on the fairway: 230 for scratch, 200 for a 10-index. This model, built on Shot Scope data, answers 228 and 208 under that same setup. Two datasets, two methods, one answer, and the details live in the article's comparison section.
+
 Golf culture prices the tee shot in carry distance. The math prices it in strokes, and the strokes say you need less than you think. A 10-handicap can hit it 230 off the tee on a 360-yard par 4 and stay within a tenth of a stroke of the score a typical 10-handicap posts there. That is 28 yards under the tier's own average drive.
 
 The model behind that number plays the whole hole, which was the point of building it. A 220-yard drive on a 400-yard par 4 looks fine until you price the 180-yard approach it creates, so the model prices it: tee shot dispersion sets the odds of fairway, rough, and trouble, the leftover yardage and lie set the expected strokes to hole out, and the sum is an expected score for the hole. Strokes gained zero means you played the hole like your handicap says you should. We call the interesting number the cost line: the drive distance below which the hole starts costing you more than 0.1 strokes against your own number.
@@ -42,7 +44,15 @@ I built the model. A 10-handicap needs 230 on a 360-yard par 4. 28 yards UNDER t
 
 h/t @LouStagner @4golfonline @GregChalmersPGA
 
-T2 (253 chars):
+T2 (231 chars) [convergence]:
+
+On air, their Arccos numbers said 230 for scratch and 200 for a 10-index, with the drive in the fairway.
+
+I ran my model under that exact setup: 228 and 208.
+
+Different dataset, different method, the same answer inside eight yards.
+
+T3 (253 chars):
 
 The full answer, at every handicap, with the approach shot priced in. Plus the one that surprised me: the 3-wood only pays off once you lose an extra ball to OB every 26 driver holes.
 
