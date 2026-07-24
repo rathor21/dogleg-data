@@ -27,7 +27,7 @@ The old seasonality tiebreaker (decision pieces in playing season, planning piec
 
 | # | Release | Window | Question type | One-line hook |
 |---|---|---|---|---|
-| 002 | How far do you need to hit it? | Jul 20, 2026 | Tee-club decision | You don't need to hit it as far as you think. Here's the number, at your handicap |
+| 002 | How far do you need to hit it? | Jul 24, 2026 (slipped from Jul 20) | Tee-club decision | You don't need to hit it as far as you think. Here's the number, at your handicap |
 | 003 | One shape, two shapes, or straight? | Aug 3, 2026 | Ball-flight strategy | Tour pros pick a side. Should you? |
 | 004 | What separates a 0 from a 10 from a 20 from a 30 | Aug 17, 2026 | Diagnosis | Same course, four golfers: where the strokes go |
 | 005 | Go for it or lay up? | Aug 31, 2026 | Tee/approach decision | Par-5 math at your handicap, not Rory's |
@@ -39,7 +39,7 @@ The old seasonality tiebreaker (decision pieces in playing season, planning piec
 
 ## Per-release scope
 
-### 002 — How far do you need to hit it? (Jul 20)
+### 002 — How far do you need to hit it? (Jul 24, slipped from Jul 20)
 
 **Question.** Which club should you hit off the tee (driver, wood/hybrid, or iron) at every handicap? Answered through the minimum drive distance that keeps expected score at the tier benchmark on a given par 4, with the approach shot the drive creates priced into a full-hole expected-strokes model. Own-tier baseline: strokes gained zero means you played the hole like a typical golfer at your handicap.
 
