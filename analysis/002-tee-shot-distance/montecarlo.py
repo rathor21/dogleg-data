@@ -6,6 +6,7 @@ check on the integration, not independent evidence.
 """
 import numpy as np
 import data
+from model import trouble_increment
 
 def simulate_hole(hole_yards, tier, club="driver", drive_mean=None, fairway_width=None, n=200_000, rng=None):
     """Simulate n plays of a par 4 and return mean strokes.
@@ -34,7 +35,9 @@ def simulate_hole(hole_yards, tier, club="driver", drive_mean=None, fairway_widt
     lateral = np.abs(rng.normal(0.0, sd_lat, n))
     width = fairway_width if fairway_width is not None else data.GEOMETRY["fairway_half_width"] * 2
     fw = width / 2.0
-    edge = fw + data.GEOMETRY["rough_band"]
+    band_scale = min(width / data.HAZARD_GEOMETRY["ref_width"], 1.0)
+    edge = fw + data.GEOMETRY["rough_band"] * band_scale
+    _trouble_inc = trouble_increment(tier, width)
     lie = np.where(lateral <= fw, 0, np.where(lateral <= edge, 1, 2))  # 0 fw, 1 rough, 2 trouble
     lie[mishit] = 1  # mishit lands in rough, never trouble, per tee_outcomes
 
@@ -59,6 +62,6 @@ def simulate_hole(hole_yards, tier, club="driver", drive_mean=None, fairway_widt
         vals[beyond] = ys[-1] + slope * (lo[beyond] - xs[-1])
         vals *= data.HOLEOUT_SCALE[tier]
         if lie_code == 2:
-            vals += data.TROUBLE_COST[tier]  # trouble = scaled rough holeout + unscaled trouble cost
+            vals += _trouble_inc  # trouble = scaled rough holeout + unscaled trouble cost
         strokes[mask] += vals
     return float(strokes.mean())
