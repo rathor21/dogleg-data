@@ -41,18 +41,42 @@ _WEIGHTS = _WEIGHTS / _WEIGHTS.sum()
 def _phi(z):
     return 0.5 * (1.0 + erf(z / sqrt(2.0)))
 
+def hazard_share(fairway_width=None):
+    """Share of the trouble zone priced at OB cost instead of playable trouble.
+
+    Zero at or above the published 36-yd reference width (so every default-
+    width number and the Task 7 calibration are untouched), rising linearly
+    to 1.0 at the floor width. MODELED; see data.HAZARD_GEOMETRY and the
+    source log's rev 5 section.
+    """
+    W = fairway_width if fairway_width is not None else data.GEOMETRY["fairway_half_width"] * 2
+    ref = data.HAZARD_GEOMETRY["ref_width"]
+    floor = data.HAZARD_GEOMETRY["floor_width"]
+    if W >= ref:
+        return 0.0
+    return float(min(1.0, (ref - W) / (ref - floor)))
+
+def trouble_increment(tier, fairway_width=None):
+    """Strokes added over the rough holeout when the tee ball finds trouble,
+    blended between playable trouble and OB by the width-scaled hazard share."""
+    h = hazard_share(fairway_width)
+    return (1.0 - h) * data.TROUBLE_COST[tier] + h * data.OB_COST
+
 def _lie_probs(sd_lat, fairway_width=None):
     """P(fairway/rough/trouble) from lateral dispersion vs hole geometry.
 
     fairway_width is the full fairway width in yards; half of it is the
     lateral distance a tee shot must stay inside to be "in the fairway".
     Defaults to the published width (data.GEOMETRY["fairway_half_width"] * 2
-    = 36 yd, Stagner, anchor F). The rough band beyond the fairway edge is a
-    fixed offset regardless of width (data.GEOMETRY["rough_band"]).
+    = 36 yd, Stagner, anchor F). The rough band beyond the fairway edge scales
+    with W/36 below the reference width and stays put above it (rev 5).
     """
     width = fairway_width if fairway_width is not None else data.GEOMETRY["fairway_half_width"] * 2
     fw = width / 2.0
-    edge = fw + data.GEOMETRY["rough_band"]
+    # Tight corridors carry thin rough before the trouble: the band scales
+    # with W/ref below the reference width, and stays put above it (rev 5).
+    band_scale = min(width / data.HAZARD_GEOMETRY["ref_width"], 1.0)
+    edge = fw + data.GEOMETRY["rough_band"] * band_scale
     p_fw = _phi(fw / sd_lat) - _phi(-fw / sd_lat)
     p_trouble = 2.0 * (1.0 - _phi(edge / sd_lat))
     return {"fairway": p_fw, "rough": 1.0 - p_fw - p_trouble, "trouble": p_trouble}
@@ -97,7 +121,7 @@ def expected_score(hole_yards, tier, club="driver", drive_mean=None, *, fairway_
         leftover = max(hole_yards - carry, data.LEFTOVER_FLOOR_YD)
         e_fair = strokes_to_holeout(leftover, "fairway", tier)
         e_rough = strokes_to_holeout(leftover, "rough", tier)
-        e_trouble = e_rough + data.TROUBLE_COST[tier]
+        e_trouble = e_rough + trouble_increment(tier, fairway_width)
         total += w * (lp["fairway"] * e_fair + lp["rough"] * e_rough + lp["trouble"] * e_trouble)
     return float(total)
 
@@ -105,13 +129,15 @@ def expected_score(hole_yards, tier, club="driver", drive_mean=None, *, fairway_
 def score_components(hole_yards, tier, club="driver", drive_mean=None):
     """Width-independent decomposition of expected_score, for the tool.
 
-    Returns {"base", "gap", "tc_eff"} such that, for any fairway_width W,
+    Returns {"base", "gap", "tc_pl", "tc_hz"} such that, for any width W,
     expected_score(hole_yards, tier, club, drive_mean, fairway_width=W) equals
-    base + p_fw(W) * gap + p_tr(W) * tc_eff, where p_fw/p_tr are
+    base + p_fw(W) * gap + p_tr(W) * ((1-h(W)) * tc_pl + h(W) * tc_hz),
+    with h = hazard_share(W), and where p_fw/p_tr are
     _lie_probs(sd_lat, fairway_width=W)["fairway"/"trouble"] for this club's
     lateral sd. base = 1 + p_miss * e_holeout(mishit leftover, rough) +
     (1 - p_miss) * E_rough_nodes; gap = (1 - p_miss) * (E_fair_nodes -
-    E_rough_nodes); tc_eff = (1 - p_miss) * TROUBLE_COST[tier]. E_fair_nodes
+    E_rough_nodes); tc_pl/tc_hz = (1 - p_miss) times TROUBLE_COST[tier] and
+    OB_COST. E_fair_nodes
     and E_rough_nodes are the quadrature-weighted holeout expectations over
     the clean-strike branch only, with weights renormalized to sum to 1 over
     that branch (the mishit branch is handled separately in base, since it
@@ -138,8 +164,11 @@ def score_components(hole_yards, tier, club="driver", drive_mean=None):
 
     base = 1.0 + p_miss * e_mishit + (1.0 - p_miss) * e_rough_sum
     gap = (1.0 - p_miss) * (e_fair_sum - e_rough_sum)
-    tc_eff = (1.0 - p_miss) * data.TROUBLE_COST[tier]
-    return {"base": float(base), "gap": float(gap), "tc_eff": float(tc_eff)}
+    tc_pl = (1.0 - p_miss) * data.TROUBLE_COST[tier]
+    tc_hz = (1.0 - p_miss) * data.OB_COST
+    # E(W) = base + p_fw(W)*gap + p_tr(W)*((1-h(W))*tc_pl + h(W)*tc_hz)
+    return {"base": float(base), "gap": float(gap),
+            "tc_pl": float(tc_pl), "tc_hz": float(tc_hz)}
 
 # Cache key must track benchmark_score's full argument list: today that is
 # (hole_yards, tier) with club/drive_mean fixed at tier defaults. If

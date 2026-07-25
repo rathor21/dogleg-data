@@ -287,3 +287,12 @@ Sunny supplied the Apple Podcasts auto-transcript of the origin episode, which s
 - Crossfield measured a 25-yard landing gap on his home par 5, the anecdote paired with the fairway-width control.
 
 **Cross-check (2026-07-24):** running the 002 model under their exact setup (drive in the fairway, strict SG = 0, 400 yd) gives 227.7 yd (scratch) and 207.8 yd (10-index), within 2 and 8 yards of the on-air Arccos answers, from a different dataset and method. The unconditioned cost line sits higher because it prices the misses, and Shot Scope P-Avg distances run about 25 yards longer than the Arccos medians quoted on air (see the anchor A discrepancy note). Their 30-yards-under rule compares with this model's 22-to-29-under at the cost line.
+
+## Width-scaled hazard (rev 5, added 2026-07-24, Sunny's direction)
+
+Sunny's field test of the calculator (280-yd hole, 20-yd fairway, 30-hcp, 275-yd driver vs 210-yd mid-iron) exposed a blind spot: the model priced trouble at the flat playable-trouble cost regardless of width, so the driver's distance edge won corridors where a real golfer clubs down. The fix, all MODELED and zero-effect at the published 36-yd width:
+
+- **Hazard share h(W)** (`data.HAZARD_GEOMETRY`, ref_width 36, floor_width 16): below 36 yd, the trouble increment blends from TROUBLE_COST toward OB_COST (2.0, stroke and distance), reaching full OB pricing at 16 yd. Rationale: narrow fairways are narrow because of what sits beyond them; sensitivity: floor_width 12 to 24.
+- **Rough band scaling**: the 22-yd band scales with W/36 below the reference (thin rough before the trouble on tight corridors), unchanged at or above it.
+
+Every published number (all computed at W = 36) is unchanged: golden pin 5.204051925307641, calibration, cost lines, charts 1-6, the on-air convergence. New behavior at narrow widths: a 25-yd fairway costs mid tiers ~0.37 strokes at 400 yd (was ~0.08 under rev 4); at tier-average drives every tier starts clubbing down on some holes below a 31-to-34-yd width; Sunny's test case moves from driver +0.136 to a tossup (iron by 0.009). Guarded by tests (hazard shape, gap narrowing, the reported case as a regression).

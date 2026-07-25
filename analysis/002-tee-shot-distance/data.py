@@ -370,6 +370,18 @@ HOLEOUT_SCALE[30] = round(
 # [(hole_yards, weight), ...]; weights sum to 1.
 # ---------------------------------------------------------------------------
 
+
+# Width-scaled hazard (rev 5, Sunny's direction 2026-07-24): narrow fairways
+# are narrow because of what sits beyond them (OB, trees, water). Below the
+# published 36-yd reference width, a growing share of the trouble zone is
+# priced at OB_COST (stroke and distance) instead of TROUBLE_COST (playable
+# trouble), reaching full OB pricing at the floor width. At or above 36 yd
+# the share is zero, so every number published at the default width is
+# unchanged and the Task 7 calibration holds. The rough band also scales
+# with W/36 below the reference: tight corridors carry thin rough before
+# the trouble starts. MODELED; sensitivity: floor_width 12 to 24.
+HAZARD_GEOMETRY = {"ref_width": 36.0, "floor_width": 16.0}
+
 LENGTH_MIX = [(320, 0.25), (360, 0.30), (400, 0.30), (440, 0.15)]
 
 # ---------------------------------------------------------------------------
@@ -434,6 +446,7 @@ SOURCES = {
         "log": "docs/sources/002_Source_Log.md#anchor-f",
         "status": "calibration-knob (modeled, informed by anchor A/F published rates)",
     },
+    "HAZARD_GEOMETRY": {"log": "docs/sources/002_Source_Log.md#width-scaled-hazard-rev-5", "status": "modeled"},
     "TROUBLE_COST": {
         "log": "docs/sources/002_Source_Log.md#anchor-f",
         "status": "calibration-knob (modeled)",

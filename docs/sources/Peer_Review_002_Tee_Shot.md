@@ -386,3 +386,17 @@ Full rendered word count inside `<article>...</article>` (headings, paragraphs, 
 ## Rev 4 supplement (2026-07-24, evening): episode transcript cross-check
 
 Sunny supplied the episode's auto-transcript, satisfying the listen-first rule. The on-air Arccos answers (fairway-conditioned, 400-yd par 4): 230 scratch, 200 for a 10-index. The model, run under that exact setup, answers 227.7 and 207.8, within 2 and 8 yards from a different dataset and method; recorded in the source log with the definitional and distance-base differences. The article gained a comparison section ("Their answer, and mine"), the club verdict gained Stagner's one-in-four-straighter-with-3-wood caveat, the width section gained Crossfield's 25-yard-gap anecdote, and the launch thread gained a convergence tweet. Facts only entered the repo; no transcript text was reproduced. Numbers in the new copy re-derived at write time. Verdict unchanged: cleared for publication.
+
+---
+
+## Rev 5 addendum review (2026-07-24, evening): width-scaled hazard
+
+Scope: pricing OB into narrow fairways per Sunny's field test of the calculator. Method and evidence:
+
+- Default-width invariance verified: golden pin exact, full suite 58 passed, no published number moved (h(36) = 0 and the rough band scale is 1 at or above 36).
+- The reported case (280/20 yd/30-hcp/275 driver vs 210 iron) moves from driver +0.136 to iron by 0.009; the tool's blob path reproduces the same numbers and renders the new tossup verdict ("Either club works here").
+- Behavioral sweep: at tier-average drives, first club-downs appear at widths 30 to 34 depending on tier; 131 (tier, hole, width) cells flip off driver across widths 20 to 28. Direction and scale consistent with Stagner's on-air caveat and Crossfield's 25-yd-gap anecdote.
+- Article width section rewritten with re-derived numbers (0.37 at W=25, flips in the low 30s); the old "driver verdict holds at every width" claim retired with the model that produced it.
+- Monte Carlo mirror updated and agreeing at non-default widths; decomposition exactness test extended to the hazard blend.
+
+**Rev 5 verdict: cleared for publication, no must-fix items.** The hazard geometry (ref 36, floor 16) is a modeled judgment with a declared sensitivity range; it is the release's most opinionated constant after OB_COST and is labeled at every surface it touches.

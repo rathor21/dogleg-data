@@ -239,11 +239,13 @@
 
       <p>Accuracy enters when the club changes. The 3-wood gives up 0.15 strokes of approach position and buys back 0.07 of it in tighter misses, for a net cost of 0.08. That trade is the real driver-versus-wood question, and it turns out to be pocket change.</p>
 
-      <h2>Squeeze the fairway and the answer holds</h2>
+      <h2>Squeeze the fairway and the club changes</h2>
 
-      <p>Every number above holds at Stagner's published 36-yard fairway. Squeeze that width to 25 yards and a mid-handicap golfer pays about 0.08 strokes more on a 400-yard hole: 0.076 for a 10-handicap, 0.079 for a 15, 0.083 for a 20. The cost line moves with the fairway: a 15-handicap's line on that hole shifts from 218 yards to 232, a 14-yard jump, and the 10 and 20 tiers shift 13 to 17 yards. Widen the fairway to 45 yards and the golfer gets back about 0.05 strokes<span class="badge-modeled">modeled</span>.</p>
+      <p>Every number above holds at Stagner's published 36-yard fairway, and nothing moves above that width. Below it, the model prices what makes a narrow hole narrow: the tighter the corridor, the more of the miss zone plays as out of bounds, water, or trees instead of rough. The OB share ramps from zero at 36 yards to full at 16, and the rough band thins to match<span class="badge-modeled">modeled</span>.</p>
 
-      <p>Width matters, and it matters less than club choice. The driver verdict holds at every width the calculator lets you set, from 20 to 50 yards. Crossfield measured his home course's landing gap at 25 yards on the same episode; the width control is for that hole. The calculator below now carries a fairway-width control, so you can dial in your own course's number instead of the published average. The benchmark still sits at the published 36-yard width, so a tight fairway shows up as strokes lost against it, and that reading matches how the hole plays.</p>
+      <p>A 25-yard fairway costs a mid-handicap golfer about 0.37 strokes on a 400-yard hole, and a corridor that tight plays over your usual number at any drive distance. The bigger news is the club call. At tier-average distances, every handicap starts clubbing down on some holes once the fairway drops into the low 30s, and by the low 20s the wood or an iron takes the tee on short holes. Crossfield measured his home course's landing gap at 25 yards on the same episode; the width control is for that hole.</p>
+
+      <p>Widen the fairway to 45 yards and you get back about 0.05 strokes<span class="badge-modeled">modeled</span>. The benchmark stays at the published 36-yard width, so a tight fairway shows up as strokes lost against a fixed goalpost, which matches how the hole plays.</p>
 
       <div class="cta-card">
         <span class="kicker">Run your own hole</span>
@@ -298,7 +300,7 @@
           <dd>Hack It Out Golf, Saturday Morning Golf Stat: <a href="https://www.hackitoutgolf.com/sms-400-yard-hole-drive-length-for-0sg-scratch-and-10/" target="_blank" rel="noopener">"SMS: 400 Yard Hole, Drive Length for 0SG, Scratch and 10"</a> (Jul 3, 2026), with Mark Crossfield, Lou Stagner, and Greg Chalmers. The episode posed the question this analysis answers; its framing conditions on finding the fairway, this model prices the miss odds too. No transcript is public, so nothing here quotes the episode beyond its published show notes.</dd>
 
           <dt>Out-of-bounds cost</dt>
-          <dd>Each OB drive is priced at 2.0 strokes, the standard stroke-and-distance rule of thumb; the bailout thresholds scale with that assumption and the peer review carries the 1.5-to-2.5 sensitivity range<span class="badge-modeled">modeled</span>.</dd>
+          <dd>Each OB drive is priced at 2.0 strokes, the standard stroke-and-distance rule of thumb; the bailout thresholds scale with that assumption and the peer review carries the 1.5-to-2.5 sensitivity range. Below the 36-yard reference width, a growing share of the trouble zone is priced at the OB cost, reaching full OB pricing at 16 yards<span class="badge-modeled">modeled</span>.</dd>
 
           <dt>Driving distance, club distances, accuracy, and par-4 scoring by handicap</dt>
           <dd>Shot Scope performance-tracking data at six handicap bands (0/5/10/15/20/25), read via MyGolfSpy's published transcriptions; the primary Shot Scope pages render the tables as images. The 30 band is my least-squares extrapolation across all six published bands<span class="badge-modeled">modeled</span>.</dd>

@@ -15,9 +15,10 @@ tool_data.json contract (consumed by site/tee-shot-distance/tool.html):
              from model.score_components(hole, tier, club, drive_mean=drive)
              ("base"/"gap"), rounded to 4 decimals. Four, not three: the
              width decomposition below compounds rounding across base, gap,
-             and tc_eff, and the old single curves grid does not.
-  tc_eff:    tc_eff[tier] = model.score_components(...)["tc_eff"] for that
-             tier. tc_eff depends only on tier (MISHIT[tier] and
+             and the tc terms, and the old single curves grid does not.
+  tc_pl/tc_hz: per-tier trouble increments, playable and hazard: tc_pl[tier]
+             and tc_hz[tier] from model.score_components. Both depend only
+             on tier (MISHIT[tier] and
              TROUBLE_COST[tier]), never on hole/club/drive, so build time
              asserts every club produces the identical value before storing
              it once per tier, rounded to 4 decimals.
@@ -28,8 +29,9 @@ tool_data.json contract (consumed by site/tee-shot-distance/tool.html):
   mishit:    mishit[tier] = data.MISHIT[tier], the per-tier severe-mishit
              probability (the mishit branch always lands in the rough, per
              model.tee_outcomes, so it is not width-dependent).
-  geometry:  {"rough_band": 22, "default_width": 36}, from data.GEOMETRY
-             (rough_band unchanged; default_width = fairway_half_width * 2,
+  geometry:  {"rough_band": 22, "default_width": 36, "hazard_ref_width": 36,
+             "hazard_floor_width": 16}, from data.GEOMETRY and
+             data.HAZARD_GEOMETRY (default_width = fairway_half_width * 2,
              the Stagner anchor, anchor F).
   margin:    0.10 (the cost-line margin used)
   ob_cost:   data.OB_COST, strokes charged per out-of-bounds tee shot
@@ -44,12 +46,13 @@ line client-side, at any fairway width the golfer picks, from this
 decomposition. The formula, straight out of model.score_components and
 model._lie_probs:
 
-    E(W) = base + p_fw(W) * gap + p_tr(W) * tc_eff
+    E(W) = base + p_fw(W) * gap + p_tr(W) * ((1-h(W))*tc_pl + h(W)*tc_hz)
+    h(W) = 0 at W >= hazard_ref_width, else min(1, (ref - W)/(ref - floor))
 
 where, for lateral sd sd_lat and fairway half-width fw = W / 2:
 
     p_fw(W) = Phi(fw / sd_lat) - Phi(-fw / sd_lat)
-    p_tr(W) = 2 * (1 - Phi((fw + rough_band) / sd_lat))
+    p_tr(W) = 2 * (1 - Phi((fw + rough_band * min(W/ref, 1)) / sd_lat))
 
 Phi is the standard normal CDF (tool.html implements it via the
 Abramowitz-Stegun erf approximation, ~1e-7 accurate, well inside the blob's
@@ -59,7 +62,7 @@ rough as the remainder (1 minus the other two): the severe-mishit branch
 (probability `mishit`) always lands in the rough regardless of width.
 
 tests/test_outputs.py::test_blob_decomposition_matches_model recomputes E
-from base/gap/tc_eff/sd_lat with Python's own Phi and checks it against
+from base/gap/tc terms/sd_lat with Python's own Phi and checks it against
 model.expected_score(..., fairway_width=W) directly, so this contract stays
 provably exact, not just internally consistent.
 """
@@ -83,10 +86,12 @@ blob = {
     "drives": DRIVES,
     "tiers": {str(t): tier_label(t) for t in data.TIERS},
     "clubs": {k: {"label": v["label"], "dist_ratio": v["dist_ratio"]} for k, v in data.CLUBS.items()},
-    "benchmark": {}, "base": {}, "gap": {}, "tc_eff": {}, "sd_lat": {}, "mishit": {},
+    "benchmark": {}, "base": {}, "gap": {}, "tc_pl": {}, "tc_hz": {}, "sd_lat": {}, "mishit": {},
     "geometry": {
         "rough_band": data.GEOMETRY["rough_band"],
         "default_width": data.GEOMETRY["fairway_half_width"] * 2,
+        "hazard_ref_width": data.HAZARD_GEOMETRY["ref_width"],
+        "hazard_floor_width": data.HAZARD_GEOMETRY["floor_width"],
     },
     "margin": data.COST_MARGIN,
     "modeled": [str(t) for t in data.MODELED_TIERS],
@@ -101,7 +106,8 @@ for t in data.TIERS:
     blob["sd_lat"][ts] = {}
     blob["mishit"][ts] = data.MISHIT[t]
 
-    tc_effs = set()
+    tc_pls = set()
+    tc_hzs = set()
     for club in data.CLUBS:
         base_grid = []
         gap_grid = []
@@ -112,15 +118,17 @@ for t in data.TIERS:
                 comp = score_components(h, t, club, drive_mean=float(dv))
                 base_row.append(round(comp["base"], 4))
                 gap_row.append(round(comp["gap"], 4))
-                tc_effs.add(round(comp["tc_eff"], 9))
+                tc_pls.add(round(comp["tc_pl"], 9))
+                tc_hzs.add(round(comp["tc_hz"], 9))
             base_grid.append(base_row)
             gap_grid.append(gap_row)
         blob["base"][ts][club] = base_grid
         blob["gap"][ts][club] = gap_grid
         blob["sd_lat"][ts][club] = round(data.DRIVER[t]["sd_lat"] * data.CLUBS[club]["lat_ratio"], 3)
 
-    assert len(tc_effs) == 1, f"tc_eff differs across club/hole/drive for tier {t}: {tc_effs}"
-    blob["tc_eff"][ts] = round(tc_effs.pop(), 4)
+    assert len(tc_pls) == 1 and len(tc_hzs) == 1, f"tc terms differ across club/hole/drive for tier {t}"
+    blob["tc_pl"][ts] = round(tc_pls.pop(), 4)
+    blob["tc_hz"][ts] = round(tc_hzs.pop(), 4)
 
 with open(os.path.join(OUT, "tool_data.json"), "w") as f:
     json.dump(blob, f, separators=(",", ":"))
