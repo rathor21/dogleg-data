@@ -164,32 +164,72 @@ HOLE = {
 }
 
 # ---------------------------------------------------------------------------
+# Anchor 3's diagonal-slope hook: "the Sunday pin sits roughly 15 yards
+# deeper into the green than a front-left pin" describes a generic FRONT-left
+# reference position, not necessarily wherever this release places its own
+# named "left" demo pin below. Kept as its own reference (read only by
+# model.py's _FRONT_EDGE_SLOPE_YD_PER_YD derivation) so that repositioning
+# PINS["left"] -- see below -- cannot quietly drag the green's ANCHORED
+# diagonal slope along with it. Values match this release's original
+# front-left placement, now retired as a named pin but preserved here as the
+# anchor's own reference point.
+# ---------------------------------------------------------------------------
+
+_FRONT_LEFT_SLOPE_REFERENCE_Y = TEE_SHOT_YD - 7.5   # MODELED base, "a front-left pin," half the ANCHORED 15-yd Sunday offset short of center
+_FRONT_LEFT_SLOPE_REFERENCE_X = -6.0                # MODELED, no published lateral coordinate
+
+# ---------------------------------------------------------------------------
 # Anchor 3: the three pin positions. y = distance from tee (yd), x = lateral
 # offset from the hole's centerline (yd, positive = right / Sunday side).
 #
 # CENTER's y is the ANCHORED 155-yd tee yardage, treated as the officially
-# quoted reference distance. SUNDAY's y is CENTER's front-pin sibling plus
-# the ANCHORED "roughly 15 yards deeper" offset (Anchor 3). LEFT's y (half
-# that offset short of center) and every x lateral coordinate are MODELED:
-# no source in the hunt publishes a lateral yardage for any pin on this hole,
-# only the qualitative shape ("diagonal, shoe-sole, shallow right / deep
-# left"). front_frac/back_frac split each pin's local green depth budget
-# into the share sitting short of / long of the hole, used by model.py to
-# decide which misses are short-sided (CONTEXT.md definition); MODELED, no
-# numeric anchor, chosen to match the qualitative description that a front
-# pin has little green in front of it and a back pin has little green behind.
-# local_depth_yd_range is MODELED for left/sunday (no published figure for
-# those specific sections); center reuses HOLE["front_third_depth_yd_range"].
+# quoted reference distance. SUNDAY's y is the _FRONT_LEFT_SLOPE_REFERENCE_Y
+# base plus the ANCHORED "roughly 15 yards deeper" offset (Anchor 3). Every x
+# lateral coordinate is MODELED: no source in the hunt publishes a lateral
+# yardage for any pin on this hole, only the qualitative shape ("diagonal,
+# shoe-sole, shallow right / deep left"). front_frac/back_frac split each
+# pin's local green depth budget into the share sitting short of / long of
+# the hole, used by model.py to decide which misses are short-sided
+# (CONTEXT.md definition); MODELED, no numeric anchor, chosen to match each
+# pin's qualitative description. local_depth_yd_range is MODELED for
+# left/sunday (no published figure for those specific sections); center
+# reuses HOLE["front_third_depth_yd_range"].
+#
+# LEFT repositioned (this pass): the locked pin cast (issue #5, "Pins:
+# three, escalating") scopes left as the welcoming/accessible pin, but the
+# release's original placement put it front_frac=0.15 -- a tucked pin
+# hugging the front edge/creek, which bailed harder than Sunday at every
+# tier and failed the locked cast it was meant to implement. Anchor 3's
+# green-shape description is qualitatively ANCHORED as "shallower on the
+# right, deeper on the left" (docs/sources/003_Source_Log.md#anchor-3): the
+# left side is the green's roomier lobe, so the accessible pin belongs
+# mid-depth on that lobe, not tucked against the front edge. Repositioned to
+# x=-10.0 (MODELED, moved from -6.0 further into the green's wide/deep left
+# section per that same anchor; plausible range -13.0 to -7.0, staying
+# inside the green's published half-width at the default 25.5-yd width) and
+# front_frac=back_frac=0.5 (MODELED mid-depth placement; plausible
+# sensitivity range 0.45-0.55, per the "welcoming" cast -- not perfectly
+# centered by construction, just not tucked against either edge). y=148.0 is
+# MODELED to sit near the shared green boundary's own local midpoint at
+# x=-10 under the default geometry (front edge ~134.5, back edge ~161.0 at
+# that x, midpoint ~147.75, rounded). local_depth_yd_range widened to
+# (16.0, 22.0) MODELED -- larger than the retired front placement's tight
+# 12-16 yd pocket, smaller than the green's full published depth range
+# (20-33 yd) since this describes a local pocket around one pin, not the
+# whole green -- representing the anchored "deeper on the left" claim as a
+# roomier local depth than a front-edge pin would have. Symmetric
+# front_frac/back_frac means neither a short nor a long miss reads as
+# short-sided at this pin (model.region_at), unlike before.
 # ---------------------------------------------------------------------------
 
 PINS = {
     "left": {
-        "label": "Front-left",
-        "y": TEE_SHOT_YD - 7.5,       # MODELED: half the ANCHORED 15-yd Sunday offset, short of center
-        "x": -6.0,                    # MODELED, no published lateral coordinate
-        "front_frac": 0.15,
-        "back_frac": 0.85,
-        "local_depth_yd_range": (12.0, 16.0),  # MODELED
+        "label": "Left (mid-green)",
+        "y": 148.0,                    # MODELED, mid-depth on the green's left lobe -- see comment above
+        "x": -10.0,                    # MODELED, wide/deep left section -- see comment above
+        "front_frac": 0.5,
+        "back_frac": 0.5,
+        "local_depth_yd_range": (16.0, 22.0),  # MODELED
     },
     "center": {
         "label": "Center",
@@ -201,7 +241,7 @@ PINS = {
     },
     "sunday": {
         "label": "Sunday (back right)",
-        "y": TEE_SHOT_YD - 7.5 + 15.0,  # ANCHORED offset (+15 yd) on a MODELED base (left's y); Anchor 3
+        "y": _FRONT_LEFT_SLOPE_REFERENCE_Y + 15.0,  # ANCHORED offset (+15 yd) on the front-left reference base; Anchor 3
         "x": 9.0,                       # MODELED, no published lateral coordinate
         "front_frac": 0.85,
         "back_frac": 0.15,
@@ -286,6 +326,24 @@ LONG_TROUBLE_BUFFER_YD = 6.0          # MODELED: extra carry past the back bunke
 LONG_TROUBLE_UPDOWN_MULT = 0.55       # MODELED discount vs. plain rough's up-and-down odds
 LONG_TROUBLE_UPDOWN_MULT_RANGE = (0.4, 0.7)
 
+# Distance falloff past the long_trouble buffer (#8's flagged defect: the
+# pre-fix price was flat regardless of how far a shot overshot the green, so
+# an aim-point search kept finding a "better" score the farther it carried
+# past the back bunkers, out past a 150-yd carry adjustment with no interior
+# optimum). Every extra yard of overshoot past the buffer edge is a deeper
+# lie in the azalea-lined ledge (Anchor 3), so the recovery leg's cost blends
+# from LONG_TROUBLE_UPDOWN_MULT's plain-ledge price toward a hazard-like
+# price (model._creek_strokes -- the same drop-and-replay-plus-recovery cost
+# already used for the creek, Anchor 5-anchored via UP_AND_DOWN_PCT /
+# MISSED_UP_AND_DOWN_STROKES / CREEK_PENALTY_STROKES) as overshoot grows,
+# an exponential approach so the price keeps rising but never exceeds that
+# ceiling. LONG_TROUBLE_FALLOFF_YD (the e-folding distance of that blend) has
+# no published anchor -- MODELED, sensitivity range stated below and swept by
+# the sensitivity tests -- but the two endpoints it blends between are both
+# built from Anchor-5 figures already in this file, not new invented prices.
+LONG_TROUBLE_FALLOFF_YD = 15.0        # MODELED, anchorless; sensitivity range (10.0, 25.0)
+LONG_TROUBLE_FALLOFF_YD_RANGE = (10.0, 25.0)
+
 # ---------------------------------------------------------------------------
 # SOURCES: one row per exported anchor group; log fragments point at the
 # anchor sections of docs/sources/003_Source_Log.md.
@@ -301,4 +359,72 @@ SOURCES = {
     "WIND": {"log": "docs/sources/003_Source_Log.md#anchor-6", "status": "narrative anchor only; carry penalty and dispersion inflation modeled"},
     "THREE_PUTT_RATE": {"log": "docs/sources/003_Source_Log.md#anchor-5", "status": "published at 5/15/25; modeled (lsq) at 0/10/20"},
     "UP_AND_DOWN_PCT": {"log": "docs/sources/003_Source_Log.md#anchor-5", "status": "modeled, weakly-sourced (websearch synthesis, direct fetch failed 403)"},
+}
+
+# ---------------------------------------------------------------------------
+# Anchor 7 (append, #9, 2026-08-16 follow-up hunt): PGA Tour approach
+# proximity, 150-175 yd band. APPEND-ONLY block: everything below adds a new,
+# self-contained "tour" entry and does not read, mutate, or restructure any
+# name defined above. TIERS stays [0, 5, 10, 15, 20]; SIGMA_ISO_FT,
+# THREE_PUTT_RATE, UP_AND_DOWN_PCT, and every other amateur dict keeps
+# exactly the keys and values it had before this block existed -- #8's
+# optimizer work depends on that surface staying byte-for-byte unchanged, and
+# the untouched test_data.py (44 tests) is what proves it.
+#
+# Unlike Anchor 1's amateur figures, Anchor 7's mean proximity (27-29 ft) and
+# GIR% (63-64%) are published directly at 150-175 yd, the band that already
+# contains the hole's 155-yard shot -- no GIR50-distance extrapolation step
+# is needed the way tiers 0/5/15/20 require; this is a direct matched pair at
+# the target distance, the same style as tier 10's self-calibration in Anchor
+# 1 but with less distance-scaling since 155 sits inside the band itself
+# rather than 18 yd outside it.
+# ---------------------------------------------------------------------------
+
+TOUR_BAND_YD_RANGE = (150.0, 175.0)      # ANCHORED, Anchor 7
+TOUR_BAND_MID_YD = 162.5
+TOUR_PROXIMITY_FT_RANGE = (27.0, 29.0)   # ANCHORED, Anchor 7: 3 independent sources (Mike Bury Golf, Golf Insider UK, The Left Rough), 2016-2023 seasons
+TOUR_PROXIMITY_FT = 28.0                 # midpoint default of the ANCHORED range
+TOUR_GIR_PCT_RANGE = (0.63, 0.64)        # ANCHORED, Anchor 7
+TOUR_GIR_PCT = 0.635                     # midpoint default of the ANCHORED range
+
+# Same Rayleigh-mean inversion as the amateur tiers (_rayleigh_sigma_from_mean,
+# defined above), then the same direct matched-pair per-yard scaling tier 10
+# uses (_K_10_PER_YD), evaluated on Anchor 7's band instead of Anchor 1's.
+_SIGMA_TOUR_AT_BAND_FT = _rayleigh_sigma_from_mean(TOUR_PROXIMITY_FT)
+_GREEN_RADIUS_TOUR_CHECK_FT = _green_radius_from_sigma_gir(_SIGMA_TOUR_AT_BAND_FT, TOUR_GIR_PCT)  # sanity cross-check only, not used downstream: how big a green Anchor 7's own pair implies, comparable to GREEN_RADIUS_FT (~52 ft) above
+_K_TOUR_PER_YD = _SIGMA_TOUR_AT_BAND_FT / TOUR_BAND_MID_YD
+_SIGMA_ISO_FT_TOUR = _K_TOUR_PER_YD * TEE_SHOT_YD   # at the 155-yd tee shot
+_PROXIMITY_FT_TOUR = _SIGMA_ISO_FT_TOUR * sqrt(pi / 2.0)
+
+# Anchor 2's own text publishes a PRO dist/dir ratio directly (Broadie Table
+# 2: Pro1 1.5, Pro2 1.6), the same short-game/sand distance band as the
+# amateur 3:1 figure and carrying the same across-distance-band caveat, but
+# WITHOUT the amateur figure's second assumption (substituting a different
+# population). Tour anisotropy is therefore better-anchored than the amateur
+# ANISOTROPY constant above, not worse.
+TOUR_ANISOTROPY = {"ratio": 1.55, "range": (1.5, 1.6)}   # ANCHORED, Anchor 2 (Broadie Table 2, Pro1/Pro2)
+
+# No anchor in the log covers tour-level putting or up-and-down rates at all
+# except one weakly-sourced figure (Anchor 5: "PGA Tour pros cited around 50%
+# for sand saves specifically," itself WebSearch-synthesis-only with the
+# underlying pages 403ing on direct fetch -- the same confidence caveat
+# Anchor 5 already carries for its amateur up-and-down table). Three-putt
+# rate has no tour figure anywhere in the log.
+TOUR_THREE_PUTT_RATE = THREE_PUTT_RATE[0]  # MODELED-anchorless: reuses the scratch-amateur extrapolated rate as a defensible floor; no tour-specific three-putt anchor exists to reuse instead
+TOUR_UP_AND_DOWN_PCT = 0.50                # Anchor 5, weakly-sourced pro sand-save figure, applied as this tier's general up-and-down rate (same fairway/sand simplification the amateur tiers already make)
+
+TOUR = {
+    "sigma_iso_ft": _SIGMA_ISO_FT_TOUR,
+    "proximity_ft": _PROXIMITY_FT_TOUR,
+    "anisotropy": TOUR_ANISOTROPY,
+    "three_putt_rate": TOUR_THREE_PUTT_RATE,
+    "up_and_down_pct": TOUR_UP_AND_DOWN_PCT,
+    "band_yd_range": TOUR_BAND_YD_RANGE,
+    "proximity_ft_range": TOUR_PROXIMITY_FT_RANGE,
+    "gir_pct_range": TOUR_GIR_PCT_RANGE,
+}
+
+SOURCES["TOUR"] = {
+    "log": "docs/sources/003_Source_Log.md#anchor-7",
+    "status": "proximity/GIR anchored directly at 150-175yd (contains the 155yd shot, no extrapolation step); anisotropy anchored to Broadie's published pro ratio (Anchor 2); putting/up-and-down modeled-anchorless, disclosed above",
 }

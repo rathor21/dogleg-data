@@ -1,4 +1,5 @@
 .venv/
-outputs/
+outputs/*
+!outputs/003_results.csv
 __pycache__/
 .pytest_cache/

@@ -117,12 +117,17 @@ def _pin_local_depth(pin_key, geom):
 # lateral offset. Derived, not invented: Anchor 3's one ANCHORED quantitative
 # diagonal signal is "the Sunday pin sits roughly 15 yards deeper into the
 # green than a front-left pin"; dividing that 15-yd offset by the (MODELED)
-# lateral separation between the left and Sunday pins gives the green's
-# front-edge slope. The qualitative "shoe-sole" shape is ANCHORED; this
-# specific linear form is MODELED, matching this release's usual disclosure.
+# lateral separation between that front-left reference point and the Sunday
+# pin gives the green's front-edge slope. Reads data._FRONT_LEFT_SLOPE_
+# REFERENCE_X/Y -- a fixed reference point decoupled from data.PINS["left"]
+# -- rather than the "left" pin's own coordinates, specifically so that
+# repositioning the named "left" demo pin (see data.py's PINS comment) never
+# quietly changes this ANCHORED slope. The qualitative "shoe-sole" shape is
+# ANCHORED; this specific linear form is MODELED, matching this release's
+# usual disclosure.
 _FRONT_EDGE_SLOPE_YD_PER_YD = (
-    (data.PINS["sunday"]["y"] - data.PINS["left"]["y"])
-    / (data.PINS["sunday"]["x"] - data.PINS["left"]["x"])
+    (data.PINS["sunday"]["y"] - data._FRONT_LEFT_SLOPE_REFERENCE_Y)
+    / (data.PINS["sunday"]["x"] - data._FRONT_LEFT_SLOPE_REFERENCE_X)
 )
 
 
@@ -226,7 +231,7 @@ def _green_strokes(tier, dist_to_pin_ft):
     return base_putts * tier_scale
 
 
-def _recovery_strokes(tier, is_short_sided, sand, trouble=False):
+def _recovery_strokes(tier, is_short_sided, sand, trouble=False, overshoot_yd=0.0):
     """Expected strokes to finish from a greenside miss (bunker, rough, or
     long trouble).
 
@@ -242,6 +247,18 @@ def _recovery_strokes(tier, is_short_sided, sand, trouble=False):
     badly overclubbing. A short-sided miss (CONTEXT.md definition) applies
     data.SHORT_SIDE_PENALTY on top, per the glossary's instruction to price
     short-siding through the recovery leg.
+
+    overshoot_yd (trouble legs only): yards carried past the long_trouble
+    buffer edge (region_at's trouble_back boundary), i.e. how deep into the
+    ledge the miss sits. #8 found the pre-fix trouble price flat in this
+    distance, so an aim-point search kept "improving" its score the farther
+    it carried past the green with no interior optimum. Deeper overshoot
+    blends this leg's price toward _creek_strokes's hazard-like cost (an
+    exponential approach over data.LONG_TROUBLE_FALLOFF_YD, MODELED,
+    anchorless, sensitivity range data.LONG_TROUBLE_FALLOFF_YD_RANGE) so the
+    price keeps climbing with distance rather than plateauing, trending
+    toward -- but never exceeding -- the same drop-and-replay-plus-recovery
+    price already charged for finding the creek outright.
     """
     updown = data.UP_AND_DOWN_PCT[tier]
     if not sand:
@@ -251,6 +268,10 @@ def _recovery_strokes(tier, is_short_sided, sand, trouble=False):
     e = updown * 2.0 + (1.0 - updown) * data.MISSED_UP_AND_DOWN_STROKES
     if is_short_sided:
         e *= data.SHORT_SIDE_PENALTY
+    if trouble and overshoot_yd > 0.0:
+        hazard_like = _creek_strokes(tier, is_short_sided)
+        blend = 1.0 - exp(-overshoot_yd / data.LONG_TROUBLE_FALLOFF_YD)
+        e = e * (1.0 - blend) + hazard_like * blend
     return e
 
 
@@ -262,7 +283,20 @@ def _creek_strokes(tier, is_short_sided):
     return data.CREEK_PENALTY_STROKES + _recovery_strokes(tier, is_short_sided, sand=False)
 
 
-def _region_strokes(region, is_short_sided, tier, x, y, pin):
+def _long_trouble_overshoot_yd(x, y, geom):
+    """Yards `y` sits past region_at's long_trouble boundary at lateral
+    position `x` (region_at's own trouble_back computation, duplicated here
+    rather than threaded back out of region_at so region_at's return shape
+    -- (region, is_short_sided) -- stays the stable two-value API every
+    caller, including montecarlo.py, already depends on)."""
+    back_edge = _back_edge_yd(x, geom)
+    bunker_back = back_edge + data.HOLE["back_bunker_depth_yd"]
+    trouble_back = bunker_back + data.LONG_TROUBLE_BUFFER_YD
+    return max(0.0, y - trouble_back)
+
+
+def _region_strokes(region, is_short_sided, tier, x, y, pin, *,
+                     green_width_yd=None, front_third_depth_yd=None):
     if region == "green":
         p = data.PINS[pin]
         dist_to_pin_ft = sqrt((x - p["x"]) ** 2 + (y - p["y"]) ** 2) * FT_PER_YD
@@ -272,7 +306,9 @@ def _region_strokes(region, is_short_sided, tier, x, y, pin):
     if region in ("front_bunker", "back_bunker"):
         return _recovery_strokes(tier, is_short_sided, sand=True)
     if region == "long_trouble":
-        return _recovery_strokes(tier, is_short_sided, sand=False, trouble=True)
+        geom = _resolve_geometry(green_width_yd, front_third_depth_yd)
+        overshoot_yd = _long_trouble_overshoot_yd(x, y, geom)
+        return _recovery_strokes(tier, is_short_sided, sand=False, trouble=True, overshoot_yd=overshoot_yd)
     # long_rough, greenside_rough
     return _recovery_strokes(tier, is_short_sided, sand=False)
 
@@ -326,7 +362,9 @@ def score_for_oval(sigma_d_yd, sigma_l_yd, tier, pin, aim_point, mean_shift_y=0.
             region, short_sided = region_at(float(xi), float(yi), pin,
                                              green_width_yd=green_width_yd,
                                              front_third_depth_yd=front_third_depth_yd)
-            total += w * _region_strokes(region, short_sided, tier, float(xi), float(yi), pin)
+            total += w * _region_strokes(region, short_sided, tier, float(xi), float(yi), pin,
+                                          green_width_yd=green_width_yd,
+                                          front_third_depth_yd=front_third_depth_yd)
     return 1.0 + total
 
 

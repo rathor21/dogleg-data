@@ -193,17 +193,46 @@ def test_region_at_rejects_unknown_pin():
 
 
 def test_short_sided_flagged_correctly_for_front_and_back_pins():
-    # "left" is a front pin (front_frac < 0.5): a miss SHORT of it is short-sided.
-    p = data.PINS["left"]
-    front_edge = model._front_edge_yd(p["x"], model._resolve_geometry())
-    _, short_sided = model.region_at(p["x"], front_edge - 1.0, "left")
-    assert short_sided is True
+    # None of this release's three named pins is a front pin (front_frac <
+    # 0.5) after "left" was repositioned to a mid-depth placement (issue
+    # #5's locked welcoming/accessible left pin -- see data.py's PINS
+    # comment), so the front-pin short-siding branch is exercised here
+    # against a temporary synthetic pin (region_at requires its pin argument
+    # to be a data.PINS key) rather than losing this coverage entirely.
+    synthetic_front = {
+        "label": "test-front-pin", "x": -6.0, "y": data._FRONT_LEFT_SLOPE_REFERENCE_Y,
+        "front_frac": 0.15, "back_frac": 0.85,
+        "local_depth_yd_range": (12.0, 16.0),
+    }
+    data.PINS["_test_front"] = synthetic_front
+    try:
+        front_edge = model._front_edge_yd(synthetic_front["x"], model._resolve_geometry())
+        _, short_sided = model.region_at(synthetic_front["x"], front_edge - 1.0, "_test_front")
+        assert short_sided is True
+    finally:
+        del data.PINS["_test_front"]
 
     # "sunday" is a back pin (back_frac < 0.5): a miss LONG of it is short-sided.
     p = data.PINS["sunday"]
     back_edge = model._back_edge_yd(p["x"], model._resolve_geometry())
     _, short_sided = model.region_at(p["x"], back_edge + 1.0, "sunday")
     assert short_sided is True
+
+
+def test_left_pin_mid_depth_placement_is_never_short_sided():
+    # FIX (this pass): "left" was repositioned to front_frac == back_frac ==
+    # 0.5, the model's encoding of the locked pin cast's welcoming/
+    # accessible left pin -- plenty of green both short and long of the
+    # flag, so neither direction of miss should read as short-sided, the
+    # same symmetric behavior the "center" pin already has.
+    p = data.PINS["left"]
+    geom = model._resolve_geometry()
+    front_edge = model._front_edge_yd(p["x"], geom)
+    back_edge = model._back_edge_yd(p["x"], geom)
+    _, short_sided_short = model.region_at(p["x"], front_edge - 1.0, "left")
+    _, short_sided_long = model.region_at(p["x"], back_edge + 1.0, "left")
+    assert short_sided_short is False
+    assert short_sided_long is False
 
 
 # ---------------------------------------------------------------------------
@@ -291,6 +320,55 @@ def test_overclubbing_well_past_the_green_carries_a_real_penalty():
     at_pin = model.expected_score(20, "sunday", (p["x"], p["y"]))
     way_long = model.expected_score(20, "sunday", (p["x"], p["y"] + 50.0))
     assert way_long >= at_pin - 1e-9
+
+
+# ---------------------------------------------------------------------------
+# FIX 1 (#8's flagged defect): long_trouble pricing had no distance falloff,
+# so expected score kept improving without bound the farther an aim point
+# carried past the green -- the #8 optimizer review traced this out to a
+# 150-yd carry adjustment before capping its search at a stated budget.
+# model._recovery_strokes now blends the trouble price toward a hazard-like
+# (creek) price as overshoot_yd grows (data.LONG_TROUBLE_FALLOFF_YD, MODELED,
+# sensitivity range data.LONG_TROUBLE_FALLOFF_YD_RANGE), which must produce a
+# genuine interior minimum in expected score as a function of carry past the
+# green, for every tier and every pin -- not just the Sunday pin this test
+# module already exercises above.
+# ---------------------------------------------------------------------------
+
+def test_long_trouble_falloff_gives_every_tier_and_pin_an_interior_minimum():
+    # No improvement at +40 yd of carry vs +15 yd, for every tier x pin: the
+    # regression guard for the exact failure mode #8 found (an unbounded
+    # "just carry it farther" asymptote with no interior optimum).
+    for tier in data.TIERS:
+        for pin in data.PINS:
+            p = data.PINS[pin]
+            s15 = model.expected_score(tier, pin, (p["x"], p["y"] + 15.0), n_grid=41)
+            s40 = model.expected_score(tier, pin, (p["x"], p["y"] + 40.0), n_grid=41)
+            assert s40 >= s15 - 1e-9, (tier, pin, s15, s40)
+
+
+def test_long_trouble_falloff_price_grows_with_overshoot():
+    # Directly on the pricing function #8 flagged: at fixed short-sidedness,
+    # a deeper overshoot must never price cheaper than a shallower one, and a
+    # large overshoot must price strictly worse than sitting right at the
+    # buffer edge (overshoot_yd=0) -- the flat-price defect made these equal
+    # at every distance.
+    tier, short_sided = 15, False
+    at_buffer = model._recovery_strokes(tier, short_sided, sand=False, trouble=True, overshoot_yd=0.0)
+    shallow = model._recovery_strokes(tier, short_sided, sand=False, trouble=True, overshoot_yd=10.0)
+    deep = model._recovery_strokes(tier, short_sided, sand=False, trouble=True, overshoot_yd=40.0)
+    assert at_buffer <= shallow + 1e-9 <= deep + 1e-9
+    assert deep > at_buffer, "distance falloff must make a materially deeper miss cost more"
+
+
+def test_long_trouble_falloff_never_exceeds_the_hazard_like_ceiling():
+    # The blend approaches, but should not exceed, the creek's price -- the
+    # "trending toward a hazard-like cost" ceiling named in the fix, not an
+    # unbounded penalty of its own.
+    tier, short_sided = 10, False
+    ceiling = model._creek_strokes(tier, short_sided)
+    very_deep = model._recovery_strokes(tier, short_sided, sand=False, trouble=True, overshoot_yd=500.0)
+    assert very_deep <= ceiling + 1e-6
 
 
 def test_implied_gir_near_published_anchor_at_center_pin():

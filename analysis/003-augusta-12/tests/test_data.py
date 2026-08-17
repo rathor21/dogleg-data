@@ -71,8 +71,18 @@ def test_pins_well_formed():
             assert lo < hi
 
 
-def test_sunday_pin_sits_fifteen_yards_deeper_than_left():
-    assert abs((data.PINS["sunday"]["y"] - data.PINS["left"]["y"]) - 15.0) < 1e-9
+def test_sunday_pin_sits_fifteen_yards_deeper_than_the_front_left_reference():
+    # Anchor 3's own words: "the Sunday pin sits roughly 15 yards deeper into
+    # the green than a front-left pin" -- a claim about a generic front-left
+    # reference position, checked here against data._FRONT_LEFT_SLOPE_
+    # REFERENCE_Y rather than data.PINS["left"]["y"] directly, since this
+    # release's own named "left" demo pin is repositioned to a mid-depth
+    # placement (the locked pin cast's welcoming/accessible left pin, issue
+    # #5) and is no longer literally "a front-left pin." The anchor's 15-yd
+    # claim is about the green's shape, not about wherever this release
+    # chooses to put its own demo pin, so it is checked against the
+    # decoupled reference that model.py's front-edge slope actually uses.
+    assert abs((data.PINS["sunday"]["y"] - data._FRONT_LEFT_SLOPE_REFERENCE_Y) - 15.0) < 1e-9
 
 
 def test_center_pin_is_the_narrow_sucker_pin_target():
