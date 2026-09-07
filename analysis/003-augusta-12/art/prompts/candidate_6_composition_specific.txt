@@ -1,0 +1,8 @@
+Paint a beautiful stylized illustration of the 12th hole at Augusta National golf course, using the attached layout sketch as the exact composition and camera reference. The camera is elevated and behind the tee, looking down the full length of the fairway toward the green far in the distance -- do not crop the tee box out of frame and do not zoom in closer to the green than the reference sketch does. The reference has four things you must match precisely:
+
+1. A visible tee box in the immediate foreground at the bottom edge of the frame.
+2. A long fairway corridor between the tee and the green, occupying most of the lower half of the frame, the same as the reference.
+3. Rae's Creek as ONE STRAIGHT DIAGONAL band crossing the fairway just short of the green, rising from lower-left to upper-right -- not a winding or curving river, not multiple bends. A single small footbridge may cross it.
+4. Exactly three pin flags on the green, no more, no fewer, in the same left-to-right and near-to-far arrangement as the reference. One bunker fronts the green (with a shaved mown bank beside it); two bunkers sit at the back corners of the green.
+
+Repaint every region with photorealistic-painterly texture: green fairway and rough, blue-green water, warm golden sand, a cream diagonal putting green, pink and white azalea blooms and tall pines behind the green, soft natural sky. Style: painterly-but-clean editorial illustration suited to a data-journalism site header, confident brushwork, clean readable shapes. Muted Masters color palette. No text, no logos, no watermarks, no people, no numbers on flags. Aspect ratio 16:9.

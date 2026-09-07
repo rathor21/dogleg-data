@@ -1,0 +1,225 @@
+{
+  "hero.png": {
+    "points": [
+      {
+        "label": "pin:left",
+        "expected_px": [
+          748.4,
+          446.6
+        ],
+        "found_px": [
+          718.6,
+          407.1
+        ],
+        "offset_px": 49.4,
+        "offset_pct_width": 3.09,
+        "pass": true
+      },
+      {
+        "label": "pin:center",
+        "expected_px": [
+          800.0,
+          404.2
+        ],
+        "found_px": [
+          806.6,
+          366.3
+        ],
+        "offset_px": 38.5,
+        "offset_pct_width": 2.41,
+        "pass": true
+      },
+      {
+        "label": "pin:sunday",
+        "expected_px": [
+          870.8,
+          361.8
+        ],
+        "found_px": [
+          876.6,
+          323.3
+        ],
+        "offset_px": 39.0,
+        "offset_pct_width": 2.43,
+        "pass": true
+      },
+      {
+        "label": "creek_far_bank:0",
+        "expected_px": [
+          604.6,
+          540.7
+        ],
+        "found_px": [
+          615.9,
+          541.4
+        ],
+        "offset_px": 11.3,
+        "offset_pct_width": 0.71,
+        "pass": true
+      },
+      {
+        "label": "creek_far_bank:1",
+        "expected_px": [
+          657.4,
+          530.3
+        ],
+        "found_px": [
+          659.4,
+          532.6
+        ],
+        "offset_px": 3.1,
+        "offset_pct_width": 0.19,
+        "pass": true
+      },
+      {
+        "label": "creek_far_bank:2",
+        "expected_px": [
+          707.5,
+          520.0
+        ],
+        "found_px": [
+          707.2,
+          518.6
+        ],
+        "offset_px": 1.4,
+        "offset_pct_width": 0.09,
+        "pass": true
+      },
+      {
+        "label": "creek_far_bank:3",
+        "expected_px": [
+          755.0,
+          491.8
+        ],
+        "found_px": [
+          754.5,
+          491.2
+        ],
+        "offset_px": 0.8,
+        "offset_pct_width": 0.05,
+        "pass": true
+      },
+      {
+        "label": "creek_far_bank:4",
+        "expected_px": [
+          800.0,
+          463.5
+        ],
+        "found_px": [
+          804.8,
+          464.7
+        ],
+        "offset_px": 4.9,
+        "offset_pct_width": 0.31,
+        "pass": true
+      },
+      {
+        "label": "creek_far_bank:5",
+        "expected_px": [
+          842.5,
+          435.3
+        ],
+        "found_px": [
+          850.3,
+          441.4
+        ],
+        "offset_px": 9.9,
+        "offset_pct_width": 0.62,
+        "pass": true
+      },
+      {
+        "label": "creek_far_bank:6",
+        "expected_px": [
+          882.5,
+          407.0
+        ],
+        "found_px": [
+          889.6,
+          414.3
+        ],
+        "offset_px": 10.2,
+        "offset_pct_width": 0.64,
+        "pass": true
+      },
+      {
+        "label": "creek_far_bank:7",
+        "expected_px": [
+          920.2,
+          378.8
+        ],
+        "found_px": [
+          927.1,
+          385.2
+        ],
+        "offset_px": 9.5,
+        "offset_pct_width": 0.59,
+        "pass": true
+      },
+      {
+        "label": "creek_far_bank:8",
+        "expected_px": [
+          955.5,
+          350.5
+        ],
+        "found_px": [
+          945.5,
+          365.2
+        ],
+        "offset_px": 17.7,
+        "offset_pct_width": 1.11,
+        "pass": true
+      },
+      {
+        "label": "bunker:front",
+        "expected_px": [
+          763.6,
+          503.1
+        ],
+        "found_px": [
+          775.6,
+          497.3
+        ],
+        "offset_px": 13.4,
+        "offset_pct_width": 0.84,
+        "pass": true
+      },
+      {
+        "label": "bunker:back_0",
+        "expected_px": [
+          709.5,
+          361.8
+        ],
+        "found_px": [
+          706.7,
+          363.7
+        ],
+        "offset_px": 3.4,
+        "offset_pct_width": 0.21,
+        "pass": true
+      },
+      {
+        "label": "bunker:back_1",
+        "expected_px": [
+          865.6,
+          243.2
+        ],
+        "found_px": [
+          865.0,
+          244.5
+        ],
+        "offset_px": 1.4,
+        "offset_pct_width": 0.09,
+        "pass": true
+      }
+    ],
+    "pass": true,
+    "overlay_path": "hero_overlay.png",
+    "candidate_size": [
+      1600,
+      900
+    ],
+    "scale_factor_vs_sketch": 1.0,
+    "tolerance_pct_width": 5.0,
+    "summary": "15/15 landmarks within 5.0% of image width"
+  }
+}

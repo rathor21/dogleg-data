@@ -1,0 +1,15 @@
+This reference image is a precise geometric schematic of the 12th hole at Augusta National golf course, in an elevated three-quarter camera angle from directly behind the tee, looking down the fairway toward the green. Repaint it as a beautiful stylized illustration WITHOUT changing the layout in any way. Treat the reference like a coloring-book outline: keep the exact silhouette, position, size, and camera framing of every shape and only replace flat color fills with photorealistic-painterly texture and add environmental detail outside those shapes.
+
+Do not change, in any way:
+- The small tee rectangle at the very bottom of the frame (foreground). Keep it in frame and in the same place.
+- The cream fairway trapezoid shape and its exact edges.
+- The water band (Rae's Creek): it is STRAIGHT and DIAGONAL, running from lower-left to upper-right, rising toward the right side of the frame. Do not make it curve, wind, or bend. Do not add a river bend.
+- The orange/tan bunker shapes: one at the front of the green (with a mown "shaved" bank strip beside it), two at the back corners of the green. Keep their exact positions and sizes; you may reshape their edges to look like natural sand traps but do not move or relocate them.
+- The cream-white green shape: a shallow diagonal parallelogram ("shoe-sole" shape), same outline as shown.
+- The three pin flags on the green: keep exactly three, in their exact positions. Do not add a fourth pin or remove any.
+- The overall camera crop and horizon line.
+
+You may add: azaleas and pine trees behind the green, a small stone or wooden footbridge crossing the creek ONLY if it fits within the creek's existing straight diagonal band without widening or curving it, soft sky, natural grass texture and shading, sand texture in the bunkers.
+
+Muted Masters color palette: soft fairway and rough greens, deep blue-green water, warm golden sand, pink and white azalea blooms, tall pines. No text, no logos, no watermarks, no people, no golf balls, no numbers on flags.
+Style: painterly-but-clean editorial illustration, like a golf-magazine feature spread. Confident soft brushwork, clean readable shapes, suited to a data-journalism site header. Aspect ratio 16:9.
