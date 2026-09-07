@@ -68,6 +68,19 @@ TEE_FEATHER_PX = 1.5
 FRINGE_WIDTH_YD = 1.5
 BUNKER_WOBBLE_PX = 1.6
 
+STRIPE_CONTRAST_ROUGH_FACTOR = 0.5   # rough stripes at about half the fairway's contrast,
+                                      # so the mown corridor reads as the line down the hole
+
+# Round four polish: a very light cool lift toward the plate's own horizon
+# tone, strongest at the horizon and gone by mid-frame, so the far turf
+# recedes instead of reading at the same value as the near turf. Color is a
+# fixed approximation of environment_plate.png sampled just below the crop
+# line composite.py uses (PLATE_CROP_TOP_FRAC) -- close enough for a lift
+# this small (<=10%) without pulling this module's rendering into a runtime
+# dependency on composite.py's own crop math.
+HORIZON_HAZE_COLOR = np.array([0xB2, 0xB5, 0xA0], dtype=np.float64)
+HORIZON_HAZE_MAX = 0.10
+
 
 # ---------------------------------------------------------------------------
 # Inverse camera: screen row -> model y-yards. Identical to composite.py's
@@ -91,7 +104,9 @@ def y_yd_for_screen_y(py, y_break):
 def yd_grids(canvas_size, y_break):
     """Per-pixel (x_yd, y_yd) grids over the whole canvas, via the exact
     camera sketch.py/masks.py use. y_yd varies by row only; x_yd depends on
-    both row (lateral scale) and column."""
+    both row (lateral scale) and column. Also returns px_per_yard_row (h,),
+    the lateral scale at each row, so callers can derive how many yards one
+    screen pixel spans horizontally at that depth."""
     w, h = canvas_size
     y_yd_row = np.array([y_yd_for_screen_y(py, y_break) for py in range(h)])
     px_per_yard_row = np.array([sketch.half_width_px_for(y) for y in y_yd_row]) / sketch.FRAME_HALF_WIDTH_YD
@@ -99,33 +114,38 @@ def yd_grids(canvas_size, y_break):
     cols = np.arange(w)
     x_yd_grid = (cols[None, :] - cx) / px_per_yard_row[:, None]
     y_yd_grid = np.repeat(y_yd_row[:, None], w, axis=1)
-    return x_yd_grid, y_yd_grid
+    return x_yd_grid, y_yd_grid, px_per_yard_row
 
 
-def row_resolution_fade(y_yd_row, stripe_yd):
+def row_resolution_fade(resolution_row, stripe_yd):
     """Anti-Moire fade, not a hand-picked depth cutoff: a stripe pattern
-    with period stripe_yd aliases into hard noise the moment one screen row
+    with period stripe_yd aliases into hard noise the moment one screen unit
     spans more than about a quarter of that period (fewer than ~4 screen
-    rows per stripe), which happens well before the literal horizon because
-    the camera's depth budget compresses distance heavily near the top of
-    frame. Measuring the actual yards-per-row at each row and fading the
-    stripe contrast out as that resolution degrades is what "fading out
-    toward the horizon" has to mean for a procedural stripe -- a fixed
-    fraction-of-Y_MAX cutoff either aliases before it kicks in or throws
-    away stripes that would still have been resolvable."""
-    dy = np.abs(np.gradient(y_yd_row))
+    units per stripe). resolution_row (h,) is yards spanned by one screen
+    unit at each row -- vertical yards-per-row for depth-oriented bands
+    (the bunkers' rake lines still band on y_yd), or horizontal
+    yards-per-pixel for laterally-oriented bands (the turf/green mow
+    stripes, which band on x_yd so they run tee-to-green and converge
+    toward the horizon instead of sitting across the screen). Either way,
+    measuring the actual resolution at each row and fading contrast out as
+    it degrades is what "fading toward the horizon" has to mean for a
+    procedural stripe -- a fixed fraction-of-range cutoff either aliases
+    before it kicks in or throws away stripes that would still resolve."""
     lo, hi = stripe_yd * 0.25, stripe_yd * 1.0
-    return np.clip(1.0 - (dy - lo) / (hi - lo), 0.0, 1.0)
+    return np.clip(1.0 - (resolution_row - lo) / (hi - lo), 0.0, 1.0)
 
 
-def stripe_multiplier(y_yd_grid, stripe_yd, contrast, row_fade=None):
-    """Alternating +/-contrast bands every stripe_yd of depth. row_fade (h,)
-    -- from row_resolution_fade -- suppresses the pattern per-row once the
-    screen can no longer resolve it, instead of letting floor() alias."""
-    band = np.floor(y_yd_grid / stripe_yd).astype(np.int64)
+def stripe_multiplier(band_grid_yd, stripe_yd, contrast, row_fade=None):
+    """Alternating +/-contrast bands every stripe_yd of band_grid_yd (pass
+    x_yd for lateral, tee-to-green mow stripes; y_yd for depth-oriented
+    bands such as bunker rake lines). row_fade (h,) -- from
+    row_resolution_fade, matched to whichever resolution corresponds to
+    band_grid_yd -- suppresses the pattern per-row once the screen can no
+    longer resolve it, instead of letting floor() alias."""
+    band = np.floor(band_grid_yd / stripe_yd).astype(np.int64)
     alt = (band % 2).astype(np.float64) * 2.0 - 1.0
     if row_fade is None:
-        row_fade = np.ones(y_yd_grid.shape[0])
+        row_fade = np.ones(band_grid_yd.shape[0])
     return 1.0 + alt * contrast * row_fade[:, None]
 
 
@@ -222,7 +242,7 @@ def render(regions, landmarks, project, variant="a", seed=7):
     w, h = CANVAS
     geom = landmarks["geom"]
     y_break = landmarks["y_break_yd"]
-    x_yd, y_yd = yd_grids(CANVAS, y_break)
+    x_yd, y_yd, px_per_yard_row = yd_grids(CANVAS, y_break)
 
     warm_turf = variant == "b"
     stripe_boost = 1.5 if variant == "b" else 1.0
@@ -232,13 +252,31 @@ def render(regions, landmarks, project, variant="a", seed=7):
     masks, _regions2, _landmarks2, _project2 = masks_mod.build_masks()
 
     y_yd_row = y_yd[:, 0]
-    turf_row_fade = row_resolution_fade(y_yd_row, STRIPE_YD_TURF)
-    green_row_fade = row_resolution_fade(y_yd_row, STRIPE_YD_GREEN)
+    # Depth resolution (yards per screen row) -- still what the bunkers'
+    # rake lines band on, since a rake mark runs across the bunker, not
+    # tee-to-green.
+    depth_res_row = np.abs(np.gradient(y_yd_row))
+    rake_depth_fade = row_resolution_fade(depth_res_row, STRIPE_YD_GREEN)
+    # Lateral resolution (yards per screen pixel, horizontally) -- what the
+    # turf/rough and green mow stripes band on now, since they run
+    # tee-to-green (constant x_yd) and converge toward the horizon in
+    # perspective, rather than sitting as bands of constant depth.
+    lateral_res_row = 1.0 / px_per_yard_row
+    turf_lateral_fade = row_resolution_fade(lateral_res_row, STRIPE_YD_TURF)
+    green_lateral_fade = row_resolution_fade(lateral_res_row, STRIPE_YD_GREEN)
 
     # ---- base turf / rough, mow stripes, corner falloff, grain ----
-    stripe_mult = stripe_multiplier(y_yd, STRIPE_YD_TURF, STRIPE_CONTRAST_TURF * stripe_boost, row_fade=turf_row_fade)
+    # Bands are constant in x_yd (lateral position), not y_yd (depth): a mow
+    # stripe runs the length of the hole, tee to green, so in this camera it
+    # must converge toward the horizon like every other line running away
+    # from camera, not sit as a horizontal band across the screen. Rough
+    # gets half the fairway's contrast so the mown corridor still reads as
+    # the distinct line down the hole.
+    stripe_mult = stripe_multiplier(x_yd, STRIPE_YD_TURF, STRIPE_CONTRAST_TURF * stripe_boost, row_fade=turf_lateral_fade)
+    rough_stripe_mult = stripe_multiplier(
+        x_yd, STRIPE_YD_TURF, STRIPE_CONTRAST_TURF * STRIPE_CONTRAST_ROUGH_FACTOR * stripe_boost, row_fade=turf_lateral_fade)
     turf_rgb = turf_mid[None, None, :] * stripe_mult[..., None]
-    rough_rgb = ROUGH_BASE[None, None, :] * stripe_mult[..., None]
+    rough_rgb = ROUGH_BASE[None, None, :] * rough_stripe_mult[..., None]
 
     fairway_alpha = mask_to_arr(masks["fairway"], feather_px=FAIRWAY_FEATHER_PX)
     base = composite_rgb(rough_rgb, turf_rgb, fairway_alpha)
@@ -286,7 +324,7 @@ def render(regions, landmarks, project, variant="a", seed=7):
         raw_mask = masks[mask_name]
         wobbled = wobble_mask(raw_mask, seed=seed + 10 + i)
         alpha = mask_to_arr(wobbled, feather_px=BUNKER_FEATHER_PX)
-        sand_with_rake = rake_lines(sand_rgb_full, alpha, y_yd, green_row_fade, spacing_yd=2.0, contrast=0.06)
+        sand_with_rake = rake_lines(sand_rgb_full, alpha, y_yd, rake_depth_fade, spacing_yd=2.0, contrast=0.06)
         base = composite_rgb(base, sand_with_rake, alpha)
 
     # ---- green: brightest surface, fine stripes, fringe collar underneath ----
@@ -304,7 +342,7 @@ def render(regions, landmarks, project, variant="a", seed=7):
     fringe_rgb = (turf_mid * 0.55 + GREEN_BRIGHT * 0.45)[None, None, :] * stripe_mult[..., None]
     base = composite_rgb(base, fringe_rgb, fringe_alpha)
 
-    green_stripe_mult = stripe_multiplier(y_yd, STRIPE_YD_GREEN, STRIPE_CONTRAST_GREEN * stripe_boost, row_fade=green_row_fade)
+    green_stripe_mult = stripe_multiplier(x_yd, STRIPE_YD_GREEN, STRIPE_CONTRAST_GREEN * stripe_boost, row_fade=green_lateral_fade)
     green_rgb = GREEN_BRIGHT[None, None, :] * green_stripe_mult[..., None]
     green_alpha = mask_to_arr(masks["green"], feather_px=GREEN_FEATHER_PX)
     base = composite_rgb(base, green_rgb, green_alpha)
@@ -348,6 +386,17 @@ def render(regions, landmarks, project, variant="a", seed=7):
     creek_near_bank_px = [project(x, y) for x, y in landmarks["creek_near_bank_samples_yd"]]
     base = draw_soft_line(base, creek_near_bank_px, BANK_NEAR_SHADOW, 150, width=6, blur=3)
     base = draw_soft_line(base, creek_far_bank_px, BANK_FAR_LINE, 235, width=2, blur=0.6)
+
+    # ---- atmospheric haze: a light cool lift toward the horizon ----
+    # Strongest (HORIZON_HAZE_MAX) at sketch.HORIZON_PX, linearly gone by
+    # mid-frame (h/2), zero below that -- so the far turf recedes into the
+    # plate's own tone instead of holding the same value as the near turf
+    # right up to the tree line.
+    rows = np.arange(h, dtype=np.float64)
+    mid_frame_row = h / 2.0
+    haze_t = np.clip((mid_frame_row - rows) / (mid_frame_row - sketch.HORIZON_PX), 0.0, 1.0)
+    haze = HORIZON_HAZE_MAX * haze_t
+    base = base * (1.0 - haze[:, None, None]) + HORIZON_HAZE_COLOR[None, None, :] * haze[:, None, None]
 
     return Image.fromarray(np.clip(base, 0, 255).astype("uint8"))
 

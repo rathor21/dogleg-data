@@ -157,10 +157,20 @@ The plate contributes exactly the sky, the pine tree line, and the azalea beds a
 - [x] `hero_overlay.png` / `registration_report_hero.json` -- 15/15 PASS, no threshold changes
 - [x] `environment_plate_v1.png` deleted (round two's plate, 1.58MB, unreferenced by any code -- `environment_plate.png`, round three's candidate, remains the plate in use)
 
+### Round four, polish (2026-09-07): perspective mow stripes and horizon haze (issue #11)
+
+The orchestrator accepted round four's strategy and chose variant A (`hero.png`) over `hero_variant_b.png`, which is now deleted. Two fixes followed from that review.
+
+Mow stripes banded on `y_yd` (model depth), so they projected as horizontal bands across the screen rather than lines running down the hole -- a striped rug, not a mown fairway. `render_ground.py`'s turf, rough, and green stripes now band on `x_yd` (lateral position) instead: 4-yard bands for turf and rough, 2 yards on the green, the widths the brief already called for. Banding on `x_yd` means the stripes converge toward the horizon in perspective, the way any line running away from camera should. `row_resolution_fade` still guards against aliasing, but it now measures yards-per-screen-pixel horizontally at each row rather than yards-per-screen-row vertically, since that is the resolution a laterally-banded stripe actually runs out of near the horizon; the bunkers' rake lines still band on depth and still fade on the old vertical measure, since a rake mark runs across the bunker, not toward the green. Rough now renders at half the fairway's stripe contrast, so the mown corridor reads as the distinct line down the hole instead of matching the rough's own stripe strength.
+
+A light haze lifts the rendered ground toward the plate's own horizon tone, strongest (10%) at `sketch.HORIZON_PX` and gone by mid-frame, so the far turf recedes instead of holding the same value all the way to the tree line. The lift color approximates `environment_plate.png` sampled just below composite.py's horizon crop line.
+
+Registration: `python3 registration_qa.py hero.png` still reports 15/15 landmarks within 5.0% of image width, no threshold changes. `hero.png`, `hero_mobile_crop.png`, `hero_overlay.png`, and `registration_report_hero.json` are regenerated against this composite.
+
 ## Deliverables
 
-- [x] `hero.png` -- 1600x900 accepted hero art, round four (code-rendered ground, generated sky/tree band)
-- [x] `hero_variant_b.png` -- round four's deliberate-difference variant (stronger stripes, warmer turf)
+- [x] `hero.png` -- 1600x900 accepted hero art, round four (code-rendered ground, generated sky/tree band), polished with perspective mow stripes and horizon haze
+- [x] `hero_variant_b.png` -- round four's deliberate-difference variant (stronger stripes, warmer turf); deleted in the round four polish pass once the orchestrator chose variant A
 - [x] `hero_mobile_crop.png` -- 506x900 (9:16) center crop
 - [x] `hero_overlay.png` -- sketch-over-hero registration overlay
 - [x] `registration_report_hero.json` -- 15/15 PASS
