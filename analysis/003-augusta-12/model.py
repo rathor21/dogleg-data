@@ -216,19 +216,69 @@ def region_at(x, y, pin, *, green_width_yd=None, front_third_depth_yd=None):
     return "greenside_rough", is_short_sided
 
 
+def _lerp_table(table, x):
+    """Linear interpolation of `table` (a {ft: value} dict) at distance x.
+    Flat extrapolation outside the table's own range: x at or below the
+    smallest key returns that key's value, x at or above the largest key
+    returns that key's value -- interpolation never invents a value below
+    the last anchor it has evidence for."""
+    keys = sorted(table)
+    if x <= keys[0]:
+        return table[keys[0]]
+    if x >= keys[-1]:
+        return table[keys[-1]]
+    for lo, hi in zip(keys, keys[1:]):
+        if lo <= x <= hi:
+            t = (x - lo) / (hi - lo)
+            return table[lo] + t * (table[hi] - table[lo])
+    return table[keys[-1]]  # unreachable, defensive
+
+
+def putt_probabilities(tier, dist_ft):
+    """(p1, p2, p3): probability of holing out in one, two, or three-plus
+    putts from dist_ft, for amateur tier.
+
+    Anchor 8 (docs/sources/003_Source_Log.md#anchor-8) replaces the release's
+    original invented `1.5 + 0.012*ft` curve, which floored expected putts
+    at 1.5 from any distance including a tap-in.
+
+    p1: linear interpolation of data.AMATEUR_MAKE_PCT_BY_BAND[tier] (Shot
+    Scope's own six distance-band midpoints, plus a definitional 1.0 at 0
+    ft), ANCHORED.
+
+    p3: MODELED. No source publishes amateur three-putt rate broken out by
+    distance, so this scales the Tour three-putt-BY-DISTANCE shape
+    (data.TOUR_THREE_PUTT_PCT_BY_FT) by data.AMATEUR_THREE_PUTT_SHAPE_SCALE
+    [tier] -- the ratio of this tier's own ANCHORED per-hole three-putt rate
+    (Anchor 5) to a MODELED implied Tour per-hole rate. Capped so p1+p3 never
+    exceeds 1 (a long tier-scaled p3 could otherwise push the total over 1
+    at distances where p1 is not yet small).
+
+    p2 is whatever probability mass is left: 1 - p1 - p3.
+    """
+    p1 = _lerp_table(data.AMATEUR_MAKE_PCT_BY_BAND[tier], dist_ft)
+    if dist_ft <= 5.0:
+        tour_p3_shape = 0.0
+    else:
+        tour_p3_shape = _lerp_table(data.TOUR_THREE_PUTT_PCT_BY_FT, dist_ft)
+    p3_raw = tour_p3_shape * data.AMATEUR_THREE_PUTT_SHAPE_SCALE[tier]
+    p3 = min(p3_raw, max(0.0, 1.0 - p1))
+    p2 = max(0.0, 1.0 - p1 - p3)
+    return p1, p2, p3
+
+
 def _green_strokes(tier, dist_to_pin_ft):
     """Expected strokes to finish from on the green: expected putts only (the
     approach stroke itself is charged once, in score_for_oval).
 
-    Putts-by-distance shape is MODELED -- no published putts-by-distance-
-    and-handicap curve exists in the source log -- scaled by the tier's
-    ANCHORED three-putt rate (data.THREE_PUTT_RATE, Anchor 5) so a tier that
-    three-putts more often averages more putts overall, folding the one
-    genuinely anchored short-game figure into the pricing.
+    putt_probabilities (Anchor 8) replaces the release's original invented
+    `1.5 + 0.012*ft * (1 + three_putt_rate)` formula, which floored expected
+    putts at 1.5 from any distance -- a Tour player faced a ~1.6-putt price
+    from 3 feet against a published 96% make rate there. The three-putt
+    anchor now enters through p3 directly, not as a separate multiplier.
     """
-    base_putts = min(3.0, max(1.0, 1.5 + 0.012 * dist_to_pin_ft))  # MODELED putts-by-distance shape
-    tier_scale = 1.0 + data.THREE_PUTT_RATE[tier]  # ANCHORED anchor folded in as a multiplicative adjustment
-    return base_putts * tier_scale
+    p1, p2, p3 = putt_probabilities(tier, dist_to_pin_ft)
+    return p1 + 2.0 * p2 + 3.0 * p3
 
 
 def _recovery_strokes(tier, is_short_sided, sand, trouble=False, overshoot_yd=0.0):

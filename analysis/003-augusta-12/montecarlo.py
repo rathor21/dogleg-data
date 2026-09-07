@@ -22,11 +22,16 @@ Two harnesses:
     must-pass gate). Samples a pin and a wind state per simulated hole play
     from tour.season_weights (the season-realistic pin rotation and wind
     frequency, both MODELED and disclosed in tour.py), then discretizes each
-    play's putts/recovery leg into an INTEGER score via stochastic rounding
-    (see _stochastic_round below) so the harness can report a real birdie/
-    par/bogey/double-or-worse distribution, not just a mean, checked against
-    the 2019 season breakdown (data source: docs/sources/003_Source_Log.md
-    Anchor 4).
+    play into an INTEGER score: the green leg draws an integer putt count
+    from tour.tour_putt_probabilities' anchored (p1, p2, p3) distribution
+    (see _sample_putts below, Anchor 8), and any recovery leg (bunker/rough/
+    creek/long_trouble) still uses stochastic rounding of its real-valued
+    expected-strokes price (see _stochastic_round below), since no anchored
+    discrete outcome distribution exists for those legs the way putting now
+    has. Reports a real birdie/par/bogey/double-or-worse distribution, not
+    just a mean, checked against the 2019 season breakdown and the modern-
+    era yearly averages (data source: docs/sources/003_Source_Log.md
+    Anchor 4, Anchor 9).
 """
 
 import numpy as np
@@ -103,14 +108,29 @@ def simulate_tour(pin, aim_point, wind=False, *, n=300_000, rng=None,
 def _stochastic_round(mean_val, rng, n):
     """n integer draws whose sample mean converges to mean_val exactly in
     expectation: floor(mean_val) with probability 1-frac, floor(mean_val)+1
-    with probability frac, frac = mean_val - floor(mean_val). Used to turn
-    tour.py's real-valued putts/recovery-leg expectations into a genuine
-    discrete score distribution without inventing a separate discrete model
-    that could drift from the analytic pricing formulas."""
+    with probability frac, frac = mean_val - floor(mean_val). Used for
+    recovery legs (bunker/rough/creek/long_trouble), which have no anchored
+    discrete outcome distribution the way putting now does (see
+    _sample_putts below) -- only a real-valued expected-strokes price."""
     lo = np.floor(mean_val)
     frac = mean_val - lo
     u = rng.random(n)
     return np.where(u < frac, lo + 1.0, lo)
+
+
+def _sample_putts(putt_probs, rng, n):
+    """n integer putt-count draws (1, 2, or 3) from an explicit (p1, p2, p3)
+    distribution (tour.tour_putt_probabilities, Anchor 8). Replaces
+    _stochastic_round's implicit "floor(E)/floor(E)+1" two-outcome discretization
+    for the green leg: that scheme turned the old floored-at-1.5 putting
+    formula's expectation into a one-putt probability of `2 - E`, which
+    capped one-putts at 50% from any distance and is the actual mechanism
+    behind the pre-fix birdie deficit VALIDATION_NOTES had attributed to aim
+    policy. Sampling directly from the anchored (p1, p2, p3) triple lets a
+    3-foot putt hole out at its real ~96% rate instead."""
+    p1, p2, _p3 = putt_probs
+    u = rng.random(n)
+    return np.where(u < p1, 1.0, np.where(u < p1 + p2, 2.0, 3.0))
 
 
 def simulate_tour_season(n=300_000, rng=None, pin_rotation=None, wind_frequency=None,
@@ -178,8 +198,8 @@ def simulate_tour_season(n=300_000, rng=None, pin_rotation=None, wind_frequency=
                 if region == "green":
                     pp = data.PINS[pin_name]
                     dist_ft = ((xi - pp["x"]) ** 2 + (yi - pp["y"]) ** 2) ** 0.5 * model.FT_PER_YD
-                    mean_putts = tour._tour_green_strokes(dist_ft)
-                    putts = _stochastic_round(mean_putts, rng, 1)[0]
+                    putt_probs = tour.tour_putt_probabilities(dist_ft)
+                    putts = _sample_putts(putt_probs, rng, 1)[0]
                     sub_strokes[j] = 1.0 + putts
                 elif region == "creek":
                     mean_leg = tour._tour_recovery_strokes(short_sided, sand=False)

@@ -428,3 +428,128 @@ SOURCES["TOUR"] = {
     "log": "docs/sources/003_Source_Log.md#anchor-7",
     "status": "proximity/GIR anchored directly at 150-175yd (contains the 155yd shot, no extrapolation step); anisotropy anchored to Broadie's published pro ratio (Anchor 2); putting/up-and-down modeled-anchorless, disclosed above",
 }
+
+# ---------------------------------------------------------------------------
+# Anchor 8 (append, #9 follow-up hunt, 2026-09-07): putts by distance, Tour
+# and amateur by handicap. APPEND-ONLY block: retires the invented
+# `1.5 + 0.012 * feet` putting curve that model._green_strokes and
+# tour._tour_green_strokes both used before this pass -- that curve floored
+# expected putts at 1.5 from any distance, including a tap-in, and priced a
+# Tour player at roughly 1.6 putts from 3 feet against a published 96% make
+# rate there. Nothing above this comment is read, mutated, or restructured.
+#
+# Tour make percentage and three-putt percentage by distance are ANCHORED,
+# corroborated across two independently fetched pages (Golfing Focus,
+# attributed to Mark Broadie, and Golf.com; the two pages' three-putt
+# figures agree at every distance both cover). The "expected putts" figure
+# the release brief recalled (1.23/1.61/1.87/1.98/2.06/2.21 at 5/10/20/30/
+# 40/60 ft) is not itself a published column -- it is arithmetic performed
+# on these two tables (expected putts = 1*make + 2*(1-make-three_putt) +
+# 3*three_putt), confirmed by the log to reproduce the recollection to two
+# decimal places at every one of those distances. MODELED status attaches
+# to that arithmetic conversion, not to the two tables it is built from.
+# ---------------------------------------------------------------------------
+
+TOUR_MAKE_PCT_BY_FT = {
+    2: 0.99, 3: 0.96, 4: 0.88, 5: 0.77, 10: 0.40, 15: 0.23,
+    20: 0.15, 30: 0.07, 40: 0.04, 50: 0.03, 60: 0.02,
+}  # ANCHORED, Anchor 8 (Golfing Focus/Broadie, corroborated by a separate WebSearch synthesis)
+
+TOUR_THREE_PUTT_PCT_BY_FT = {
+    5: 0.004, 10: 0.007, 15: 0.013, 20: 0.022, 30: 0.05, 40: 0.10, 60: 0.23,
+}  # ANCHORED, Anchor 8 (Golfing Focus/Broadie, corroborated by Golf.com at every shared distance); 0-5 ft treated as 0, see tour_putt_probabilities
+
+# Amateur make percentage by handicap and distance band (ANCHORED, Shot
+# Scope direct fetch, six tiers, restated on a second page). Band midpoints
+# (3, 9, 15, 21, 27 ft for the five bounded bands, 40 ft standing in for the
+# open-ended 30-plus band) become the curve's x-values; 0 ft is anchored at
+# a 100% make rate for every tier (nobody misses a putt already holed).
+# Tier 25 is carried for completeness (matches the published table) even
+# though data.TIERS stops at 20.
+AMATEUR_PUTT_TIERS = [0, 5, 10, 15, 20, 25]  # ANCHORED, Anchor 8 (Shot Scope's own six tiers)
+AMATEUR_MAKE_PCT_BAND_MIDPOINT_FT = [0.0, 3.0, 9.0, 15.0, 21.0, 27.0, 40.0]
+
+_AMATEUR_MAKE_PCT_ROWS_BY_BAND = {
+    # band label: [scratch, 5, 10, 15, 20, 25] make pct, ANCHORED Anchor 8 (Shot Scope)
+    "0-6ft": [0.928, 0.902, 0.893, 0.844, 0.840, 0.825],
+    "6-12ft": [0.428, 0.414, 0.381, 0.396, 0.378, 0.350],
+    "12-18ft": [0.251, 0.239, 0.202, 0.202, 0.188, 0.160],
+    "18-24ft": [0.145, 0.130, 0.103, 0.112, 0.118, 0.101],
+    "24-30ft": [0.083, 0.101, 0.054, 0.078, 0.068, 0.063],
+    "30+ft": [0.043, 0.043, 0.028, 0.032, 0.019, 0.023],
+}
+
+AMATEUR_MAKE_PCT_BY_BAND = {
+    tier: {0.0: 1.0}  # ANCHORED (definitional): a putt already at 0 ft is holed
+    for tier in AMATEUR_PUTT_TIERS
+}
+for _band, _mid in zip(["0-6ft", "6-12ft", "12-18ft", "18-24ft", "24-30ft", "30+ft"],
+                        AMATEUR_MAKE_PCT_BAND_MIDPOINT_FT[1:]):
+    for _i, _tier in enumerate(AMATEUR_PUTT_TIERS):
+        AMATEUR_MAKE_PCT_BY_BAND[_tier][_mid] = _AMATEUR_MAKE_PCT_ROWS_BY_BAND[_band][_i]
+del _band, _mid, _i, _tier
+
+# Amateur three-putt rate by distance has no published breakdown anywhere in
+# the source hunt (Anchor 8's own verdict): only a by-handicap, not-by-
+# distance, figure exists (Anchor 5's THREE_PUTT_RATE). MODELED: scale the
+# Tour three-putt-BY-DISTANCE shape by the ratio of each tier's own ANCHORED
+# per-hole three-putt rate to a MODELED implied Tour per-hole rate, so a
+# tier that three-putts more often per Anchor 5 also three-putts more often
+# at any given distance than the Tour shape alone would predict.
+# TOUR_THREE_PUTT_RATE_PER_HOLE has no figure in this release's source log;
+# Tour three-putt frequency is widely quoted in golf-instruction writing at
+# roughly 3% of holes, used here as a documented, disclosed MODELED
+# constant with a stated sensitivity range, not a fitted value.
+TOUR_THREE_PUTT_RATE_PER_HOLE = 0.03          # MODELED, anchorless, widely-quoted approximate figure
+TOUR_THREE_PUTT_RATE_PER_HOLE_RANGE = (0.02, 0.04)  # MODELED sensitivity range
+
+AMATEUR_THREE_PUTT_SHAPE_SCALE = {
+    t: THREE_PUTT_RATE[t] / TOUR_THREE_PUTT_RATE_PER_HOLE for t in TIERS
+}  # MODELED: ANCHORED numerator (Anchor 5) over a MODELED denominator
+
+SOURCES["PUTTING"] = {
+    "log": "docs/sources/003_Source_Log.md#anchor-8",
+    "status": ("Tour make%/three-putt% by distance anchored (Golfing Focus/Broadie, "
+               "corroborated by Golf.com); amateur make% by handicap and distance band "
+               "anchored (Shot Scope, six tiers, direct fetch); amateur three-putt-by-"
+               "distance modeled (Tour shape scaled by Anchor 5's per-hole rate over a "
+               "modeled Tour per-hole rate, range 0.02-0.04); replaces the pre-existing "
+               "invented 1.5 + 0.012*ft curve entirely"),
+}
+
+# ---------------------------------------------------------------------------
+# Anchor 9 (append, #9 follow-up hunt, 2026-09-07): Masters hole-12 scoring
+# average by year, 2019 and 2021-2025. APPEND-ONLY block. The gate previously
+# compared the Tour oval (built on Anchor 7's 2016-2023 proximity data)
+# against the all-time 3.27-3.28 scoring average, which spans 1934-2025 and
+# is pulled upward by high-scoring years decades before the proximity data's
+# own era. Every modern year found in this hunt scores below the all-time
+# figure, most by two to three tenths of a stroke.
+# ---------------------------------------------------------------------------
+
+HOLE12_MODERN_AVG_BY_YEAR = {
+    2019: 3.053,  # ANCHORED, two-source (Racing Post direct fetch + WebSearch synthesis corroboration)
+    2021: 3.11,   # PUBLISHED, single-source (SI.com direct fetch)
+    2022: 3.233,  # PUBLISHED, single-source, WebSearch-synthesis only (PGA Tour direct fetch returned no data for this event)
+    2023: 3.058,  # PUBLISHED, single-source (PGA Tour course-stats, direct fetch)
+    2024: 3.198,  # ANCHORED, two-source (PGA Tour course-stats + Today's Golfer, both direct fetch)
+    2025: 3.139,  # PUBLISHED, single-source (PGA Tour course-stats, direct fetch)
+}  # Anchor 9; two-source years: 2019, 2024. Single-source years: 2021, 2022, 2023, 2025.
+
+HOLE12_ALLTIME_AVG_RANGE = (3.27, 3.28)  # ANCHORED, Anchor 4; context only, not the gate target (era mismatch, see Anchor 9)
+
+# Per-year outcome counts, where the log states them (birdie, par, bogey,
+# double-bogey-or-worse), out of that year's total plays. 2019 and 2024 are
+# two-source years; 2023 and 2025 are single-source (PGA Tour course-stats,
+# direct fetch, no independent second source found in this hunt).
+HOLE12_OUTCOMES_BY_YEAR = {
+    2019: dict(birdie=52, par=200, bogey=38, double_or_worse=14),   # ANCHORED, two-source, Anchor 4
+    2023: (49, 173, 47, 9),                                          # PUBLISHED, single-source, Anchor 9 (PGA Tour course-stats)
+    2024: (40, 185, 52, 17),                                         # ANCHORED, two-source, Anchor 9 (PGA Tour course-stats + Today's Golfer)
+    2025: (40, 190, 53, 12),                                         # PUBLISHED, single-source, Anchor 9 (PGA Tour course-stats)
+}  # tuple order, where used: (birdie, par, bogey, double_or_worse)
+
+SOURCES["HOLE12_MODERN_AVG_BY_YEAR"] = {
+    "log": "docs/sources/003_Source_Log.md#anchor-9",
+    "status": "2019/2024 anchored (two independent fetches each); 2021/2022/2023/2025 published single-source (2022 WebSearch-synthesis only); all-time 3.27-3.28 kept as context, not the gate target",
+}

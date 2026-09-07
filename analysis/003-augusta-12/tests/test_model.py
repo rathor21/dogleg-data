@@ -4,6 +4,7 @@ import pytest
 
 import data
 import model
+import tour
 
 
 # ---------------------------------------------------------------------------
@@ -392,3 +393,60 @@ def test_implied_gir_near_published_anchor_at_center_pin():
             if region == "green":
                 green_mass += wyi * wxi
     assert green_mass > 0.40
+
+
+# ---------------------------------------------------------------------------
+# Anchor 8 (#9 follow-up): anchored putting curve replaces the invented
+# `1.5 + 0.012*ft` formula, which floored expected putts at 1.5 from any
+# distance including a tap-in and priced a Tour player at ~1.6 putts from 3
+# feet against a published 96% make rate. model.putt_probabilities and
+# tour.tour_putt_probabilities are the two ANCHORED replacement curves.
+# ---------------------------------------------------------------------------
+
+_TEST_DISTANCES_FT = [0.0, 1.0, 3.0, 6.0, 9.0, 12.0, 15.0, 18.0, 21.0, 24.0, 27.0, 30.0, 40.0, 60.0, 90.0]
+
+
+def test_putt_probabilities_sum_to_one_at_every_tested_distance():
+    for tier in data.TIERS:
+        for ft in _TEST_DISTANCES_FT:
+            p1, p2, p3 = model.putt_probabilities(tier, ft)
+            assert p1 >= 0.0 and p2 >= 0.0 and p3 >= 0.0, (tier, ft, p1, p2, p3)
+            assert abs((p1 + p2 + p3) - 1.0) < 1e-9, (tier, ft, p1, p2, p3)
+    for ft in _TEST_DISTANCES_FT:
+        p1, p2, p3 = tour.tour_putt_probabilities(ft)
+        assert p1 >= 0.0 and p2 >= 0.0 and p3 >= 0.0, (ft, p1, p2, p3)
+        assert abs((p1 + p2 + p3) - 1.0) < 1e-9, (ft, p1, p2, p3)
+
+
+def test_tour_expected_putts_reproduces_anchor_8_arithmetic():
+    # Anchor 8's own arithmetic check: expected putts = 1*make + 2*(1-make-
+    # three_putt) + 3*three_putt, computed from the two ANCHORED Tour tables,
+    # reproduces the release brief's recalled curve to two decimal places.
+    target_by_ft = {5: 1.23, 10: 1.61, 20: 1.87, 30: 1.98, 60: 2.21}
+    for ft, target in target_by_ft.items():
+        got = tour._tour_green_strokes(float(ft))
+        assert abs(got - target) < 0.02, (ft, got, target)
+
+
+def test_putt_expected_value_increases_monotonically_with_distance_for_every_tier():
+    for tier in data.TIERS:
+        values = [model._green_strokes(tier, ft) for ft in _TEST_DISTANCES_FT]
+        assert all(a <= b + 1e-9 for a, b in zip(values, values[1:])), (tier, values)
+    tour_values = [tour._tour_green_strokes(ft) for ft in _TEST_DISTANCES_FT]
+    assert all(a <= b + 1e-9 for a, b in zip(tour_values, tour_values[1:])), tour_values
+
+
+def test_twenty_handicap_needs_more_putts_than_scratch_at_every_distance():
+    for ft in _TEST_DISTANCES_FT:
+        scratch = model._green_strokes(0, ft)
+        twenty = model._green_strokes(20, ft)
+        assert twenty >= scratch - 1e-9, (ft, scratch, twenty)
+    # At least one tested distance must show a real (non-degenerate) gap,
+    # confirming this isn't trivially true because both curves are flat.
+    assert any(model._green_strokes(20, ft) > model._green_strokes(0, ft) + 1e-6
+               for ft in _TEST_DISTANCES_FT)
+
+
+def test_tap_in_expected_putts_below_1point1_for_every_tier():
+    for tier in data.TIERS:
+        assert model._green_strokes(tier, 1.0) < 1.1, (tier, model._green_strokes(tier, 1.0))

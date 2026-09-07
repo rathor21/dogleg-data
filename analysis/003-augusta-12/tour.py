@@ -51,12 +51,27 @@ def tour_oval(anisotropy_ratio=None, shot_yd=data.TEE_SHOT_YD):
     return sigma_d, sigma_l
 
 
+def tour_putt_probabilities(dist_ft):
+    """(p1, p2, p3): probability of holing out in one, two, or three-plus
+    putts from dist_ft, PGA Tour tier.
+
+    ANCHORED directly from Anchor 8 (docs/sources/003_Source_Log.md#anchor-8,
+    Golfing Focus/Broadie, corroborated by Golf.com): data.TOUR_MAKE_PCT_BY_FT
+    interpolated for p1, data.TOUR_THREE_PUTT_PCT_BY_FT (0 below 5 ft, per
+    the log) interpolated for p3, p2 the remainder. Replaces the release's
+    original invented `1.5 + 0.012*ft` curve, which priced a Tour player at
+    roughly 1.6 putts from 3 ft against a published 96% make rate there."""
+    p1 = model._lerp_table(data.TOUR_MAKE_PCT_BY_FT, dist_ft)
+    p3 = 0.0 if dist_ft <= 5.0 else model._lerp_table(data.TOUR_THREE_PUTT_PCT_BY_FT, dist_ft)
+    p2 = max(0.0, 1.0 - p1 - p3)
+    return p1, p2, p3
+
+
 def _tour_green_strokes(dist_to_pin_ft):
-    """Mirrors model._green_strokes exactly, using data.TOUR's three-putt
-    rate instead of data.THREE_PUTT_RATE[tier]."""
-    base_putts = min(3.0, max(1.0, 1.5 + 0.012 * dist_to_pin_ft))
-    tier_scale = 1.0 + data.TOUR["three_putt_rate"]
-    return base_putts * tier_scale
+    """Mirrors model._green_strokes exactly, using tour_putt_probabilities
+    instead of the amateur putt_probabilities(tier, ...)."""
+    p1, p2, p3 = tour_putt_probabilities(dist_to_pin_ft)
+    return p1 + 2.0 * p2 + 3.0 * p3
 
 
 def _tour_recovery_strokes(is_short_sided, sand, trouble=False, overshoot_yd=0.0):
@@ -327,3 +342,61 @@ def tour_season_analytic_mean(pin_rotation=None, wind_frequency=None, aim_policy
         aim = tour_aim_point(pin, wind, aim_policy, attack_when_fair_threshold)
         total += w * tour_expected_score(pin, aim, wind=wind, **kwargs)
     return total
+
+
+# ---------------------------------------------------------------------------
+# Wind-frequency calibration (issue #9's shape-gate re-target, this pass).
+# Anchor 9 gives per-year published scoring averages but no per-year wind-
+# frequency figure -- there is no anchor for how often meaningful wind hit
+# hole 12 in any specific year, only the season-wide MODELED WIND_FREQUENCY
+# default (0.35). Rather than compare a single fixed wind frequency against
+# a specific year's shot distribution (comparing two different things: a
+# season-average assumption against one year's actual weather), this
+# calibrates the ONE disclosed parameter a season model can reasonably fit
+# per year -- wind_frequency -- so the analytic season MEAN matches that
+# year's published average exactly, then checks whether the resulting
+# shot-outcome BUCKETS (birdie/par/bogey/double-or-worse) also match that
+# year's published distribution. The mean is fit by construction; the shape
+# is not, so a shape match is real evidence, not circular.
+# ---------------------------------------------------------------------------
+
+def fit_wind_frequency_for_mean(target_mean, *, pin_rotation=None,
+                                 aim_policy="attack_when_fair",
+                                 attack_when_fair_threshold=TOUR_ATTACK_WHEN_FAIR_THRESHOLD_STROKES,
+                                 lo=0.0, hi=1.0, tol=1e-5, max_iter=60, **kwargs):
+    """Bisect for the wind_frequency in [lo, hi] whose
+    tour_season_analytic_mean equals target_mean, to within tol strokes.
+
+    Bisection is valid because the season mean is monotonically increasing
+    in wind_frequency: wind always worsens expected score at every pin
+    (data.WIND's carry penalty shortens the mean shot and its dispersion
+    inflation widens the miss pattern; tests/test_model.py's
+    test_wind_worsens_expected_score_at_every_pin confirms this holds for
+    every tier/pin), so raising the fraction of windy rounds can only raise
+    the weighted average, never lower it. Raises ValueError if target_mean
+    is not bracketed by wind_frequency in [lo, hi] (should not happen for
+    any published hole-12 year average, since those all sit inside the calm-
+    to-windy score range this model produces).
+    """
+    def mean_at(wf):
+        return tour_season_analytic_mean(pin_rotation=pin_rotation, wind_frequency=wf,
+                                          aim_policy=aim_policy,
+                                          attack_when_fair_threshold=attack_when_fair_threshold,
+                                          **kwargs)
+
+    f_lo = mean_at(lo) - target_mean
+    f_hi = mean_at(hi) - target_mean
+    if f_lo > 0.0 or f_hi < 0.0:
+        raise ValueError(
+            f"target_mean {target_mean} not bracketed by wind_frequency in "
+            f"[{lo}, {hi}]: mean(lo)={f_lo + target_mean}, mean(hi)={f_hi + target_mean}")
+    for _ in range(max_iter):
+        mid = 0.5 * (lo + hi)
+        f_mid = mean_at(mid) - target_mean
+        if abs(f_mid) < tol:
+            return mid
+        if f_mid > 0.0:
+            hi = mid
+        else:
+            lo = mid
+    return 0.5 * (lo + hi)
