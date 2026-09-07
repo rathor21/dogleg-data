@@ -1,6 +1,6 @@
 # 003 hero art: stencil/texture-composite architecture (issue #11)
 
-Status: **registration PASSES (15/15), round three.** `hero.png` and `hero_mobile_crop.png` are accepted assets. Round two's stencil architecture (below) held up; round three fixed a horizon mismatch between the sketch's camera and the environment plate's, plus three flat-fill legibility issues an orchestrator's visual review caught after registration had already passed -- see "Round three" below for what changed and why. This supersedes the first architecture (asking nano-banana to respect pixel geometry directly via image-to-image), which failed registration on all 7 candidates -- see "First architecture" below for that record, kept for reference.
+Status: **registration PASSES (15/15), round four.** `hero.png` and `hero_mobile_crop.png` are accepted assets. Round four replaced every generated ground texture with a direct, procedural render (`render_ground.py`) after round three's composited ground failed on sight despite passing registration -- see "Round four" below for what changed and why, and "Round three" and "Round two" above it for the two rounds of texture-through-masks compositing that preceded it. This whole stencil approach supersedes the first architecture (asking nano-banana to respect pixel geometry directly via image-to-image), which failed registration on all 7 candidates -- see "First architecture" below for that record, kept for reference.
 
 ## The pivot
 
@@ -45,11 +45,11 @@ Three of the four per-landmark-type search windows needed tightening from round 
 | Bunker masks | `data.HOLE` x-ranges/depths, anchored to the front/back edge functions | `masks/bunker_front.png`, `bunker_back_0.png`, `bunker_back_1.png`, union `bunkers.png` |
 | Fairway/bank masks | fairway corridor + tee box (`fairway.png`); shaved-bank halo strips minus bunker footprint (`bank.png`) | `masks/fairway.png`, `masks/bank.png` |
 | Environment mask | `1 - playfield` | `masks/environment.png` |
-| Environment plate | nano-banana, no hole features requested (three stray bunkers patched out anyway), horizon-aligned crop applied in `composite.py` -- see "Round three" | `environment_plate.png` (round three; `environment_plate_v1.png` is round two's) |
-| Grass texture | nano-banana, applied to both `green` (brighter/cooler tint, finer 2.5yd repeat) and `fairway` (duller tint, 4.5yd repeat) -- the ticket names one "mown grass" tile for both, differentiated here by Pillow tint/scale rather than a second generation | `tiles/tile_grass.png` |
-| Water texture | nano-banana, 5.5yd repeat, minimal color transfer to keep its blue-teal hue | `tiles/tile_water.png` |
-| Sand texture | nano-banana, 2yd repeat, minimal color transfer, warm/bright tint pushed further in Pillow | `tiles/tile_sand.png` |
-| Rough/bank texture | nano-banana, 3yd repeat, applied to the `bank` mask | `tiles/tile_rough.png` |
+| Environment plate | nano-banana, no hole features requested (three stray bunkers patched out anyway), horizon-aligned crop applied in `composite.py` -- see "Round three" | `environment_plate.png` (round three; `environment_plate_v1.png` was round two's, deleted in round four, see "Round four deliverables") |
+| Grass texture (rounds two/three only -- round four renders the whole ground in code, see "Round four" below) | nano-banana, applied to both `green` (brighter/cooler tint, finer 2.5yd repeat) and `fairway` (duller tint, 4.5yd repeat) -- the ticket names one "mown grass" tile for both, differentiated here by Pillow tint/scale rather than a second generation | `tiles/tile_grass.png` |
+| Water texture (rounds two/three only) | nano-banana, 5.5yd repeat, minimal color transfer to keep its blue-teal hue | `tiles/tile_water.png` |
+| Sand texture (rounds two/three only) | nano-banana, 2yd repeat, minimal color transfer, warm/bright tint pushed further in Pillow | `tiles/tile_sand.png` |
+| Rough/bank texture (rounds two/three only) | nano-banana, 3yd repeat, applied to the `bank` mask | `tiles/tile_rough.png` |
 
 ## Round three (2026-09-07): horizon-matched plate, feathered composite (issue #11)
 
@@ -104,14 +104,68 @@ This reads as one illustration, not a collage, on the strength of three specific
 
 (Round three, above, is exactly that "another pass" -- it also turned up two problems this assessment didn't anticipate, the horizon mismatch and the total lack of relief cues, which is why round three's own "what's still weak" section exists rather than declaring the picture finished.)
 
+## Round four (2026-09-07): code-rendered ground over generated tree band (issue #11)
+
+### Why: registration passing was not the same as the picture working
+
+Round three passed 15/15 landmarks and still failed on sight. The orchestrator's verdict on round three's `hero.png`: the composited ground read as a blurred green-on-green smear with a faint triangle silhouette, the green was a small dark parallelogram with no presence, the bunkers were pale smudges, the creek a thin dark stripe. Two full rounds of the same fix pattern -- generate a texture tile, tile it through a mask, color-match it toward the plate -- had produced two rounds of the same failure mode at different intensities. The problem was not a parameter to tune; it was the premise that a small, geometrically-correct tile of nano-banana texture, resampled and blurred to hide its seams, would ever read as a painted ground plane rather than a processed photo of one.
+
+### The strategy change
+
+Nano-banana kept exactly one job: the strip above the horizon (sky, pine tree line, azalea beds), where round three had already shown it works -- "horizon now matches" was the one piece of positive feedback out of round three's verdict, and `environment_plate.png` plus `load_aligned_plate`'s horizon-crop math are untouched this round. Everything below the horizon is now rendered directly in code (`render_ground.py`), in the register of a clean editorial yardage-book illustration -- the same flat-but-confident style as the prototype's own accepted composition (`docs/plans/assets/003-proto-desktop.png`): solid base colors, crisp region edges, and a small number of explicit relief marks (rim lines, shadow bands, a waterline, bunker lips, rake lines) drawn with `ImageDraw` calls at exact projected coordinates, not sampled from a generated tile and blurred into place.
+
+Geometry is untouched by this change. `render_ground.py` imports `sketch.build_scene()`/`make_projector()` and calls `masks.build_masks()` for every region boundary -- the same functions rounds two and three already used -- so nothing about where the green, creek, or bunkers sit moved by a single pixel; only how they are painted changed.
+
+### What render_ground.py actually draws
+
+- **Base turf.** A per-pixel inverse-camera lookup (`yd_grids`, the same technique round three's `perspective_texture` used for tile sampling, kept here for computing model `(x_yd, y_yd)` per screen pixel rather than for sampling an image) drives mow stripes: alternating +/-5% bands every 4 yards of depth, computed directly from `y_yd` rather than from a tiled texture. Beyond the fairway/tee mask (feathered 20px, per the brief), the same stripe pattern is recolored warmer and darker for rough. A quadratic falloff darkens the two bottom screen corners (not a full vignette), and independent per-pixel grain (sigma ~6, about 2.4% of 255) keeps the fill from reading flat.
+- **Anti-aliasing the stripes, not just the fill.** The first pass at this drew stripes with a hard `floor(y_yd / stripe_width)` and got a wall of Moire banding near the green -- the camera's depth budget compresses so much yardage into so few screen rows near the horizon that a fixed-yard stripe period aliases into noise well before the literal horizon line. The fix (`row_resolution_fade`) measures the actual yards-per-screen-row at each row and fades the stripe contrast out once that resolution can no longer support the period, rather than fading on a fixed fraction of the camera's total depth range. This is the same fix applied to the green's finer 2-yard stripes and the bunkers' rake lines.
+- **Tee box.** A separately-rasterized crisp rectangle (its own polygon, not unioned into the fairway blend) in a lighter tint, feathered 1.5px.
+- **Rae's Creek.** Deep blue-green water color, computed per pixel from where it falls between the model's exact near/far bank curves (a triangular "center streak" weight, brightest at mid-channel) plus a small sinusoidal ripple. The far (green-side) bank is `model._front_edge_yd`, exactly, and a crisp 2px cream line traces it -- the near bank gets a softer, wider dark shadow line instead, so the channel reads as having two different kinds of edge rather than one flat tint on both sides.
+- **Green.** The brightest surface, finer (2-yard) stripes, a fringe collar (a polygon expanded 1.5 yards past the green's own edges on every side, mask-subtracted so it never overlaps the putting surface itself), a thin light rim line, and soft shadow bands along the back edge and the screen-left edge (sketch.py's `x = -half_width` line, "left" by the same "positive x = right/Sunday side" convention the camera projection itself uses).
+- **Bunkers.** Sand fill with a low-amplitude, high-frequency mottle (increased in frequency from an early attempt that read as one visible light-to-dark gradient across the whole bunker rather than fine grain), a darker lip line along each bunker's far edge, faint rake lines (same anti-alias treatment as the turf stripes, so they recede correctly at the green complex's distance rather than banding), and a boundary perturbed by a smooth, low-amplitude (1.6px) displacement field (`wobble_mask`) so the edge reads as drawn rather than a clean polygon.
+- **Shaved-bank halo strips.** `masks.py`'s existing `bank` mask (bunker-surround halos, including the strip between the front bunker and the creek that the brief calls out as "in front of the green"), filled with a lighter, more yellow-green tone, feathered only 3px.
+
+### Compositing: two layers, one soft seam
+
+`composite.py` is now a small file. It loads the plate (unchanged patching and horizon-crop from round three), renders the ground, and blends them with one vertical ramp: pure plate above `sketch.HORIZON_PX`, pure ground from 40px below that down, linear in between. That 40px band is the only place the plate and the code-render ever mix; everything else is one or the other outright. Pins are drawn last, at the same exact projected coordinates every round has used, now slightly larger (50px stick, wider pennant) with a 1px dark outline so they hold up against the brighter green at phone width.
+
+### Registration result
+
+```
+python3 registration_qa.py hero.png
+-> 15/15 landmarks within 5.0% of image width -> overall PASS
+```
+
+No detector thresholds needed changing. The one landmark type at risk was `creek_far_bank` -- the far-bank stroke is now a thin cream line rather than a blue one, per the brief's art direction -- but the `creek_win = 24` search window still finds genuinely blue water pixels immediately adjacent to that line on every sample, so `is_blueish` keeps passing without modification. `hero_overlay.png` and `registration_report_hero.json` are regenerated against the new composite.
+
+### What the plate still contributes, and what it lost
+
+The plate contributes exactly the sky, the pine tree line, and the azalea beds along its base -- the top roughly 20% of the frame plus the 40px transition band. Its own ground (the sculpted, dark, blurred rendering round three's verdict discarded in spirit) is now discarded in fact: `render_ground.py` never reads a pixel of the plate's own grass, and nothing below the transition band comes from nano-banana at all.
+
+### What is still weak, honestly
+
+(1) The fairway corridor, after several contrast passes, reads clearly at the hole itself but stays subtle across the wider expanse of open rough -- the brief's "fairway but no sticker edge" is achieved, but a viewer scanning the far background rather than the hole might not immediately register where the corridor's outer edge sits. (2) The two back bunkers are still small, thin slivers at this camera distance -- a pre-existing framing fact from the model's own geometry (the green complex sits far from camera), not something this round's rendering approach can fix without moving geometry, which is out of scope. (3) The creek's reflective center streak and ripple read correctly as water up close but are subtle at a quick glance on the full 1600x900 canvas; a stronger streak would help but risks looking like a highlight rather than a reflection. None of these is the smear/no-presence/smudge failure this round set out to fix -- all three of those are resolved -- but none should be called perfect either.
+
+### Round four deliverables
+
+- [x] `render_ground.py` -- the code-rendered ground plane, imported by `composite.py`
+- [x] `composite.py` -- rewritten to blend the plate (sky/trees only, via the horizon transition) with `render_ground`'s output, plus pins
+- [x] `hero.png` -- 1600x900, round four
+- [x] `hero_variant_b.png` -- same render with stronger stripe contrast and a warmer turf tone, for the orchestrator to choose between
+- [x] `hero_mobile_crop.png` -- 506x900 (9:16) center crop
+- [x] `hero_overlay.png` / `registration_report_hero.json` -- 15/15 PASS, no threshold changes
+- [x] `environment_plate_v1.png` deleted (round two's plate, 1.58MB, unreferenced by any code -- `environment_plate.png`, round three's candidate, remains the plate in use)
+
 ## Deliverables
 
-- [x] `hero.png` -- 1600x900 accepted hero art, round three (horizon-matched, feathered composite)
+- [x] `hero.png` -- 1600x900 accepted hero art, round four (code-rendered ground, generated sky/tree band)
+- [x] `hero_variant_b.png` -- round four's deliberate-difference variant (stronger stripes, warmer turf)
 - [x] `hero_mobile_crop.png` -- 506x900 (9:16) center crop
 - [x] `hero_overlay.png` -- sketch-over-hero registration overlay
 - [x] `registration_report_hero.json` -- 15/15 PASS
-- [x] `environment_plate.png` -- round three's horizon-matched plate; `environment_plate_v1.png` -- round two's, kept for record
-- [x] This README: stencil architecture, prompts (`prompts/` has round one's; round two's and round three's plate/tile prompts are inline in `composite.py`'s history and the "Round three" / "Round-two generation prompts" sections below), per-layer inventory
+- [x] `environment_plate.png` -- round three's horizon-matched plate, still the plate in use; `environment_plate_v1.png` (round two's) deleted round four, see above
+- [x] This README: stencil architecture, prompts (`prompts/` has round one's; round two's and round three's plate/tile prompts are inline in `composite.py`'s git history and the "Round three" / "Round-two generation prompts" sections below), per-layer inventory
 
 ## Round-two generation prompts
 
