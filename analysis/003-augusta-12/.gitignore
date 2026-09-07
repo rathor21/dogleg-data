@@ -1,5 +1,7 @@
 .venv/
 outputs/*
 !outputs/003_results.csv
+!outputs/003_sandbox_grids.json
+!outputs/003_manifest.json
 __pycache__/
 .pytest_cache/

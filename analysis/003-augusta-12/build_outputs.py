@@ -17,11 +17,18 @@ rule from CONTEXT.md/the spec: any number quoted elsewhere must match this
 CSV exactly). Every row runs at optimizer.VERDICT_N_GRID (121), the
 elevated integration resolution test_optimizer.py checks for stability
 against n_grid=81.
+
+After the CSV is written, this script calls export.main() (issue #10),
+which reads that same CSV to build outputs/003_sandbox_grids.json and
+outputs/003_manifest.json -- the browser-facing export seam. Run
+export_site_assets.py afterward to copy both files, plus the hero art,
+into the site tree.
 """
 import csv
 import os
 
 import data
+import export
 import optimizer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -78,3 +85,7 @@ if __name__ == "__main__":
         for r in boundary_rows:
             print(f"  tier={r['tier']} pin={r['pin']} wind={r['wind']} "
                   f"lateral={r['aim_lateral_offset_yd']} carry={r['aim_carry_adjustment_yd']}")
+
+    # Export seam (issue #10): sandbox grids + animation manifest, built
+    # from this same CSV -- must run after the CSV write above.
+    export.main()
