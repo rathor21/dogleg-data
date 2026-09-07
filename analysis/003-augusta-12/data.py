@@ -404,21 +404,75 @@ _PROXIMITY_FT_TOUR = _SIGMA_ISO_FT_TOUR * sqrt(pi / 2.0)
 # ANISOTROPY constant above, not worse.
 TOUR_ANISOTROPY = {"ratio": 1.55, "range": (1.5, 1.6)}   # ANCHORED, Anchor 2 (Broadie Table 2, Pro1/Pro2)
 
-# No anchor in the log covers tour-level putting or up-and-down rates at all
-# except one weakly-sourced figure (Anchor 5: "PGA Tour pros cited around 50%
-# for sand saves specifically," itself WebSearch-synthesis-only with the
-# underlying pages 403ing on direct fetch -- the same confidence caveat
-# Anchor 5 already carries for its amateur up-and-down table). Three-putt
-# rate has no tour figure anywhere in the log.
+# No anchor in the log covers tour-level three-putt rate at all.
 TOUR_THREE_PUTT_RATE = THREE_PUTT_RATE[0]  # MODELED-anchorless: reuses the scratch-amateur extrapolated rate as a defensible floor; no tour-specific three-putt anchor exists to reuse instead
-TOUR_UP_AND_DOWN_PCT = 0.50                # Anchor 5, weakly-sourced pro sand-save figure, applied as this tier's general up-and-down rate (same fairway/sand simplification the amateur tiers already make)
+
+# ---------------------------------------------------------------------------
+# Anchor 10 (append, #9 rev 3 follow-up hunt, 2026-09-07): Tour recovery
+# rates (scrambling and sand-save) and a Tour-specific strokes-to-hole-out
+# figure. APPEND-ONLY block. Retires the single anchorless
+# TOUR_UP_AND_DOWN_PCT = 0.50 (Anchor 5's weakly-sourced pro sand-save
+# figure, applied uniformly to every Tour recovery -- rough, fairway
+# collection, and sand alike -- and paired with the amateur-tier
+# MISSED_UP_AND_DOWN_STROKES = 3.3 convention unchanged). The gate diagnosis
+# for this pass (VALIDATION_NOTES.md's "Calibration pass" section) found
+# the excess simulated bogeys sit in the missed-green recovery leg, not
+# putting: this block replaces both anchorless Tour recovery inputs with
+# published figures where the hunt found them.
+#
+# TOUR_SCRAMBLING_PCT: DIRECT FETCH, SwingU Clubhouse's "Understanding
+# Stats: Up-And-Down Conversion By Handicap" (retrieved 2026-09-07): "The
+# PGA Tour average stands at roughly 58%." Scrambling is PGA Tour's own
+# stat ("the percent of time a player misses the green in regulation but
+# still makes par or better"), a slightly more permissive definition than a
+# strict two-shot up-and-down (a long par save also counts), but it is the
+# best published Tour-wide recovery-success figure covering non-sand misses
+# (rough, fringe, fairway collection areas) as a whole -- the general case
+# every amateur tier's own UP_AND_DOWN_PCT already represents. Applied here
+# to non-sand Tour recoveries in place of the old uniform 0.50.
+#
+# TOUR_SAND_SAVE_PCT: WEBSEARCH SYNTHESIS, corroborated twice -- a WebSearch
+# result quoting PGA Tour's own 2022-23 "By the Numbers" season report puts
+# the Tour-wide sand-save average at 49.56%; a second, independent
+# WebSearch result (golfity.com, "What Is Sand Save Percentage?") states
+# "PGA Tour pros average right around a 50% sand save rate." Both converge
+# on the same figure Anchor 5 already carried (0.50), now corroborated by a
+# second independent search rather than resting on Anchor 5's original
+# single WebSearch synthesis alone. Kept at 0.50, applied to bunker misses
+# specifically rather than every Tour recovery.
+TOUR_SCRAMBLING_PCT = 0.58   # ANCHORED (direct fetch), Anchor 10 -- non-sand Tour recoveries
+TOUR_SAND_SAVE_PCT = 0.50    # PUBLISHED (WebSearch synthesis, corroborated twice), Anchor 10 -- Tour bunker recoveries
+
+# TOUR_MISSED_UP_AND_DOWN_STROKES: MODELED, derived arithmetic on two
+# WEBSEARCH SYNTHESIS figures (Anchor 10) -- not itself a single published
+# number, the same disclosed-arithmetic status Anchor 8's expected-putts
+# figure already carries. Mark Broadie's "strokes to hole out" benchmark
+# (Every Shot Counts methodology, widely re-quoted across golf-analytics
+# secondary sources -- thediygolfer.com, golfity.com, chicagogolfreport.com
+# -- all converging on the same figures) gives a 10-yard bunker shot's
+# average strokes-to-hole-out as 2.47. Paired with TOUR_SAND_SAVE_PCT
+# (0.50, the same bunker-recovery regime), solving E = p*2 + (1-p)*X for X:
+#   2.47 = 0.50*2 + 0.50*X
+#   2.47 = 1.00 + 0.50*X
+#   X = (2.47 - 1.00) / 0.50 = 2.94
+# Applied to BOTH sand and non-sand Tour recoveries (mirroring the prior
+# single-constant structure, now Tour-specific and anchored rather than
+# reusing the amateur tier's own MODELED 3.3 unchanged). Lower than the
+# amateur MISSED_UP_AND_DOWN_STROKES=3.3 -- Tour players missing an
+# up-and-down still hole out in fewer strokes on average than the amateur
+# convention assumes, the expected direction. The amateur path is untouched
+# by this block; data.MISSED_UP_AND_DOWN_STROKES keeps its own value and
+# sourcing status.
+TOUR_MISSED_UP_AND_DOWN_STROKES = 2.94   # MODELED (derived), Anchor 10
 
 TOUR = {
     "sigma_iso_ft": _SIGMA_ISO_FT_TOUR,
     "proximity_ft": _PROXIMITY_FT_TOUR,
     "anisotropy": TOUR_ANISOTROPY,
     "three_putt_rate": TOUR_THREE_PUTT_RATE,
-    "up_and_down_pct": TOUR_UP_AND_DOWN_PCT,
+    "scrambling_pct": TOUR_SCRAMBLING_PCT,
+    "sand_save_pct": TOUR_SAND_SAVE_PCT,
+    "missed_up_and_down_strokes": TOUR_MISSED_UP_AND_DOWN_STROKES,
     "band_yd_range": TOUR_BAND_YD_RANGE,
     "proximity_ft_range": TOUR_PROXIMITY_FT_RANGE,
     "gir_pct_range": TOUR_GIR_PCT_RANGE,
@@ -426,7 +480,7 @@ TOUR = {
 
 SOURCES["TOUR"] = {
     "log": "docs/sources/003_Source_Log.md#anchor-7",
-    "status": "proximity/GIR anchored directly at 150-175yd (contains the 155yd shot, no extrapolation step); anisotropy anchored to Broadie's published pro ratio (Anchor 2); putting/up-and-down modeled-anchorless, disclosed above",
+    "status": "proximity/GIR anchored directly at 150-175yd (contains the 155yd shot, no extrapolation step); anisotropy anchored to Broadie's published pro ratio (Anchor 2); putting modeled-anchorless (see TOUR_THREE_PUTT_RATE above); recovery rates and missed-up-and-down cost anchored/derived per Anchor 10 (docs/sources/003_Source_Log.md#anchor-10), see TOUR_SCRAMBLING_PCT/TOUR_SAND_SAVE_PCT/TOUR_MISSED_UP_AND_DOWN_STROKES above",
 }
 
 # ---------------------------------------------------------------------------

@@ -90,9 +90,18 @@ putting lowers Tour scoring), closer to the new modern-era band even though
 it still falls outside it.
 
 Per this ticket's instruction, reported as a plain failing assertion, not
-tuned or hidden behind xfail. See "What would close the gap" below.
+tuned or hidden behind xfail at the time this section was written. See
+"What would close the gap" below, and see the 2026-09-07 "Calibration
+pass" section for the follow-up that closed this specific gate: the
+season-mean gate now passes (analytic mean 3.1365, inside the band above).
 
 ### Shape gate: wind-frequency calibration per year
+
+**This subsection and its bucket tables below record the state as of this
+pass's start (before the 2026-09-07 recovery-anchor fix). See the
+"Calibration pass" section for the current per-year table -- 2025 is now
+calibrable and passes; 2019/2023 are still not calibrable, at a narrower
+gap; 2024 is calibrable but only outside its stated wind-frequency range.**
 
 `tour.fit_wind_frequency_for_mean` calibrates `tour.WIND_FREQUENCY` by
 bisection so the analytic season mean matches one year's published average
@@ -154,6 +163,14 @@ a mechanism this model does not capture) or moving `data.TOUR
 ["up_and_down_pct"]` (Anchor 5, a single estimate on thin sourcing, no stated
 range) or the recovery constants. None of these were tuned to force a
 pass; this is a diagnosis for Sunny's decision, not a fix.
+
+**Superseded by the 2026-09-07 "Calibration pass" section below.** That
+follow-up did exactly the second thing named here: it hunted for and
+applied published anchors behind `data.TOUR["up_and_down_pct"]` and the
+recovery constants rather than moving them untethered. The floor moved
+from 3.1542 to 3.0890 and the season-mean gate now passes; the aim-policy
+lever named above remains untouched and is still the next thing to examine
+if 2019/2023/2024 need to close further.
 
 ## Sensitivity sweeps re-run on the new model
 
@@ -227,12 +244,183 @@ its windy optimum now sits closer to the Sunday pin than calm
 (7.35 vs 8.22 yd), opposite every other tier. The test now checks tiers 5
 and 10 (both still show the expected direction) instead of 0 and 10.
 
+## Calibration pass, 2026-09-07 (issue #9 rev 3): Tour recovery anchors and gate diagnosis
+
+Companion to ADR 0002's 2026-09-07 addendum. This pass diagnosed why the
+season-mean gate missed its band by only 0.0023 stroke and why every shape
+gate ran too bogey-heavy, then hunted for published anchors behind the two
+Tour recovery inputs the diagnosis pointed at.
+
+### Diagnosis table (before this pass's fix; wind_frequency 0 and the
+### default 0.35, `attack_when_fair`, n=300,000)
+
+Tour oval at the 155-yd shot: `sigma_d = 8.4412 yd`, `sigma_l = 5.4459 yd`.
+Green local depth by pin (default geometry): center 10.5 yd, sunday 12.0
+yd, left 19.0 yd.
+
+GIR fraction by pin:
+
+| pin | GIR (wf=0) | GIR (wf=0.35) |
+|---|---|---|
+| left | 57.63% | 57.21% |
+| center | 78.69% | 73.66% |
+| sunday | 77.71% | 73.44% |
+
+Region play fraction and bogey-or-worse attribution (region share x
+conditional P(bogey-or-worse \| region)):
+
+| region | share (wf=0) | P(bogey+\|region) | contribution | share (wf=0.35) | P(bogey+\|region) | contribution |
+|---|---|---|---|---|---|---|
+| green | 70.58% | 3.92% | 2.77pp (10.8%) | 67.46% | 4.92% | 3.32pp (11.6%) |
+| front_bunker | 3.26% | 65.49% | 2.13pp (8.4%) | 3.18% | 64.88% | 2.06pp (7.2%) |
+| back_bunker | 1.82% | 70.18% | 1.28pp (5.0%) | 2.50% | 68.87% | 1.72pp (6.0%) |
+| creek | 7.87% | 100.00% | 7.87pp (30.8%) | 8.23% | 100.00% | 8.23pp (28.7%) |
+| long_rough | 5.95% | 76.14% | 4.53pp (17.8%) | 8.23% | 73.48% | 6.05pp (21.1%) |
+| greenside_rough | 10.01% | 64.28% | 6.43pp (25.2%) | 8.71% | 64.88% | 5.65pp (19.7%) |
+| long_trouble | 0.51% | 99.22% | 0.51pp (2.0%) | 1.70% | 99.39% | 1.69pp (5.9%) |
+| **overall bogey+ rate** | | | **25.52%** | | | **28.71%** |
+
+Reading this table: the green leg (putting, already Anchor-8-anchored)
+contributes only about 11% of all bogeys-or-worse despite covering roughly
+70% of all plays. The missed-green recovery legs -- front/back bunker,
+long_rough, greenside_rough, long_trouble -- together cover under 30% of
+plays but generate about 63-70% of bogeys-or-worse (creek excluded, since a
+creek ball is a bogey-or-worse by definition, not a pricing choice). Every
+one of those recovery regions' conditional bogey-or-worse rate sits in a
+tight 64-77% band, exactly what a single shared `up_and_down_pct` of 0.50
+applied everywhere (rough included) plus a `MISSED_UP_AND_DOWN_STROKES` of
+3.3 would produce. The excess sits in the missed-green leg, not putting,
+confirming the ticket's own framing.
+
+### What was anchored (Anchor 10)
+
+`docs/sources/003_Source_Log.md#anchor-10`, retrieval date 2026-09-07:
+
+- `data.TOUR_SCRAMBLING_PCT = 0.58` -- ANCHORED, direct fetch (SwingU
+  Clubhouse quoting PGA Tour's own scrambling definition and Tour average).
+  Replaces the old shared `TOUR_UP_AND_DOWN_PCT = 0.50` for every non-sand
+  recovery (rough, fringe, fairway collection areas).
+- `data.TOUR_SAND_SAVE_PCT = 0.50` -- PUBLISHED, WebSearch synthesis,
+  corroborated twice (a PGA Tour 2022-23 "By the Numbers" figure of 49.56%
+  and an independent "around 50%" figure). Same value Anchor 5 already
+  carried, now with a second independent source; applied to bunker misses
+  only, not every recovery.
+- `data.TOUR_MISSED_UP_AND_DOWN_STROKES = 2.94` -- MODELED, derived
+  arithmetic on two WebSearch-synthesis figures (Broadie's 10-yard bunker
+  strokes-to-hole-out, 2.47, paired with the sand-save rate above):
+  `2.47 = 0.50*2 + 0.50*X`, so `X = 2.94`. Replaces the shared amateur
+  `MISSED_UP_AND_DOWN_STROKES = 3.3` in the Tour path only; the amateur
+  path is unchanged.
+- Masters hole-12 GIR%: searched for, not found published anywhere (PGA
+  Tour's own course-stats pages expose scoring average and outcome counts
+  only, no GIR column, confirmed again this session). No comparison added
+  to this file and no geometry default moved, per the ticket's own
+  instruction to only act on what the hunt actually anchors.
+
+`tour._tour_recovery_strokes` now looks up `data.TOUR["scrambling_pct"]` or
+`data.TOUR["sand_save_pct"]` by whether the miss is sand, and
+`data.TOUR["missed_up_and_down_strokes"]` in place of
+`data.MISSED_UP_AND_DOWN_STROKES`. The amateur-tier `ROUGH_RECOVERY_EASE`
+multiplier (a MODELED "non-sand is a bit easier" adjustment layered on a
+single shared rate) is no longer applied in the Tour path, since
+`TOUR_SCRAMBLING_PCT` and `TOUR_SAND_SAVE_PCT` are now two directly
+anchored figures with that gap already built in -- layering the amateur
+easing multiplier on top would have double-counted it.
+
+### Before / after
+
+| quantity | before | after |
+|---|---|---|
+| season analytic mean (default wf=0.35) | 3.2074 | 3.1365 |
+| season MC mean (n=1,000,000) | 3.2105 | 3.1365 (gap 0.00004) |
+| modern-era band | [3.0586, 3.2051] | unchanged |
+| calm-air floor (wf=0) | 3.1542 | 3.0890 |
+| ceiling (wf=1) | 3.3063 | 3.2248 |
+
+The season mean now falls inside the modern-era band with room to spare
+(previously missed the top by 0.0023). `test_tour_gate_season_mean_
+modern_era` now **passes**.
+
+### Per-year shape gate, after
+
+| year | published mean | calibrable (floor 3.089 / ceiling 3.225)? | fitted wind_frequency | in stated range (0.2-0.5)? | result |
+|---|---|---|---|---|---|
+| 2019 | 3.053 | **no** (below floor) | not calibrable | -- | fails bracket check, same as before (must-pass) |
+| 2023 | 3.058 | **no** (below floor) | not calibrable | -- | fails bracket check (xfail) |
+| 2024 | 3.198 | yes | 0.8030 | **no** (outside range) | fails bucket tolerance (must-pass) |
+| 2025 | 3.139 | yes | 0.3684 | yes | **passes** (was xfail; now xpass) |
+
+2019 and 2023 sit below the model's own wind_frequency=0 floor at every
+default. The floor moved down (3.154 -> 3.089), narrowing the gap to these
+two years' published means but not closing it -- still a structural miss,
+not a near one.
+
+2024's mean is technically reachable, but only by pushing wind_frequency to
+0.80, nearly triple the top of `tour.WIND_FREQUENCY_RANGE`'s stated (0.2,
+0.5) -- a new complication this pass introduced: lowering the baseline
+recovery pricing raised how much wind-driven scoring inflation is needed to
+reach 2024's above-average year. At that fitted frequency the bucket
+comparison is:
+
+| bucket | published (2024) | simulated (wf=0.8030) | gap | within 3pp? |
+|---|---|---|---|---|
+| birdie | 13.61% | 10.92% | 2.69pp | yes |
+| par | 62.93% | 61.77% | 1.16pp | yes |
+| bogey | 17.69% | 23.79% | 6.10pp | **no** |
+| double+ | 5.78% | 3.53% | 2.25pp | yes |
+
+Only the bogey bucket misses tolerance now (previously both par and bogey
+missed), but the wind_frequency needed to get there falls outside this
+release's own stated sensitivity range, a new disclosed problem replacing
+the old one.
+
+2025 (now calibrable, previously a structural miss) fits at wind_frequency
+0.3684, inside the stated range, with every bucket inside 3 points:
+
+| bucket | published (2025) | simulated (wf=0.3684) | gap | within 3pp? |
+|---|---|---|---|---|
+| birdie | 13.56% | 13.31% | 0.25pp | yes |
+| par | 64.41% | 62.68% | 1.73pp | yes |
+| bogey | 17.97% | 20.73% | 2.76pp | yes |
+| double+ | 4.07% | 3.28% | 0.78pp | yes |
+
+2019's bucket comparison at the closest achievable point (wind_frequency=0,
+n=1,000,000) moved slightly with the fix but the year is still not
+calibrable to its own published mean:
+
+| bucket | published | simulated (wf=0) | gap |
+|---|---|---|---|
+| birdie | 17.11% | 15.35% | 1.76pp |
+| par | 65.79% | 63.49% | 2.31pp |
+| bogey | 12.50% | 18.15% | 5.65pp |
+| double+ | 4.61% | 3.01% | 1.59pp |
+
+Par and bogey both moved closer to published than the pre-fix table
+(par gap was 6.49pp, now 2.31pp; bogey gap was 7.50pp, now 5.65pp), real
+progress even though the year remains uncalibrable on mean alone.
+
+### What this pass did and did not fix
+
+The recovery-leg anchors close the season-mean gate outright and turn one
+previously-structural single-source year (2025) into a full pass. They do
+not close the two-source 2019/2024 gates: 2019 remains below this model's
+achievable range at any wind_frequency, and 2024 is only reachable by a
+wind_frequency far outside its own stated sensitivity band, trading one
+disclosed miss for another. No parameter was moved without a published
+anchor behind it -- `WIND_FREQUENCY`, `data.WIND`, aim-policy thresholds,
+and hole geometry are all untouched by this pass.
+
 ## Suite state
 
-3 failed (`test_tour_gate_season_mean_modern_era`,
-`test_tour_gate_2019_shape_wind_frequency_calibrated`,
-`test_tour_gate_2024_shape_wind_frequency_calibrated` -- all must-pass, no
-xfail, per this ticket's instruction not to mask a genuine miss), 81
-passed, 2 xfailed (`test_tour_gate_2023/2025_..._single_source`). A
-disclosed, publication-blocking state pending Sunny's decision (ADR 0002),
-not a silent pass.
+Full suite (`pytest -q`): 2 failed (`test_tour_gate_2019_shape_wind_
+frequency_calibrated`, `test_tour_gate_2024_shape_wind_frequency_
+calibrated` -- both must-pass, no xfail, per this ticket's instruction not
+to mask a genuine miss), 96 passed, 1 xfailed (`test_tour_gate_2023_
+..._single_source`), 1 xpassed (`test_tour_gate_2025_..._single_source` --
+now genuinely reproduces its year's mean and shape, left as
+`xfail(strict=False)` per the ticket's original single-source rationale
+rather than promoted to must-pass, since 2025 is still single-source
+evidence), 100 total, 5m12s. A disclosed, publication-blocking state
+pending Sunny's decision (ADR 0002), not a silent pass -- narrower than
+before this pass (the season-mean gate now passes outright), not fully
+closed.

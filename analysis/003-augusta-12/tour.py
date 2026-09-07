@@ -75,17 +75,30 @@ def _tour_green_strokes(dist_to_pin_ft):
 
 
 def _tour_recovery_strokes(is_short_sided, sand, trouble=False, overshoot_yd=0.0):
-    """Mirrors model._recovery_strokes exactly, using data.TOUR's
-    up-and-down rate instead of data.UP_AND_DOWN_PCT[tier], including the
-    distance falloff on overshoot_yd (#8's long_trouble fix): deeper misses
-    past the buffer blend toward _tour_creek_strokes's hazard-like price over
-    data.LONG_TROUBLE_FALLOFF_YD, same as the amateur surface."""
-    updown = data.TOUR["up_and_down_pct"]
-    if not sand:
-        updown = min(0.95, updown * data.ROUGH_RECOVERY_EASE)
+    """Mirrors model._recovery_strokes exactly, using data.TOUR's own
+    recovery rates instead of data.UP_AND_DOWN_PCT[tier] (Anchor 10, this
+    pass: a bunker miss uses data.TOUR["sand_save_pct"], every other
+    non-sand miss uses data.TOUR["scrambling_pct"] -- previously both drew
+    from a single anchorless data.TOUR["up_and_down_pct"]=0.50), including
+    the distance falloff on overshoot_yd (#8's long_trouble fix): deeper
+    misses past the buffer blend toward _tour_creek_strokes's hazard-like
+    price over data.LONG_TROUBLE_FALLOFF_YD, same as the amateur surface.
+    Also uses data.TOUR["missed_up_and_down_strokes"] (Anchor 10, derived)
+    in place of the shared amateur data.MISSED_UP_AND_DOWN_STROKES; the
+    amateur path (model._recovery_strokes) is untouched and keeps using
+    data.MISSED_UP_AND_DOWN_STROKES.
+
+    data.ROUGH_RECOVERY_EASE (the amateur path's MODELED "non-sand is a bit
+    easier than sand" multiplier, applied on top of a single shared
+    up-and-down rate) is NOT applied here: TOUR_SCRAMBLING_PCT and
+    TOUR_SAND_SAVE_PCT are now two directly anchored figures with the
+    sand-vs-non-sand gap already built in (0.58 vs 0.50), so layering the
+    amateur tier's own MODELED easing multiplier on top would double-count
+    that gap."""
+    updown = data.TOUR["sand_save_pct"] if sand else data.TOUR["scrambling_pct"]
     if trouble:
         updown = updown * data.LONG_TROUBLE_UPDOWN_MULT
-    e = updown * 2.0 + (1.0 - updown) * data.MISSED_UP_AND_DOWN_STROKES
+    e = updown * 2.0 + (1.0 - updown) * data.TOUR["missed_up_and_down_strokes"]
     if is_short_sided:
         e *= data.SHORT_SIDE_PENALTY
     if trouble and overshoot_yd > 0.0:

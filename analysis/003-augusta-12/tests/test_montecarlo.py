@@ -63,19 +63,33 @@ Two gates:
      stochastic rounding turned the floored expectation into a one-putt
      probability capped near 50% from any distance.
 
-     Per the ticket's own contingency (do not tune arbitrary knobs to force
-     a pass; report the required numbers and leave a disclosed failure with
-     a clear message): even with both fixes, the season-mean gate and the
-     2019/2024 shape gates still fail on this release's own default
-     parameters. 2019's published mean sits below the model's own
-     wind_frequency=0 season floor -- no wind_frequency in [0, 1] can reach
-     it, a structural miss, not a near one (2023 and 2025 share this same
-     structural problem, which is why they are the xfail pair rather than
-     also being asserted must-pass). 2024's mean is reachable by
-     calibration, but its par/bogey buckets miss the 3-point tolerance
-     (the model underpredicts par, overpredicts bogey, at the fitted wind
-     frequency). See VALIDATION_NOTES.md for the full numbers and
-     diagnosis chain.
+     Rev 3 (this pass, #9 gate-diagnosis follow-up): a diagnosis run found
+     the season mean's remaining miss and the shape gates' excess bogeys
+     both traced to the missed-green recovery leg, not putting -- two
+     anchorless Tour recovery inputs (TOUR_UP_AND_DOWN_PCT=0.50, applied
+     uniformly to every recovery including rough, and the shared amateur
+     MISSED_UP_AND_DOWN_STROKES=3.3 applied unchanged to the Tour tier).
+     Anchor 10 (docs/sources/003_Source_Log.md#anchor-10) replaces both:
+     a direct-fetch Tour scrambling rate (0.58) for non-sand recoveries, a
+     corroborated Tour sand-save rate (0.50, unchanged in value but now
+     independently corroborated) for bunkers, and a derived Tour-specific
+     missed-up-and-down cost (2.94) in place of the amateur convention.
+
+     Result: test_tour_gate_season_mean_modern_era now PASSES -- the
+     analytic season mean moved from 3.2074 (missing the band) to 3.1365
+     (inside [3.0586, 3.2051]). test_tour_gate_2025_shape_..._single_source
+     now XPASSES (was a structural miss under the old recovery pricing).
+     test_tour_gate_2019_shape_wind_frequency_calibrated and test_tour_gate_
+     2023_..._single_source still fail the bracket check: 2019 (3.053) and
+     2023 (3.058) both sit below this release's new wind_frequency=0 floor
+     (3.089), a smaller structural gap than before (was 3.154) but still
+     unreachable by wind_frequency alone. test_tour_gate_2024_shape_
+     wind_frequency_calibrated still fails, now for a different reason: the
+     lower baseline pricing needs a much higher fitted wind_frequency
+     (0.80) to reach 2024's higher mean, well outside tour.
+     WIND_FREQUENCY_RANGE's stated (0.2, 0.5), and the bogey bucket still
+     misses tolerance at that fitted frequency. See VALIDATION_NOTES.md's
+     "Calibration pass" section for the full before/after numbers.
 """
 
 import statistics
