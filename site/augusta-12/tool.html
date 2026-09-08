@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aim sandbox: Augusta's 12th · Dogleg Data</title>
+<!-- seo -->
+<meta name="description" content="Drag the aim point on Augusta National's 12th. See the expected score, water odds, and green odds for your handicap tier, and compare against the model's own optimal aim for each pin and wind state.">
+<link rel="canonical" href="https://doglegdata.com/augusta-12/tool.html">
+<meta name="theme-color" content="#F4EDE0">
+<link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/brand/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Aim sandbox: Augusta's 12th · Dogleg Data">
+<meta property="og:description" content="Drag the aim point on Augusta National's 12th. See the expected score, water odds, and green odds for your handicap tier, and compare against the model's own optimal aim for each pin and wind state.">
+<meta property="og:url" content="https://doglegdata.com/augusta-12/tool.html">
+<meta property="og:site_name" content="Dogleg Data">
+<meta property="og:image" content="https://doglegdata.com/assets/img/003_hero.png">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta property="og:image:alt" content="Top-down sketch of Augusta National's 12th green complex, Rae's Creek and the three pin positions">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Dogleg Data Aim Sandbox",
+  "url": "https://doglegdata.com/augusta-12/tool.html",
+  "applicationCategory": "Sports",
+  "description": "Drag an aim point on Augusta National's 12th hole and get the expected score, water odds, and green odds for a chosen handicap tier, pin position, and wind state, plus the model's own optimal aim for the same combination."
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4EDE0; --card:#FBF7EE; --line:#E2D8C6;
+  --ink:#1C1B18; --ink-soft:#4A4437; --muted:#665A4B;
+  --clay:#C05A36; --clay-text:#A34A2C; --maroon:#7D362E; --blue:#5B7FA6; --blue-text:#46628A;
+  --gap:18px; --radius:4px;
+  --serif:'Fraunces',Georgia,'Times New Roman',serif;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.5;}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 44px;}
+:focus-visible{outline:2px solid var(--clay);outline-offset:2px;}
+header{padding:4px 2px 24px;border-bottom:4px double var(--line);margin-bottom:22px;}
+.brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+.brand .mark{width:34px;height:34px;flex:none;}
+.brand .wordmark{font-family:var(--serif);font-weight:900;font-size:34px;line-height:1;letter-spacing:-0.02em;color:var(--ink);}
+.brand .tagline{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--clay-text);margin-left:4px;position:relative;top:4px;}
+.home-link{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);text-decoration:none;margin-left:auto;padding:6px 2px;border-bottom:1px solid transparent;}
+.home-link:hover{color:var(--clay-text);border-bottom-color:var(--clay);}
+header h1{font-family:var(--serif);font-weight:600;font-size:21px;line-height:1.3;margin-bottom:7px;max-width:60ch;}
+header p{font-size:14px;color:var(--ink-soft);max-width:70ch;margin-bottom:4px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;margin-bottom:var(--gap);}
+.card h2{font-family:var(--serif);font-weight:600;font-size:19px;line-height:1.3;padding-bottom:10px;border-bottom:3px double var(--line);margin-bottom:10px;}
+.card .sub{font-size:13px;color:var(--ink-soft);margin-bottom:20px;max-width:80ch;}
+.controls{display:flex;flex-wrap:wrap;gap:22px;margin-bottom:22px;padding-bottom:20px;border-bottom:1px solid var(--line);}
+.control{display:flex;flex-direction:column;gap:7px;min-width:170px;flex:1;}
+.control label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+.control select, .control input[type=range]{width:100%;}
+.control select{padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);font-family:var(--sans);font-size:14px;background:#FFFFFF;color:var(--ink);}
+.control select:hover{border-color:var(--clay);}
+.control input[type=range]{accent-color:var(--clay);height:22px;cursor:pointer;}
+.control .val{font-family:var(--mono);font-size:12.5px;font-weight:500;color:var(--clay-text);text-transform:none;letter-spacing:0;}
+.control .hint{font-size:10.5px;color:var(--muted);line-height:1.4;margin-top:2px;}
+nav.tabs{display:flex;gap:8px;margin-bottom:var(--gap);flex-wrap:wrap;}
+nav.tabs .tab-btn{background:transparent;border:1px solid var(--line);color:var(--ink-soft);
+  padding:9px 18px;border-radius:999px;font-family:var(--sans);font-size:13.5px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-block;}
+nav.tabs .tab-btn:hover{border-color:var(--clay);color:var(--clay-text);}
+nav.tabs .tab-btn.active{background:var(--clay-text);color:#FBF7EE;border-color:var(--clay-text);font-weight:600;cursor:default;}
+.badge-modeled{display:inline-block;background:transparent;border:1px dashed var(--maroon);color:var(--maroon);
+  font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.06em;
+  padding:1px 8px;border-radius:999px;margin-left:8px;vertical-align:middle;}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:14px;}
+.kpi{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+.kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+.kpi .v{font-family:var(--mono);font-size:23px;font-weight:500;color:var(--ink);}
+.note{font-size:12px;color:var(--ink-soft);line-height:1.6;margin-top:10px;margin-bottom:20px;max-width:90ch;}
+.verdict{border-radius:var(--radius);padding:22px 24px;margin-bottom:20px;border:1px solid;}
+.verdict.rough{background:#F6E7DC;border-color:#E0C3AE;}
+.verdict.fairway{background:#E9EEF4;border-color:#C8D3E0;}
+.verdict .headline{font-family:var(--serif);font-size:21px;font-weight:600;margin-bottom:6px;}
+.verdict.rough .headline{color:var(--clay-text);}
+.verdict.fairway .headline{color:var(--blue-text);}
+.verdict .detail{font-family:var(--mono);font-size:13px;color:var(--ink-soft);line-height:1.6;}
+footer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px 26px;}
+footer .signoff{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--clay-text);
+  padding-bottom:12px;border-bottom:3px double var(--line);margin-bottom:14px;}
+footer h3{font-family:var(--serif);font-weight:600;font-size:15px;margin-bottom:10px;}
+footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.65;}
+
+/* -------------------- sandbox-specific -------------------- */
+.sandbox-layout{display:flex;flex-wrap:wrap;gap:26px;}
+.sandbox-controls{flex:1 1 320px;min-width:280px;}
+.sandbox-map-wrap{flex:0 0 auto;width:520px;max-width:100%;}
+.map-svg{width:100%;height:auto;display:block;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);touch-action:none;}
+.map-svg:focus-within{outline:none;}
+.map-legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:10px;font-family:var(--mono);font-size:10.5px;color:var(--muted);}
+.map-legend .item{display:flex;align-items:center;gap:5px;}
+.map-legend .swatch{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none;}
+.map-note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:8px;max-width:60ch;}
+
+.switch-control{display:flex;flex-direction:column;gap:7px;min-width:210px;}
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer;width:fit-content;}
+.switch input{position:absolute;opacity:0;width:1px;height:1px;}
+.switch .track{width:38px;height:21px;background:var(--line);border-radius:999px;position:relative;flex:none;transition:background .15s;}
+.switch .track::after{content:'';position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#FBF7EE;transition:left .15s;box-shadow:0 1px 2px rgba(28,27,24,.3);}
+.switch input:checked + .track{background:var(--clay);}
+.switch input:checked + .track::after{left:19px;}
+.switch input:focus-visible + .track{outline:2px solid var(--clay);outline-offset:2px;}
+.switch .switch-label{font-size:13px;color:var(--ink);}
+
+.disclosure-list{list-style:none;}
+.disclosure-list li{padding:12px 0;border-bottom:1px solid var(--line);}
+.disclosure-list li:last-child{border-bottom:none;}
+.disclosure-list .name{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:3px;}
+.disclosure-list .body{font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
+
+.state-msg{padding:50px 20px;text-align:center;color:var(--muted);font-family:var(--mono);font-size:13px;}
+
+@media (max-width:640px){
+  .wrap{padding:20px 14px 32px;}
+  .home-link{margin-left:0;}
+  .controls{flex-direction:column;gap:16px;}
+  .control{min-width:0;}
+  .brand .wordmark{font-size:28px;}
+  nav.tabs .tab-btn{flex:1;min-width:max-content;}
+  .card{padding:18px 16px;}
+  .sandbox-map-wrap{width:100%;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dogleg Data mark">
+      <path d="M8 28 V14 Q8 8 14 8 H21" fill="none" stroke="#1C1B18" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="26" cy="8" r="3.5" fill="#C05A36"/>
+    </svg>
+    <span class="wordmark">Dogleg Data</span>
+    <span class="tagline">Play the percentages</span>
+    <a class="home-link" href="../index.html">&larr; Dogleg Data home</a>
+  </div>
+  <h1>Where should you aim on Augusta's 12th?</h1>
+  <p>Pick a handicap tier, a pin, and a wind state, then drag the aim point around the green complex. The model scores every spot you could stand over: your expected score, your odds of finding Rae's Creek, your odds of holding the green, and how many strokes that aim gives up against the model's own best spot for that tier and pin.</p>
+  <p>Read the full write-up on <a href="./">the 12th hole analysis</a>.</p>
+</header>
+
+<nav class="tabs">
+  <span class="tab-btn active">Aim sandbox</span>
+  <a class="tab-btn" href="../tee-shot-distance/tool.html">Tee shot calculator</a>
+  <a class="tab-btn" href="../fairway-vs-rough/dashboard.html#scramble">Scramble decision</a>
+  <a class="tab-btn" href="../fairway-vs-rough/dashboard.html#breakeven">Break-even explorer</a>
+  <a class="tab-btn" href="../fairway-vs-rough/dashboard.html#gir">Monte Carlo GIR%</a>
+</nav>
+
+<div class="card">
+  <h2>Set your tier, pin, and wind</h2>
+  <div class="sub">Drag the clay marker on the map, or focus it and use the arrow keys. Every number below updates live.</div>
+
+  <div id="sandbox-loading" class="state-msg">Loading the aim sandbox&hellip;</div>
+  <div id="sandbox-error" class="state-msg" hidden>Could not load the aim sandbox data. Try refreshing the page.</div>
+
+  <div id="sandbox-body" hidden>
+    <div class="controls">
+      <div class="control">
+        <label for="sb-tier">Handicap</label>
+        <select id="sb-tier"></select>
+      </div>
+      <div class="control" style="flex:2;min-width:220px;">
+        <label for="sb-carry">Your carry with this club &mdash; <span class="val" id="sb-carry-val">155 yd</span></label>
+        <input type="range" id="sb-carry" min="120" max="200" step="1" value="155">
+        <div class="hint">The model treats your carry as the aim depth. The hole plays 155 yards from the tee.</div>
+      </div>
+      <div class="control">
+        <label for="sb-pin">Pin</label>
+        <select id="sb-pin"></select>
+      </div>
+      <div class="switch-control">
+        <label class="switch" for="sb-wind">
+          <input type="checkbox" id="sb-wind">
+          <span class="track" aria-hidden="true"></span>
+          <span class="switch-label">Wind on, <span class="badge-modeled">modeled</span></span>
+        </label>
+        <div class="hint" id="sb-wind-hint">&mdash;</div>
+      </div>
+    </div>
+
+    <div class="sandbox-layout">
+      <div class="sandbox-controls">
+        <div class="kpi-row">
+          <div class="kpi"><div class="l">Expected score at your aim</div><div class="v" id="kpi-score">&mdash;</div></div>
+          <div class="kpi"><div class="l">Finds the water</div><div class="v" id="kpi-water">&mdash;</div></div>
+          <div class="kpi"><div class="l">Hits the green</div><div class="v" id="kpi-green">&mdash;</div></div>
+          <div class="kpi"><div class="l" id="kpi-delta-label">Strokes vs. model's aim</div><div class="v" id="kpi-delta">&mdash;</div></div>
+        </div>
+
+        <div id="sb-verdict" class="verdict fairway">
+          <div class="headline" id="sb-headline">&mdash;</div>
+          <div class="detail" id="sb-detail">&mdash;</div>
+        </div>
+      </div>
+
+      <div class="sandbox-map-wrap">
+        <svg id="sb-map" class="map-svg" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="sb-map-title">
+          <title id="sb-map-title">Top-down map of Augusta's 12th green complex</title>
+        </svg>
+        <div class="map-legend">
+          <span class="item"><span class="swatch" style="background:#8FA7C2;"></span>Rae's Creek</span>
+          <span class="item"><span class="swatch" style="background:#DCCBA5;"></span>Bunker</span>
+          <span class="item"><span class="swatch" style="background:#F0E9D9;border:1px solid #C9BC9F;"></span>Green</span>
+          <span class="item"><span class="swatch" style="background:#C05A36;border-radius:50%;"></span>Your aim</span>
+          <span class="item"><span class="swatch" style="background:transparent;border:2px solid #1C1B18;border-radius:50%;"></span>Model's aim</span>
+        </div>
+        <div class="map-note">Dashed ellipse: your tier's 1&sigma; dispersion oval at this aim, inflated when wind is on. Drag or use arrow keys to move the clay marker.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="disclosure-card" hidden>
+  <h2>What is modeled here</h2>
+  <div class="sub">Every anchored number traces back to a published source. These do not: they are built assumptions with a stated sensitivity range, carried through this sandbox exactly as the analysis uses them.</div>
+  <ul class="disclosure-list" id="disclosure-list"></ul>
+  <p class="note">Handicap tiers 15 and 20 sit well outside the published GIR-by-distance anchor band for a 155-yard shot, so their dispersion ovals come from an extrapolation of the same formula the anchored tiers use, not a direct anchor. See <code>analysis/003-augusta-12/data.py</code> for the full anchor-by-anchor breakdown.</p>
+  <p class="note">This sandbox recomputes every number in your browser from the exported grids. No server, no tracking.</p>
+  <p class="note">Read the full write-up on <a href="./">the 12th hole analysis</a>, or check the sourcing yourself in the <a href="https://github.com/rathor21/dogleg-data/blob/main/docs/sources/003_Source_Log.md">source log on GitHub</a>.</p>
+</div>
+
+<footer>
+  <p class="signoff">Dogleg Data &middot; Play the percentages.</p>
+  <p>Charts and sized exports are free to use with credit: <a href="../cite/index.html">doglegdata.com/cite</a></p>
+  <h3>Sources &amp; methodology</h3>
+  <p>Hole yardage, bunker count, and the general green shape: PGA.com, NBC Sports/Golf Channel, and The Fried Egg, cross-checked in the source hunt. Amateur approach proximity and GIR-by-distance: Arccos and Shot Scope, inverted into a per-tier dispersion oval the same way release 002 inverts fairway-hit percentages into lateral spread. Every pin's lateral coordinate, the hazard boundaries, the wind carry penalty and dispersion inflation, and the up-and-down odds by tier are modeled, each with a stated sensitivity range carried into the aim-point search. The model's own aim for each tier, pin, and wind state comes from a bounded optimizer that scores a grid of candidate aim points and reports the minimum, the same numbers published in the analysis.</p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ---------------------------------------------------------------------
+// Dispersion ovals (sigma_distance_yd, sigma_line_yd) per handicap tier.
+// Not present in the exported JSON: the grids carry pre-scored score/water/
+// green surfaces, not the oval parameters that drew them. Hard-coded here
+// from analysis/003-augusta-12's own model.oval_for_tier, run from that
+// directory:
+//   ../002-tee-shot-distance/.venv/bin/python -c "import model; \
+//     print({t: model.oval_for_tier(t) for t in [0,5,10,15,20]})"
+// Output (2026-09-07, at the hole's 155-yd tee shot):
+//   {0: (18.715, 6.238), 5: (21.007, 7.002), 10: (25.030, 8.343),
+//    15: (28.073, 9.358), 20: (33.565, 11.188)}
+// ---------------------------------------------------------------------
+const OVALS = {
+  0:  [18.71526035495927, 6.238420118319757],
+  5:  [21.006924888219586, 7.0023082960731955],
+  10: [25.029828841208953, 8.343276280402984],
+  15: [28.07289053243891, 9.357630177479637],
+  20: [33.56541259313348, 11.188470864377827]
+};
+
+// Tiers whose dispersion ovals are interpolated beyond this shot length's
+// published anchor band (data.py's own ANCHORED vs MODELED split for
+// GIR50_DISTANCE_YD), not directly anchored.
+const OVAL_MODELED_TIERS = [15, 20];
+
+const TIER_LABELS = {0: "Scratch", 5: "5-hcp", 10: "10-hcp", 15: "15-hcp", 20: "20-hcp"};
+
+// ---------------------------------------------------------------------
+// Bilinear grid lookup: ports analysis/003-augusta-12/export.py's
+// _axis_fraction / _bilinear / sandbox_lookup exactly. Never extrapolates:
+// a value past an axis edge clamps to that edge before interpolating.
+// ---------------------------------------------------------------------
+function axisFraction(axis, value){
+  const lo = axis[0], hi = axis[axis.length - 1];
+  const v = Math.min(Math.max(value, lo), hi);
+  const step = axis[1] - axis[0];
+  let idx = Math.floor((v - lo) / step);
+  idx = Math.min(idx, axis.length - 2);
+  let frac = (v - axis[idx]) / step;
+  frac = Math.min(Math.max(frac, 0), 1);
+  return [idx, frac];
+}
+function bilinear(grid, rowAxis, colAxis, rowVal, colVal){
+  const [ri, rf] = axisFraction(rowAxis, rowVal);
+  const [ci, cf] = axisFraction(colAxis, colVal);
+  const v00 = grid[ri][ci], v01 = grid[ri][ci + 1];
+  const v10 = grid[ri + 1][ci], v11 = grid[ri + 1][ci + 1];
+  const top = v00 + (v01 - v00) * cf;
+  const bot = v10 + (v11 - v10) * cf;
+  return top + (bot - top) * rf;
+}
+function sandboxLookup(grids, tier, pin, wind, lateral, carryAdj){
+  const key = tier + "|" + pin + "|" + (wind ? 1 : 0);
+  const cell = grids.cells[key];
+  const lateralAxis = grids.axes.lateral_offset_yd;
+  const carryAxis = grids.axes.carry_adjustment_yd;
+  const score = bilinear(cell.score, carryAxis, lateralAxis, carryAdj, lateral);
+  const p_water = bilinear(cell.p_water, carryAxis, lateralAxis, carryAdj, lateral);
+  const result = {score: score, p_water: p_water};
+  if(cell.p_green) result.p_green = bilinear(cell.p_green, carryAxis, lateralAxis, carryAdj, lateral);
+  const delta = score - cell.optimum.score;
+  result.delta_vs_optimum = delta;
+  result.tossup = Math.abs(delta) <= grids.tossup_threshold_strokes;
+  result.cell = cell;
+  return result;
+}
+
+function clamp(v, lo, hi){ return Math.min(Math.max(v, lo), hi); }
+function pct(v){ return Math.round(v * 100) + "%"; }
+
+// Describes an (lateral, carry) offset relative to a named pin in plain
+// golfer language: "9 yd left of the sunday pin and 8 yd short of the
+// sunday pin". Positive lateral = right (Sunday side, per data.py);
+// positive carry = past the pin, negative = short of it. "past" and "short
+// of" take different prepositions in English, so this builds both clauses
+// directly rather than gluing a shared suffix onto two half-phrases.
+function describeAim(lateralOffset, carryOffset, pinLower){
+  const latN = Math.round(Math.abs(lateralOffset));
+  const carN = Math.round(Math.abs(carryOffset));
+  const latPhrase = latN < 1
+    ? "on the " + pinLower + " pin's line"
+    : latN + " yd " + (lateralOffset > 0 ? "right" : "left") + " of the " + pinLower + " pin";
+  let carPhrase;
+  if(carN < 1) carPhrase = "pin high at the " + pinLower + " pin";
+  else if(carryOffset > 0) carPhrase = carN + " yd past the " + pinLower + " pin";
+  else carPhrase = carN + " yd short of the " + pinLower + " pin";
+  return latPhrase + " and " + carPhrase;
+}
+
+// ---------------------------------------------------------------------
+// State + DOM
+// ---------------------------------------------------------------------
+let grids = null, manifest = null;
+const state = { tier: 15, pin: "center", wind: false, lateral: 0 };
+
+const els = {
+  loading: document.getElementById("sandbox-loading"),
+  error: document.getElementById("sandbox-error"),
+  body: document.getElementById("sandbox-body"),
+  disclosureCard: document.getElementById("disclosure-card"),
+  tier: document.getElementById("sb-tier"),
+  pin: document.getElementById("sb-pin"),
+  wind: document.getElementById("sb-wind"),
+  windHint: document.getElementById("sb-wind-hint"),
+  carry: document.getElementById("sb-carry"),
+  carryVal: document.getElementById("sb-carry-val"),
+  kpiScore: document.getElementById("kpi-score"),
+  kpiWater: document.getElementById("kpi-water"),
+  kpiGreen: document.getElementById("kpi-green"),
+  kpiDeltaLabel: document.getElementById("kpi-delta-label"),
+  kpiDelta: document.getElementById("kpi-delta"),
+  verdict: document.getElementById("sb-verdict"),
+  headline: document.getElementById("sb-headline"),
+  detail: document.getElementById("sb-detail"),
+  map: document.getElementById("sb-map"),
+  disclosureList: document.getElementById("disclosure-list")
+};
+
+// ---------------------------------------------------------------------
+// Map projection: model yards -> SVG pixels. Same yd/px scale on both
+// axes so the dispersion ellipse's shape is not distorted.
+// ---------------------------------------------------------------------
+const X_MIN = -33, X_MAX = 33, Y_MIN = 110, Y_MAX = 206;
+const MAP_W = 520;
+const SCALE = MAP_W / (X_MAX - X_MIN);
+const MAP_H = (Y_MAX - Y_MIN) * SCALE;
+
+function sx(xYd){ return (xYd - X_MIN) * SCALE; }
+function sy(yYd){ return MAP_H - (yYd - Y_MIN) * SCALE; }
+function pathFromPoly(poly){
+  return poly.map((p, i) => (i === 0 ? "M" : "L") + sx(p[0]).toFixed(1) + "," + sy(p[1]).toFixed(1)).join(" ") + "Z";
+}
+const svgNS = "http://www.w3.org/2000/svg";
+function el(tag, attrs){
+  const e = document.createElementNS(svgNS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+let markerEl = null, optimumEl = null, ovalEl = null, dragging = false;
+
+function buildStaticMap(){
+  const svg = els.map;
+  svg.setAttribute("viewBox", "0 0 " + MAP_W + " " + MAP_H.toFixed(1));
+  svg.innerHTML = "";
+  const titleEl = el("title", {});
+  titleEl.textContent = "Top-down map of Augusta's 12th green complex";
+  svg.appendChild(titleEl);
+
+  const g = el("g", {id: "sb-map-geometry"});
+  svg.appendChild(g);
+
+  // rough / background
+  g.appendChild(el("rect", {x: 0, y: 0, width: MAP_W, height: MAP_H, fill: "#EFE6D4"}));
+
+  // fairway
+  const geo = manifest.geometry_yd;
+  g.appendChild(el("path", {d: pathFromPoly(geo.fairway), fill: "#E7DDC5", stroke: "#D8CBAC", "stroke-width": 1}));
+
+  // creek
+  g.appendChild(el("path", {d: pathFromPoly(geo.creek.polygon), fill: "#8FA7C2", stroke: "#5B7FA6", "stroke-width": 1}));
+
+  // bunkers
+  geo.bunkers.forEach(b => {
+    g.appendChild(el("path", {d: pathFromPoly(b.polygon), fill: "#DCCBA5", stroke: "#C3AF85", "stroke-width": 1}));
+  });
+
+  // green
+  g.appendChild(el("path", {d: pathFromPoly(geo.green), fill: "#F0E9D9", stroke: "#C9BC9F", "stroke-width": 1.25}));
+
+  // pins (drawn per-render so the selected one can be emphasized)
+  svg.appendChild(el("g", {id: "sb-map-pins"}));
+
+  // tee direction arrow, bottom of the map (not to scale — the tee sits far
+  // below the cropped view of the green complex)
+  const arrowY = sy(Y_MIN + 4);
+  const arrow = el("g", {id: "sb-tee-arrow"});
+  arrow.appendChild(el("line", {x1: sx(0), y1: arrowY - 16, x2: sx(0), y2: arrowY + 10, stroke: "#8A7F6E", "stroke-width": 2}));
+  const arrowPoints = [[sx(0) - 6, arrowY + 10], [sx(0) + 6, arrowY + 10], [sx(0), arrowY + 20]]
+    .map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  arrow.appendChild(el("polygon", {points: arrowPoints, fill: "#8A7F6E"}));
+  const teeLabel = el("text", {x: sx(0), y: arrowY + 32, "text-anchor": "middle", "font-family": "'IBM Plex Mono',monospace", "font-size": 10, fill: "#665A4B"});
+  teeLabel.textContent = "toward tee";
+  arrow.appendChild(teeLabel);
+  svg.appendChild(arrow);
+
+  // dispersion oval (dashed, redrawn each render)
+  ovalEl = el("ellipse", {fill: "none", stroke: "#7D362E", "stroke-width": 1.5, "stroke-dasharray": "5,4"});
+  svg.appendChild(ovalEl);
+
+  // model's optimal aim: hollow ink ring
+  optimumEl = el("circle", {r: 7, fill: "none", stroke: "#1C1B18", "stroke-width": 2.5});
+  svg.appendChild(optimumEl);
+
+  // draggable aim marker
+  markerEl = el("g", {tabindex: "0", role: "button"});
+  const markerDot = el("circle", {r: 8, fill: "#C05A36", stroke: "#7D362E", "stroke-width": 1.5, cursor: "grab"});
+  markerEl.appendChild(markerDot);
+  svg.appendChild(markerEl);
+
+  markerEl.addEventListener("pointerdown", onMarkerPointerDown);
+  markerEl.addEventListener("keydown", onMarkerKeydown);
+  svg.addEventListener("pointermove", onMarkerPointerMove);
+  svg.addEventListener("pointerup", onMarkerPointerUp);
+  svg.addEventListener("pointercancel", onMarkerPointerUp);
+}
+
+function renderPins(){
+  const g = document.getElementById("sb-map-pins");
+  g.innerHTML = "";
+  const geo = manifest.geometry_yd.pins;
+  Object.keys(geo).forEach(key => {
+    const p = geo[key];
+    const isSelected = key === state.pin;
+    const px = sx(p.x), py = sy(p.y);
+    const flag = el("g", {});
+    flag.appendChild(el("line", {x1: px, y1: py, x2: px, y2: py - (isSelected ? 20 : 14), stroke: "#1C1B18", "stroke-width": isSelected ? 2 : 1.25}));
+    if(isSelected){
+      flag.appendChild(el("polygon", {points: [px, py - 20, px + 11, py - 16, px, py - 12].join(" "), fill: "#C05A36"}));
+    } else {
+      flag.appendChild(el("polygon", {points: [px, py - 14, px + 7, py - 11.5, px, py - 9].join(" "), fill: "none", stroke: "#665A4B", "stroke-width": 1}));
+    }
+    flag.appendChild(el("circle", {cx: px, cy: py, r: isSelected ? 2.5 : 1.75, fill: isSelected ? "#7D362E" : "#8A7F6E"}));
+    g.appendChild(flag);
+  });
+}
+
+// ---------------------------------------------------------------------
+// Screen <-> model conversion for dragging
+// ---------------------------------------------------------------------
+function clientToModel(evt){
+  const pt = els.map.createSVGPoint ? els.map.createSVGPoint() : null;
+  if(pt && els.map.getScreenCTM){
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    const ctm = els.map.getScreenCTM().inverse();
+    const p = pt.matrixTransform(ctm);
+    return {x: X_MIN + p.x / SCALE, y: Y_MIN + (MAP_H - p.y) / SCALE};
+  }
+  // fallback: bounding-rect math if SVG coordinate APIs are unavailable
+  const rect = els.map.getBoundingClientRect();
+  const relX = (evt.clientX - rect.left) / rect.width * MAP_W;
+  const relY = (evt.clientY - rect.top) / rect.height * MAP_H;
+  return {x: X_MIN + relX / SCALE, y: Y_MIN + (MAP_H - relY) / SCALE};
+}
+
+function currentPin(){ return grids.pins[state.pin]; }
+
+function onMarkerPointerDown(e){
+  dragging = true;
+  try { markerEl.setPointerCapture(e.pointerId); } catch(err){}
+}
+function onMarkerPointerMove(e){
+  if(!dragging) return;
+  const m = clientToModel(e);
+  const pin = currentPin();
+  state.lateral = clamp(m.x - pin.x, -20, 20);
+  els.carry.value = clamp(m.y, Number(els.carry.min), Number(els.carry.max));
+  render();
+}
+function onMarkerPointerUp(){ dragging = false; }
+
+function onMarkerKeydown(e){
+  let dLat = 0, dCarry = 0;
+  if(e.key === "ArrowLeft") dLat = -1;
+  else if(e.key === "ArrowRight") dLat = 1;
+  else if(e.key === "ArrowUp") dCarry = 1;
+  else if(e.key === "ArrowDown") dCarry = -1;
+  else return;
+  e.preventDefault();
+  const pin = currentPin();
+  state.lateral = clamp(state.lateral + dLat, -20, 20);
+  els.carry.value = clamp(Number(els.carry.value) + dCarry, Number(els.carry.min), Number(els.carry.max));
+  render();
+}
+
+// ---------------------------------------------------------------------
+// Populate controls once data is loaded
+// ---------------------------------------------------------------------
+function populateControls(){
+  grids.tiers.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t; opt.textContent = TIER_LABELS[t] || (t + "-hcp");
+    els.tier.appendChild(opt);
+  });
+  els.tier.value = String(state.tier);
+
+  Object.keys(grids.pins).forEach(key => {
+    const opt = document.createElement("option");
+    opt.value = key; opt.textContent = grids.pins[key].label;
+    els.pin.appendChild(opt);
+  });
+  els.pin.value = state.pin;
+
+  const w = grids.wind;
+  const penaltyYd = w.carry_penalty_yd.toFixed(0);
+  const article = /^[8]/.test(penaltyYd) || /^1[18]/.test(penaltyYd) ? "an" : "a";
+  els.windHint.textContent = "Adds " + article + " " + penaltyYd + " yd carry penalty (range "
+    + w.carry_penalty_range_yd[0].toFixed(0) + "-" + w.carry_penalty_range_yd[1].toFixed(0)
+    + " yd) and inflates the dispersion oval " + w.dispersion_inflation.toFixed(1) + "x (range "
+    + w.dispersion_inflation_range[0].toFixed(2) + "-" + w.dispersion_inflation_range[1].toFixed(2)
+    + "x). No published wind coefficient exists for this hole; both figures are modeled.";
+
+  els.tier.addEventListener("input", render);
+  els.pin.addEventListener("input", render);
+  els.wind.addEventListener("input", render);
+  els.carry.addEventListener("input", render);
+}
+
+function populateDisclosure(){
+  els.disclosureList.innerHTML = "";
+  grids.modeled.forEach(m => {
+    const li = document.createElement("li");
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = m.name.replace(/_/g, " ");
+    const body = document.createElement("div");
+    body.className = "body";
+    let valueText;
+    if(m.value && typeof m.value === "object"){
+      valueText = Object.keys(m.value).map(k => (TIER_LABELS[Number(k)] || k) + " " + Math.round(m.value[k] * 100) + "%").join(", ");
+    } else if(m.range){
+      valueText = m.value + " (sensitivity range " + m.range[0] + "-" + m.range[1] + ")";
+    } else {
+      valueText = String(m.value);
+    }
+    body.textContent = valueText + ". " + m.status + ".";
+    li.appendChild(name);
+    li.appendChild(body);
+    els.disclosureList.appendChild(li);
+  });
+}
+
+// ---------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------
+let lastLookup = null;
+
+function render(){
+  const tier = Number(els.tier.value);
+  const pinKey = els.pin.value;
+  const wind = els.wind.checked;
+  const carry = Number(els.carry.value);
+  state.tier = tier; state.pin = pinKey; state.wind = wind;
+
+  els.carryVal.textContent = carry + " yd";
+
+  const tierLabelEl = document.querySelector('label[for="sb-tier"]');
+  tierLabelEl.innerHTML = "Handicap" + (OVAL_MODELED_TIERS.includes(tier) ? '<span class="badge-modeled">modeled</span>' : "");
+
+  const pin = grids.pins[pinKey];
+  const carryAdj = carry - pin.y;
+  const lookup = sandboxLookup(grids, tier, pinKey, wind, state.lateral, carryAdj);
+  lastLookup = lookup;
+
+  els.kpiScore.textContent = lookup.score.toFixed(2);
+  els.kpiWater.textContent = pct(lookup.p_water);
+  els.kpiGreen.textContent = pct(lookup.p_green != null ? lookup.p_green : 0);
+
+  const delta = lookup.delta_vs_optimum;
+  const deltaEl = els.kpiDelta;
+  if(lookup.tossup){
+    els.kpiDeltaLabel.textContent = "At the model's aim";
+    deltaEl.textContent = (delta >= 0 ? "+" : "") + delta.toFixed(2);
+    deltaEl.style.color = "#46628A";
+  } else {
+    els.kpiDeltaLabel.textContent = "You give up (strokes)";
+    deltaEl.textContent = (delta >= 0 ? "+" : "") + delta.toFixed(2);
+    deltaEl.style.color = delta > 0 ? "#A34A2C" : "#46628A";
+  }
+
+  // verdict sentence
+  const tierLabel = TIER_LABELS[tier] || (tier + "-hcp");
+  const pinLower = pin.label.replace(/\s*\([^)]*\)/, "").toLowerCase();
+  const nearPin = Math.abs(state.lateral) < 1 && Math.abs(carryAdj) < 1;
+  const aimDesc = nearPin
+    ? "at the " + pinLower + " pin"
+    : describeAim(state.lateral, carryAdj, pinLower);
+  const opt = lookup.cell.optimum;
+  const modelAimSentence = "The model aims " + describeAim(opt.lateral_offset_yd, opt.carry_adjustment_yd, pinLower) + ".";
+
+  els.verdict.className = "verdict " + (lookup.tossup ? "fairway" : (delta > 0 ? "rough" : "fairway"));
+  if(lookup.tossup){
+    els.headline.textContent = "Either aim works here";
+    els.detail.textContent = "A " + tierLabel + " aiming " + aimDesc + " plays within " + grids.tossup_threshold_strokes.toFixed(2)
+      + " strokes of the model's optimum and finds the water " + pct(lookup.p_water) + " of the time.";
+  } else if(delta > 0){
+    els.headline.textContent = "This aim gives up strokes";
+    els.detail.textContent = "A " + tierLabel + " aiming " + aimDesc + " gives up " + delta.toFixed(2)
+      + " strokes to the model's optimum and finds the water " + pct(lookup.p_water) + " of the time. " + modelAimSentence;
+  } else {
+    els.headline.textContent = "This aim matches the model";
+    els.detail.textContent = "A " + tierLabel + " aiming " + aimDesc + " plays the model's own optimum here and finds the water "
+      + pct(lookup.p_water) + " of the time.";
+  }
+
+  // ---- map ----
+  renderPins();
+  const [sigmaDBase, sigmaLBase] = OVALS[tier];
+  const inflate = wind ? grids.wind.dispersion_inflation : 1.0;
+  const sigmaD = sigmaDBase * inflate, sigmaL = sigmaLBase * inflate;
+
+  const markerX = pin.x + state.lateral, markerY = carry;
+  ovalEl.setAttribute("cx", sx(markerX));
+  ovalEl.setAttribute("cy", sy(markerY));
+  ovalEl.setAttribute("rx", sigmaL * SCALE);
+  ovalEl.setAttribute("ry", sigmaD * SCALE);
+
+  const optX = pin.x + opt.lateral_offset_yd, optY = pin.y + opt.carry_adjustment_yd;
+  optimumEl.setAttribute("cx", sx(optX));
+  optimumEl.setAttribute("cy", sy(optY));
+
+  markerEl.setAttribute("transform", "translate(" + sx(markerX).toFixed(1) + "," + sy(markerY).toFixed(1) + ")");
+  markerEl.setAttribute("aria-label", "Aim point. Currently " + aimDesc + ". Use arrow keys to move it one yard at a time.");
+}
+
+// ---------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------
+Promise.all([
+  fetch("./data/003_sandbox_grids.json").then(r => { if(!r.ok) throw new Error("grids fetch failed"); return r.json(); }),
+  fetch("./data/003_manifest.json").then(r => { if(!r.ok) throw new Error("manifest fetch failed"); return r.json(); })
+]).then(([g, m]) => {
+  grids = g; manifest = m;
+  populateControls();
+  populateDisclosure();
+  buildStaticMap();
+  els.loading.hidden = true;
+  els.body.hidden = false;
+  els.disclosureCard.hidden = false;
+  render();
+}).catch(err => {
+  els.loading.hidden = true;
+  els.error.hidden = false;
+  console.error("aim sandbox failed to load:", err);
+});
+
+// Debug/verification hooks: set state directly without simulating drag
+// gestures, since the lateral axis has no dedicated numeric control.
+window.__sandbox = {
+  setTier: v => { els.tier.value = String(v); render(); },
+  setPin: v => { els.pin.value = v; render(); },
+  setWind: b => { els.wind.checked = !!b; render(); },
+  setCarry: v => { els.carry.value = v; render(); },
+  setLateral: v => { state.lateral = clamp(v, -20, 20); render(); },
+  getLookup: () => lastLookup
+};
+
+})();
+</script>
+</body>
+</html>
