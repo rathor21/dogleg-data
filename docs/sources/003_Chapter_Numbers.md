@@ -99,6 +99,8 @@ Delta band "0.073 to 0.093 strokes": min/max of the four listed deltas (0.0727, 
 | Broadie, Science and Golf V, 2008 | `docs/sources/003_Source_Log.md#anchor-2` (citation year) |
 | 300,000-run Monte Carlo harness | `VALIDATION_NOTES.md`, "Pitch-over-water risk (rev 5)" → "Gate numbers" ("amateur worst gap 0.0137 stroke (n=300,000...)... tour worst gap 0.0121 stroke") |
 | Bogey bucket gap ≈5.7 points, 2019 | `VALIDATION_NOTES.md`, "Creek band fix (rev 4)" → 2019 bucket table (bogey 18.15% sim vs 12.50% pub, gap 5.65pp) |
+| Bogey bucket gap ≈3.3 points, 2025 | `VALIDATION_NOTES.md`, "Pitch-over-water risk (rev 5)" → per-year shape gates (2025 bogey gap 3.27pp) |
+| 2019 and 2023 published averages 3.053 and 3.058 below the calm-air floor | `data.HOLE12_MODERN_AVG_BY_YEAR` (Anchor 9); `VALIDATION_NOTES.md` per-year table (structural misses) |
 | Bogey bucket gap ≈6.6 points, 2024 | `VALIDATION_NOTES.md`, "Pitch-over-water risk (rev 5)" → "Per-year shape gates" (2024 bogey gap 6.55pp) |
 
 ## Chapter 8 -- The move
@@ -126,7 +128,7 @@ No quoted numbers (CTA card only).
 | Scratch left pin flips to bail at anisotropy 3.5 (both wind states) | `tests/test_optimizer.py::test_flip_set_runs_and_matches_golden_snapshot`, key `(0, "left", False/True)` |
 | Scratch center pin flips to bail at anisotropy 2.0 under wind | same test, key `(0, "center", True)` |
 | 5-handicap left pin flips bail→either-works at its calm corner | same test, key `(5, "left", False)` |
-| MC fidelity: amateur 0.014, Tour 0.013, tolerance 0.03 | `VALIDATION_NOTES.md`, "Pitch-over-water risk (rev 5)" → "Gate numbers" ("amateur worst gap 0.0137 stroke ... tour worst gap 0.0121 stroke") |
+| MC fidelity: amateur 0.014, Tour 0.012, tolerance 0.03 | `VALIDATION_NOTES.md`, "Pitch-over-water risk (rev 5)" → "Gate numbers" ("amateur worst gap 0.0137 stroke ... tour worst gap 0.0121 stroke") |
 
 ## Reading time and word count
 

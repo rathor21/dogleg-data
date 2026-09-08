@@ -1,10 +1,7 @@
 <!DOCTYPE html>
 <!--
-Release 003 article page (issue #12 scaffold + hero).
-Working title and dates below are placeholders; the copy pass (003.8+)
-retitles the page, sets the real publish date, and fills in the chapters
-and "the move" sections marked below. Nav mirrors the 002 page as-is;
-wiring "Analyses" to a real listing page is a later task.
+Release 003 article page: hero animation (hero.js), scroll chapters (chapters.js), The move, method and sources.
+Numbers trace to docs/sources/003_Chapter_Numbers.md. Publish date is a placeholder until Sunny sets it.
 -->
 <html lang="en">
 <head>
@@ -362,7 +359,7 @@ wiring "Analyses" to a real listing page is a later task.
             <p>The amateur ovals come from published amateur proximity data. The Tour oval runs through the same construction, and it is the one the hole's own scoring record can check, so before trusting the amateur verdicts the Tour oval has to reproduce that record.</p>
             <p>At the 155-yard shot, the model's Tour oval measures 8.4 by 5.4 yards, tight enough that Rae's Creek almost never enters a Tour player's equation. Run through a full season of pin positions and wind, the model's Tour season average comes out to 3.1188 strokes.</p>
             <p>That number lands inside the modern-era band this release targets: the mean of six published per-year averages (2019, 2021 through 2025, no usable 2020 figure) runs 3.053 to 3.233 and averages 3.132, with a sample standard deviation of about 0.073. The hole's all-time scoring average, 3.27 to 3.28, describes a different era: it spans tournaments back to 1934, and every modern year on record scores below it. Comparing a model built on 2016-2023 proximity data against a 90-year average would grade this release against a different hole, so ADR 0002 retargets the gate to the modern years instead.</p>
-            <p>One gap stays open and disclosed. Matched against 2019's and 2024's own published outcome shares, the model's Tour oval overproduces bogeys and underproduces pars: about six points high on the bogey bucket in both years (5.7 points for 2019, 6.6 points for 2024). The season average checks out; the shot-by-shot shape still runs a little too rough.</p>
+            <p>One gap stays open and disclosed. The model's Tour oval runs more bogey-heavy than the published record in every year it can be checked against. For 2019 and 2023 the published averages (3.053 and 3.058) sit below the model's own calm-air floor, so no wind setting reaches them; at calm air the 2019 bogey share runs 5.7 points high. For 2024 and 2025 the fitted wind frequency matches the year's average, and the bogey share still runs 6.6 and 3.3 points high against a 3-point tolerance. The season average checks out; the shot-by-shot shape runs too rough, and this piece publishes with that gap stated rather than tuned away.</p>
           </div>
         </div>
         </div>
@@ -460,7 +457,7 @@ wiring "Analyses" to a real listing page is a later task.
           <dd>SI.com and PGATOUR.com's retrospective: a narrative anchor only (Anchor 6), the 20-mph gusts of the 2019 final round. The carry penalty and dispersion inflation applied in this piece are <span class="badge-modeled">modeled</span>, with stated sensitivity ranges.</dd>
         </dl>
 
-        <p>Monte Carlo fidelity: a 300,000-run harness matches this piece's analytic amateur surface within 0.014 strokes and its Tour surface within 0.013 strokes, both inside the 0.03-stroke tolerance the test suite asserts. Full source rows, retrieval dates, and every anchor's own verdict live in <code>docs/sources/003_Source_Log.md</code>; this piece's own per-number ledger lives in <code>docs/sources/003_Chapter_Numbers.md</code>.</p>
+        <p>Monte Carlo fidelity: a 300,000-run harness matches this piece's analytic amateur surface within 0.014 strokes and its Tour surface within 0.012 strokes, both inside the 0.03-stroke tolerance the test suite asserts. Full source rows, retrieval dates, and every anchor's own verdict live in <code>docs/sources/003_Source_Log.md</code>; this piece's own per-number ledger lives in <code>docs/sources/003_Chapter_Numbers.md</code>.</p>
 
         <p>Cross-release note: every number in this piece traces to this release's own model, CSVs, or the source log above. None quotes release 002's numbers, so no cross-check against <code>002_results.csv</code> applies here.</p>
       </section>

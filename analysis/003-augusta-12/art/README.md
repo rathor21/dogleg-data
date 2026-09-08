@@ -545,3 +545,8 @@ Full per-landmark offsets: `hero_candidates/registration_report.json`.
 ### Why every candidate failed
 
 Two distinct failure modes: loose/composition-specific prompts produced coherent, often beautiful illustrations that redrew the creek's path and shifted the green complex's scale/position rather than locking to the sketch's pixel geometry. Literal "preserve this exact shape" prompts caused a double-exposure defect: the sketch's own flat-color shapes stayed visibly pasted over a separately imagined background. No middle ground between these two prompt families was found across four distinct wording strategies -- which is what motivated the architecture change to a Pillow-enforced stencil instead of asking the generator to respect geometry at all.
+
+
+## Rights statement
+
+No photograph, broadcast frame, or Augusta-owned image was used as a reference input at any round. Every generated asset came from nano-banana text prompts, from the code-rendered sketch or plate, or from image-to-image over those generated assets (ADR 0001).

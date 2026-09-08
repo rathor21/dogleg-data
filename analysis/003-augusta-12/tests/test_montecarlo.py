@@ -296,9 +296,9 @@ def test_simulate_tour_season_defaults_to_attack_when_fair():
 # the full diagnosis chain. The season-mean gate is the must-pass (issue
 # #5's own wording: the Tour oval must reproduce the hole's published
 # scoring average and be "checked against" the yearly distribution). The
-# per-year shape checks for 2019 and 2024 ship as disclosed near-misses
-# under xfail(strict=False) per ADR 0002's 2026-09-07 addendum; 2025's
-# shape check is a plain pass and 2023's stays xfail as a structural miss.
+# per-year shape checks all ship under xfail(strict=False) per ADR 0002's
+# addenda: 2019 and 2023 are structural misses (published mean below the
+# model's calm-air floor), 2024 and 2025 are bogey-bucket near-misses.
 # ---------------------------------------------------------------------------
 
 def _year_outcome_fractions(year):
