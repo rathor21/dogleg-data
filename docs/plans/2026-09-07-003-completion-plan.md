@@ -18,6 +18,19 @@ Test suite: 76 passed, 2 xfailed (the two Tour gates), 3.5 minutes under `analys
 
 4. **VALIDATION_NOTES.md is stale.** It documents `aim_policy="optimal"` as the default; the committed `tour.py` defaults to `attack_when_fair` with a season mean of 3.250. The notes get rewritten in the model-fix task.
 
+5. **Creek region has no floor** (found while curating manifest landings). `model.region_at` classified every non-bunker miss short of the green as creek, however far short. The typical water landing for a 15-handicap sat 27 yards short of the Sunday pin, which is fairway on the real hole. Fix: a finite creek-plus-bank band (MODELED widths with ranges) and a new short-of-creek fairway region priced as a pitch over water. Regenerates the verdict CSV, grids, and manifest.
+
+## Progress log
+
+- Anchors 8, 9, 10 appended to the source log (putting curves, modern-era hole-12 averages, Tour scrambling).
+- Hero art accepted at commit 5a139bc, #11 closed: code-rendered ground over a generated tree band.
+- Model: anchored putting curve, Tour recovery anchors, gate retargeting per ADR 0002 (proposed). Season-mean gate passes at 3.1365 inside [3.0586, 3.2051]; 2019 and 2024 shape checks are disclosed near-misses on the bogey bucket (5.7 and 6.1 points high at a 3-point tolerance); 2025 passes.
+- Export seam committed (#10), manifest landings on the medoid of their outcome class.
+
+- Creek band and pitch-over-water risk priced (revs 4 and 5); left and center "either works" at every tier, Sunday "bail" everywhere; published moves use the full-shot window with the lay-up disclosed as a tossup (`outputs/003_moves.csv`).
+- Site: hero page (#12), chapters and The move (#13), sandbox (#14), social export (#15), site integration (nav, home, sitemap, llms.txt), QA pass (#16, all pass).
+- Art, 2026-09-07 to 08: Sunny rejected every geometry-first rendering. Final: nano-banana painting of Golden Bell from a text prompt (`art/hero_candidates/r6_4.png`), camera fitted to the art as a thin-plate spline with a homography backbone (`art/camera_tps.json`), arcs drawn as screen-space tracers between projected endpoints.
+
 ## Tasks, in order
 
 | # | Task | Ticket | Depends on |
