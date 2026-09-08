@@ -6,7 +6,9 @@ Dogleg Data is an independent golf analytics publication for the golfer who play
 
 ## Pages
 
-- [Home](https://doglegdata.com/): Site overview and the latest analysis, "230 Yards Is Enough: How Far You Need to Drive It at Your Handicap."
+- [Home](https://doglegdata.com/): Site overview and the latest analysis, "Where to Aim at Augusta's 12th, Pin by Pin."
+- [Where to Aim at Augusta's 12th, Pin by Pin](https://doglegdata.com/augusta-12/): The 12th at Augusta National plays 155 yards over Rae's Creek. Two of its three pins are safe to attack at every handicap. The back-right Sunday pin isn't. The aim point per tier, in yards and clubs.
+- [Aim sandbox](https://doglegdata.com/augusta-12/tool.html): Drag the aim point on Augusta National's 12th. See the expected score, water odds, and green odds for your handicap tier, and compare against the model's own optimal aim for each pin and wind state.
 - [230 Yards Is Enough](https://doglegdata.com/tee-shot-distance/): How far you need to hit it to score like your handicap: 230 yards for a 10-handicap on a 360-yard par 4, why the 3-wood saves you almost nothing, and the lost-ball rate where a backup club beats the driver. Benchmark modeled, calibrated to published Shot Scope scoring.
 - [Tee shot calculator](https://doglegdata.com/tee-shot-distance/tool.html): Enter a par 4, your handicap, and your typical drive; get the strokes-gained verdict, the cost line for the hole, and the club comparison.
 - [Fairway vs. Rough, by Handicap](https://doglegdata.com/fairway-vs-rough/): The fairway is worth 75 yards to a tour pro at 150 out, and 17 to a 20-handicap, with sourced data you can check yourself.
