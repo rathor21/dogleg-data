@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<!--
+Release 003 article page (issue #12 scaffold + hero).
+Working title and dates below are placeholders; the copy pass (003.8+)
+retitles the page, sets the real publish date, and fills in the chapters
+and "the move" sections marked below. Nav mirrors the 002 page as-is;
+wiring "Analyses" to a real listing page is a later task.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Where to Aim on the 12th at Augusta · Dogleg Data</title>
+<!-- seo -->
+<meta name="description" content="Five simulated tee shots at Augusta National's 12th, landed by the 003 model and staged tier by tier. The aim point for your handicap, and where the sucker pin hides.">
+<link rel="canonical" href="https://doglegdata.com/augusta-12/">
+<meta name="theme-color" content="#F4EDE0">
+<link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/brand/apple-touch-icon.png">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Where to Aim on the 12th at Augusta · Dogleg Data">
+<meta property="og:description" content="Five simulated tee shots at Augusta National's 12th, landed by the 003 model and staged tier by tier. The aim point for your handicap, and where the sucker pin hides.">
+<meta property="og:url" content="https://doglegdata.com/augusta-12/">
+<meta property="og:site_name" content="Dogleg Data">
+<meta property="og:image" content="https://doglegdata.com/assets/img/003_hero.png">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta property="og:image:alt" content="Stylized elevated three-quarter view of Augusta National's 12th hole, five simulated tee shots arcing toward the green across Rae's Creek, colored by outcome">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="article:published_time" content="2026-09-07">
+<meta property="article:author" content="Sunny Rathor">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Where to Aim on the 12th at Augusta",
+  "description": "Five simulated tee shots at Augusta National's 12th, landed by the 003 model and staged tier by tier. The aim point for your handicap, and where the sucker pin hides.",
+  "image": "https://doglegdata.com/assets/img/003_hero.png",
+  "datePublished": "2026-09-07",
+  "author": {
+    "@type": "Person",
+    "name": "Sunny Rathor",
+    "jobTitle": "Founder, Dogleg Data",
+    "sameAs": ["https://x.com/DoglegData", "https://www.linkedin.com/in/sunnyrathor"]
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Dogleg Data",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://doglegdata.com/assets/brand/avatar-512.png"
+    }
+  },
+  "mainEntityOfPage": "https://doglegdata.com/augusta-12/"
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="stylesheet" href="hero.css">
+<style>
+/* ---------- post page, scoped under .post (mirrors the 002 page) ---------- */
+.post .article-header{max-width:72ch;margin-bottom:28px;}
+.post .article-header .kicker{display:block;margin-bottom:14px;}
+.post .article-header h1{margin-bottom:14px;}
+.post .article-header .dek{
+  font-size:17px;
+  color:var(--ink-soft);
+  max-width:60ch;
+  line-height:1.6;
+  margin-bottom:18px;
+}
+.post .article-header .byline{
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink-soft);
+  letter-spacing:.02em;
+  padding-top:14px;
+  border-top:1px solid var(--line);
+}
+.post .article-header .byline .sep{margin:0 8px;color:var(--line);}
+</style>
+</head>
+<body class="post">
+<div class="wrap">
+
+<header class="site-header">
+  <div class="header-row">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dogleg Data mark">
+        <path d="M8 28 V14 Q8 8 14 8 H21" fill="none" stroke="#1C1B18" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="26" cy="8" r="3.5" fill="#C05A36"/>
+      </svg>
+      <a class="wordmark" href="../index.html">Dogleg Data</a>
+      <span class="tagline">Play the percentages</span>
+    </div>
+    <nav class="site-nav" aria-label="Primary">
+      <a aria-current="page">Analyses</a>
+      <a href="tool.html">Tools</a>
+      <a href="../about/index.html">About</a>
+      <a href="../cite/index.html">Cite</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <article>
+
+    <div class="article-header">
+      <span class="kicker">Analysis Nº 003</span>
+      <h1>Where to Aim on the 12th at Augusta</h1>
+      <p class="dek">Golden Bell plays 155 yards and it still eats cards alive. I ran the tee shot through the same aim-point model as release 002: five simulated swings, one dispersion oval per tier, and the pin that turns a wedge into a bogey.</p>
+      <div class="byline">Sunny Rathor · Founder, Dogleg Data<span class="sep">·</span>Draft, chapters land in 003.8</div>
+    </div>
+
+    <section class="hero-scene" id="hero-scene">
+      <div class="hero-canvas-wrap" id="hero-canvas-wrap">
+        <canvas id="hero-canvas" role="img" aria-label="Animated illustration of five simulated tee shots on Augusta National's 12th hole, landing in the green, a bunker, Rae's Creek, and short-sided of the pin"></canvas>
+        <div class="hero-legend" id="hero-legend" hidden>
+          <div class="legend-title">Outcome</div>
+          <ul>
+            <li><svg class="swatch" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--ink)"/></svg>Green</li>
+            <li><svg class="swatch" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--clay)" stroke="var(--ink)" stroke-width="1"/></svg>Bunker</li>
+            <li><svg class="swatch" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--blue-text)" stroke-width="1.5"/><circle cx="7" cy="7" r="2" fill="none" stroke="var(--blue-text)" stroke-width="1"/></svg>Water</li>
+            <li><svg class="swatch" viewBox="0 0 14 14"><rect x="2.5" y="2.5" width="9" height="9" fill="var(--card)" stroke="var(--maroon)" stroke-width="1.5"/></svg>Short-sided</li>
+            <li><svg class="swatch" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="var(--muted)"/></svg>Long</li>
+          </ul>
+          <ul class="shot-legend" id="hero-shot-legend-list"></ul>
+        </div>
+      </div>
+      <div class="hero-caption-row">
+        <p class="hero-caption">Five shots from the model, tier and aim labeled. Landings from the 003 simulation.</p>
+        <button type="button" class="hero-replay" id="hero-replay">Replay</button>
+      </div>
+    </section>
+
+    <div class="article-body">
+
+      <!-- chapters: 003.8 -->
+      <!-- Scrollytelling chapters land here: per-tier aim point, the sucker pin
+           read, and the short-sided cost, walking the reader down the fairway
+           the hero showed them. -->
+
+      <!-- the move: 003.8 -->
+      <!-- "The move" verdict section lands here, same shape as the 002 page's
+           closing verdict block: the aim point call per tier, stated in plain terms. -->
+
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <div class="footer-copy">
+      <p>Dogleg Data tests golf's conventional wisdom against real data for the mid-to-high handicap golfer. Each analysis names its sources and labels anything modeled.</p>
+      <div class="footer-social">
+        <a href="https://x.com/DoglegData" target="_blank" rel="noopener" title="X">X</a>
+        <a href="https://www.linkedin.com/in/sunnyrathor" target="_blank" rel="noopener" title="LinkedIn">LinkedIn</a>
+        <a href="mailto:sunny@doglegdata.com" title="Email">Email</a>
+      </div>
+      <p class="footer-cite">Podcast or video? <a href="../cite/index.html">Every chart is free to use with credit.</a></p>
+    </div>
+    <img class="footer-mascot" src="../assets/brand/mascot-run.png" width="344" height="175" alt="Dogleg Data mascot dachshund, mid-run">
+  </div>
+  <div class="copyright">&copy; 2026 Dogleg Data &middot; Play the percentages.</div>
+  <div class="footer-quip">The dog legs. The data doesn't.</div>
+</footer>
+
+</div>
+<script src="hero.js" defer></script>
+</body>
+</html>
