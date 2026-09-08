@@ -1,6 +1,6 @@
 {
  "schema": "dogleg-003-manifest/1",
- "generated_from": "analysis/003-augusta-12 @ 4902552",
+ "generated_from": "analysis/003-augusta-12 @ 25b5580",
  "camera": {
   "canvas": {
    "width": 1600,
@@ -1523,15 +1523,27 @@
     "y": -3.0
    },
    "landing": {
-    "x": -6.2452,
-    "y": 194.4582
+    "x": 12.4566,
+    "y": 135.179
    },
-   "region": "long_trouble",
-   "short_sided": true,
-   "outcome_class": "short_sided",
+   "region": "creek",
+   "short_sided": false,
+   "outcome_class": "water",
+   "distance_from_pin_yd": 27.5387,
    "expected_score_at_aim": 4.3483,
    "seed": 15001,
-   "sample_index": 0
+   "n_samples": 2000,
+   "n_in_class": 758,
+   "sample_index": 750,
+   "class_frequencies": {
+    "bunker": 0.035,
+    "green": 0.231,
+    "greenside_rough": 0.009,
+    "long": 0.002,
+    "short_sided": 0.344,
+    "water": 0.379
+   },
+   "selection_rule": "medoid: drew 2000 seeded Monte Carlo samples at this shot's (tier, pin, wind, aim); kept the 758 classified as outcome_class 'water'; the landing is the kept sample nearest (Euclidean distance, yards) to that subset's centroid."
   },
   {
    "id": "safe_center",
@@ -1550,15 +1562,27 @@
     "y": -3.0
    },
    "landing": {
-    "x": -3.6339,
-    "y": 153.0072
+    "x": -0.056,
+    "y": 157.8646
    },
    "region": "green",
    "short_sided": false,
    "outcome_class": "green",
+   "distance_from_pin_yd": 10.1734,
    "expected_score_at_aim": 4.288,
    "seed": 15002,
-   "sample_index": 7
+   "n_samples": 2000,
+   "n_in_class": 594,
+   "sample_index": 1495,
+   "class_frequencies": {
+    "bunker": 0.0475,
+    "green": 0.297,
+    "greenside_rough": 0.03,
+    "long": 0.008,
+    "short_sided": 0.2935,
+    "water": 0.324
+   },
+   "selection_rule": "medoid: drew 2000 seeded Monte Carlo samples at this shot's (tier, pin, wind, aim); kept the 594 classified as outcome_class 'green'; the landing is the kept sample nearest (Euclidean distance, yards) to that subset's centroid."
   },
   {
    "id": "draw",
@@ -1577,15 +1601,26 @@
     "y": -3.0
    },
    "landing": {
-    "x": -10.7815,
-    "y": 139.7375
+    "x": -0.3045,
+    "y": 157.5468
    },
    "region": "green",
    "short_sided": false,
    "outcome_class": "green",
+   "distance_from_pin_yd": 2.5649,
    "expected_score_at_aim": 3.8828,
    "seed": 10003,
-   "sample_index": 3
+   "n_samples": 2000,
+   "n_in_class": 693,
+   "sample_index": 1766,
+   "class_frequencies": {
+    "bunker": 0.047,
+    "green": 0.3465,
+    "greenside_rough": 0.045,
+    "long": 0.3675,
+    "water": 0.194
+   },
+   "selection_rule": "medoid: drew 2000 seeded Monte Carlo samples at this shot's (tier, pin, wind, aim); kept the 693 classified as outcome_class 'green'; the landing is the kept sample nearest (Euclidean distance, yards) to that subset's centroid."
   },
   {
    "id": "fade",
@@ -1604,15 +1639,27 @@
     "y": -3.0
    },
    "landing": {
-    "x": 9.5716,
-    "y": 208.8582
+    "x": 8.2764,
+    "y": 188.3081
    },
-   "region": "long_trouble",
+   "region": "long_rough",
    "short_sided": true,
    "outcome_class": "short_sided",
+   "distance_from_pin_yd": 25.8182,
    "expected_score_at_aim": 4.2043,
    "seed": 10004,
-   "sample_index": 0
+   "n_samples": 2000,
+   "n_in_class": 691,
+   "sample_index": 1131,
+   "class_frequencies": {
+    "bunker": 0.0385,
+    "green": 0.268,
+    "greenside_rough": 0.0105,
+    "long": 0.0005,
+    "short_sided": 0.3455,
+    "water": 0.337
+   },
+   "selection_rule": "medoid: drew 2000 seeded Monte Carlo samples at this shot's (tier, pin, wind, aim); kept the 691 classified as outcome_class 'short_sided'; the landing is the kept sample nearest (Euclidean distance, yards) to that subset's centroid."
   },
   {
    "id": "under_clubbed",
@@ -1631,15 +1678,26 @@
     "y": -3.0
    },
    "landing": {
-    "x": 0.6372,
-    "y": 126.5754
+    "x": 3.2079,
+    "y": 119.1803
    },
    "region": "creek",
    "short_sided": false,
    "outcome_class": "water",
+   "distance_from_pin_yd": 35.963,
    "expected_score_at_aim": 4.2784,
    "seed": 20005,
-   "sample_index": 1
+   "n_samples": 2000,
+   "n_in_class": 905,
+   "sample_index": 1839,
+   "class_frequencies": {
+    "bunker": 0.041,
+    "green": 0.23,
+    "greenside_rough": 0.0495,
+    "long": 0.227,
+    "water": 0.4525
+   },
+   "selection_rule": "medoid: drew 2000 seeded Monte Carlo samples at this shot's (tier, pin, wind, aim); kept the 905 classified as outcome_class 'water'; the landing is the kept sample nearest (Euclidean distance, yards) to that subset's centroid."
   }
  ],
  "scatter": {

@@ -9,7 +9,12 @@
     to reproduce art/sketch.py's projection in JS, hole geometry in model
     yards, five curated shot arcs (aim, landing, outcome), and a 1000-point
     Monte Carlo scatter per shot's own scenario. Every landing point comes
-    from the model; nothing is hand-placed.
+    from the model; nothing is hand-placed. Each shot's landing is the
+    medoid of its outcome class: 2000 seeded samples are drawn at the
+    shot's own (tier, pin, wind, aim), classified into outcome classes, and
+    the sample nearest the centroid of its class is kept, so the curated
+    arc shows a typical member of the class rather than a random (possibly
+    tail) one.
 
 Neither file touches data.py, model.py, optimizer.py, montecarlo.py, or the
 results CSV -- this module only reads them. The two JSON blobs are the
@@ -20,6 +25,7 @@ import json
 import os
 import subprocess
 import sys
+from collections import Counter
 
 import numpy as np
 
@@ -546,7 +552,11 @@ SHOT_SPECS = [
         "tier": 15, "pin": "sunday", "wind": False,
         "aim": None,  # resolved to the pin itself below
         "shape": "straight", "curve_yd": 0,
-        "outcome_predicate": lambda region, ss: region in ("front_bunker", "back_bunker", "creek") or ss,
+        # "mode_nongreen": the outcome class is not fixed in advance. It is
+        # the most frequent non-green class among the shot's own sampled
+        # population, resolved in _select_medoid_landing and disclosed via
+        # the manifest's outcome_class / class_frequencies fields.
+        "designated_class": "mode_nongreen",
         "seed": 15001,
     },
     {
@@ -554,7 +564,7 @@ SHOT_SPECS = [
         "tier": 15, "pin": "sunday", "wind": False,
         "aim": "csv_optimum",
         "shape": "straight", "curve_yd": 0,
-        "outcome_predicate": lambda region, ss: region == "green",
+        "designated_class": "green",
         "seed": 15002,
     },
     {
@@ -562,7 +572,7 @@ SHOT_SPECS = [
         "tier": 10, "pin": "center", "wind": False,
         "aim": "csv_optimum",
         "shape": "draw", "curve_yd": -4,
-        "outcome_predicate": lambda region, ss: region == "green",
+        "designated_class": "green",
         "seed": 10003,
     },
     {
@@ -570,7 +580,7 @@ SHOT_SPECS = [
         "tier": 10, "pin": "sunday", "wind": False,
         "aim": None,  # the pin itself
         "shape": "fade", "curve_yd": 4,
-        "outcome_predicate": lambda region, ss: region in ("front_bunker", "back_bunker") or ss,
+        "designated_class": "mode_nongreen",
         "seed": 10004,
     },
     {
@@ -578,7 +588,7 @@ SHOT_SPECS = [
         "tier": 20, "pin": "center", "wind": False,
         "aim": "carry_short_8",
         "shape": "straight", "curve_yd": 0,
-        "outcome_predicate": lambda region, ss: region == "creek",
+        "designated_class": "water",
         "seed": 20005,
     },
 ]
@@ -608,16 +618,15 @@ def _classify_outcome(region, short_sided):
     return region
 
 
-SHOT_DRAW_MAX_SAMPLES = 200_000
+MEDOID_N_SAMPLES = 2000
 
 
-def _draw_landing(tier, pin, aim, wind, predicate, seed, max_samples=SHOT_DRAW_MAX_SAMPLES):
-    """First seeded Monte Carlo sample (same distributions
-    montecarlo.simulate_amateur draws) at (tier, pin, aim, wind) whose
-    region_at classification satisfies `predicate`. Returns
-    (x, y, region, short_sided, sample_index) so the manifest can disclose
-    exactly which draw was used and the choice is reproducible from the
-    recorded seed alone."""
+def _sample_landings(tier, pin, aim, wind, seed, n_samples):
+    """(xs, ys): n_samples seeded Monte Carlo landings at (tier, pin, aim,
+    wind) -- the same distributions montecarlo.simulate_amateur draws,
+    drawn ys-then-xs from one rng so the sequence is reproducible from the
+    seed alone (tests/test_export.py's reproducibility test replays this
+    exact call)."""
     rng = np.random.default_rng(seed)
     sigma_d, sigma_l = model.oval_for_tier(tier)
     mean_shift_y = 0.0
@@ -626,25 +635,95 @@ def _draw_landing(tier, pin, aim, wind, predicate, seed, max_samples=SHOT_DRAW_M
         sigma_d = sigma_d * data.WIND["dispersion_inflation"]
         sigma_l = sigma_l * data.WIND["dispersion_inflation"]
     mean_x, mean_y = aim[0], aim[1] + mean_shift_y
-    ys = rng.normal(mean_y, sigma_d, max_samples)
-    xs = rng.normal(mean_x, sigma_l, max_samples)
-    for i in range(max_samples):
+    ys = rng.normal(mean_y, sigma_d, n_samples)
+    xs = rng.normal(mean_x, sigma_l, n_samples)
+    return xs, ys
+
+
+def _select_medoid_landing(tier, pin, aim, wind, designated_class, seed, n_samples=MEDOID_N_SAMPLES):
+    """Curated-shot landing selection (issue #10 fix): draw n_samples seeded
+    Monte Carlo samples at (tier, pin, aim, wind), classify each one with
+    model.region_at + _classify_outcome, resolve the shot's outcome class,
+    then return the in-class sample nearest (Euclidean, yards) to that
+    subset's centroid -- the medoid -- instead of the first sample that
+    happened to match. The first-match rule picked whatever tail event the
+    seed drew first; the medoid is the typical member of the class.
+
+    `designated_class` is either a fixed class ("green", "water") or the
+    sentinel "mode_nongreen", meaning the class is not chosen in advance:
+    it is the most frequent non-green class actually drawn, so a pin-seeking
+    shot's miss bucket (short-sided, bunker, long, ...) is disclosed by the
+    sample rather than assumed.
+
+    Returns a dict: x, y, region, short_sided, outcome_class, sample_index
+    (index into this draw, so seed + sample_index reproduces the landing),
+    n_samples, n_in_class, class_frequencies (sampled share of every class
+    drawn, keyed by class name), and selection_rule (a prose disclosure
+    string stored in the manifest).
+    """
+    xs, ys = _sample_landings(tier, pin, aim, wind, seed, n_samples)
+    regions = [None] * n_samples
+    short_sideds = [None] * n_samples
+    classes = [None] * n_samples
+    for i in range(n_samples):
         region, short_sided = model.region_at(float(xs[i]), float(ys[i]), pin)
-        if predicate(region, short_sided):
-            return float(xs[i]), float(ys[i]), region, short_sided, i
-    raise RuntimeError(f"no sample matched predicate within {max_samples} draws "
-                        f"(tier={tier} pin={pin} aim={aim} wind={wind} seed={seed})")
+        regions[i] = region
+        short_sideds[i] = short_sided
+        classes[i] = _classify_outcome(region, short_sided)
+
+    counts = Counter(classes)
+    class_frequencies = {cls: round(count / n_samples, 4) for cls, count in sorted(counts.items())}
+
+    if designated_class == "mode_nongreen":
+        nongreen_counts = {cls: c for cls, c in counts.items() if cls != "green"}
+        if not nongreen_counts:
+            raise RuntimeError(f"no non-green samples drawn for tier={tier} pin={pin} "
+                                f"aim={aim} wind={wind} seed={seed} n_samples={n_samples}")
+        # Ties broken alphabetically for determinism; at n_samples=2000 an
+        # exact tie between two miss classes is not expected in practice.
+        outcome_class = max(sorted(nongreen_counts), key=lambda c: nongreen_counts[c])
+    else:
+        outcome_class = designated_class
+
+    in_class_idx = [i for i in range(n_samples) if classes[i] == outcome_class]
+    n_in_class = len(in_class_idx)
+    if n_in_class == 0:
+        raise RuntimeError(f"no samples classified as {outcome_class!r} for tier={tier} pin={pin} "
+                            f"aim={aim} wind={wind} seed={seed} n_samples={n_samples}")
+
+    centroid_x = float(np.mean([xs[i] for i in in_class_idx]))
+    centroid_y = float(np.mean([ys[i] for i in in_class_idx]))
+    medoid_i = min(in_class_idx, key=lambda i: (xs[i] - centroid_x) ** 2 + (ys[i] - centroid_y) ** 2)
+
+    return {
+        "x": float(xs[medoid_i]),
+        "y": float(ys[medoid_i]),
+        "region": regions[medoid_i],
+        "short_sided": short_sideds[medoid_i],
+        "outcome_class": outcome_class,
+        "sample_index": medoid_i,
+        "n_samples": n_samples,
+        "n_in_class": n_in_class,
+        "class_frequencies": class_frequencies,
+        "selection_rule": (
+            f"medoid: drew {n_samples} seeded Monte Carlo samples at this shot's "
+            f"(tier, pin, wind, aim); kept the {n_in_class} classified as "
+            f"outcome_class '{outcome_class}'; the landing is the kept sample "
+            "nearest (Euclidean distance, yards) to that subset's centroid."
+        ),
+    }
 
 
 def build_shots(results):
     shots = []
     for i, spec in enumerate(SHOT_SPECS):
         aim = _resolve_aim(spec, results)
-        x, y, region, short_sided, sample_index = _draw_landing(
-            spec["tier"], spec["pin"], aim, spec["wind"], spec["outcome_predicate"], spec["seed"]
+        selection = _select_medoid_landing(
+            spec["tier"], spec["pin"], aim, spec["wind"], spec["designated_class"], spec["seed"]
         )
-        outcome_class = _classify_outcome(region, short_sided)
         expected_score_at_aim = model.expected_score(spec["tier"], spec["pin"], aim, wind=spec["wind"])
+        pin_x, pin_y = data.PINS[spec["pin"]]["x"], data.PINS[spec["pin"]]["y"]
+        distance_from_pin_yd = round(float(np.hypot(selection["x"] - pin_x, selection["y"] - pin_y)), 4)
         shots.append({
             "id": spec["id"],
             "label": spec["label"],
@@ -655,13 +734,18 @@ def build_shots(results):
             "shape": spec["shape"],
             "curve_yd": spec["curve_yd"],
             "tee": {"x": round(float(_TEE_XS_YD[i]), 4), "y": round(float(_TEE_Y_YD), 4)},
-            "landing": {"x": round(x, 4), "y": round(y, 4)},
-            "region": region,
-            "short_sided": short_sided,
-            "outcome_class": outcome_class,
+            "landing": {"x": round(selection["x"], 4), "y": round(selection["y"], 4)},
+            "region": selection["region"],
+            "short_sided": selection["short_sided"],
+            "outcome_class": selection["outcome_class"],
+            "distance_from_pin_yd": distance_from_pin_yd,
             "expected_score_at_aim": round(expected_score_at_aim, 4),
             "seed": spec["seed"],
-            "sample_index": sample_index,
+            "n_samples": selection["n_samples"],
+            "n_in_class": selection["n_in_class"],
+            "sample_index": selection["sample_index"],
+            "class_frequencies": selection["class_frequencies"],
+            "selection_rule": selection["selection_rule"],
         })
     return shots
 

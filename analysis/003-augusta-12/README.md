@@ -99,6 +99,15 @@ formula against the same file.
 **`outputs/003_manifest.json`** (`dogleg-003-manifest/1`): the camera
 constants needed to reproduce `art/sketch.py`'s projection in JavaScript,
 the hole's geometry in model yards, five curated shot arcs (aim, tee,
-landing, and outcome, each landing point drawn from a seeded Monte Carlo
-sample and disclosed by seed and sample index), and a 1,000-point scatter
-per shot's own scenario for the animation's background cloud.
+landing, and outcome), and a 1,000-point scatter per shot's own scenario
+for the animation's background cloud. Each shot's landing is the medoid of
+its outcome class, not a random member of it: `export.py` draws 2,000
+seeded samples at the shot's own tier, pin, wind, and aim, classifies each
+one, then keeps the landing nearest the centroid of the class the shot is
+meant to show. `safe_center` and `draw` are pinned to the `green` class and
+`under_clubbed` to `water`; `pin_hunter` and `fade` have no fixed class,
+since aiming at a pin can miss several ways, so their class is whichever
+non-green outcome came up most often among that shot's own samples. The
+manifest records the seed, sample count, in-class count, sample index,
+class frequencies, and a `selection_rule` string, so the pick is
+reproducible and disclosed rather than asserted.
