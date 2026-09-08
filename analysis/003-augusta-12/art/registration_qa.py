@@ -1,5 +1,16 @@
 """Registration QA for release 003's hero art candidates (issue #11).
 
+RETIRED (2026-09-08, issue #16): this script measures a candidate against
+sketch.py's stencil-camera coordinates (sketch_coords.json), the camera
+every round used through round five. Round six replaced that pipeline with
+a TPS camera fitted directly to the accepted painting (fit_tps.py), and the
+registration record for hero.png as shipped is that fit's own leave-one-out
+residual table, not this script's color-threshold check against a sketch
+the art is no longer asked to match. Kept in the repo for the historical
+record of rounds one through five (see art/README.md); do not run this
+against hero.png as a release gate. See art/README.md's "registration_qa.py
+is retired" note and "Round six, camera correction" for the current record.
+
 For each candidate in hero_candidates/:
 1. Builds an overlay PNG: the sketch blended at reduced opacity on top of the
    candidate, resized to the candidate's resolution, so a human can eyeball

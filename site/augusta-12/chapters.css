@@ -192,11 +192,14 @@
 }
 
 /* ---------- deterministic capture card (?chapter=N&step=M) ---------- */
+/* Every chapter section not the captured one, wherever it lives (inside
+   .chapters-root or, like "the move" and "method and sources", a later
+   sibling of it) -- plus every other page chrome section -- stays hidden,
+   so the only thing left on the cream page is the one card. */
 body.capture-mode .site-header,
 body.capture-mode .article-header,
 body.capture-mode .hero-scene,
-body.capture-mode .chapters-root > .chapter:not(.is-captured),
-body.capture-mode .the-move,
+body.capture-mode .chapter:not(.is-captured),
 body.capture-mode .site-footer{
   display:none !important;
 }
@@ -206,31 +209,40 @@ body.capture-mode .chapter.is-captured .chapter-scroll-inner{
 }
 body.capture-mode .chapter.is-captured .chapter-steps-col{display:none;}
 
+/* Native 1080x1350 CSS px, no post-hoc upscale: the social export screenshots
+   this element straight at deviceScaleFactor 1, so every dimension and type
+   size below is sized for the real output canvas, not a smaller card scaled
+   up afterward (the old 420px card, upscaled ~2.6x by export.mjs, is what
+   produced the soft type this replaces). Centered on the cream page via
+   body.capture-mode below. */
 .capture-card{
-  max-width:420px;
-  margin:24px auto;
+  width:1080px;
+  max-width:1080px;
+  height:1350px;
+  margin:0 auto;
   background:var(--card);
   border:1px solid var(--line);
   border-radius:var(--radius);
-  aspect-ratio:1080/1350;
+  overflow:hidden;
   display:flex;
   flex-direction:column;
-  padding:22px;
+  padding:56px;
+  box-sizing:border-box;
 }
 .capture-card .capture-kicker{
   font-family:var(--mono);
-  font-size:11px;
+  font-size:28px;
   letter-spacing:.12em;
   text-transform:uppercase;
   color:var(--clay-text);
-  margin-bottom:8px;
+  margin-bottom:20px;
 }
 .capture-card .capture-title{
   font-family:var(--serif);
   font-weight:700;
-  font-size:20px;
-  line-height:1.25;
-  margin-bottom:14px;
+  font-size:56px;
+  line-height:1.2;
+  margin-bottom:32px;
 }
 .capture-card .capture-figure{
   flex:1 1 auto;
@@ -238,24 +250,38 @@ body.capture-mode .chapter.is-captured .chapter-steps-col{display:none;}
   display:flex;
   align-items:center;
   justify-content:center;
+  overflow:hidden;
 }
-.capture-card .capture-figure canvas{width:100%;height:auto;}
+.capture-card .capture-figure canvas{max-width:100%;max-height:100%;width:auto;height:auto;display:block;}
 .capture-card .capture-caption{
   font-family:var(--sans);
-  font-size:14px;
+  font-size:34px;
   color:var(--ink-soft);
-  line-height:1.55;
-  margin-top:14px;
+  line-height:1.45;
+  margin-top:32px;
 }
 .capture-card .capture-wordmark{
   font-family:var(--mono);
-  font-size:10px;
+  font-size:22px;
   letter-spacing:.1em;
   text-transform:uppercase;
   color:var(--muted);
   margin-top:auto;
-  padding-top:12px;
+  padding-top:28px;
 }
+/* Plain block flow, not flex/grid: a flex or grid container's own sizing
+   algorithm for an aspect-ratio child with align/justify-items other than
+   stretch shrank the 1080px card well below its explicit width in testing.
+   Block flow plus the card's own margin:0 auto centers it exactly, with no
+   such interaction. */
+body.capture-mode{
+  min-height:100vh;
+  margin:0;
+  padding:48px 0;
+  background:var(--bg);
+}
+body.capture-mode .wrap{margin:0;padding:0;max-width:none;}
+body.capture-mode .chapters-root{margin:0;}
 
 /* ---------- cta-card / sources / closer (mirrors the 002 page) ---------- */
 .post .cta-card{

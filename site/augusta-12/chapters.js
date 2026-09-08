@@ -424,9 +424,16 @@ function buildCaptureCard(chapterEl, stepEl){
     '<div class="capture-wordmark">Dogleg Data · doglegdata.com/augusta-12</div>';
   document.body.insertBefore(card, document.body.firstChild);
 
+  // Native card is 1080 CSS px wide (see chapters.css); a 968px canvas
+  // (card width minus its 56px side padding) renders every figure at 1:1
+  // pixel density or better at the export's deviceScaleFactor 1 capture,
+  // never upscaled the way the old 640px canvas was inside the old 420px
+  // card (which the social export then upscaled again to 1080, softening
+  // it twice over).
+  var CAPTURE_CANVAS_PX = 968;
   var figureHost = card.querySelector(".capture-figure");
   var canvas = document.createElement("canvas");
-  canvas.width = 640; canvas.height = 640;
+  canvas.width = CAPTURE_CANVAS_PX; canvas.height = CAPTURE_CANVAS_PX;
   figureHost.appendChild(canvas);
   card.querySelector(".capture-caption").textContent = caption;
 

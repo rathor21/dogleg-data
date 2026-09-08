@@ -131,7 +131,15 @@ async function waitForPhaseComplete(page, timeoutMs, label) {
 async function captureHero(browser, baseUrl, outDir) {
   log("capturing hero animation (canvas.captureStream + MediaRecorder)");
   const page = await browser.newPage();
-  await page.setViewport({ width: 1600, height: 900, deviceScaleFactor: 1 });
+  // deviceScaleFactor 2: hero.js sizes the canvas backing store to
+  // cssWidth * devicePixelRatio, so this doubles the captured source
+  // resolution (the hero canvas renders at ~1132 CSS px wide inside the
+  // article column, which was the whole source for the portrait crop
+  // before -- at dpr 1 that gave a source narrower than the 1080px crop
+  // width, hence the softening issue-#16 QA flagged). At dpr 2 the source
+  // is ~2264px wide, comfortably above the 1920px floor the portrait cut
+  // wants before its own 1080-wide crop.
+  await page.setViewport({ width: 1600, height: 900, deviceScaleFactor: 2 });
   await page.goto(`${baseUrl}/augusta-12/`, { waitUntil: "networkidle0" });
 
   await page.waitForSelector("#hero-canvas");
@@ -292,8 +300,21 @@ function transcodeHero(webmPath, outDir) {
 // ---------------------------------------------------------------
 // Carousel
 // ---------------------------------------------------------------
+// Only chapters with a step-driven figure (chapters.js's own .step /
+// data-figure contract) ever call buildCaptureCard, which is the one place
+// that adds body.capture-mode -- chapter 6 (a plain prose chapter) and
+// chapter 8 ("the move," a different, non-scrolly layout) never do. Before
+// this check, page.$(".chapter-figure") for those two chapters silently
+// matched *some other chapter's* inline figure (whichever renders first in
+// document order on the un-captured page), and this script then force-
+// resized that wrong image up to 1080x1350 and shipped it as if it were the
+// requested chapter's card. Gating every fallback selector on capture-mode
+// having actually engaged turns that into a clean "no element" result, so
+// the caller falls back to the chapter's own standinUrl instead.
 async function findCardElement(page, selectorList) {
   if (!selectorList) return null;
+  const captured = await page.evaluate(() => document.body.classList.contains("capture-mode"));
+  if (!captured) return null;
   const selectors = selectorList.split(",").map((s) => s.trim()).filter(Boolean);
   for (const sel of selectors) {
     const el = await page.$(sel);
@@ -302,16 +323,23 @@ async function findCardElement(page, selectorList) {
   return null;
 }
 
-// The chapter card contract lays the card out at a smaller CSS size (its own
-// max-width, the right 1080:1350 aspect ratio) rather than filling the
-// 1080x1350 viewport, so an element screenshot comes back at its native,
-// smaller pixel size. Scale it up to the exact card dimensions LinkedIn
-// wants rather than depending on a particular CSS max-width staying in sync
-// with this script.
+// As of issue #16, the chapter card contract lays the card out at its real
+// 1080x1350 CSS px (chapters.css), so an element screenshot at
+// deviceScaleFactor 1 already comes back at the exact target size -- no
+// upscale needed, which is the fix for the soft type this pass found (the
+// old 420px card was upscaled ~2.6x here, softening it). This stays as a
+// safety net only: it no-ops when the size already matches, and only
+// resizes (logging so a regression is visible) if some future change to
+// chapters.css's own card width drifts from 1080x1350 again.
 async function ensureCardDimensions(filePath, targetW, targetH) {
   const buf = await readFile(filePath);
   const dims = pngDimensions(buf);
   if (dims && dims.width === targetW && dims.height === targetH) return;
+  log(
+    `WARNING: ${path.basename(filePath)} came back at ${dims ? `${dims.width}x${dims.height}` : "an unreadable size"}, ` +
+      `not the expected ${targetW}x${targetH} -- resizing rather than shipping a mismatched card. ` +
+      `Check chapters.css's .capture-card width/aspect-ratio.`
+  );
   const tmp = `${filePath}.resize.png`;
   runFfmpeg(
     ["-y", "-i", filePath, "-vf", `scale=${targetW}:${targetH}`, tmp],
@@ -492,7 +520,7 @@ async function main() {
     log("---- carousel cards ----");
     results.forEach((r) => log(`  ${path.basename(r.file)} <- ${r.url}${r.standin ? " (stand-in: chapters section not present)" : ""}`));
     if (usedStandin) {
-      log("NOTE: one or more chapter cards used the ?settled=1&shot=N stand-in because site/augusta-12's chapters section (#13) is not built yet.");
+      log("NOTE: one or more chapter cards used the ?settled=1&shot=N stand-in. Expected for chapters 6 and 8 (a plain prose chapter and \"the move\" summary), neither of which has a step-driven figure to capture; unexpected for any other chapter.");
     }
     log("done.");
   } finally {
