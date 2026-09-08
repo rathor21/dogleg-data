@@ -43,7 +43,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # only to "not green" -- their actual class is data-driven (the most
 # frequent non-green class among that shot's own sampled population, see
 # export._select_medoid_landing), so any non-green class is a valid result.
-NONGREEN_CLASSES = {"bunker", "water", "short_sided", "long", "greenside_rough"}
+NONGREEN_CLASSES = {"bunker", "water", "short_sided", "long", "greenside_rough", "short"}
 DESIGNATED_OUTCOME_CLASSES = {
     "pin_hunter": NONGREEN_CLASSES,
     "safe_center": {"green"},
@@ -80,7 +80,7 @@ def test_grid_builder_matches_expected_score_unrounded():
     model.expected_score exactly (to 1e-6) at every 5th node in each axis,
     before the 4-decimal rounding the JSON file applies for storage."""
     for tier, pin, wind in ROUND_TRIP_COMBOS:
-        score, p_water, _p_green = export.build_grid_for_combo(tier, pin, wind)
+        score, p_water, _p_green, _p_short = export.build_grid_for_combo(tier, pin, wind)
         pin_x, pin_y = data.PINS[pin]["x"], data.PINS[pin]["y"]
         for ci in range(0, len(export.CARRY_AXIS), 5):
             for li in range(0, len(export.LATERAL_AXIS), 5):
@@ -282,7 +282,7 @@ def test_manifest_schema(exported):
     assert manifest["schema"] == "dogleg-003-manifest/1"
     assert len(manifest["shots"]) == 5
     assert set(manifest["region_codes"]) == {
-        "green", "front_bunker", "back_bunker", "creek",
+        "green", "front_bunker", "back_bunker", "creek", "short_fairway",
         "long_trouble", "long_rough", "greenside_rough",
     }
     for key, points in manifest["scatter"].items():

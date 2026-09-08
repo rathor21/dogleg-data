@@ -25,7 +25,7 @@ Two harnesses:
     play into an INTEGER score: the green leg draws an integer putt count
     from tour.tour_putt_probabilities' anchored (p1, p2, p3) distribution
     (see _sample_putts below, Anchor 8), and any recovery leg (bunker/rough/
-    creek/long_trouble) still uses stochastic rounding of its real-valued
+    creek/long_trouble/short_fairway) still uses stochastic rounding of its real-valued
     expected-strokes price (see _stochastic_round below), since no anchored
     discrete outcome distribution exists for those legs the way putting now
     has. Reports a real birdie/par/bogey/double-or-worse distribution, not
@@ -109,7 +109,7 @@ def _stochastic_round(mean_val, rng, n):
     """n integer draws whose sample mean converges to mean_val exactly in
     expectation: floor(mean_val) with probability 1-frac, floor(mean_val)+1
     with probability frac, frac = mean_val - floor(mean_val). Used for
-    recovery legs (bunker/rough/creek/long_trouble), which have no anchored
+    recovery legs (bunker/rough/creek/long_trouble/short_fairway), which have no anchored
     discrete outcome distribution the way putting now does (see
     _sample_putts below) -- only a real-valued expected-strokes price."""
     lo = np.floor(mean_val)
@@ -213,6 +213,11 @@ def simulate_tour_season(n=300_000, rng=None, pin_rotation=None, wind_frequency=
                     overshoot_yd = model._long_trouble_overshoot_yd(float(xi), float(yi), geom)
                     mean_leg = tour._tour_recovery_strokes(short_sided, sand=False, trouble=True,
                                                             overshoot_yd=overshoot_yd)
+                    leg = _stochastic_round(mean_leg, rng, 1)[0]
+                    sub_strokes[j] = 1.0 + leg
+                elif region == "short_fairway":
+                    far_short_yd = model._short_fairway_overshoot_yd(float(xi), float(yi), geom)
+                    mean_leg = tour._tour_recovery_strokes(short_sided, sand=False, far_short_yd=far_short_yd)
                     leg = _stochastic_round(mean_leg, rng, 1)[0]
                     sub_strokes[j] = 1.0 + leg
                 else:  # long_rough, greenside_rough

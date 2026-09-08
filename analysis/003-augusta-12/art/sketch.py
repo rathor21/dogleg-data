@@ -14,14 +14,17 @@ Every hazard boundary comes from the model itself:
 - the bunker locations come straight off data.HOLE's x-ranges and depths,
   anchored to the same edge functions.
 
-The one thing this file adds that data.py/model.py do not model: a physical
-creek WIDTH (model.py only carries a single front-edge line, since scoring
-only needs to know "short of the green" vs. "on it") and the pixel-space
-camera projection used to turn (x, y) yards into (px, py) screen
-coordinates. Both are ART-ONLY constants, called out below and recorded in
-sketch_coords.json's "projection" block, so later tickets can map model
-yards to art pixels without re-deriving this file's choices. Nothing in
-data.py or model.py is modified or reimplemented here.
+The one thing this file adds that data.py/model.py do not model: the
+pixel-space camera projection used to turn (x, y) yards into (px, py)
+screen coordinates -- an ART-ONLY constant block, called out below and
+recorded in sketch_coords.json's "projection" block, so later tickets can
+map model yards to art pixels without re-deriving this file's choices.
+CREEK_WIDTH_YD used to be a second, disconnected art-only figure (model.py
+carried only a single front-edge line, since scoring only needed to know
+"short of the green" vs. "on it"); the region-geometry fix now prices a
+finite creek band in model.region_at too, so this file reads the shared
+data.CREEK_WIDTH_YD instead of inventing its own. Nothing in data.py or
+model.py is modified or reimplemented here.
 
 Colors are drawn from the brand palette (.impeccable.md / Dogleg_Data_Brand_Spec.md)
 plus a small number of tan/cream variants in the same family, standing in
@@ -65,11 +68,14 @@ TEE_FILL = CREAM_CARD
 
 # ---------------------------------------------------------------------------
 # ART-ONLY constants: not in data.py/model.py, documented here and in
-# art/README.md. Creek width is a stylistic choice (the model only tracks a
-# single front-edge line); tee box extent is decorative foreground dressing.
+# art/README.md, EXCEPT CREEK_WIDTH_YD below, which now reads data.py's own
+# modeled figure instead of carrying a second, disconnected one. Tee box
+# extent is decorative foreground dressing.
 # ---------------------------------------------------------------------------
 
-CREEK_WIDTH_YD = 10.0        # ART-ONLY: physical width of Rae's Creek in the sketch
+CREEK_WIDTH_YD = data.CREEK_WIDTH_YD  # MODELED in data.py (region-geometry fix, this
+                                       # pass), range 4.0-8.0 yd; no longer a separate
+                                       # art-only figure
 TEE_BOX_HALF_WIDTH_YD = 7.0  # ART-ONLY: decorative tee box footprint
 TEE_BOX_BACK_YD = -6.0       # ART-ONLY: how far behind y=0 the tee box extends
 BUNKER_HALO_YD = 1.6         # ART-ONLY: shaved-bank halo margin around each bunker

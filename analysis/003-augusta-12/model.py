@@ -35,6 +35,17 @@ import data
 
 FT_PER_YD = 3.0
 
+# Single source of truth for region names (region-geometry fix, this pass):
+# montecarlo.py, tour.py, and export.py all branch on these names, so a new
+# region gets added here once rather than drifting across four files.
+# "short_fairway" is a pitch over Rae's Creek from the fairway short of the
+# creek-plus-bank band (see region_at's docstring) -- NOT water, priced as a
+# non-sand recovery leg, never the creek penalty.
+REGION_NAMES = (
+    "green", "front_bunker", "back_bunker", "creek", "short_fairway",
+    "long_trouble", "long_rough", "greenside_rough",
+)
+
 
 # ---------------------------------------------------------------------------
 # Step 2: anisotropy split (and its inverse, for the round-trip test).
@@ -168,13 +179,25 @@ def region_at(x, y, pin, *, green_width_yd=None, front_third_depth_yd=None):
     of THIS pin has little green to work with, CONTEXT.md's definition) and,
     downstream in _region_strokes, the distance-to-pin used for putts.
 
-    Returns (region, is_short_sided). region is one of "green",
-    "front_bunker", "back_bunker", "creek", "long_trouble", "long_rough",
-    "greenside_rough". "long_trouble" is a miss that clears the back bunkers
-    by data.LONG_TROUBLE_BUFFER_YD or more -- Anchor 3's azalea-lined ledge,
-    priced worse than plain rough (see _recovery_strokes) rather than folded
-    into "long_rough" at the same price, which previously let overclubbing
-    the green look like a free way to dodge the creek.
+    Returns (region, is_short_sided). region is one of model.REGION_NAMES:
+    "green", "front_bunker", "back_bunker", "creek", "short_fairway",
+    "long_trouble", "long_rough", "greenside_rough". "long_trouble" is a
+    miss that clears the back bunkers by data.LONG_TROUBLE_BUFFER_YD or
+    more -- Anchor 3's azalea-lined ledge, priced worse than plain rough
+    (see _recovery_strokes) rather than folded into "long_rough" at the
+    same price, which previously let overclubbing the green look like a
+    free way to dodge the creek.
+
+    "creek" is now a FINITE band short of the front edge (region-geometry
+    fix, this pass), not every yard back to the tee: Rae's Creek itself
+    (data.CREEK_WIDTH_YD) plus the shaved bank in front of it that rolls a
+    ball back into the water (data.BANK_ROLLBACK_YD, Anchor 3's 2019
+    Koepka/Molinari narrative). A non-bunker miss short of that combined
+    band is "short_fairway" -- a pitch over the creek from the short grass,
+    priced as a plain non-sand recovery leg, never the creek's drop-and-
+    replay penalty. Before this fix, every non-bunker miss short of the
+    front edge, however far short, was "creek," which overpriced a
+    27-yard-short 15-handicap miss on the Sunday pin as a water penalty.
     """
     if pin not in data.PINS:
         raise KeyError(f"unknown pin {pin!r}; expected one of {sorted(data.PINS)}")
@@ -201,7 +224,10 @@ def region_at(x, y, pin, *, green_width_yd=None, front_third_depth_yd=None):
         bunker_front = front_edge - data.HOLE["front_bunker_depth_yd"]
         if bunker_lo <= x <= bunker_hi and bunker_front <= y < front_edge:
             return "front_bunker", is_short_sided
-        return "creek", is_short_sided
+        creek_near_edge = front_edge - (data.CREEK_WIDTH_YD + data.BANK_ROLLBACK_YD)
+        if creek_near_edge <= y < front_edge:
+            return "creek", is_short_sided
+        return "short_fairway", is_short_sided
 
     if y > back_edge:
         bunker_back = back_edge + data.HOLE["back_bunker_depth_yd"]
@@ -281,9 +307,9 @@ def _green_strokes(tier, dist_to_pin_ft):
     return p1 + 2.0 * p2 + 3.0 * p3
 
 
-def _recovery_strokes(tier, is_short_sided, sand, trouble=False, overshoot_yd=0.0):
-    """Expected strokes to finish from a greenside miss (bunker, rough, or
-    long trouble).
+def _recovery_strokes(tier, is_short_sided, sand, trouble=False, overshoot_yd=0.0, far_short_yd=0.0):
+    """Expected strokes to finish from a greenside miss (bunker, rough,
+    long trouble, or short_fairway).
 
     data.UP_AND_DOWN_PCT (MODELED, Anchor 5) sets the split between a
     successful up-and-down (2 strokes: recovery shot + 1 putt) and a missed
@@ -309,6 +335,25 @@ def _recovery_strokes(tier, is_short_sided, sand, trouble=False, overshoot_yd=0.
     price keeps climbing with distance rather than plateauing, trending
     toward -- but never exceeding -- the same drop-and-replay-plus-recovery
     price already charged for finding the creek outright.
+
+    far_short_yd (short_fairway legs only, region-geometry fix): yards short
+    of the creek band's own near edge the miss sits. The same "flat price,
+    no interior minimum" defect #8 found on the long side reappears on the
+    short side if this leg's price never changes with distance: an
+    aim-point search would keep improving without bound the farther it
+    aimed short of the creek band (steadily lower odds of ever reaching the
+    green/creek/bunker mix), hitting optimizer.py's search-box edge at an
+    unrealistic ~45-yd layup rather than a genuine aim-point finding. A
+    recovery shot from well short of the green is a fuller approach, not a
+    greenside chip, so it should not keep the near-green "up-and-down in 2"
+    convention's benefit of the doubt the farther short it starts: deeper
+    far_short_yd fades this leg's up-and-down odds toward zero (an
+    exponential approach over data.SHORT_FAIRWAY_FALLOFF_YD, MODELED,
+    anchorless, sensitivity range data.SHORT_FAIRWAY_FALLOFF_YD_RANGE),
+    converging on data.MISSED_UP_AND_DOWN_STROKES -- the same "recovery
+    didn't work" ceiling every other leg already uses, not a new invented
+    price, and never a hazard-like price, since being farther from the
+    green on the fairway side of the creek is not a step toward the water.
     """
     updown = data.UP_AND_DOWN_PCT[tier]
     if not sand:
@@ -322,6 +367,10 @@ def _recovery_strokes(tier, is_short_sided, sand, trouble=False, overshoot_yd=0.
         hazard_like = _creek_strokes(tier, is_short_sided)
         blend = 1.0 - exp(-overshoot_yd / data.LONG_TROUBLE_FALLOFF_YD)
         e = e * (1.0 - blend) + hazard_like * blend
+    if far_short_yd > 0.0:
+        ceiling = data.MISSED_UP_AND_DOWN_STROKES * (data.SHORT_SIDE_PENALTY if is_short_sided else 1.0)
+        blend = 1.0 - exp(-far_short_yd / data.SHORT_FAIRWAY_FALLOFF_YD)
+        e = e * (1.0 - blend) + ceiling * blend
     return e
 
 
@@ -345,6 +394,19 @@ def _long_trouble_overshoot_yd(x, y, geom):
     return max(0.0, y - trouble_back)
 
 
+def _short_fairway_overshoot_yd(x, y, geom):
+    """Yards `y` sits short of region_at's creek-band near edge at lateral
+    position `x` (region_at's own creek_near_edge computation, duplicated
+    here for the same reason _long_trouble_overshoot_yd duplicates
+    trouble_back: region_at's return shape stays the stable two-value API
+    every caller depends on). Zero for any point at or past that edge
+    (i.e. inside the creek band or beyond); positive only for genuine
+    short_fairway points."""
+    front_edge = _front_edge_yd(x, geom)
+    creek_near_edge = front_edge - (data.CREEK_WIDTH_YD + data.BANK_ROLLBACK_YD)
+    return max(0.0, creek_near_edge - y)
+
+
 def _region_strokes(region, is_short_sided, tier, x, y, pin, *,
                      green_width_yd=None, front_third_depth_yd=None):
     if region == "green":
@@ -359,7 +421,12 @@ def _region_strokes(region, is_short_sided, tier, x, y, pin, *,
         geom = _resolve_geometry(green_width_yd, front_third_depth_yd)
         overshoot_yd = _long_trouble_overshoot_yd(x, y, geom)
         return _recovery_strokes(tier, is_short_sided, sand=False, trouble=True, overshoot_yd=overshoot_yd)
-    # long_rough, greenside_rough
+    if region == "short_fairway":
+        geom = _resolve_geometry(green_width_yd, front_third_depth_yd)
+        far_short_yd = _short_fairway_overshoot_yd(x, y, geom)
+        return _recovery_strokes(tier, is_short_sided, sand=False, far_short_yd=far_short_yd)
+    # long_rough, greenside_rough: a plain non-sand recovery leg, no penalty
+    # stroke.
     return _recovery_strokes(tier, is_short_sided, sand=False)
 
 

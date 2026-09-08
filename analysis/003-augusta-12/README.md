@@ -23,10 +23,14 @@ without that label.
 **model.py** turns a dispersion oval into an expected score. `oval_for_tier`
 splits a tier's isotropic miss radius into distance and line axes using the
 amateur anisotropy ratio. `region_at` classifies a landing point into an
-outcome region (green, bunker, creek, rough, or the ledge behind the back
-bunkers) using the hole's diagonal geometry. `score_for_oval` integrates a
-truncated bivariate normal over those regions on a product grid, pricing
-each region's outcome in expected strokes. `expected_score` is the public,
+outcome region (green, bunker, a finite creek band, the fairway short of
+that band, rough, or the ledge behind the back bunkers) using the hole's
+diagonal geometry. Rae's Creek is `data.CREEK_WIDTH_YD` plus
+`data.BANK_ROLLBACK_YD` wide, not every yard of short miss back to the tee;
+short of that band is `short_fairway`, a pitch over the water priced as a
+recovery leg, not a penalty drop. `score_for_oval` integrates a truncated
+bivariate normal over those regions on a product grid, pricing each
+region's outcome in expected strokes. `expected_score` is the public,
 tier-and-wind-aware wrapper other modules call.
 
 **tour.py** repeats the same construction for the PGA Tour tier, using its
@@ -68,8 +72,9 @@ directly.
 
 **art/sketch.py** builds the geometry sketch that stands in for camera
 registration: every hazard boundary comes from `model.py`'s own functions,
-with a handful of art-only constants (creek width, tee box footprint) and
-the pixel-space camera projection documented in its module docstring.
+with a handful of art-only constants (tee box footprint; creek width now
+reads `data.CREEK_WIDTH_YD` directly rather than carrying its own figure)
+and the pixel-space camera projection documented in its module docstring.
 `export.py`'s manifest reads this projection's constants directly so the
 site's JavaScript can reproduce it.
 

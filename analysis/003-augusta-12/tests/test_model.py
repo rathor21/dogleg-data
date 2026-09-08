@@ -158,16 +158,32 @@ def test_near_zero_dispersion_oval_off_green_matches_hazard_price():
 # 20-handicap.
 # ---------------------------------------------------------------------------
 
-def test_creek_edge_aim_worse_than_center_green_aim_for_20_handicap():
+def test_creek_edge_aim_worse_than_center_green_aim_for_low_dispersion_tiers():
+    # This directional check only holds for tiers whose distance dispersion
+    # is small relative to the creek band (data.CREEK_WIDTH_YD +
+    # data.BANK_ROLLBACK_YD, 9 yd default). Before the region-geometry fix
+    # (creek band finite, short_fairway priced as a plain recovery leg
+    # instead of the creek penalty), every non-bunker short miss was priced
+    # as the creek penalty however far short it landed, so this held for
+    # every tier. Tier 20's own distance sigma (~33.6 yd at the 155-yd
+    # shot) dwarfs the 9-yd band: most of its short misses now land in the
+    # cheap short_fairway region regardless of aim point, so aiming right
+    # at the creek's edge and aiming at the pin both mostly avoid the water,
+    # and the ordering this test checks is no longer guaranteed for that
+    # tier -- see VALIDATION_NOTES.md's creek-band-fix section for the
+    # tier-by-tier numbers (it flips at tier 10 and stays flipped through
+    # 20). Scratch and the 5-handicap tier, with much tighter dispersion,
+    # still show the expected direction cleanly.
     pin = "center"
     p = data.PINS[pin]
     geom = model._resolve_geometry()
     front_edge = model._front_edge_yd(0.0, geom)
     creek_aim = (0.0, front_edge - 1.0)
     pin_aim = (p["x"], p["y"])
-    s_creek = model.expected_score(20, pin, creek_aim)
-    s_pin = model.expected_score(20, pin, pin_aim)
-    assert s_creek > s_pin
+    for tier in (0, 5):
+        s_creek = model.expected_score(tier, pin, creek_aim)
+        s_pin = model.expected_score(tier, pin, pin_aim)
+        assert s_creek > s_pin, (tier, s_creek, s_pin)
 
 
 def test_better_tier_scores_better_at_every_pin():
@@ -296,8 +312,15 @@ def test_scratch_center_aim_expected_score_is_credible():
 
 
 def test_twenty_handicap_center_aim_expected_score_is_credible():
+    # Bound lowered from 4.0-4.6 to 3.85-4.6 (region-geometry fix, this
+    # pass): the old infinite-creek rule priced every short miss, however
+    # far short, as a penalty drop, inflating this score. A 20-handicap's
+    # own distance sigma (~33.6 yd) means most short misses now land in the
+    # cheap short_fairway region instead, landing at 3.945 -- still a
+    # believable price for a mediocre approach on a 155-yd hole, not the
+    # unrealistically cheap number an under-priced hazard would produce.
     s = model.expected_score(20, "center", (data.PINS["center"]["x"], data.PINS["center"]["y"]))
-    assert 4.0 < s < 4.6
+    assert 3.85 < s < 4.6
 
 
 def test_long_trouble_beyond_back_bunkers_prices_worse_than_plain_rough():
@@ -450,3 +473,110 @@ def test_twenty_handicap_needs_more_putts_than_scratch_at_every_distance():
 def test_tap_in_expected_putts_below_1point1_for_every_tier():
     for tier in data.TIERS:
         assert model._green_strokes(tier, 1.0) < 1.1, (tier, model._green_strokes(tier, 1.0))
+
+
+# ---------------------------------------------------------------------------
+# Region-geometry fix (this pass, #12): Rae's Creek is a finite band short
+# of the green's front edge (data.CREEK_WIDTH_YD + data.BANK_ROLLBACK_YD),
+# not every yard of short miss back to the tee. Before this fix,
+# model.region_at classified any non-bunker miss short of the front edge as
+# "creek," however far short, which overpriced a 15/20-handicap's ordinary
+# short miss as a water penalty. See model.region_at's docstring and
+# VALIDATION_NOTES.md's "Creek band fix (rev 4)" section for the full
+# before/after picture.
+# ---------------------------------------------------------------------------
+
+def test_one_yard_short_of_front_edge_is_creek():
+    # x offset outside the front bunker's lateral band (data.HOLE
+    # ["front_bunker_x_range"]) so a short miss here classifies purely on
+    # the creek-band boundary, not the bunker's own depth window.
+    pin = "center"
+    geom = model._resolve_geometry()
+    x = data.HOLE["front_bunker_x_range"][1] + 5.0
+    front_edge = model._front_edge_yd(x, geom)
+    region, _ = model.region_at(x, front_edge - 1.0, pin)
+    assert region == "creek"
+
+
+def test_past_the_creek_and_bank_band_is_short_fairway():
+    pin = "center"
+    geom = model._resolve_geometry()
+    x = data.HOLE["front_bunker_x_range"][1] + 5.0
+    front_edge = model._front_edge_yd(x, geom)
+    band = data.CREEK_WIDTH_YD + data.BANK_ROLLBACK_YD
+    region, _ = model.region_at(x, front_edge - (band + 1.0), pin)
+    assert region == "short_fairway"
+
+
+def test_finite_creek_band_scores_better_than_the_old_all_creek_rule():
+    # Monkeypatch the band out to 1000 yd (CREEK_WIDTH_YD=1000, BANK_
+    # ROLLBACK_YD=0) to reproduce the pre-fix rule -- every non-bunker short
+    # miss, however far short, priced as the creek penalty -- and confirm
+    # the fix's whole point: a 25-yd-short aim for a 20-handicap now scores
+    # strictly better than it did under that old rule.
+    pin = "center"
+    p = data.PINS[pin]
+    aim = (p["x"], p["y"] - 25.0)  # 25 yd short of the center pin
+    fixed_score = model.expected_score(20, pin, aim)
+    orig_creek, orig_bank = data.CREEK_WIDTH_YD, data.BANK_ROLLBACK_YD
+    try:
+        data.CREEK_WIDTH_YD, data.BANK_ROLLBACK_YD = 1000.0, 0.0
+        old_rule_score = model.expected_score(20, pin, aim)
+    finally:
+        data.CREEK_WIDTH_YD, data.BANK_ROLLBACK_YD = orig_creek, orig_bank
+    assert fixed_score < old_rule_score, (fixed_score, old_rule_score)
+
+
+def test_sunday_sucker_pin_thesis_still_holds_after_creek_band_fix():
+    # Restates test_sunday_sucker_pin_thesis_holds_for_marginal_tiers under
+    # this pass's own name: attacking the Sunday pin still costs more than
+    # bailing to the center of the green, for every marginal tier, with the
+    # creek band now finite rather than infinite.
+    for tier in (10, 15, 20):
+        at_pin = model.expected_score(tier, "sunday", (data.PINS["sunday"]["x"], data.PINS["sunday"]["y"]))
+        center_aim = model.expected_score(tier, "sunday", (data.PINS["center"]["x"], data.PINS["center"]["y"]))
+        assert center_aim < at_pin, (tier, at_pin, center_aim)
+
+
+def test_creek_band_width_sensitivity_on_sunday_verdict_label():
+    # Sweep CREEK_WIDTH_YD + BANK_ROLLBACK_YD across the combined
+    # sensitivity range (6-13 yd, the two constants' own stated ranges),
+    # holding BANK_ROLLBACK_YD at its default and varying CREEK_WIDTH_YD to
+    # hit each combined total. The Sunday-pin verdict label (bail/either
+    # works/attack) must not change at tiers 10/15/20, calm, across the
+    # sweep -- the sucker-pin finding should not be an artifact of exactly
+    # where this MODELED band sits. flip_set's own cheaper search settings
+    # (FLIP_SET_*) keep the sweep fast. See VALIDATION_NOTES.md for the
+    # recorded delta swing.
+    import optimizer
+
+    orig_creek, orig_bank = data.CREEK_WIDTH_YD, data.BANK_ROLLBACK_YD
+    bank = orig_bank
+    totals = (6.0, orig_creek + orig_bank, 13.0)
+    labels = {}
+    deltas = {}
+    try:
+        for total in totals:
+            data.CREEK_WIDTH_YD = total - bank
+            data.BANK_ROLLBACK_YD = bank
+            for tier in (10, 15, 20):
+                v = optimizer.optimize_aim(tier, "sunday", False,
+                                            n_grid=optimizer.FLIP_SET_N_GRID,
+                                            search_n_grid=optimizer.FLIP_SET_SEARCH_N_GRID,
+                                            coarse_step_yd=optimizer.FLIP_SET_COARSE_STEP_YD,
+                                            lateral_range_yd=optimizer.FLIP_SET_LATERAL_RANGE_YD,
+                                            carry_range_yd=optimizer.FLIP_SET_CARRY_RANGE_YD)
+                labels[(total, tier)] = optimizer.verdict_label(v)
+                deltas[(total, tier)] = v.delta
+    finally:
+        data.CREEK_WIDTH_YD, data.BANK_ROLLBACK_YD = orig_creek, orig_bank
+
+    for tier in (10, 15, 20):
+        tier_labels = {labels[(t, tier)] for t in totals}
+        assert tier_labels == {"bail"}, (tier, labels)
+
+    spread = max(deltas.values()) - min(deltas.values())
+    assert spread < 0.07, (
+        f"Sunday verdict delta swings {spread:.4f} strokes across the "
+        "creek-band sensitivity range, wider than expected"
+    )

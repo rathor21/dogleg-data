@@ -74,7 +74,7 @@ def _tour_green_strokes(dist_to_pin_ft):
     return p1 + 2.0 * p2 + 3.0 * p3
 
 
-def _tour_recovery_strokes(is_short_sided, sand, trouble=False, overshoot_yd=0.0):
+def _tour_recovery_strokes(is_short_sided, sand, trouble=False, overshoot_yd=0.0, far_short_yd=0.0):
     """Mirrors model._recovery_strokes exactly, using data.TOUR's own
     recovery rates instead of data.UP_AND_DOWN_PCT[tier] (Anchor 10, this
     pass: a bunker miss uses data.TOUR["sand_save_pct"], every other
@@ -94,7 +94,15 @@ def _tour_recovery_strokes(is_short_sided, sand, trouble=False, overshoot_yd=0.0
     TOUR_SAND_SAVE_PCT are now two directly anchored figures with the
     sand-vs-non-sand gap already built in (0.58 vs 0.50), so layering the
     amateur tier's own MODELED easing multiplier on top would double-count
-    that gap."""
+    that gap.
+
+    far_short_yd (short_fairway legs only, region-geometry fix): mirrors
+    model._recovery_strokes's own far_short_yd blend exactly, fading this
+    leg's up-and-down odds toward zero as distance short of the creek
+    band's own near edge grows (data.SHORT_FAIRWAY_FALLOFF_YD), converging
+    on data.TOUR["missed_up_and_down_strokes"] rather than a hazard-like
+    price -- the Tour-specific "recovery didn't work" ceiling, not the
+    shared amateur one."""
     updown = data.TOUR["sand_save_pct"] if sand else data.TOUR["scrambling_pct"]
     if trouble:
         updown = updown * data.LONG_TROUBLE_UPDOWN_MULT
@@ -105,6 +113,10 @@ def _tour_recovery_strokes(is_short_sided, sand, trouble=False, overshoot_yd=0.0
         hazard_like = _tour_creek_strokes(is_short_sided)
         blend = 1.0 - exp(-overshoot_yd / data.LONG_TROUBLE_FALLOFF_YD)
         e = e * (1.0 - blend) + hazard_like * blend
+    if far_short_yd > 0.0:
+        ceiling = data.TOUR["missed_up_and_down_strokes"] * (data.SHORT_SIDE_PENALTY if is_short_sided else 1.0)
+        blend = 1.0 - exp(-far_short_yd / data.SHORT_FAIRWAY_FALLOFF_YD)
+        e = e * (1.0 - blend) + ceiling * blend
     return e
 
 
@@ -129,7 +141,12 @@ def _tour_region_strokes(region, is_short_sided, x, y, pin, *,
         geom = model._resolve_geometry(green_width_yd, front_third_depth_yd)
         overshoot_yd = model._long_trouble_overshoot_yd(x, y, geom)
         return _tour_recovery_strokes(is_short_sided, sand=False, trouble=True, overshoot_yd=overshoot_yd)
-    # long_rough, greenside_rough
+    if region == "short_fairway":
+        geom = model._resolve_geometry(green_width_yd, front_third_depth_yd)
+        far_short_yd = model._short_fairway_overshoot_yd(x, y, geom)
+        return _tour_recovery_strokes(is_short_sided, sand=False, far_short_yd=far_short_yd)
+    # long_rough, greenside_rough: plain non-sand Tour scrambling rate
+    # (data.TOUR["scrambling_pct"]), no penalty stroke.
     return _tour_recovery_strokes(is_short_sided, sand=False)
 
 

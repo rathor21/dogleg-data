@@ -164,6 +164,64 @@ HOLE = {
 }
 
 # ---------------------------------------------------------------------------
+# Anchor 3 (region-geometry fix, this pass): Rae's Creek is a narrow band in
+# front of the green, not an infinite hazard covering every yard of short
+# miss back to the tee. Before this fix, model.region_at classified any
+# non-bunker miss short of the green's front edge as "creek," however far
+# short -- a 15-handicap ball 27 yards short of the Sunday pin (comfortably
+# in the fairway on the real hole) priced as a penalty drop. The creek_note
+# above's own narrative ("fed by a shaved bank off the front bunker") also
+# names a specific real feature this rule dropped: the 2019 tee shots that
+# clipped the bank rolled BACK into the water (Anchor 3's ANCHORED
+# narrative), so the band that counts as "creek" has to include that bank,
+# not just the wetted edge.
+#
+# CREEK_WIDTH_YD: the creek's own physical width. No source in the hunt
+# publishes a width for Rae's Creek at this hole -- MODELED, sensitivity
+# range stated below.
+#
+# BANK_ROLLBACK_YD: the shaved bank short of the creek that feeds a ball
+# back into the water (the 2019 Koepka/Molinari bank-and-roll-back
+# narrative, Anchor 3). A ball that lands on this bank does not stay dry;
+# it is priced the same as a ball that finds the creek outright. No source
+# publishes this bank's width either -- MODELED, sensitivity range stated
+# below.
+#
+# Together, CREEK_WIDTH_YD + BANK_ROLLBACK_YD is the total carry short of
+# the green's front edge that model.region_at still classifies as "creek";
+# anything short of that combined band is "short_fairway" (a pitch over the
+# water from the short grass, not a hazard).
+# ---------------------------------------------------------------------------
+
+CREEK_WIDTH_YD = 6.0        # MODELED, no published width in the log; range (4.0, 8.0)
+CREEK_WIDTH_YD_RANGE = (4.0, 8.0)
+BANK_ROLLBACK_YD = 3.0      # MODELED, the shaved bank short of the creek that returns balls to the water (Anchor 3 narrative); range (2.0, 5.0)
+BANK_ROLLBACK_YD_RANGE = (2.0, 5.0)
+
+# A flat short_fairway price with no distance term reproduces #8's exact
+# "no interior minimum" defect (module docstring in optimizer.py), now on
+# the SHORT side of the green instead of the long side: moving the aim
+# point farther short of the creek band monotonically improves expected
+# score (less and less of the distribution reaches the green/creek/bunker
+# mix), with no floor inside optimizer.py's search box, so an aim-point
+# search hits the box edge at an unrealistic ~45-yd layup -- a different
+# club, not a genuine aim-point finding on the shot this release models.
+#
+# A recovery shot from well short of the green is a fuller approach, not a
+# greenside chip: it should not keep the same "up-and-down in 2" convention
+# every other short-game leg gets credit for, the farther short it starts.
+# model._recovery_strokes fades that leg's up-and-down odds toward zero as
+# distance short of the creek band's own near edge grows (an exponential
+# approach over SHORT_FAIRWAY_FALLOFF_YD, the same functional form as
+# LONG_TROUBLE_FALLOFF_YD's existing long-side blend), converging on
+# MISSED_UP_AND_DOWN_STROKES -- the same "recovery didn't work" ceiling
+# every other leg already uses, not a new invented price. MODELED,
+# anchorless, matching LONG_TROUBLE_FALLOFF_YD's own disclosed-estimate
+# status; sensitivity range stated below.
+SHORT_FAIRWAY_FALLOFF_YD = 20.0        # MODELED, anchorless; sensitivity range (15.0, 30.0)
+SHORT_FAIRWAY_FALLOFF_YD_RANGE = (15.0, 30.0)
+
+# ---------------------------------------------------------------------------
 # Anchor 3's diagonal-slope hook: "the Sunday pin sits roughly 15 yards
 # deeper into the green than a front-left pin" describes a generic FRONT-left
 # reference position, not necessarily wherever this release places its own
@@ -359,6 +417,8 @@ SOURCES = {
     "WIND": {"log": "docs/sources/003_Source_Log.md#anchor-6", "status": "narrative anchor only; carry penalty and dispersion inflation modeled"},
     "THREE_PUTT_RATE": {"log": "docs/sources/003_Source_Log.md#anchor-5", "status": "published at 5/15/25; modeled (lsq) at 0/10/20"},
     "UP_AND_DOWN_PCT": {"log": "docs/sources/003_Source_Log.md#anchor-5", "status": "modeled, weakly-sourced (websearch synthesis, direct fetch failed 403)"},
+    "CREEK_WIDTH_YD": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, no published creek width; sensitivity range 4.0-8.0 yd"},
+    "BANK_ROLLBACK_YD": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, the shaved-bank rollback the 2019 Koepka/Molinari narrative describes; sensitivity range 2.0-5.0 yd"},
 }
 
 # ---------------------------------------------------------------------------

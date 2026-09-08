@@ -51,7 +51,11 @@ MANIFEST_PATH = os.path.join(OUT, "003_manifest.json")
 # prints), matching the spec's stated fallback axes exactly, so there is no
 # finer default to coarsen from. If a future change grows the file past
 # the ~2 MB budget, drop "p_green" first (kept last in each cell dict for
-# that reason) before touching the axes.
+# that reason) before touching the axes. build_grid_for_combo also computes
+# a "p_short" (short_fairway probability) grid per combo, cheap to compute
+# but NOT cheap to store: adding a fourth full grid per cell pushed the file
+# to ~2.27 MB, past budget, so it is returned to callers but not written
+# into the JSON cells (region-geometry fix, this pass).
 # ---------------------------------------------------------------------------
 
 LATERAL_MIN_YD, LATERAL_MAX_YD = -20.0, 20.0
@@ -72,6 +76,7 @@ REGION_CODES = {
     "long_trouble": 4,
     "long_rough": 5,
     "greenside_rough": 6,
+    "short_fairway": 7,
 }
 
 
@@ -214,7 +219,7 @@ def _recovery_leg_constants(tier):
 
 
 def build_grid_for_combo(tier, pin, wind, *, n_grid=GRID_N_GRID, n_std=GRID_N_STD):
-    """(score, p_water, p_green): the full (len(CARRY_AXIS) x
+    """(score, p_water, p_green, p_short): the full (len(CARRY_AXIS) x
     len(LATERAL_AXIS)) grids for one (tier, pin, wind) combo, in one
     vectorized pass.
 
@@ -277,7 +282,15 @@ def build_grid_for_combo(tier, pin, wind, *, n_grid=GRID_N_GRID, n_std=GRID_N_ST
     bunker_front_arr = front_edge_arr - data.HOLE["front_bunker_depth_yd"]
     m_front_bunker = (m_front_side & (XX >= bunker_lo) & (XX <= bunker_hi)
                       & (YY >= bunker_front_arr) & (YY < front_edge_arr))
-    m_creek = m_front_side & (~m_front_bunker)
+    # Finite creek band (region-geometry fix, this pass): only the strip
+    # between the front edge and CREEK_WIDTH_YD + BANK_ROLLBACK_YD short of
+    # it is "creek" -- mirrors model.region_at exactly. Anything short of
+    # that band, short of the pin's front side and not in the front bunker,
+    # is "short_fairway": a pitch over the water from the fairway, not a
+    # hazard. m_creek is NOT "everything short of the green" any more.
+    creek_near_edge_arr = front_edge_arr - (data.CREEK_WIDTH_YD + data.BANK_ROLLBACK_YD)
+    m_creek = m_front_side & (~m_front_bunker) & (YY >= creek_near_edge_arr)
+    m_short_fairway = m_front_side & (~m_front_bunker) & (YY < creek_near_edge_arr)
 
     bunker_back_arr = back_edge_arr + data.HOLE["back_bunker_depth_yd"]
     m_back_bunker = np.zeros_like(m_back_side)
@@ -324,16 +337,32 @@ def build_grid_for_combo(tier, pin, wind, *, n_grid=GRID_N_GRID, n_std=GRID_N_ST
     hazard_arr = np.where(is_short_sided, hazard_short, hazard_easy)
     long_trouble_strokes = e_arr * (1.0 - blend) + hazard_arr * blend
 
+    # short_fairway distance falloff (region-geometry fix): mirrors
+    # model._recovery_strokes's far_short_yd blend exactly -- fades this
+    # leg's up-and-down odds toward zero the farther short of the creek
+    # band's own near edge the miss sits, converging on MISSED_UP_AND_DOWN_
+    # STROKES (never a hazard-like price). Without this, a flat price with
+    # no distance term reproduces #8's "no interior minimum" defect on the
+    # short side of the green (see data.SHORT_FAIRWAY_FALLOFF_YD's comment).
+    far_short = np.maximum(0.0, creek_near_edge_arr - YY)
+    short_blend = 1.0 - np.exp(-far_short / data.SHORT_FAIRWAY_FALLOFF_YD)
+    ceiling_easy = data.MISSED_UP_AND_DOWN_STROKES
+    ceiling_short = data.MISSED_UP_AND_DOWN_STROKES * data.SHORT_SIDE_PENALTY
+    ceiling_arr = np.where(is_short_sided, ceiling_short, ceiling_easy)
+    short_fairway_strokes = rough_strokes * (1.0 - short_blend) + ceiling_arr * short_blend
+
     strokes = np.where(m_green, green_strokes, 0.0)
     strokes = np.where(m_creek, creek_strokes, strokes)
+    strokes = np.where(m_short_fairway, short_fairway_strokes, strokes)
     strokes = np.where(m_front_bunker | m_back_bunker, bunker_strokes, strokes)
     strokes = np.where(m_long_trouble, long_trouble_strokes, strokes)
     strokes = np.where(m_long_rough | m_greenside_rough, rough_strokes, strokes)
 
     score = 1.0 + (weight4d * strokes).sum(axis=(2, 3))
-    p_water = (weight4d * m_creek).sum(axis=(2, 3))
+    p_water = (weight4d * m_creek).sum(axis=(2, 3))  # short_fairway is explicitly excluded -- it is not water
     p_green = (weight4d * m_green).sum(axis=(2, 3))
-    return score, p_water, p_green
+    p_short = (weight4d * m_short_fairway).sum(axis=(2, 3))
+    return score, p_water, p_green, p_short
 
 
 def build_sandbox_grids(results=None):
@@ -372,7 +401,9 @@ def build_sandbox_grids(results=None):
     for tier in data.TIERS:
         for pin in data.PINS:
             for wind in (False, True):
-                score, p_water, p_green = build_grid_for_combo(tier, pin, wind)
+                # p_short (short_fairway probability) is intentionally not
+                # stored below -- see the module-level budget comment above.
+                score, p_water, p_green, _p_short = build_grid_for_combo(tier, pin, wind)
                 score_grid = np.round(score, 4).tolist()
                 water_grid = np.round(p_water, 4).tolist()
                 green_grid = np.round(p_green, 4).tolist()
@@ -611,6 +642,14 @@ def _classify_outcome(region, short_sided):
         return "water"
     if region in ("front_bunker", "back_bunker"):
         return "bunker"
+    if region == "short_fairway":
+        # Displayed on the site as "short of the creek" -- a pitch over
+        # Rae's Creek from the fairway, not a hazard outcome (region-
+        # geometry fix, this pass). Not folded into "short_sided": a
+        # short_fairway miss can still be short-sided (the pin's own
+        # front_frac rule applies here too), but the class name should
+        # read as "played short," not "trouble," either way.
+        return "short"
     if short_sided:
         return "short_sided"
     if region in ("long_trouble", "long_rough"):

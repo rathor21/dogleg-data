@@ -60,7 +60,7 @@ def test_optimizer_matches_center_aim_score_when_pin_is_center():
 # ---------------------------------------------------------------------------
 # Wind pushes the optimal aim farther from the Sunday pin.
 #
-# Empirically confirmed (not assumed): at tiers 5 and 10, aiming under wind
+# Empirically confirmed (not assumed): at tiers 5 and 15, aiming under wind
 # moves the optimal aim clearly farther from the Sunday pin than aiming in
 # calm air -- well above the search's own truncation-noise band. Both
 # dimensions widen under data.WIND (carry_penalty shortens the mean shot,
@@ -74,33 +74,29 @@ def test_optimizer_matches_center_aim_score_when_pin_is_center():
 # than the old invented `1.5 + 0.012*ft` floor assumed, which reshapes the
 # near-green portion of the score surface enough that scratch's windy
 # optimum now sits marginally CLOSER to the Sunday pin than its calm one
-# (confirmed by hand: 7.35 yd windy vs 8.22 yd calm) rather than farther --
-# the opposite direction from every other tier. This is a genuine change in
-# the model's own finding at this specific tier x pin combination, not a
-# search artifact; tiers 5/10/15/20 all still show the expected
-# wind-pushes-aim-farther direction post-fix, so the pair tested here moved
-# from (0, 10) to (5, 10) rather than dropping the check.
+# rather than farther -- the opposite direction from every other tier at
+# the time.
 #
-# Tier 20 is deliberately excluded here (unlike test_optimal_aim_moves_away_
-# from_pin_as_oval_widens_at_sunday above, which only needs the two extreme
-# tiers and so never hits this): after FIX 1's long_trouble falloff
-# reshaped the score surface, the tier-20 Sunday-pin surface both with and
-# without wind is genuinely near-flat across several yards in multiple
-# directions (confirmed by hand: candidate points 2-4 yd apart in the
-# neighborhood of each optimum score within ~0.005-0.01 strokes of each
-# other at n_grid=121, the same class of flat valley
-# test_optimum_stable_between_n_grid_81_and_121 already documents for
-# (15, "sunday", calm)) -- calm and windy land in different, comparably-
-# scored basins whose raw Euclidean distance from the pin differs by only
-# ~0.2 yd, well inside that noise band and in either direction depending on
-# search settings. Asserting a strict ordering there would be testing search
-# noise, not a real modeled effect; the qualitative "wind pushes the aim
-# farther out" conclusion is not well-determined at this specific tier x pin
-# combination, so this test does not claim it is.
+# Tier 10 moved out of the pair this pass (region-geometry fix, #12): the
+# finite creek band plus short_fairway's own distance falloff reshape the
+# short side of the Sunday-pin surface enough that tier 10's windy optimum
+# now sits marginally CLOSER to the pin than calm too (confirmed by hand at
+# n_grid=81 and 121: 20.5-21.9 yd windy vs 22.5-22.9 yd calm, a small but
+# consistent reversal, not resolution noise). Tier 15 replaces it: both
+# n_grid=81 and 121 show a large, consistent gap (calm ~18.4-18.6 yd, windy
+# ~29.5-29.6 yd), well above anything this test's other pairs treat as
+# noise.
+#
+# Tier 20 remains excluded (unlike test_optimal_aim_moves_away_from_pin_
+# as_oval_widens_at_sunday above, which only needs the two extreme tiers
+# and so never hits this): the windy optimum now sits close enough to
+# optimizer.py's search-box edge (see build_outputs.py's own boundary-hit
+# report after the region-geometry fix) that its exact distance from the
+# pin is a resolution/box-size artifact, not a stable modeled effect.
 # ---------------------------------------------------------------------------
 
 def test_wind_pushes_optimal_aim_farther_from_sunday_pin():
-    for tier in (5, 10):
+    for tier in (5, 15):
         calm = optimizer.optimize_aim(tier, "sunday", wind=False, n_grid=81)
         windy = optimizer.optimize_aim(tier, "sunday", wind=True, n_grid=81)
         assert _distance_from_pin(windy) > _distance_from_pin(calm), tier
@@ -232,28 +228,29 @@ def test_verdict_label_bail_either_works_or_attack_by_threshold():
 # Flip-set enumeration runs and its contents are asserted against a golden
 # snapshot.
 #
-# Re-taken after the Anchor-8 putting-curve fix (#9 follow-up: model.
-# putt_probabilities / tour.tour_putt_probabilities replace the invented
-# `1.5 + 0.012*ft` formula; see data.py's Anchor 8 block and VALIDATION_
-# NOTES.md). That fix changes every tier's near-green pricing, which moves
-# the flip-set again: (0, "left", False) and (15, "center", False) no
-# longer flip anywhere in the sensitivity rectangle, and -- new this pass --
-# (20, "sunday", True) now flips at the sweep's anisotropy=3.5 corner. At
-# TOSSUP_THRESHOLD_STROKES = 0.05 and the default corner-only sweep of the
-# anisotropy range (2.0-3.5) and the front-third-depth range (9-12 yd):
+# Re-taken after the region-geometry fix (#12: finite creek band plus
+# short_fairway, model.region_at/model._recovery_strokes). That fix removes
+# the old inflated, distance-independent water penalty for any short miss,
+# which was previously the dominant reason to bail off ANY pin (not just
+# Sunday). With that risk correctly priced down, the flip-set shrinks
+# sharply and its shape changes:
 #
-#   - "sunday" is still "bail" at every tier and wind state at the sweep's
-#     own MIDPOINT baseline (see test_flip_set_baseline_labels_sunday_
-#     always_bail_left_and_center_are_the_tossup_pins below, which checks
-#     baseline labels, not sensitivity extremes) -- reads as a trap at
-#     every tier, as CONTEXT.md's scoping expected. But it is no longer
-#     perfectly robust across the full sensitivity rectangle: at tier 20
-#     under wind, the anisotropy=3.5 corner (either front-third depth) now
-#     flips it to "either works," a real (small) crack in the "sunday never
-#     flips" finding introduced by the more accurate near-pin putting curve.
-#   - "left" and "center" remain genuinely close to the tossup line, tipped
-#     one way or the other by tier, wind, and the front-third-depth
-#     sensitivity corner, the same picture as before the putting fix.
+#   - "sunday" no longer flips ANYWHERE in the sensitivity rectangle
+#     (previously it cracked once, at (20, "sunday", True)'s anisotropy=3.5
+#     corner, under the pre-fix creek rule). Bailing off Sunday is now a
+#     MORE robust finding, not a less robust one: the old inflated risk
+#     applied diffusely to every pin, so removing it sharpens Sunday's own
+#     real risk relative to the other two rather than eroding it.
+#   - "left" and "center" both move toward "either works" as their
+#     baseline almost everywhere (see test_flip_set_baseline_labels_
+#     sunday_always_bail_left_and_center_are_the_tossup_pins below):
+#     without the old inflated short-miss penalty, attacking either pin
+#     directly costs barely more than the safest nearby alternative at
+#     most tiers, so only a few sensitivity-corner combinations still flip
+#     at all, mostly from "either works" baseline TO "bail" at the
+#     sensitivity rectangle's extreme corners (wide anisotropy or shallow
+#     front-third depth), the opposite direction from most of the pre-fix
+#     flip set.
 #
 # Confirmed via flip_set's own (cheaper) default settings, matching how the
 # function is actually used in practice; frozen here as the golden snapshot
@@ -265,43 +262,43 @@ def test_flip_set_runs_and_matches_golden_snapshot():
     flips = optimizer.flip_set()
     flips_by_key = {(f["tier"], f["pin"], f["wind"]): f for f in flips}
     assert set(flips_by_key) == {
-        (0, "center", False),
-        (5, "left", False), (5, "center", False),
-        (10, "left", False), (10, "center", False),
-        (15, "left", True),
-        (20, "center", True), (20, "sunday", True),
+        (0, "left", False), (0, "left", True), (0, "center", True),
+        (5, "left", False),
     }
-    # "sunday" now appears exactly once, at (20, True) -- see the comment
-    # above for why this is a real (small) post-putting-fix change, not a
-    # search artifact. It never flips at any other tier or wind state.
-    assert {(t, p, w) for (t, p, w) in flips_by_key if p == "sunday"} == {(20, "sunday", True)}
+    # "sunday" no longer appears at all -- see the comment above for why
+    # this is a real strengthening of the "sunday never flips" finding, not
+    # a search artifact.
+    assert {(t, p, w) for (t, p, w) in flips_by_key if p == "sunday"} == set()
 
-    # bail -> either works flips (low/mid tiers, plus wind cases at "left"
-    # and, new this pass, "sunday").
-    for key in [(0, "center", False), (5, "left", False),
-                (15, "left", True), (20, "sunday", True)]:
-        assert flips_by_key[key]["baseline_label"] == "bail"
-        assert {d["label"] for d in flips_by_key[key]["flipped_at"]} == {"either works"}
-
-    # either works -> bail flips (mid tiers, calm, plus one wind case at
-    # "center"), every one of them at the narrow 9-yd front-third-depth
-    # corner.
-    for key in [(5, "center", False), (10, "left", False),
-                (10, "center", False), (20, "center", True)]:
+    # either works -> bail flips (tier 0, at the sensitivity rectangle's
+    # own corners: wide anisotropy for "left" at both wind states, and the
+    # anisotropy=2.0 corner for "center" under wind).
+    for key in [(0, "left", False), (0, "left", True), (0, "center", True)]:
         assert flips_by_key[key]["baseline_label"] == "either works"
         assert {d["label"] for d in flips_by_key[key]["flipped_at"]} == {"bail"}
-        assert all(d["front_third_depth_yd"] == 9.0 for d in flips_by_key[key]["flipped_at"])
+
+    # bail -> either works flips (tier 5, calm, "left" only).
+    for key in [(5, "left", False)]:
+        assert flips_by_key[key]["baseline_label"] == "bail"
+        assert {d["label"] for d in flips_by_key[key]["flipped_at"]} == {"either works"}
 
 
 def test_flip_set_baseline_labels_sunday_always_bail_left_and_center_are_the_tossup_pins():
     # Companion to the golden snapshot above: confirms flip_set is actually
     # exercising real (non-degenerate) baseline verdicts, not e.g. silently
     # returning [] because every call errored out and got swallowed, and
-    # pins the actual post-reposition label pattern: "sunday" never reads
-    # anything but "bail"; "left" and "center" both sit near the tossup
-    # line (either "bail" or "either works" depending on tier/wind, never
+    # pins the actual post-reposition, post-region-geometry-fix label
+    # pattern: "sunday" never reads anything but "bail"; "left" still sits
+    # near the tossup line (either "bail" or "either works" depending on
+    # tier/wind); "center" reads "either works" at every tier and wind
+    # state at these baseline (sweep-midpoint) settings -- the fix's own
+    # point: attacking the center pin now costs barely more than the
+    # center-of-green bailout it is already defined against (the two are
+    # literally the same aim point, see optimizer._center_of_green_offset),
+    # since the old inflated short-miss penalty was the main thing making
+    # that gap look larger than it really is. Neither pin ever reads
     # "attack" -- optimize_aim's own search always evaluates the pin as a
-    # candidate, so a genuine delta < 0 never happens here).
+    # candidate, so a genuine delta < 0 never happens here.
     labels = {}
     for tier in data.TIERS:
         for pin in data.PINS:
@@ -324,7 +321,15 @@ def test_flip_set_baseline_labels_sunday_always_bail_left_and_center_are_the_tos
         pin_labels = {k: v for k, v in labels.items() if k[1] == pin}
         assert set(pin_labels.values()) <= {"bail", "either works"}
         assert "either works" in pin_labels.values(), f"{pin} should read as a genuine tossup somewhere"
-        assert "bail" in pin_labels.values(), f"{pin} should still read as bail somewhere"
+
+    left_labels = {k: v for k, v in labels.items() if k[1] == "left"}
+    assert "bail" in left_labels.values(), "left should still read as bail somewhere"
+
+    # "center" (region-geometry fix, this pass): always "either works" at
+    # baseline settings now, for every tier and wind state -- see the
+    # docstring above.
+    center_labels = {k: v for k, v in labels.items() if k[1] == "center"}
+    assert set(center_labels.values()) == {"either works"}
 
 
 # ---------------------------------------------------------------------------
