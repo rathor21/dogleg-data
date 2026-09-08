@@ -552,43 +552,73 @@ def sandbox_lookup(grids, tier, pin, wind, lateral, carry):
 # Manifest: camera, hole geometry, five curated shots, MC scatter.
 # ---------------------------------------------------------------------------
 
-def camera_block():
-    regions, landmarks = sketch.build_scene()
+TPS_CAMERA_PATH = os.path.join(HERE, "art", "camera_tps.json")
+
+
+def _load_tps_camera():
+    """art/camera_tps.json is committed (issue #11, round six integration)
+    so the export never depends on hero_candidates/ -- it holds the winning
+    candidate's (r6_4) thin-plate-spline fit: control points in model
+    yards, their target pixels, the two RBF weight vectors (screen x,
+    screen y), the affine terms, and the mobile crop offset / trusted depth
+    limit fit_tps.py derived alongside the fit."""
+    with open(TPS_CAMERA_PATH) as f:
+        return json.load(f)
+
+
+def camera_block(tps=None):
+    """TPS (thin-plate spline) camera, replacing round one-five's piecewise
+    homography-style projection (issue #11, round six). A single 3x3
+    homography could not reconcile the near field (creek, tee) with the
+    green complex's own depth in any painted candidate; a TPS registers
+    every one of its own control points exactly and stays smooth between
+    them, which is what let a real nano-banana painting (r6_4) replace the
+    code-rendered stencil art. See art/README.md, round six, for the fit
+    and the two candidates it was chosen between."""
+    tps = tps if tps is not None else _load_tps_camera()
     formula = (
-        "lerp(a, b, t) = a + (b - a) * t. "
-        "screen_y(y_yd): if y_yd <= 0, t = clamp((y_yd - y_min_yd) / (0 - y_min_yd), 0, 1), "
-        "return lerp(ground_near_px, tee_front_px, t); "
-        "elif y_yd <= y_break_yd, t = clamp(y_yd / y_break_yd, 0, 1), "
-        "return lerp(tee_front_px, mid_px, t); "
-        "else t = max(0, (y_yd - y_break_yd) / (y_max_yd - y_break_yd)), "
-        "return lerp(mid_px, horizon_px, t). "
-        "half_width_px(y_yd): t_lin = max(0, (y_yd - y_min_yd) / (y_max_yd - y_min_yd)), "
-        "t_eased = t_lin ** gamma_x, "
-        "return lerp(near_half_width_px, far_half_width_px, t_eased). "
-        "project(x_yd, y_yd): px = canvas_width / 2 + x_yd * (half_width_px(y_yd) / frame_half_width_yd), "
-        "py = screen_y(y_yd)."
+        "TPS (thin-plate spline), fit separately per screen channel (px, py). "
+        "For a query model point (x, y): "
+        "f(x, y) = a0 + a1*x + a2*y + sum_i w_i * U(||(x,y) - p_i||), "
+        "U(r) = r^2 * log(r) with U(0) = 0, p_i = control_points_yd[i]. "
+        "wx/ax give px = f(x,y); wy/ay give py = f(x,y). "
+        "Weights solved from [[K + lambda*I, P], [P^T, 0]] @ [w; a] = [v; 0], "
+        "K_ij = U(|p_i - p_j|), P rows = [1, x_i, y_i], lambda = 1e-6. "
+        "Clip to playfield_y_max_yd before projecting; subtract mobile_crop_x0 "
+        "from px when rendering the mobile crop."
     )
     return {
-        "canvas": {"width": sketch.CANVAS_W, "height": sketch.CANVAS_H},
-        "horizon_px": sketch.HORIZON_PX,
-        "y_min_yd": sketch.Y_MIN_YD,
-        "y_max_yd": sketch.Y_MAX_YD,
-        "y_break_yd": landmarks["y_break_yd"],
-        "ground_near_px": sketch.GROUND_NEAR_PX,
-        "tee_front_px": sketch.TEE_FRONT_PX,
-        "mid_px": sketch.MID_PX,
-        "gamma_x": sketch.GAMMA_X,
-        "near_half_width_px": sketch.NEAR_HALF_WIDTH_PX,
-        "far_half_width_px": sketch.FAR_HALF_WIDTH_PX,
-        "frame_half_width_yd": sketch.FRAME_HALF_WIDTH_YD,
+        "type": "tps",
+        "canvas": tps["canvas"],
+        "control_points_yd": tps["control_points_yd"],
+        "targets_px": tps["targets_px"],
+        "weights": tps["weights"],
+        "affine": tps["affine"],
         "formula": formula,
-    }, regions, landmarks
+        "mobile_crop_x0": tps["mobile_crop_x0"],
+        "playfield_y_max_yd": tps["playfield_y_max_yd"],
+    }
 
 
-def geometry_yd_block(regions, landmarks):
+def landmarks_px_block(tps=None):
+    """The manifest's landmarks_px is now the TPS's own fitted
+    correspondences (model yards + target pixels, one entry per hand-picked
+    or detected landmark) rather than sketch.py's old piecewise-camera
+    coordinate dump -- see art/camera_tps.json and art/fit_tps.py."""
+    tps = tps if tps is not None else _load_tps_camera()
+    return [
+        {"label": label, "model_yd": cp, "image_px": px}
+        for label, cp, px in zip(tps["labels"], tps["control_points_yd"], tps["targets_px"])
+    ]
+
+
+def geometry_yd_block(regions, landmarks, playfield_y_max_yd=None):
     bunkers = [{"name": "front", "polygon": regions["front_bunker"]}]
     for i, bb in enumerate(regions["back_bunkers"]):
         bunkers.append({"name": f"back_{i + 1}", "polygon": bb["poly"]})
+
+    if playfield_y_max_yd is None:
+        playfield_y_max_yd = _load_tps_camera()["playfield_y_max_yd"]
 
     return {
         "tee_box": landmarks["tee_poly_yd"],
@@ -603,8 +633,8 @@ def geometry_yd_block(regions, landmarks):
         "pins": {key: {"x": p["x"], "y": p["y"]} for key, p in data.PINS.items()},
         "horizon": {
             "y_min_yd": sketch.Y_MIN_YD,
-            "y_break_yd": landmarks["y_break_yd"],
             "y_max_yd": sketch.Y_MAX_YD,
+            "playfield_y_max_yd": playfield_y_max_yd,
         },
     }
 
@@ -863,10 +893,11 @@ def build_scatter(shots, n=1000):
 
 def build_manifest(results=None):
     results = results if results is not None else load_results_csv()
-    camera, regions, landmarks = camera_block()
-    geometry_yd = geometry_yd_block(regions, landmarks)
-    with open(os.path.join(HERE, "art", "sketch_coords.json")) as f:
-        landmarks_px = json.load(f)
+    tps = _load_tps_camera()
+    regions, landmarks = sketch.build_scene()
+    camera = camera_block(tps)
+    geometry_yd = geometry_yd_block(regions, landmarks, tps["playfield_y_max_yd"])
+    landmarks_px = landmarks_px_block(tps)
     shots = build_shots(results)
     scatter = build_scatter(shots)
 
@@ -919,7 +950,7 @@ def build_chapters(results=None, moves=None):
         assert abs(mv["strict_carry_adjustment_yd"] - row["aim_carry_adjustment_yd"]) < 0.01, key
         assert abs(mv["strict_score_optimum"] - row["score_optimum"]) < 0.001, key
 
-    _camera, regions, landmarks = camera_block()
+    regions, landmarks = sketch.build_scene()
     geometry_yd = geometry_yd_block(regions, landmarks)
 
     pins = {key: {"x": p["x"], "y": p["y"], "label": p["label"]} for key, p in data.PINS.items()}

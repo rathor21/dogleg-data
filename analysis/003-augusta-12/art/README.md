@@ -1,6 +1,6 @@
-# 003 hero art: stencil/texture-composite architecture (issue #11)
+# 003 hero art: a nano-banana painting with a TPS-fitted camera (issue #11)
 
-Status: **registration PASSES (15/15), round four.** `hero.png` and `hero_mobile_crop.png` are accepted assets. Round four replaced every generated ground texture with a direct, procedural render (`render_ground.py`) after round three's composited ground failed on sight despite passing registration -- see "Round four" below for what changed and why, and "Round three" and "Round two" above it for the two rounds of texture-through-masks compositing that preceded it. This whole stencil approach supersedes the first architecture (asking nano-banana to respect pixel geometry directly via image-to-image), which failed registration on all 7 candidates -- see "First architecture" below for that record, kept for reference.
+Status: **`hero.png` is `r6_4`, a nano-banana painting, camera fitted as a thin-plate spline (TPS).** Round six's "integration" pass (below) picked `r6_4` over `r6_3` on leave-one-out registration residual, removed its one painted flagstick with a Pillow clone-stamp, and made it the accepted hero art, replacing round four's code-rendered stencil (`hero_candidates/r4_code_rendered.png`, kept for the record). `hero_mobile_crop.png` is a 506x900 crop centered on the TPS-projected green, not the canvas. Everything below "Round six, integration" is earlier history, kept for the record of how the project got here: round four's procedural render (`render_ground.py`) replaced two rounds of texture-through-masks compositing (rounds two and three) after those failed on sight despite passing their own registration check; that whole stencil approach superseded a first architecture (asking nano-banana to respect pixel geometry directly via image-to-image), which failed registration on all 7 of its candidates. Round five is the owner's verdict on round four's `hero.png`: it read as a diagram, not Augusta's 12th. Round six inverted the whole approach in response -- a candidate's own painted geometry becomes the reference, and the model's camera is fit to it, first as a homography (round six, Part 1/2, below), which could not reconcile the near field with the green complex's own depth in any candidate; then as a TPS (round six, integration, below), which fixed that by registering every landmark exactly and staying smooth in between.
 
 ## The pivot
 
@@ -180,6 +180,209 @@ Registration: `python3 registration_qa.py hero.png` reports 14/15, not 15/15. `c
 - [x] `registration_report_hero.json` -- 15/15 PASS
 - [x] `environment_plate.png` -- round three's horizon-matched plate, still the plate in use; `environment_plate_v1.png` (round two's) deleted round four, see above
 - [x] This README: stencil architecture, prompts (`prompts/` has round one's; round two's and round three's plate/tile prompts are inline in `composite.py`'s git history and the "Round three" / "Round-two generation prompts" sections below), per-layer inventory
+
+## Round five (2026-09-07): nano-banana repaint of hero.png, owner rejects the diagram look (issue #11)
+
+### The owner's verdict
+
+Sunny looked at `hero.png` and rejected it: it looks nothing like the 12th at Augusta. Four rounds had chased registration, a color-threshold check on 15 fixed points, and never asked whether the picture reads as Golden Bell. His brief for what the art needs to show: Rae's Creek crossing in front of the green, the stone Hogan Bridge over the creek on the left, one bunker in front of the green and two cut into the bank behind it, a wide shallow green, a bank of azaleas and dogwoods behind the green rising to tall Georgia pines, Masters-week color. `hero.png` passes registration at 15/15 and still reads as a code-rendered geometry diagram with grass texture on it, not a painting of a hole.
+
+### The approach
+
+Round one showed two failure modes when nano-banana worked from a flat, flat-color sketch: loose prompts draw a beautiful hole with the wrong layout, and literal "preserve this shape" prompts double-expose the sketch's flat shapes over an invented background. `hero.png` is not a flat sketch. Round four already built a coherent scene in the correct camera, with perspective, shading, and a tree line the generator can read as a place rather than a diagram. This round hands nano-banana that scene as an image-to-image reference (`--ref hero.png`) instead of the sketch, so it repaints a golf hole it can already see, rather than trace a stencil.
+
+Six candidates came out of this: four repaints of `hero.png` at varying prompt strictness and style, and two from-scratch generations with no reference image, describing the hole from the tee. `registration_qa.py` measured all six against the same 15 landmarks used since round one (results in `hero_candidates/r5_registration.json`), and a labeled contact sheet sits at `hero_candidates/r5_contact.png`. The best-registering repaint's overlay is `hero_candidates/r5_repaint_4_overlay.png`. Nothing in this round touches `hero.png`, `hero_mobile_crop.png`, or any file outside `art/`.
+
+### Prompts
+
+**r5_repaint_1, as written** (`prompts/r5_repaint_1.txt`):
+> Repaint this illustration as the 12th hole, Golden Bell, at Augusta National, seen from the tee. Keep the layout exactly as drawn: the creek stays where it is, the green, the front bunker, the two bunkers behind the green, and the three flags stay in exactly these positions and sizes. Make it look like the real hole: Rae's Creek with the stone Hogan Bridge crossing it at the far left, a bank of pink and white azaleas and dogwoods rising behind the green to tall Georgia pines, bright white sand, closely mown Augusta green, soft spring light. Style: painterly editorial illustration, rich color, no text, no logos, no people.
+
+**r5_repaint_2, more photographic** (`prompts/r5_repaint_2.txt`):
+> Repaint this illustration as the 12th hole, Golden Bell, at Augusta National, seen from the tee. Keep the layout exactly as drawn: the creek stays where it is, the green, the front bunker, the two bunkers behind the green, and the three flags stay in exactly these positions and sizes. Make it look like the real hole: Rae's Creek with the stone Hogan Bridge crossing it at the far left, a bank of pink and white azaleas and dogwoods rising behind the green to tall Georgia pines, bright white sand, closely mown Augusta green, soft spring light. Style: realistic painted matte, golf broadcast beauty shot, rich color, no text, no logos, no people.
+
+**r5_repaint_3, stronger preservation language** (`prompts/r5_repaint_3.txt`):
+> Repaint this illustration as the 12th hole, Golden Bell, at Augusta National, seen from the tee. This is a tracing job: do not move any edge. The creek stays exactly where it is drawn, the green's outline, the front bunker, the two bunkers behind the green, and the three flags stay in exactly these positions and sizes, pixel for pixel. Only change surface texture, color, and atmosphere, not shape or placement. Make it look like the real hole: Rae's Creek with the stone Hogan Bridge crossing it at the far left, a bank of pink and white azaleas and dogwoods rising behind the green to tall Georgia pines, bright white sand, closely mown Augusta green, soft spring light. Style: painterly editorial illustration, rich color, no text, no logos, no people.
+
+**r5_repaint_4, vintage Masters poster style** (`prompts/r5_repaint_4.txt`):
+> Repaint this illustration as the 12th hole, Golden Bell, at Augusta National, seen from the tee. Keep the layout exactly as drawn: the creek stays where it is, the green, the front bunker, the two bunkers behind the green, and the three flags stay in exactly these positions and sizes. Make it look like the real hole: Rae's Creek with the stone Hogan Bridge crossing it at the far left, a bank of pink and white azaleas and dogwoods rising behind the green to tall Georgia pines, bright white sand, closely mown Augusta green, soft spring light. Style: vintage Masters tournament poster illustration, bold flat color blocks, screenprint texture, 1960s golf poster art, no text, no logos, no people.
+
+**r5_scratch_1, from scratch, painterly** (`prompts/r5_scratch_1.txt`):
+> A painterly editorial illustration of the 12th hole, Golden Bell, at Augusta National, seen from the tee, camera elevated behind the tee, three-quarter view. The green is wide and shallow, sitting across the middle distance. In front of the green, Rae's Creek crosses the hole, with the stone Hogan Bridge crossing the creek at the far left. One bunker sits in front of the green, and two bunkers are cut into the bank behind the green. Behind the green, a bank of pink and white azaleas and dogwoods rises to tall Georgia pines. Three pin flags mark hole locations on the green. Bright white sand, closely mown Augusta green, soft spring light, Masters-week color. Style: painterly editorial illustration, rich color, no text, no logos, no people.
+
+**r5_scratch_2, from scratch, photoreal** (`prompts/r5_scratch_2.txt`):
+> A photorealistic golf broadcast beauty shot of the 12th hole, Golden Bell, at Augusta National, seen from the tee, camera elevated behind the tee, three-quarter view. The green is wide and shallow, sitting across the middle distance. In front of the green, Rae's Creek crosses the hole, with the stone Hogan Bridge crossing the creek at the far left. One bunker sits in front of the green, and two bunkers are cut into the bank behind the green. Behind the green, a bank of pink and white azaleas and dogwoods rises to tall Georgia pines. Three pin flags mark hole locations on the green. Bright white sand, closely mown Augusta green, soft spring light, Masters-week color. Style: realistic painted matte, rich color, no text, no logos, no people.
+
+### Registration result
+
+| Candidate | Variant | Registration | Overall |
+|---|---|---|---|
+| `r5_repaint_1.png` | as written | 12/15 | FAIL |
+| `r5_repaint_2.png` | photographic | 6/15 | FAIL |
+| `r5_repaint_3.png` | tracing job | 13/15 | FAIL |
+| `r5_repaint_4.png` | vintage poster | 15/15 | PASS |
+| `r5_scratch_1.png` | painterly, no ref | 5/15 | FAIL |
+| `r5_scratch_2.png` | photoreal, no ref | 4/15 | FAIL |
+
+Full per-landmark offsets: `hero_candidates/r5_registration.json`. Overlays for every candidate sit alongside it as `hero_candidates/r5_*_overlay.png`.
+
+The pattern matches round one: the two from-scratch candidates ignore the reference geometry and fail hard, the strict "tracing job" repaint holds the most landmarks among the loose-to-strict repaint spectrum, and the vintage-poster repaint is the one candidate that locks to all 15. `r5_repaint_2`'s low score is not a strictness effect (its prompt asked for the same "keep the layout exactly as drawn" language as `r5_repaint_1`); its "photographic golf broadcast beauty shot" style redrew the green and bunkers at a different scale and moved both pins and the front bunker out of the search windows, the same layout drift round one's loose prompts showed.
+
+### Ranking by looks
+
+1. **`r5_scratch_1`** reads the most like a real hole at Augusta: a believable creek bend, a bridge at the correct side, a convincing mass of azaleas and dogwoods against the pines, and light that matches Masters week.
+2. **`r5_scratch_2`** is close behind, more photographic than painterly, with a creek reflection that sells the water and color saturated enough to pass for a broadcast beauty shot.
+3. **`r5_repaint_2`** keeps the same photographic strength while working from the reference scene, and its bunker-and-green cluster reads as one continuous piece of ground rather than a composite.
+4. **`r5_repaint_1`** has the same rich color and convincing azalea bank as the others but is undercut by a cluttered six-flag scene where three flags should sit, a leftover from the reference image's pin geometry.
+5. **`r5_repaint_4`** locks the geometry at 15/15 but the win comes at a cost: the creek renders as a winding river rather than the straight diagonal crossing in front of the green, and the flat "vintage poster" treatment reads more like generic parkland art than Golden Bell.
+6. **`r5_repaint_3`** looks the worst of the six: the "tracing job" language brought back round one's double-exposure defect, so a translucent parallelogram, the old sketch's fairway shape, still sits on top of an otherwise well-painted green.
+
+### Where this leaves the gate
+
+No candidate clears both bars at once. `r5_repaint_4` registers at 15/15, above the 13/15 bar, and includes every feature on the owner's list (bridge, front-and-behind bunkers, azalea-and-pine backdrop), but its winding creek and flat poster treatment keep it from reading as a true match for the real hole. `r5_repaint_3` also clears 13/15 but is disqualified on sight by the returning double-exposure artifact. The two candidates that look the most like Augusta's 12th, `r5_scratch_1` and `r5_scratch_2`, were never constrained to `hero.png`'s geometry and fail registration by a wide margin. None of the six is a ready replacement for `hero.png`; this round is a comparison set for the owner to react to, not a finished pick.
+
+## Round six (2026-09-07): the camera gets fitted to the art, not the art to the camera (issue #11)
+
+### The inversion
+
+Sunny rejected every geometry-first render from round five: `hero.png` and every repaint of it read as a diagram, not Golden Bell. The two candidates that did read as the real hole, `r5_scratch_1` and `r5_scratch_2`, were never constrained to the model's geometry at all, and failed registration by a wide margin. That is the standard now, and it flips the whole pipeline. Every round before this one held the model's stylized camera (`sketch.py`) fixed and scored generated art against it. Round six holds a candidate's own painted geometry fixed instead, and fits the model's camera to it: a 3x3 homography matrix mapping model yards `(x, y, 1)` to that candidate's image pixels. "Registration" is now the residual of that fit at a handful of hand-identified landmarks, not a 15-point color-threshold sweep against a sketch nothing in the art was asked to match. No sketch is fed to the generator this round; the four candidates below are generated from a text prompt alone.
+
+### Part 1: four candidates, no flags
+
+Prompt built around `r5_scratch_1`'s painterly style (the round five looks-winner), with composition and hazard-placement language added on top: tee box and two tee markers visible at the bottom of frame, a camera pulled back and elevated so the green complex sits in the middle third with room on both sides, Rae's Creek angled so its left end reads nearer the viewer than its right (the model's own front edge runs front-left to back-right, confirmed straight from `model._front_edge_yd`: it increases with `x`, and since larger model-`y` projects farther from camera, the creek's near bank is nearer camera on the left and farther on the right), a green that is wide, shallow, and deeper on the left to match, one bunker in front just right of center, two bunkers behind cut into the azalea bank, the stone Hogan Bridge at the far left, and an explicit "no flags, no flagsticks, no holes, no people, no text, no logos." Four variants (`prompts/r6_1.txt` through `r6_4.txt`), one pushed toward a photoreal painted-matte look:
+
+**r6_1** (painterly, close to r5_scratch_1's own wording):
+> A painterly editorial illustration of the 12th hole, Golden Bell, at Augusta National, seen from the tee box, the tee box itself visible at the bottom of the frame with two tee markers. The camera is elevated slightly above head height and pulled back so the whole green complex sits in the middle third of the frame, with open grass and trees on both sides. Rae's Creek runs across the front of the green, angled so its left end is nearer the viewer than its right end. The green is wide and shallow, deeper on the left, angled the same way as the creek. One white sand bunker sits in front of the green just right of center, and two bunkers are cut into the azalea bank behind the green. The stone Hogan Bridge crosses the creek at the far left. Behind the green, a bank of pink and white azaleas and dogwoods rises to tall Georgia pines. Bright white sand, closely mown Augusta green, soft spring Masters-week light, rich but natural color. NO flags, no flagsticks, no holes, no people, no text, no logos. Style: painterly editorial illustration, confident brushwork. Aspect ratio 16:9.
+
+**r6_2** (painterly, most explicit about the pulled-back framing):
+> A wide, painterly editorial illustration of Augusta National's 12th hole, Golden Bell, viewed from directly behind the tee box, which is visible across the bottom of the frame with two white tee markers. The vantage point is elevated a bit above a standing golfer's eye level and set back further than a normal tee shot view, so the entire green complex reads small and centered in the middle third of the frame, with generous fairway, rough, and tree line visible on both the left and right sides. In the middle distance, Rae's Creek cuts diagonally across the front of the green: its left bank sits noticeably closer to the viewer than its right bank, which recedes toward the tree line. The putting green itself is wide and shallow, tilted along that same diagonal, deeper on the left side than the right. A single bright white bunker sits just right of center in front of the green; two more bunkers are carved into the azalea-covered bank rising behind the green. At the far left, the stone Hogan Bridge spans the creek. Pink and white azaleas and dogwoods bank up behind the green toward a wall of tall Georgia pines. Soft, warm Masters-week spring light. Do not include any flags, flagsticks, holes, people, text, or logos. Style: painterly editorial illustration, rich but natural color. 16:9 aspect ratio.
+
+**r6_3** (photoreal painted-matte variant):
+> A realistic painted-matte landscape of the 12th hole, Golden Bell, at Augusta National Golf Club, painted from the tee box, which is visible at the bottom edge of the frame with two tee markers planted in the turf. The camera sits slightly above head height, pulled well back so the green complex occupies only the middle third of the frame with wide margins of grass and pine trees on both sides. Rae's Creek runs diagonally across the front of the green, its left end closer to the camera than its right end, which sits farther back near the tree line. The green is wide and shallow, deeper on the left where the creek is nearest, matching the creek's own angle. One bright white sand bunker sits in front of the green just right of center; two more bunkers are cut into the azalea bank directly behind the green. The stone Hogan Bridge crosses the creek at the far left of the frame. Behind the green, banks of blooming pink and white azaleas and dogwoods rise to a wall of tall Georgia pines under soft, natural Masters-week spring light. No flags, no flagsticks, no holes cut in the green, no people, no text, no logos. Style: realistic painted matte, golf broadcast beauty shot, rich but natural color. Aspect ratio 16:9.
+
+**r6_4** (painterly, most concise):
+> Painterly editorial illustration of Augusta National's 12th hole, Golden Bell, seen from the tee box looking downrange. The tee box fills the bottom of the frame, with two tee markers visible. Camera height: just above standing eye level, pulled back so the green complex sits centered in the middle third of the frame, with plenty of open grass and pine forest framing it on the left and right. Across the front of the green runs Rae's Creek, angled diagonally: the left end of the creek is nearest the viewer, the right end farther away near the pines. The green itself is wide and shallow, its left side reading deeper than its right, angled to match the creek. Just right of center, in front of the green, sits one bunker of bright white sand. Two more white bunkers are cut into the pink-and-white azalea bank behind the green. Far left, a stone footbridge (the Hogan Bridge) crosses the creek. Beyond the green, azaleas and dogwoods in bloom climb toward tall Georgia pines, under warm, soft Masters-week spring light. Exclude all flags, flagsticks, cut holes, people, text, and logos. Style: painterly editorial illustration, rich, natural color palette. 16:9.
+
+Contact sheet: `hero_candidates/r6_contact.png`.
+
+**Non-compliance, consistent across all four.** Every candidate kept a single pin flag despite the explicit "no flags" instruction, the same pull the round-five README already flagged for "Augusta National" prompts. More important for Part 2: every candidate drew just two sand blobs near the green, not three. `r6_1` and `r6_2` draw a front bunker touching the creek plus one continuous S-curved bunker behind the green that reads as both back bunkers merged into one wave shape. `r6_3` and `r6_4` draw no bunker touching the creek at all, just two bunkers behind and to the right of the flag. No candidate gave a clean front bunker, back-left bunker, and back-right bunker as three shapes to count on their own.
+
+### Part 2: fitting the camera to the two best-looking candidates
+
+**Ranking by looks and by the brief's own composition ask**, before any fitting: `r6_2` pulls the green complex back the furthest and centers it with the most even margins on both sides, the closest match to "the whole green complex sits in the middle third of the frame with room on both sides." `r6_4` is the most cinematic of the four, with a real water reflection carrying pink azalea color into the creek, and its creek's far bank is visible across almost the full width of the frame with a steady, single-direction slope (checked column by column: the bank moves from about row 420 near the bridge down to row 606 at the right edge, no reversals in between). `r6_1` is close behind on looks, warm and well lit, but its creek covers just the left third of the frame, which gives the fit far less to work with. `r6_3` is the weakest: clean and well-composed, but its creek is reduced to a thin sliver at the bottom-left corner, not much of a band at all. `r6_2` and `r6_4` are the two carried into the fit; both clear the "near-straight band" and "green is readable" bar the brief sets before fitting begins, `r6_3` would not have.
+
+**Segmentation.** `fit_camera.py` resizes each candidate to 1600x900 and works in HSV:
+
+- *Water*: a hue-band threshold (the approach the brief describes, blue-cyan hue at moderate saturation) was tried first and missed most of both candidates' water by a wide margin: their creek renders as a muted, often pinkish-gray reflective surface, not a saturated blue-cyan (checked by hand, sampled pixels inside the visible water read hue 30-60 with saturation 35-90, indistinguishable from nearby turf on hue alone). What separates water from turf here is lower saturation, a difference that holds across both candidates, so the working version thresholds on the 40th percentile of saturation inside a hand-set region-of-interest box, takes the largest connected component, then reads off each of 7 columns (spaced at equal intervals across the creek's x extent) for its topmost water pixel as the far-bank sample.
+- *Sand*: low saturation, high value. A single shared bunker box plus "largest three" (the brief's literal recipe) failed twice over: a bunker's own internal shading split it into two components, and each of those two lost out to azalea-highlight false positives for "largest three." The working version boxes each bunker by hand, one tight box per visible blob, and takes the centroid of every thresholded pixel in that box, which sidesteps both failure modes.
+- *Green*: the brief's "brightest, most saturated green region above the creek" does not hold for either candidate. The putting surface is a smooth, shaded patch with no hard hue or saturation break from the fairway around it, unlike the creek, bunkers, and tee markers, each of which contrasts hard against its surroundings. An automatic threshold either returned a thin, oddly symmetric lens with no trace of the model's own diagonal tilt, or leaked into the azalea band above the green. Green corners are hand-picked instead, off a fine (20px-gridded, 1:1 scale) crop of each green complex, the "correct any detection by hand" clause the brief itself anticipates.
+- *Tee markers*: `r6_2`'s are white, `r6_4`'s are dark charcoal. The detector looks for low saturation at either extreme of value (bright or dark) rather than assuming white, after `r6_4` first came back with zero markers found.
+
+**A hand correction the model's own geometry forces, not a segmentation choice.** The green's four "leftmost / rightmost / topmost / bottommost" boundary points, computed once through `sketch.py`'s own projector (a plain coordinate calculation, not a fit), turn out not to be four distinct model corners under that camera: the front-left corner (`x = -12.75`, the green's own narrowest carry point) is both the leftmost point in screen space and the nearest, so it is also the bottommost, all at once. `front_left` in every correspondence table below is the average of the image's own detected leftmost and bottommost pixels, mapped to that one shared model corner, not two independent correspondences asserted from one model point.
+
+**Which back bunker is which.** Neither candidate's two back-of-green bunkers sit where the model's own back-left/back-right split would suggest (the model's back-left bunker sits outside the green's own left edge; both candidates draw their two back bunkers to the right of the green's centerline, matching the real hole's tee-view look rather than the model's more mirrored layout). Rather than assume an ordering, both plausible pairings (nearer-looking image bunker to the model's nearer back bunker, and the reverse) were fit and scored, holding every other landmark fixed. Both candidates score better with the pairing reversed from the naive one: the farther-looking (smaller, higher) image bunker matches the model's NEARER back bunker (`back-left`, model y=162.5) better than its own farther one, and vice versa. That reversed pairing is what is reported below; it is an empirical choice, not a geometric one, and it does not change the section's headline finding.
+
+**Fit.** Normalized DLT (Hartley normalization to centroid-at-origin, mean distance sqrt(2), then an SVD solve on the resulting 2n x 9 system, then denormalized). Per-landmark residuals, in pixels and as a percent of the 1600px canvas width:
+
+`r6_2` (15 correspondences: 7 creek, 1 front bunker, 2 back bunkers, 3 green corners, 2 tee markers):
+
+| Landmark | Error (px) | Error (% width) |
+|---|---|---|
+| creek_far_bank:0 | 118.9 | 7.4% |
+| creek_far_bank:1 | 56.9 | 3.6% |
+| creek_far_bank:2 | 38.1 | 2.4% |
+| creek_far_bank:3 | 37.9 | 2.4% |
+| creek_far_bank:4 | 319.2 | 20.0% |
+| creek_far_bank:5 | 2710.1 | 169.4% |
+| creek_far_bank:6 | 2163.2 | 135.2% |
+| bunker_front | 134.5 | 8.4% |
+| bunker_backL | 627.4 | 39.2% |
+| bunker_backR | 39.9 | 2.5% |
+| green_front_left | 264.9 | 16.6% |
+| green_front_right | 1470.1 | 91.9% |
+| green_back_right | 937.6 | 58.6% |
+| tee_marker:0 | 193.4 | 12.1% |
+| tee_marker:1 | 331.2 | 20.7% |
+| **max / mean** | **2710.1 / 629.6** | **169.4% / 39.3%** |
+
+`r6_4` (14 correspondences: 7 creek, 2 back bunkers -- no front bunker was found, see Part 1 -- 3 green corners, 2 tee markers):
+
+| Landmark | Error (px) | Error (% width) |
+|---|---|---|
+| creek_far_bank:0 | 64.4 | 4.0% |
+| creek_far_bank:1 | 32.1 | 2.0% |
+| creek_far_bank:2 | 53.8 | 3.4% |
+| creek_far_bank:3 | 29.3 | 1.8% |
+| creek_far_bank:4 | 15.4 | 1.0% |
+| creek_far_bank:5 | 95.8 | 6.0% |
+| creek_far_bank:6 | 98.7 | 6.2% |
+| bunker_backL | 502.6 | 31.4% |
+| bunker_backR | 97.3 | 6.1% |
+| green_front_left | 51.8 | 3.2% |
+| green_front_right | 290.8 | 18.2% |
+| green_back_right | 291.7 | 18.2% |
+| tee_marker:0 | 182.4 | 11.4% |
+| tee_marker:1 | 177.3 | 11.1% |
+| **max / mean** | **502.6 / 141.7** | **31.4% / 8.9%** |
+
+Full correspondences, the fitted 3x3 matrices, and every residual: `hero_candidates/r6_2_fit.json`, `hero_candidates/r6_4_fit.json`. Overlays (creek far bank, green polygon, bunker outlines, tee box, and the three pins drawn through each fitted homography): `hero_candidates/r6_2_fit_overlay.png`, `hero_candidates/r6_4_fit_overlay.png`. Landmark sanity-check images: `hero_candidates/r6_2_landmarks.png`, `hero_candidates/r6_4_landmarks.png`.
+
+**The headline finding: near-hole geometry fits, the green complex does not, for either candidate.** A diagnostic fit using just the creek and tee markers (9 points, one more than a homography's 8 degrees of freedom needs) lands at 53px / 3.3% max for `r6_2` and 105px / 6.6% max for `r6_4` on its own. Adding the front bunker to `r6_2`'s diagnostic set (it sits almost on the creek's own curve by the model's own design, per `data.py`'s comments) moves it very little, to 110px / 6.9%. Adding the back bunkers or any green corner beyond `front_left` blows both fits up by one to two orders of magnitude, no matter which back-bunker pairing is used. The overlays make the failure visible rather than abstract: `r6_4`'s overlay shows the cyan creek line sitting right on the painted water across the whole frame, while the green and bunker outlines it projects collapse into a near-flat line hugging the creek, nowhere close to the actual green shape higher in the frame. `r6_2`'s overlay is worse: the creek line itself tilts off at the wrong angle, and the tee-box rectangle shoots out past the bottom of the frame, because the one homography asked to reconcile creek, tee, and front bunker with far-green data that pulls the other way has nothing sane left to fit. The probable cause, consistent with everything rounds three and four found about the model's own camera: painterly Augusta-12 art tends to compress the green complex's front-to-back depth far less than strict perspective would, to keep the green legible, and every artist (`sketch.py`'s own stylized 3-segment depth budget included) cheats that compression its own way. A single 8-degree-of-freedom planar homography enforces one consistent, uncheated perspective, so it cannot reconcile a near field and a far field each drawn with a different cheat.
+
+**Horizon and orientation.** For `r6_4`, the image of the ground plane's line at infinity runs from row 180 (left edge) to row 381 (right edge) of the 900px canvas, about 20-42% down the frame, at or just below where this candidate's tree canopy gives way to the azalea band: plausible, if on the low side, and consistent with the same far-field softness the residual table already shows. Orientation is correct: positive model `x` moves right on screen, increasing model `y` moves up (both checked at a representative ground point, by direct calculation from the fitted matrix). For `r6_2`, the fitted horizon is not a usable line at all: it runs from row 211 at the left edge to rows 2606 and 5001 at the center and right edge, off the bottom of a 900px canvas by a factor of three to five. That number is itself evidence the `r6_2` homography is not a workable camera, not just a homography with a large error at a few points.
+
+### Recommendation
+
+`r6_4` is the pick to carry forward. It looks like Golden Bell (the round's whole point, per Sunny's verdict on round five), its creek registers to within 6% of frame width at every sampled point, its horizon sits in a plausible place and points the right way, and its failure mode stays contained to the green complex's own depth instead of spreading across the whole frame the way `r6_2`'s does. It does not clear the "5% everywhere" bar as written: the green's far corners and one back bunker sit 18-31% of frame width from where the fitted camera would place them. Whether that is good enough is a call about how much the green complex's own depth can be redrawn or re-registered on its own, apart from the rest of the hole, not something this pass can settle by tuning correspondences further. `r6_2`, despite the more centered, better-margined composition the brief asked for, does not produce a usable camera at all once every landmark is included, and should not be carried forward as-is.
+
+## Round six, integration (2026-09-07): a thin-plate-spline camera replaces the homography, r6_4 ships (issue #11)
+
+### Why a homography still wasn't enough
+
+Round six's own homography fit (above) confirmed the diagnosis rounds three and four had already reached from the other direction: painted Augusta-12 art compresses the green complex's depth by its own amount, different from the model's stylized camera and different again from any other painting. A single 8-degree-of-freedom planar map enforces one consistent, uncheated perspective; it cannot reconcile a near field (creek, tee) and a far field (the green) each drawn with a different cheat. This pass replaces the homography with a thin-plate spline (TPS): a smooth interpolant that registers every one of its own control points exactly by construction, and stays smooth in between. Two new finalists were fit, both generated with no sketch reference (round six, Part 1): `r6_3` (photoreal painted matte, three bunkers -- front, back-left, back-right, matching the model's own count) and `r6_4` (painterly, the round's looks-winner, but only two back bunkers, no front bunker touching the creek).
+
+### Fit method
+
+`art/fit_tps.py` fits two independent 1-D thin-plate splines (screen x, screen y) sharing one set of model-yard control points: f(x, y) = a0 + a1\*x + a2\*y + sum_i w_i \* U(||(x,y) - p_i||), U(r) = r^2 log(r), U(0) = 0, solved from [[K + lambda\*I, P], [P^T, 0]] @ [w; a] = [v; 0] with lambda = 1e-6 for numerical conditioning. Every landmark's honest error is its leave-one-out residual: refit the TPS on every other landmark, predict the held-out one, since a TPS's in-sample error is ~0 everywhere by construction and says nothing about registration quality.
+
+### Correspondences
+
+Fourteen for `r6_3`, fifteen for `r6_4`: five creek-far-bank samples across the water's visible extent, bunker centroids (three for `r6_3`, two for `r6_4`, no front bunker in `r6_4`'s painting), four green boundary points (leftmost/frontmost, rightmost, backmost, plus one interior back-left point -- see below), and two tee markers. Sources, per point:
+
+- **`r6_4`'s creek far bank and both back-bunker centroids** are carried over verbatim from this round's own earlier homography fit (`hero_candidates/r6_4_fit.json`), which measured them by color-threshold connected-component detection, not by eye. Re-measuring them by hand would only add noise.
+- **`r6_3`'s creek far bank and three bunker centroids** are freshly detected the same way: a saturation-trough threshold for water (bridge columns excluded, since the bridge's stone reads at the same low saturation as water and would otherwise poison the mask), and largest-3-connected-component for sand, which cleanly separated the three real bunkers from dogwood/azalea false positives at similar brightness.
+- **Green front_left and front_right, for both candidates**, are not independently picked. They sit exactly on the same `front_edge_yd` curve the creek far bank already measures (the model's own construction: the green's front edge and the creek's far bank are the identical curve), so their image pixels are linearly interpolated between the two nearest measured creek-bank samples rather than eyeballed a second time -- this is both more accurate and guarantees the two curves can never disagree with each other. An earlier pass that eyeballed these independently produced values wildly inconsistent with the creek curve (differences up to 130px) and was the single biggest cause of bad folds before this fix.
+- **Green back_left and back_right, for both candidates**, are hand-placed close to the empirically-detected back-bunker centroids they sit next to in model space (1-3 yd away in both x and y), `"source": "hand (anchored near bunker_backL/R)"` in `hero_candidates/*_tps.json`.
+- **Tee markers, for `r6_3`**, are hand-picked from a gridded 1600x900 crop (`"source": "hand"`); for `r6_4` they are `r6_4_fit.json`'s own detected centroids.
+- **`r6_3`'s front bunker** is a hand-corrected identity, not a geometric one: the model's front bunker sits just left of center (x=-4), but the only sand blob touching the detected water mask in `r6_3`'s painting sits well to the right of center. The correspondence uses that blob anyway (the artist's composition choice, not a left/right-preserving one -- the same kind of empirical pairing round six's own homography section already documents for `r6_2`/`r6_4`'s back bunkers), and it is the single largest source of `r6_3`'s registration weakness below.
+
+### Leave-one-out residuals
+
+| Candidate | Max (px / %width) | Mean (px / %width) | Max excl. tee markers | Mean excl. tee markers | Folds |
+|---|---|---|---|---|---|
+| `r6_3` | 747.5px / 46.7% | 199.3px / 12.5% | 393.9px / 24.6% | 108.0px / 6.8% | 5 |
+| `r6_4` | 810.0px / 50.6% | 134.1px / 8.4% | 79.2px / 5.0% | 31.4px / 2.0% | 3 |
+
+The raw max/mean are dominated by the two tee-marker landmarks in both candidates: at model y=-1, they sit roughly 125 yards from the nearest other correspondence (the creek, at y≈125-165), and leave-one-out for an isolated point is always going to look bad -- removing it leaves the TPS nothing nearby to interpolate from, so it extrapolates wildly. That is a property of leave-one-out on sparse extremes, not a real quality difference between the two candidates' fits. Excluding the tee markers, `r6_4` registers roughly 5x tighter on both max and mean than `r6_3`. Full tables: `hero_candidates/r6_3_tps.json`, `hero_candidates/r6_4_tps.json`.
+
+### Monotonicity and the winner
+
+Checked along the centerline (x=0, model y 0→200: screen y must decrease) and laterally (y=155, model x -30→30: screen x must increase). `r6_3` folds five times in the y=134-150yd range, directly downstream of the front-bunker identity mismatch above: removing just that one correspondence drops the fold count to zero and tames the centerline's lateral drift by more than half, confirming it as the cause rather than a general property of the fit. `r6_4` folds three times, all within about 1px of magnitude in the y=154-180yd range -- close enough to numerical noise from the ridge term that it does not read as a real defect. `r6_3`'s overlay (`hero_candidates/r6_3_tps_overlay.png`) shows the green polygon self-intersecting and the bunker outlines badly misplaced; `r6_4`'s (`hero_candidates/r6_4_tps_overlay.png`) tracks the creek, green, and bunkers reasonably, with the grid fanning out smoothly from the tee.
+
+Per the brief's own rule (lowest leave-one-out max, tie broken by feature completeness): `r6_4` wins outright on registration quality -- its excl.-tee max (79.2px / 5.0%) beats `r6_3`'s (393.9px / 24.6%) by nearly 5x, so `r6_3`'s extra bunker (its only edge under the tie-break) never comes into play. `r6_4` is also the round's own looks-winner (best light, most cinematic reflection, per round six Part 1) and was already the pick of the two homography candidates above, for what that is worth given the homography's own failure. `r6_4` ships.
+
+### Flag removal
+
+`r6_4`'s single painted flagstick (native-resolution box `(555, 293)-(595, 350)`, covering the pennant and the full stick down to where it fades into the green's own shadow) is removed with a Pillow clone-stamp: the same-size box `(600, 293)-(640, 350)` -- clean azalea-and-grass, shifted 45px right of the flag, sampled at the candidate's native 1344x768 resolution before the final resize -- pasted in with a 3px-feathered mask so the seam blends rather than leaving a hard edge. A pixel diff against the unpatched original confirms the only pixels touched are inside the destination box (1,607 of 1,032,192 total, all within `(555, 293)-(594, 348)`); nothing else in the painting moved. A nano-banana edit call was the brief's other option, but the clone-stamp is deterministic, free, and this particular flag sits on a flat, repetitive background (grass and a wall of small flowers) that a shifted patch matches without a visible seam -- there was no reason to risk a generation call's drift into other parts of the frame.
+
+### Deliverables
+
+- `art/camera_tps.json` -- the committed, winning fit (`r6_4`): control points, target pixels, RBF weights, affine terms, `mobile_crop_x0` (592, the TPS-projected horizontal center of the green polygon minus half the 506px mobile crop width), `playfield_y_max_yd` (198.75 = the farther back bunker's model y, 183.75, plus 15yd).
+- `hero_candidates/r6_3_tps.json`, `r6_4_tps.json` -- both candidates' full fits, correspondences, and leave-one-out tables.
+- `hero_candidates/r6_3_tps_overlay.png`, `r6_4_tps_overlay.png` -- the model's geometry and a 10yd/20yd coordinate grid drawn through each fitted TPS.
+- `hero.png` (1600x900) -- `r6_4`, flag removed, this round's accepted hero art, replacing round four's code-rendered stencil.
+- `hero_mobile_crop.png` (506x900) -- centered on the green (`crop_x0 = 592`), not the canvas.
+- `hero_candidates/r4_code_rendered.png` -- round four's code-rendered `hero.png`, kept for the record.
 
 ## Round-two generation prompts
 

@@ -1,0 +1,501 @@
+{
+  "candidate": "r6_4",
+  "canvas": [
+    1600,
+    900
+  ],
+  "control_points_yd": [
+    [
+      -20.0,
+      124.5
+    ],
+    [
+      -13.333333333333332,
+      131.16666666666666
+    ],
+    [
+      -6.666666666666666,
+      137.83333333333334
+    ],
+    [
+      0.0,
+      144.5
+    ],
+    [
+      6.666666666666668,
+      151.16666666666666
+    ],
+    [
+      13.333333333333336,
+      157.83333333333334
+    ],
+    [
+      20.0,
+      164.5
+    ],
+    [
+      -11.5,
+      162.5
+    ],
+    [
+      9.5,
+      183.5
+    ],
+    [
+      -12.75,
+      131.75
+    ],
+    [
+      12.75,
+      157.25
+    ],
+    [
+      -12.75,
+      158.25
+    ],
+    [
+      12.75,
+      183.75
+    ],
+    [
+      -3.5,
+      -1.0
+    ],
+    [
+      3.5,
+      -1.0
+    ]
+  ],
+  "targets_px": [
+    [
+      170.0,
+      402.0
+    ],
+    [
+      395.0,
+      400.0
+    ],
+    [
+      620.0,
+      456.0
+    ],
+    [
+      845.0,
+      459.0
+    ],
+    [
+      1070.0,
+      470.0
+    ],
+    [
+      1295.0,
+      579.0
+    ],
+    [
+      1520.0,
+      606.0
+    ],
+    [
+      992.3368760064412,
+      359.6447665056361
+    ],
+    [
+      1020.5666405638215,
+      423.2538762725137
+    ],
+    [
+      414.68749999999994,
+      404.9
+    ],
+    [
+      1275.3125,
+      569.4625
+    ],
+    [
+      960.0,
+      375.0
+    ],
+    [
+      1060.0,
+      420.0
+    ],
+    [
+      249.3405172413793,
+      708.1508620689655
+    ],
+    [
+      1200.0653266331658,
+      707.4874371859296
+    ]
+  ],
+  "labels": [
+    "creek_far_bank:0",
+    "creek_far_bank:1",
+    "creek_far_bank:2",
+    "creek_far_bank:3",
+    "creek_far_bank:4",
+    "creek_far_bank:5",
+    "creek_far_bank:6",
+    "bunker_backL",
+    "bunker_backR",
+    "green_front_left",
+    "green_front_right",
+    "green_back_left",
+    "green_back_right",
+    "tee_marker:0",
+    "tee_marker:1"
+  ],
+  "sources": [
+    "r6_4_fit.json (round six's own segment_water detection)",
+    "r6_4_fit.json (round six's own segment_water detection)",
+    "r6_4_fit.json (round six's own segment_water detection)",
+    "r6_4_fit.json (round six's own segment_water detection)",
+    "r6_4_fit.json (round six's own segment_water detection)",
+    "r6_4_fit.json (round six's own segment_water detection)",
+    "r6_4_fit.json (round six's own segment_water detection)",
+    "r6_4_fit.json",
+    "r6_4_fit.json",
+    "interpolated (on the creek far-bank curve)",
+    "interpolated (on the creek far-bank curve)",
+    "hand (anchored near bunker_backL)",
+    "hand (anchored near bunker_backR)",
+    "r6_4_fit.json",
+    "r6_4_fit.json"
+  ],
+  "weights": {
+    "wx": [
+      0.20327064065835163,
+      -0.28476354655593983,
+      -0.1423120189427266,
+      -0.21801809845364534,
+      -0.1488422586279081,
+      -0.23239800920344156,
+      0.3374804892346144,
+      0.030822702159036056,
+      0.42200645406455645,
+      0.09088959755485806,
+      0.07337270653671857,
+      0.626611006840419,
+      -0.7526435823111631,
+      -1.5477904598181136,
+      1.542314376864384
+    ],
+    "wy": [
+      0.11345440273921813,
+      -0.666585110693203,
+      0.22757769656150717,
+      0.026540630080147183,
+      -0.40172518777317584,
+      0.7591262199884202,
+      0.013735481733655122,
+      -0.19353134918575632,
+      0.3900738239036745,
+      0.395284164398648,
+      -0.41181859662735887,
+      0.18718094607510552,
+      -0.43708960873518243,
+      0.07046759984631748,
+      -0.0726911123120169
+    ]
+  },
+  "affine": {
+    "ax": [
+      2208.2940174351347,
+      56.93879630435511,
+      -1.5140950125490282
+    ],
+    "ay": [
+      1183.191802647755,
+      3.384737578013269,
+      -2.4223075597228014
+    ]
+  },
+  "lambda": 1e-06,
+  "leave_one_out": [
+    {
+      "label": "creek_far_bank:0",
+      "source": "r6_4_fit.json (round six's own segment_water detection)",
+      "model_yd": [
+        -20.0,
+        124.5
+      ],
+      "image_px": [
+        170.0,
+        402.0
+      ],
+      "loo_predicted_px": [
+        101.45931334686179,
+        363.7443884548161
+      ],
+      "loo_error_px": 78.49406054969819,
+      "loo_error_pct_width": 4.905878784356137
+    },
+    {
+      "label": "creek_far_bank:1",
+      "source": "r6_4_fit.json (round six's own segment_water detection)",
+      "model_yd": [
+        -13.333333333333332,
+        131.16666666666666
+      ],
+      "image_px": [
+        395.0,
+        400.0
+      ],
+      "loo_predicted_px": [
+        396.0520017781023,
+        402.4625649250311
+      ],
+      "loo_error_px": 2.6778599199965054,
+      "loo_error_pct_width": 0.1673662449997816
+    },
+    {
+      "label": "creek_far_bank:2",
+      "source": "r6_4_fit.json (round six's own segment_water detection)",
+      "model_yd": [
+        -6.666666666666666,
+        137.83333333333334
+      ],
+      "image_px": [
+        620.0,
+        456.0
+      ],
+      "loo_predicted_px": [
+        632.383893594972,
+        436.1963460308639
+      ],
+      "loo_error_px": 23.35691612993613,
+      "loo_error_pct_width": 1.4598072581210082
+    },
+    {
+      "label": "creek_far_bank:3",
+      "source": "r6_4_fit.json (round six's own segment_water detection)",
+      "model_yd": [
+        0.0,
+        144.5
+      ],
+      "image_px": [
+        845.0,
+        459.0
+      ],
+      "loo_predicted_px": [
+        866.7765820708864,
+        456.34900811788657
+      ],
+      "loo_error_px": 21.937349079801866,
+      "loo_error_pct_width": 1.3710843174876166
+    },
+    {
+      "label": "creek_far_bank:4",
+      "source": "r6_4_fit.json (round six's own segment_water detection)",
+      "model_yd": [
+        6.666666666666668,
+        151.16666666666666
+      ],
+      "image_px": [
+        1070.0,
+        470.0
+      ],
+      "loo_predicted_px": [
+        1082.975692995211,
+        505.0213894432155
+      ],
+      "loo_error_px": 37.347909275344094,
+      "loo_error_pct_width": 2.334244329709006
+    },
+    {
+      "label": "creek_far_bank:5",
+      "source": "r6_4_fit.json (round six's own segment_water detection)",
+      "model_yd": [
+        13.333333333333336,
+        157.83333333333334
+      ],
+      "image_px": [
+        1295.0,
+        579.0
+      ],
+      "loo_predicted_px": [
+        1295.8561437259727,
+        576.2034134339686
+      ],
+      "loo_error_px": 2.924701437895758,
+      "loo_error_pct_width": 0.18279383986848485
+    },
+    {
+      "label": "creek_far_bank:6",
+      "source": "r6_4_fit.json (round six's own segment_water detection)",
+      "model_yd": [
+        20.0,
+        164.5
+      ],
+      "image_px": [
+        1520.0,
+        606.0
+      ],
+      "loo_predicted_px": [
+        1440.8505538922927,
+        602.7786114873986
+      ],
+      "loo_error_px": 79.21497436158126,
+      "loo_error_pct_width": 4.9509358975988285
+    },
+    {
+      "label": "bunker_backL",
+      "source": "r6_4_fit.json",
+      "model_yd": [
+        -11.5,
+        162.5
+      ],
+      "image_px": [
+        992.3368760064412,
+        359.6447665056361
+      ],
+      "loo_predicted_px": [
+        989.6998838361294,
+        376.2020641066549
+      ],
+      "loo_error_px": 16.7659724309385,
+      "loo_error_pct_width": 1.0478732769336563
+    },
+    {
+      "label": "bunker_backR",
+      "source": "r6_4_fit.json",
+      "model_yd": [
+        9.5,
+        183.5
+      ],
+      "image_px": [
+        1020.5666405638215,
+        423.2538762725137
+      ],
+      "loo_predicted_px": [
+        994.8464571425175,
+        399.4799026709553
+      ],
+      "loo_error_px": 35.02470065586738,
+      "loo_error_pct_width": 2.189043790991711
+    },
+    {
+      "label": "green_front_left",
+      "source": "interpolated (on the creek far-bank curve)",
+      "model_yd": [
+        -12.75,
+        131.75
+      ],
+      "image_px": [
+        414.68749999999994,
+        404.9
+      ],
+      "loo_predicted_px": [
+        414.35959337339864,
+        403.4739149432701
+      ],
+      "loo_error_px": 1.4632981052394547,
+      "loo_error_pct_width": 0.09145613157746592
+    },
+    {
+      "label": "green_front_right",
+      "source": "interpolated (on the creek far-bank curve)",
+      "model_yd": [
+        12.75,
+        157.25
+      ],
+      "image_px": [
+        1275.3125,
+        569.4625
+      ],
+      "loo_predicted_px": [
+        1275.0479427370883,
+        570.947379131075
+      ],
+      "loo_error_px": 1.50826276863859,
+      "loo_error_pct_width": 0.0942664230399119
+    },
+    {
+      "label": "green_back_left",
+      "source": "hand (anchored near bunker_backL)",
+      "model_yd": [
+        -12.75,
+        158.25
+      ],
+      "image_px": [
+        960.0,
+        375.0
+      ],
+      "loo_predicted_px": [
+        908.7376535653034,
+        359.686935915694
+      ],
+      "loo_error_px": 53.500636385382506,
+      "loo_error_pct_width": 3.3437897740864067
+    },
+    {
+      "label": "green_back_right",
+      "source": "hand (anchored near bunker_backR)",
+      "model_yd": [
+        12.75,
+        183.75
+      ],
+      "image_px": [
+        1060.0,
+        420.0
+      ],
+      "loo_predicted_px": [
+        1106.4756424503153,
+        446.990225987091
+      ],
+      "loo_error_px": 53.74437310085389,
+      "loo_error_pct_width": 3.3590233188033682
+    },
+    {
+      "label": "tee_marker:0",
+      "source": "r6_4_fit.json",
+      "model_yd": [
+        -3.5,
+        -1.0
+      ],
+      "image_px": [
+        249.3405172413793,
+        708.1508620689655
+      ],
+      "loo_predicted_px": [
+        1042.3967831494374,
+        672.0447010268745
+      ],
+      "loo_error_px": 793.8777587016971,
+      "loo_error_pct_width": 49.61735991885607
+    },
+    {
+      "label": "tee_marker:1",
+      "source": "r6_4_fit.json",
+      "model_yd": [
+        3.5,
+        -1.0
+      ],
+      "image_px": [
+        1200.0653266331658,
+        707.4874371859296
+      ],
+      "loo_predicted_px": [
+        390.9743234243082,
+        745.6208591828322
+      ],
+      "loo_error_px": 809.9891414992608,
+      "loo_error_pct_width": 50.6243213437038
+    }
+  ],
+  "residual_summary": {
+    "max_error_px": 809.9891414992608,
+    "mean_error_px": 134.12186096014213,
+    "max_error_pct_width": 50.6243213437038,
+    "mean_error_pct_width": 8.382616310008883,
+    "n_correspondences": 15
+  },
+  "monotonicity": {
+    "folds": [
+      "centerline fold: screen_y increased from y=154.0yd (py=434.7) to y=156.0yd (py=434.9)",
+      "centerline fold: screen_y increased from y=156.0yd (py=434.9) to y=158.0yd (py=435.5)",
+      "centerline fold: screen_y increased from y=158.0yd (py=435.5) to y=160.0yd (py=435.9)"
+    ]
+  },
+  "has_front_bunker": false
+}

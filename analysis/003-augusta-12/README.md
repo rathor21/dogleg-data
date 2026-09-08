@@ -92,13 +92,25 @@ directly.
 **export_site_assets.py** copies the two export.py outputs into
 `site/augusta-12/data/` and the hero art into `site/assets/img/`.
 
-**art/sketch.py** builds the geometry sketch that stands in for camera
-registration: every hazard boundary comes from `model.py`'s own functions,
-with a handful of art-only constants (tee box footprint; creek width now
-reads `data.CREEK_WIDTH_YD` directly rather than carrying its own figure)
-and the pixel-space camera projection documented in its module docstring.
-`export.py`'s manifest reads this projection's constants directly so the
-site's JavaScript can reproduce it.
+**art/sketch.py** builds the model's own yard-space geometry (every hazard
+boundary comes straight from `model.py`'s functions, plus a handful of
+art-only constants such as the tee box footprint) that `export.py`'s
+`geometry_yd` block and the accepted hero art both trace back to. It no
+longer supplies the manifest's pixel camera: through round five, its own
+piecewise projection stood in for a camera fit to the art, but nano-banana
+art fit to that stylized camera kept reading as a diagram, not Golden
+Bell. Round six (issue #11) inverted the relationship: `art/fit_tps.py`
+fits a thin-plate spline (TPS) camera to the accepted painted art
+(`art/hero.png`, a nano-banana repaint with no sketch reference at all),
+mapping model yards to that art's own pixels at a set of hand-picked and
+detected correspondences, registering each of them exactly by
+construction. `art/camera_tps.json` is the committed result (control
+points, target pixels, RBF weights, affine terms, the mobile crop offset,
+and the trusted depth limit); `export.py`'s `camera_block()` reads it
+directly, and `landmarks_px` in the manifest is that same fitted
+correspondence list, not a sketch.py coordinate dump. See
+`art/README.md`'s "Round six, integration" section for the fit, the
+residual tables, and why `r6_4` won over `r6_3`.
 
 ## Build sequence
 
@@ -124,7 +136,9 @@ surrounding an arbitrary aim point; the browser implements the identical
 formula against the same file.
 
 **`outputs/003_manifest.json`** (`dogleg-003-manifest/1`): the camera
-constants needed to reproduce `art/sketch.py`'s projection in JavaScript,
+block needed to reproduce `art/camera_tps.json`'s thin-plate-spline fit in
+JavaScript (control points, target pixels, RBF weights, affine terms,
+mobile crop offset, trusted depth limit -- see `art/README.md`, round six),
 the hole's geometry in model yards, five curated shot arcs (aim, tee,
 landing, and outcome), and a 1,000-point scatter per shot's own scenario
 for the animation's background cloud. Each shot's landing is the medoid of

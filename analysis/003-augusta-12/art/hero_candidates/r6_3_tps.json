@@ -1,0 +1,473 @@
+{
+  "candidate": "r6_3",
+  "canvas": [
+    1600,
+    900
+  ],
+  "control_points_yd": [
+    [
+      -18.87,
+      125.63
+    ],
+    [
+      -9.48,
+      135.02
+    ],
+    [
+      -0.09,
+      144.41
+    ],
+    [
+      7.42,
+      151.92
+    ],
+    [
+      16.81,
+      161.31
+    ],
+    [
+      -4.0,
+      137.5
+    ],
+    [
+      -11.5,
+      162.5
+    ],
+    [
+      9.5,
+      183.5
+    ],
+    [
+      -12.75,
+      131.75
+    ],
+    [
+      12.75,
+      157.25
+    ],
+    [
+      -12.75,
+      158.25
+    ],
+    [
+      12.75,
+      183.75
+    ],
+    [
+      -3.5,
+      -1.0
+    ],
+    [
+      3.5,
+      -1.0
+    ]
+  ],
+  "targets_px": [
+    [
+      350.0,
+      573.0
+    ],
+    [
+      600.0,
+      584.0
+    ],
+    [
+      850.0,
+      564.0
+    ],
+    [
+      1050.0,
+      563.0
+    ],
+    [
+      1300.0,
+      533.0
+    ],
+    [
+      1140.68,
+      506.08
+    ],
+    [
+      655.32,
+      447.58
+    ],
+    [
+      1171.64,
+      452.29
+    ],
+    [
+      512.9392971246007,
+      580.1693290734825
+    ],
+    [
+      1191.9062832800853,
+      545.9712460063897
+    ],
+    [
+      610.0,
+      465.0
+    ],
+    [
+      1210.0,
+      448.0
+    ],
+    [
+      330.0,
+      778.0
+    ],
+    [
+      1310.0,
+      787.0
+    ]
+  ],
+  "labels": [
+    "creek_far_bank:0",
+    "creek_far_bank:1",
+    "creek_far_bank:2",
+    "creek_far_bank:3",
+    "creek_far_bank:4",
+    "bunker_front",
+    "bunker_backL",
+    "bunker_backR",
+    "green_front_left",
+    "green_front_right",
+    "green_back_left",
+    "green_back_right",
+    "tee_marker:0",
+    "tee_marker:1"
+  ],
+  "sources": [
+    "detected (largest-component, saturation-trough threshold, bridge columns excluded)",
+    "detected (largest-component, saturation-trough threshold, bridge columns excluded)",
+    "detected (largest-component, saturation-trough threshold, bridge columns excluded)",
+    "detected (largest-component, saturation-trough threshold, bridge columns excluded)",
+    "detected (largest-component, saturation-trough threshold, bridge columns excluded)",
+    "detected (largest sand component, touches water mask)",
+    "detected (2nd-largest sand component)",
+    "detected (3rd-largest sand component)",
+    "interpolated (on the creek far-bank curve)",
+    "interpolated (on the creek far-bank curve)",
+    "hand (anchored near bunker_backL)",
+    "hand (anchored near bunker_backR)",
+    "hand",
+    "hand"
+  ],
+  "weights": {
+    "wx": [
+      0.33568345637656444,
+      -4.934884513198565,
+      -3.1137192804881733,
+      0.36191005922039354,
+      -0.22694304618693492,
+      5.849892114794307,
+      -0.11891106413447369,
+      1.0287114861900208,
+      1.0300273772472777,
+      -0.04922778689053629,
+      0.8579321703581775,
+      -0.9913058064847828,
+      -1.4429492289411914,
+      1.413784062137919
+    ],
+    "wy": [
+      -0.012120148832429024,
+      1.1296925965277511,
+      0.5418234102543393,
+      0.01666801676336545,
+      0.007746661214823908,
+      -1.2152755590730877,
+      -0.06522338021391938,
+      0.18204470333889164,
+      -0.3105577561567977,
+      -0.014601606841736349,
+      -0.09329741321471435,
+      -0.16742348593144102,
+      -0.014983074207810244,
+      0.01550703637276433
+    ]
+  },
+  "affine": {
+    "ax": [
+      3311.875722038018,
+      65.5797487893696,
+      1.1791091917907792
+    ],
+    "ay": [
+      961.5715619012713,
+      0.9059154444444799,
+      -2.3080886399993688
+    ]
+  },
+  "lambda": 1e-06,
+  "leave_one_out": [
+    {
+      "label": "creek_far_bank:0",
+      "source": "detected (largest-component, saturation-trough threshold, bridge columns excluded)",
+      "model_yd": [
+        -18.87,
+        125.63
+      ],
+      "image_px": [
+        350.0,
+        573.0
+      ],
+      "loo_predicted_px": [
+        247.0183548900502,
+        576.7182436072744
+      ],
+      "loo_error_px": 103.04874848863854,
+      "loo_error_pct_width": 6.440546780539909
+    },
+    {
+      "label": "creek_far_bank:1",
+      "source": "detected (largest-component, saturation-trough threshold, bridge columns excluded)",
+      "model_yd": [
+        -9.48,
+        135.02
+      ],
+      "image_px": [
+        600.0,
+        584.0
+      ],
+      "loo_predicted_px": [
+        774.611526734473,
+        544.0279705649043
+      ],
+      "loo_error_px": 179.1283015207361,
+      "loo_error_pct_width": 11.195518845046006
+    },
+    {
+      "label": "creek_far_bank:2",
+      "source": "detected (largest-component, saturation-trough threshold, bridge columns excluded)",
+      "model_yd": [
+        -0.09,
+        144.41
+      ],
+      "image_px": [
+        850.0,
+        564.0
+      ],
+      "loo_predicted_px": [
+        1140.6917738861835,
+        513.4162465939373
+      ],
+      "loo_error_px": 295.0600337452386,
+      "loo_error_pct_width": 18.441252109077414
+    },
+    {
+      "label": "creek_far_bank:3",
+      "source": "detected (largest-component, saturation-trough threshold, bridge columns excluded)",
+      "model_yd": [
+        7.42,
+        151.92
+      ],
+      "image_px": [
+        1050.0,
+        563.0
+      ],
+      "loo_predicted_px": [
+        1018.2423908383907,
+        561.537381461542
+      ],
+      "loo_error_px": 31.79127227165608,
+      "loo_error_pct_width": 1.986954516978505
+    },
+    {
+      "label": "creek_far_bank:4",
+      "source": "detected (largest-component, saturation-trough threshold, bridge columns excluded)",
+      "model_yd": [
+        16.81,
+        161.31
+      ],
+      "image_px": [
+        1300.0,
+        533.0
+      ],
+      "loo_predicted_px": [
+        1326.9475767990853,
+        532.0801491760483
+      ],
+      "loo_error_px": 26.96327170209362,
+      "loo_error_pct_width": 1.6852044813808513
+    },
+    {
+      "label": "bunker_front",
+      "source": "detected (largest sand component, touches water mask)",
+      "model_yd": [
+        -4.0,
+        137.5
+      ],
+      "image_px": [
+        1140.68,
+        506.08
+      ],
+      "loo_predicted_px": [
+        755.0550734677913,
+        586.1909728158626
+      ],
+      "loo_error_px": 393.85828914531595,
+      "loo_error_pct_width": 24.616143071582247
+    },
+    {
+      "label": "bunker_backL",
+      "source": "detected (2nd-largest sand component)",
+      "model_yd": [
+        -11.5,
+        162.5
+      ],
+      "image_px": [
+        655.32,
+        447.58
+      ],
+      "loo_predicted_px": [
+        665.5081250329513,
+        453.1682432600272
+      ],
+      "loo_error_px": 11.620084096954182,
+      "loo_error_pct_width": 0.7262552560596363
+    },
+    {
+      "label": "bunker_backR",
+      "source": "detected (3rd-largest sand component)",
+      "model_yd": [
+        9.5,
+        183.5
+      ],
+      "image_px": [
+        1171.64,
+        452.29
+      ],
+      "loo_predicted_px": [
+        1106.3581242430146,
+        440.73747058322465
+      ],
+      "loo_error_px": 66.29618569929913,
+      "loo_error_pct_width": 4.143511606206196
+    },
+    {
+      "label": "green_front_left",
+      "source": "interpolated (on the creek far-bank curve)",
+      "model_yd": [
+        -12.75,
+        131.75
+      ],
+      "image_px": [
+        512.9392971246007,
+        580.1693290734825
+      ],
+      "loo_predicted_px": [
+        465.8603653211849,
+        594.363832779002
+      ],
+      "loo_error_px": 49.172245781504465,
+      "loo_error_pct_width": 3.073265361344029
+    },
+    {
+      "label": "green_front_right",
+      "source": "interpolated (on the creek far-bank curve)",
+      "model_yd": [
+        12.75,
+        157.25
+      ],
+      "image_px": [
+        1191.9062832800853,
+        545.9712460063897
+      ],
+      "loo_predicted_px": [
+        1194.566157222433,
+        546.7601994818166
+      ],
+      "loo_error_px": 2.7744147086491475,
+      "loo_error_pct_width": 0.17340091929057175
+    },
+    {
+      "label": "green_back_left",
+      "source": "hand (anchored near bunker_backL)",
+      "model_yd": [
+        -12.75,
+        158.25
+      ],
+      "image_px": [
+        610.0,
+        465.0
+      ],
+      "loo_predicted_px": [
+        540.8537744557602,
+        472.51943358662595
+      ],
+      "loo_error_px": 69.5538811891799,
+      "loo_error_pct_width": 4.347117574323744
+    },
+    {
+      "label": "green_back_right",
+      "source": "hand (anchored near bunker_backR)",
+      "model_yd": [
+        12.75,
+        183.75
+      ],
+      "image_px": [
+        1210.0,
+        448.0
+      ],
+      "loo_predicted_px": [
+        1276.2751330348365,
+        459.1933307871938
+      ],
+      "loo_error_px": 67.21371818979227,
+      "loo_error_pct_width": 4.200857386862017
+    },
+    {
+      "label": "tee_marker:0",
+      "source": "hand",
+      "model_yd": [
+        -3.5,
+        -1.0
+      ],
+      "image_px": [
+        330.0,
+        778.0
+      ],
+      "loo_predicted_px": [
+        1076.3491978951433,
+        785.7498259763281
+      ],
+      "loo_error_px": 746.3894325359834,
+      "loo_error_pct_width": 46.64933953349896
+    },
+    {
+      "label": "tee_marker:1",
+      "source": "hand",
+      "model_yd": [
+        3.5,
+        -1.0
+      ],
+      "image_px": [
+        1310.0,
+        787.0
+      ],
+      "loo_predicted_px": [
+        562.516221015193,
+        778.8012527802039
+      ],
+      "loo_error_px": 747.5287414550573,
+      "loo_error_pct_width": 46.720546340941084
+    }
+  ],
+  "residual_summary": {
+    "max_error_px": 747.5287414550573,
+    "mean_error_px": 199.31418718072135,
+    "max_error_pct_width": 46.720546340941084,
+    "mean_error_pct_width": 12.457136698795084,
+    "n_correspondences": 14
+  },
+  "monotonicity": {
+    "folds": [
+      "centerline fold: screen_y increased from y=136.0yd (py=504.6) to y=138.0yd (py=511.0)",
+      "centerline fold: screen_y increased from y=138.0yd (py=511.0) to y=140.0yd (py=525.5)",
+      "centerline fold: screen_y increased from y=140.0yd (py=525.5) to y=142.0yd (py=544.4)",
+      "centerline fold: screen_y increased from y=142.0yd (py=544.4) to y=144.0yd (py=561.6)",
+      "centerline fold: screen_y increased from y=144.0yd (py=561.6) to y=146.0yd (py=568.5)"
+    ]
+  },
+  "has_front_bunker": true
+}

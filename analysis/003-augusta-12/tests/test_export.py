@@ -18,8 +18,9 @@ Three groups of checks:
      every outcome_class matches the spec's designated bucket for that
      shot, the recorded seed reproduces the landing, the five tee
      positions are distinct and inside the tee box, landmarks_px matches
-     art/sketch_coords.json, and the camera block matches art/sketch.py's
-     own module constants.
+     art/camera_tps.json's own fitted correspondences, the camera block is
+     that same thin-plate-spline fit (issue #11, round six), and it
+     reproduces every one of its own control points to within 0.5px.
 
   3. export.main() determinism: running it again reproduces the same
      bytes.
@@ -257,28 +258,71 @@ def test_tee_positions_distinct_and_inside_tee_box(exported):
         assert sketch.TEE_BOX_BACK_YD <= shot["tee"]["y"] <= 0.0
 
 
-def test_landmarks_px_matches_sketch_coords_json(exported):
-    with open(os.path.join(HERE, "art", "sketch_coords.json")) as f:
-        expected = json.load(f)
+def _tps_project(camera, x, y):
+    """Pure-Python mirror of hero.js's TPS projector, used only to check
+    that export.py's manifest reproduces art/camera_tps.json's own fit."""
+    cps = np.array(camera["control_points_yd"], dtype=np.float64)
+    d = cps - np.array([x, y])
+    r = np.sqrt((d ** 2).sum(axis=1))
+    u = np.where(r <= 1e-12, 0.0, r * r * np.log(np.where(r <= 1e-12, 1.0, r)))
+    wx = np.array(camera["weights"]["wx"])
+    wy = np.array(camera["weights"]["wy"])
+    ax = camera["affine"]["ax"]
+    ay = camera["affine"]["ay"]
+    px = ax[0] + ax[1] * x + ax[2] * y + float(u @ wx)
+    py = ay[0] + ay[1] * x + ay[2] * y + float(u @ wy)
+    return px, py
+
+
+def test_landmarks_px_matches_camera_tps_json(exported):
+    with open(os.path.join(HERE, "art", "camera_tps.json")) as f:
+        tps = json.load(f)
+    expected = [
+        {"label": label, "model_yd": cp, "image_px": px}
+        for label, cp, px in zip(tps["labels"], tps["control_points_yd"], tps["targets_px"])
+    ]
     assert exported["manifest"]["landmarks_px"] == expected
 
 
-def test_camera_matches_sketch_module_constants(exported):
+def test_camera_is_tps_matching_camera_tps_json(exported):
+    with open(os.path.join(HERE, "art", "camera_tps.json")) as f:
+        tps = json.load(f)
     camera = exported["manifest"]["camera"]
-    assert camera["canvas"] == {"width": sketch.CANVAS_W, "height": sketch.CANVAS_H}
-    assert camera["horizon_px"] == sketch.HORIZON_PX
-    assert camera["y_min_yd"] == sketch.Y_MIN_YD
-    assert camera["y_max_yd"] == sketch.Y_MAX_YD
-    assert camera["ground_near_px"] == sketch.GROUND_NEAR_PX
-    assert camera["tee_front_px"] == sketch.TEE_FRONT_PX
-    assert camera["mid_px"] == sketch.MID_PX
-    assert camera["gamma_x"] == sketch.GAMMA_X
-    assert camera["near_half_width_px"] == sketch.NEAR_HALF_WIDTH_PX
-    assert camera["far_half_width_px"] == sketch.FAR_HALF_WIDTH_PX
-    assert camera["frame_half_width_yd"] == sketch.FRAME_HALF_WIDTH_YD
+    assert camera["type"] == "tps"
+    assert camera["canvas"] == tps["canvas"]
+    assert camera["control_points_yd"] == tps["control_points_yd"]
+    assert camera["targets_px"] == tps["targets_px"]
+    assert camera["weights"] == tps["weights"]
+    assert camera["affine"] == tps["affine"]
+    assert camera["mobile_crop_x0"] == tps["mobile_crop_x0"]
+    assert camera["playfield_y_max_yd"] == tps["playfield_y_max_yd"]
 
-    _regions, landmarks = sketch.build_scene()
-    assert camera["y_break_yd"] == landmarks["y_break_yd"]
+
+def test_camera_reproduces_every_target_pixel_within_half_px(exported):
+    """The camera block's own control points must round-trip through its
+    own weights back to their target pixels (the TPS's defining property:
+    it interpolates its control points exactly, up to the tiny 1e-6 ridge
+    term used for numerical conditioning)."""
+    camera = exported["manifest"]["camera"]
+    for cp, target in zip(camera["control_points_yd"], camera["targets_px"]):
+        px, py = _tps_project(camera, cp[0], cp[1])
+        assert abs(px - target[0]) < 0.5
+        assert abs(py - target[1]) < 0.5
+
+
+def test_camera_orientation():
+    """+x_yd moves right on screen; +y_yd (farther from the tee) moves up
+    (smaller screen y), checked at a representative ground point -- the
+    same orientation sketch.py's own camera held."""
+    with open(os.path.join(HERE, "art", "camera_tps.json")) as f:
+        tps = json.load(f)
+    camera = {"control_points_yd": tps["control_points_yd"], "weights": tps["weights"], "affine": tps["affine"]}
+    x0, y0 = 0.0, 150.0
+    u0, v0 = _tps_project(camera, x0, y0)
+    ux, vx = _tps_project(camera, x0 + 1.0, y0)
+    uy, vy = _tps_project(camera, x0, y0 + 1.0)
+    assert ux > u0
+    assert vy < v0
 
 
 def test_manifest_schema(exported):
