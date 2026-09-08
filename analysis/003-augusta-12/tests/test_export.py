@@ -278,8 +278,8 @@ def test_landmarks_px_matches_camera_tps_json(exported):
     with open(os.path.join(HERE, "art", "camera_tps.json")) as f:
         tps = json.load(f)
     expected = [
-        {"label": label, "model_yd": cp, "image_px": px}
-        for label, cp, px in zip(tps["labels"], tps["control_points_yd"], tps["targets_px"])
+        {"label": label, "model_yd": cp, "image_px": px, "source": source}
+        for label, cp, px, source in zip(tps["labels"], tps["control_points_yd"], tps["targets_px"], tps["sources"])
     ]
     assert exported["manifest"]["landmarks_px"] == expected
 
@@ -298,16 +298,40 @@ def test_camera_is_tps_matching_camera_tps_json(exported):
     assert camera["playfield_y_max_yd"] == tps["playfield_y_max_yd"]
 
 
-def test_camera_reproduces_every_target_pixel_within_half_px(exported):
-    """The camera block's own control points must round-trip through its
-    own weights back to their target pixels (the TPS's defining property:
-    it interpolates its control points exactly, up to the tiny 1e-6 ridge
-    term used for numerical conditioning)."""
+def test_camera_reproduces_every_target_pixel_within_tolerance(exported):
+    """The camera block's own control points must round-trip through its own
+    weights back to close to their target pixels -- not exactly, as of round
+    seven's correction pass (#11).
+
+    Round six's TPS used a near-zero ridge term (lambda=1e-6) and hit every
+    control point almost exactly. Round seven found that exact interpolation
+    through this round's larger, denser correspondence set (a handful of
+    real landmarks that are not perfectly mutually consistent with one
+    smooth ground plane, plus a synthetic homography-backbone grid) produced
+    flight-path arcs that looped back on themselves -- confirmed by testing
+    the synthetic backbone alone, a densified backbone, and a homography-
+    plus-residual formulation, all of which still looped. Only relaxing
+    exact interpolation (lambda=60, see art/fit_tps.py's R6_4_LAMBDA) removed
+    every loop while keeping every real landmark within about 3.7% of canvas
+    width and all three pins inside the painted green -- see
+    art/README.md, round seven, for the full lambda sweep.
+
+    Tolerance here is set a little above the worst error actually observed
+    (59px for a real landmark, 136px for the single least-stable synthetic
+    corner near the tee) so the test catches a real regression without
+    encoding round six's now-obsolete near-zero-error expectation."""
     camera = exported["manifest"]["camera"]
-    for cp, target in zip(camera["control_points_yd"], camera["targets_px"]):
+    sources = _camera_tps_sources()
+    for cp, target, source in zip(camera["control_points_yd"], camera["targets_px"], sources):
         px, py = _tps_project(camera, cp[0], cp[1])
-        assert abs(px - target[0]) < 0.5
-        assert abs(py - target[1]) < 0.5
+        tol = 160.0 if source == "synthetic_h0" else 80.0
+        assert abs(px - target[0]) < tol, (source, cp, target)
+        assert abs(py - target[1]) < tol, (source, cp, target)
+
+
+def _camera_tps_sources():
+    with open(os.path.join(HERE, "art", "camera_tps.json")) as f:
+        return json.load(f)["sources"]
 
 
 def test_camera_orientation():
@@ -323,6 +347,128 @@ def test_camera_orientation():
     uy, vy = _tps_project(camera, x0, y0 + 1.0)
     assert ux > u0
     assert vy < v0
+
+
+def test_camera_synthetic_backbone_points_tagged(exported):
+    """Round seven's correction pass (#11) fills the ~125yd gap between the
+    tee and the creek/green with a synthetic fairway grid (5 x's by 6 y's --
+    the brief's own 5,35,65,95,120yd rows plus a 140yd row added once the
+    first fit showed a kink in the seam with the real creek/green data, see
+    art/README.md round seven), projected through a homography backbone fit
+    on the tee markers + creek far bank. They are not real landmarks --
+    every one must carry the "synthetic_h0" source tag so a reader of
+    camera_tps.json (or this manifest) never mistakes a calibration point
+    for something measured off the art."""
+    with open(os.path.join(HERE, "art", "camera_tps.json")) as f:
+        tps = json.load(f)
+    synthetic = [i for i, s in enumerate(tps["sources"]) if s == "synthetic_h0"]
+    assert len(synthetic) == 30  # 5 x's * 6 y's
+    for i in synthetic:
+        assert tps["labels"][i].startswith("synthetic_h0:")
+    # every non-synthetic point is a real, individually-sourced landmark
+    real = [s for s in tps["sources"] if s != "synthetic_h0"]
+    assert len(real) + len(synthetic) == len(tps["sources"])
+    assert all(s for s in real)
+
+
+def _green_boundary_polygon_px(tps):
+    """The painted green's own boundary, traced from camera_tps.json's own
+    fitted correspondences: the creek far-bank samples (the green's front
+    edge, by construction the same curve) plus the eight-ish green_boundary
+    angle points fit_tps.py sampled around the polygon's centroid. Ordered
+    by angle from their shared centroid so the result is a simple polygon,
+    not by insertion order."""
+    pts = [
+        tuple(px) for label, px in zip(tps["labels"], tps["targets_px"])
+        if label.startswith("creek_far_bank") or label.startswith("green_boundary")
+    ]
+    cx = sum(p[0] for p in pts) / len(pts)
+    cy = sum(p[1] for p in pts) / len(pts)
+    pts.sort(key=lambda p: np.arctan2(p[1] - cy, p[0] - cx))
+    return pts
+
+
+def _point_in_polygon(pt, poly):
+    """Standard ray-casting point-in-polygon test (no new dependency)."""
+    x, y = pt
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        if (y1 > y) != (y2 > y):
+            x_at_y = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
+            if x < x_at_y:
+                inside = not inside
+    return inside
+
+
+def test_pins_project_inside_painted_green_boundary(exported):
+    """The whole point of round seven's green-boundary correspondences
+    (#11): a pin at the model's own (x, y) must land inside the painted
+    green's oval on screen, not out in the rough beside it."""
+    with open(os.path.join(HERE, "art", "camera_tps.json")) as f:
+        tps = json.load(f)
+    camera = {"control_points_yd": tps["control_points_yd"], "weights": tps["weights"], "affine": tps["affine"]}
+    poly = _green_boundary_polygon_px(tps)
+    for key, p in data.PINS.items():
+        px, py = _tps_project(camera, p["x"], p["y"])
+        assert _point_in_polygon((px, py), poly), f"pin {key!r} projects to ({px:.1f},{py:.1f}), outside the painted green"
+
+
+def _px_per_yard_at(camera, y_yd):
+    d = 0.5
+    p0 = _tps_project(camera, -d, y_yd)
+    p1 = _tps_project(camera, d, y_yd)
+    return (p1[0] - p0[0]) / (2 * d)
+
+
+def _hero_arc_points(camera, shot, playfield_y_max_yd, apex_yd=14.0, max_lift_scale=12.5, n=200):
+    """Python mirror of hero.js's arcPoint (screen-space flight path,
+    including the curve_yd bow and the parabolic height lift), used only to
+    check the rendered path never loops back on itself."""
+    ref_y = min((shot["tee"]["y"] + shot["landing"]["y"]) / 2, playfield_y_max_yd)
+    lift_scale = min(_px_per_yard_at(camera, ref_y), max_lift_scale)
+    pts = []
+    for i in range(n):
+        t = i / (n - 1)
+        x = shot["tee"]["x"] + (shot["landing"]["x"] - shot["tee"]["x"]) * t + shot["curve_yd"] * np.sin(np.pi * t)
+        y = shot["tee"]["y"] + (shot["landing"]["y"] - shot["tee"]["y"]) * t
+        y_clamped = min(y, playfield_y_max_yd)
+        h = apex_yd * 4 * t * (1 - t)
+        px, py = _tps_project(camera, x, y_clamped)
+        pts.append((px, py - h * lift_scale))
+    return pts
+
+
+def _segments_intersect(p1, p2, p3, p4):
+    def ccw(a, b, c):
+        return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
+    return ccw(p1, p3, p4) != ccw(p2, p3, p4) and ccw(p1, p2, p3) != ccw(p1, p2, p4)
+
+
+def test_shot_flight_arcs_do_not_self_intersect(exported):
+    """Round seven's #11 fix: the previous camera's flight arcs looped
+    sideways across the fairway before settling on a landing, because the
+    TPS was under-constrained across the ~125yd gap between the tee and the
+    creek/green. Every one of the five curated shots' actual rendered path
+    (tee to landing, with its own curve_yd bow and parabolic height lift,
+    exactly mirroring hero.js's arcPoint) must trace a simple curve with no
+    self-crossings."""
+    manifest = exported["manifest"]
+    camera = manifest["camera"]
+    playfield_y_max_yd = camera["playfield_y_max_yd"]
+    for shot in manifest["shots"]:
+        pts = _hero_arc_points(camera, shot, playfield_y_max_yd)
+        n = len(pts)
+        crossings = 0
+        for i in range(n - 1):
+            for j in range(i + 2, n - 1):
+                if i == 0 and j == n - 2:
+                    continue  # adjacent-at-the-seam, not a real crossing
+                if _segments_intersect(pts[i], pts[i + 1], pts[j], pts[j + 1]):
+                    crossings += 1
+        assert crossings == 0, f"shot {shot['id']!r} flight arc self-intersects {crossings} time(s)"
 
 
 def test_manifest_schema(exported):

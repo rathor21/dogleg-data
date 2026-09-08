@@ -56,6 +56,7 @@ Usage: python3 fit_tps.py --all        (both candidates, this round's pair)
        python3 fit_tps.py r6_3
 """
 import json
+import math
 import pathlib
 import sys
 
@@ -66,11 +67,42 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import data    # noqa: E402
 import model   # noqa: E402
 import sketch  # noqa: E402
+import fit_camera as fc  # noqa: E402 -- reuses round six's normalized-DLT homography fit
 
 HERE = pathlib.Path(__file__).resolve().parent
 CANDIDATES_DIR = HERE / "hero_candidates"
 CANVAS_W, CANVAS_H = 1600, 900
 TPS_LAMBDA = 1e-6
+
+# Round seven's own regularization, used only for the final r6_4 build (see
+# build_r6_4_correspondences_v2/__main__ below), not for r6_3 or for the
+# per-landmark exactness this module's docstring otherwise promises.
+#
+# The near-exact fit (TPS_LAMBDA=1e-6) registers every real landmark almost
+# exactly, but a thin-plate spline minimizes bending energy subject to
+# hitting every control point exactly -- and a handful of real landmarks
+# here (bunker centroids and green-boundary points measured or interpolated
+# by different methods) are not perfectly mutually consistent with a single
+# smooth ground plane. Forcing exact interpolation through slightly
+# inconsistent points, even with a dense synthetic backbone in between,
+# produced flight paths that loop back on themselves: verified by removing
+# every real landmark and fitting the synthetic backbone alone (same
+# loops), by densifying the backbone up to 15x20 (same loops), and by
+# replacing raw-pixel targets with homography-baseline residuals (loops
+# persisted, just smaller). Only relaxing exact interpolation removed them.
+# A sweep over lambda (self-intersection count via segment-pair testing on
+# all 5 curated shots' actual flight paths, monotonicity folds, and whether
+# all 3 pins still land inside the green-boundary polygon) found:
+#   lambda <  50: still folds in the centerline check (tiny, sub-few-px,
+#     but present) and/or an occasional self-intersection on a curved shot.
+#   lambda =  60: zero self-intersections across all 5 shots, zero folds,
+#     all 3 pins inside the green, max real-landmark error 59px (3.7% of
+#     canvas width) -- the smallest lambda in the sweep clearing every bar.
+#   lambda >= 300: pins start falling outside the green boundary as the
+#     fit over-smooths toward the (imperfect) homography backbone.
+# 60 is the chosen value: the least smoothing that satisfies every
+# acceptance check, not a round number picked for convenience.
+R6_4_LAMBDA = 60
 
 # ---------------------------------------------------------------------------
 # Model-side values, read once from sketch.build_scene()/model.py -- nothing
@@ -217,6 +249,225 @@ CORRESPONDENCES = {
 
 
 # ---------------------------------------------------------------------------
+# Round seven (correction pass): a perspective backbone plus a green-
+# boundary correspondence set, replacing r6_4's sparse 15-point fit above.
+#
+# The round-six TPS registered every landmark it was given, but it was only
+# given landmarks at the green complex (y=124-184yd) and at the tee
+# (y=-1yd) -- a 125-yard stretch of model depth with nothing in between. A
+# TPS is a smooth interpolant with no notion of "ground plane," so across
+# that empty stretch it bent however the RBF terms happened to want to,
+# which is what produced looping flight arcs and an exploded lateral scale
+# near the tee. Likewise, the green was constrained by only its four
+# parallelogram corners, so interior points (the pins) had nothing nearby
+# to anchor to and could interpolate outside the painted green's own oval
+# footprint.
+#
+# The fix has two parts:
+#   1. A perspective backbone: fit a plain homography H0 on the tee markers
+#      plus the creek far-bank samples (the same 9-point pairing round
+#      six's own diagnostic fit already showed works reasonably, see
+#      art/README.md round six Part 2/"headline finding"), then generate a
+#      5x5 grid of SYNTHETIC control points across the fairway
+#      (x=-15..15yd, y=5..120yd) by projecting through H0. These fill the
+#      empty depth range with a smooth, if imperfect, perspective guess --
+#      enough to keep the TPS from bending freely there. Tagged
+#      "source": "synthetic_h0".
+#   2. Eight green-boundary correspondences sampled every 45 degrees by
+#      angle from the green polygon's own centroid, matched to the painted
+#      green's boundary at the same angle. Four of these fall on the front
+#      (creek-side) edge, where the far-bank curve already gives an exact
+#      pixel; the other four (right/back/left edges) are hand-anchored,
+#      interpolated linearly in pixel space between the two nearest
+#      previously-accepted green-corner picks -- see green_boundary_points
+#      below for the reasoning and README round seven for the crops this
+#      was checked against.
+# ---------------------------------------------------------------------------
+
+H0_SRC = (
+    [(x, model._front_edge_yd(x, _geom)) for x, _, _ in _R6_4_CREEK_IMG]
+    + [tuple(TEE_MARKERS_YD[0]), tuple(TEE_MARKERS_YD[1])]
+)
+H0_DST = (
+    [(u, v) for _, u, v in _R6_4_CREEK_IMG]
+    + [(249.3405172413793, 708.1508620689655), (1200.0653266331658, 707.4874371859296)]
+)
+
+
+def fit_h0_backbone():
+    """Homography fit on the 9-point tee+creek pairing (round six's own
+    diagnostic showed this reconciles the near field on its own -- see
+    art/README.md round six, "the headline finding"). Returns (H, per-point
+    residuals in px), so callers can check whether the tee markers land
+    within the brief's 5px bar for dropping them as separate TPS control
+    points."""
+    H = fc.fit_homography_dlt(H0_SRC, H0_DST)
+    residuals = []
+    for (x, y), (u, v) in zip(H0_SRC, H0_DST):
+        pu, pv = fc.apply_homography(H, x, y)
+        residuals.append(float(np.hypot(pu - u, pv - v)))
+    return H, residuals
+
+
+SYNTHETIC_XS_YD = [-15.0, -7.5, 0.0, 7.5, 15.0]
+# The brief's own grid is 5,35,65,95,120; a 140yd row was added after the
+# first fit showed a kink in the seam between the backbone's last row (120)
+# and the real creek/green data (starting ~124.5yd) -- exactly the failure
+# mode the brief's own note anticipated ("add a synthetic row at y=140 if
+# the transition into the green complex kinks"). See README round seven.
+SYNTHETIC_YS_YD = [5.0, 35.0, 65.0, 95.0, 120.0, 140.0]
+
+
+def synthetic_grid_points(H):
+    """5x5 fairway grid, projected through H0, tagged synthetic_h0. These
+    are not real landmarks -- they carry no independent evidence about the
+    art, only H0's own (imperfect but smooth) perspective guess -- so
+    leave-one-out residuals are not reported for them (see run(), which
+    filters the printed/committed table to real landmarks only)."""
+    pts = []
+    for y in SYNTHETIC_YS_YD:
+        for x in SYNTHETIC_XS_YD:
+            u, v = fc.apply_homography(H, x, y)
+            pts.append({
+                "label": f"synthetic_h0:{x:g},{y:g}",
+                "model_yd": (x, y),
+                "image_px": (u, v),
+                "source": "synthetic_h0",
+            })
+    return pts
+
+
+# Green parallelogram corners: front_left/front_right on the creek far-bank
+# curve (interpolated, exact by construction since the green's front edge
+# and the creek's far bank are the same model curve); back_left/back_right
+# are round six's own accepted hand picks (camera_tps.json's prior
+# green_back_left/back_right targets), kept as-is rather than re-picked --
+# they are still inside the painted grass shelf (checked by eye against the
+# gridded crops in hero_candidates/), and re-picking them fresh would only
+# add noise on top of an already-inspected pair.
+_GREEN_CORNERS_PX_R6_4 = {
+    "front_left": _interp_creek_img(_R6_4_CREEK_IMG, GREEN_CORNERS_YD["front_left"][0]),
+    "front_right": _interp_creek_img(_R6_4_CREEK_IMG, GREEN_CORNERS_YD["front_right"][0]),
+    "back_right": (1060.0, 420.0),
+    "back_left": (960.0, 375.0),
+}
+
+
+def _green_centroid_yd():
+    corners = [GREEN_CORNERS_YD[k] for k in ("front_left", "front_right", "back_right", "back_left")]
+    cx = sum(c[0] for c in corners) / 4.0
+    cy = sum(c[1] for c in corners) / 4.0
+    return cx, cy
+
+
+def _ray_polygon_intersect(cx, cy, angle_deg, poly):
+    """First edge a ray from (cx, cy) at angle_deg hits, poly given as an
+    ordered list of (x, y) vertices. Returns (point, edge_index)."""
+    theta = math.radians(angle_deg)
+    dx, dy = math.cos(theta), math.sin(theta)
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        ex, ey = x2 - x1, y2 - y1
+        denom = dx * ey - dy * ex
+        if abs(denom) < 1e-9:
+            continue
+        s = ((x1 - cx) * dy - (y1 - cy) * dx) / denom
+        t = ((x1 - cx) * ey - (y1 - cy) * ex) / denom
+        if -1e-9 <= s <= 1 + 1e-9 and t > 1e-9:
+            return (cx + t * dx, cy + t * dy), i
+    return None, None
+
+
+def green_boundary_points():
+    """Eight points around the green polygon's boundary, sampled every 45
+    degrees by angle from its own centroid (0deg = +x/east, going
+    counterclockwise), each matched to the painted green at the same angle.
+
+    Edge 0 (front_left->front_right, the creek-side edge) is sampled off
+    the creek far-bank curve directly -- exact, not a hand guess, since
+    that curve and the green's front edge are the identical model curve.
+    Edges 1/2/3 (right/back/left) have no comparably reliable painted
+    boundary: r6_4's putting surface is a smooth, continuously-shaded patch
+    with no hue/saturation break from the fairway around it (the same
+    finding round six's own segment_green hit), so those three points are
+    linearly interpolated in PIXEL space between the two nearest
+    previously-accepted green-corner picks bounding that edge -- e.g. the
+    right-edge midpoint sits halfway (by the model's own y-fraction)
+    between front_right's and back_right's pixels. This is a declared
+    approximation, not a detection: every point derived this way is tagged
+    "interpolated (linear, hand-picked green corners)". Colors were sampled
+    at each resulting pixel against art/hero.png as a sanity check (all
+    land on grass, none on sand/water/mulch -- see README round seven).
+
+    Any point landing within 0.2yd of an existing creek_far_bank sample
+    (front-edge points near x=0 and x=6.667 do, since 45-degree sampling
+    happens to land close to those two model x's) is dropped as a
+    duplicate correspondence -- it would otherwise put two near-identical
+    rows in the TPS's K matrix for no new information.
+    """
+    cx, cy = _green_centroid_yd()
+    corners_yd = [GREEN_CORNERS_YD[k] for k in ("front_left", "front_right", "back_right", "back_left")]
+    corners_px = [_GREEN_CORNERS_PX_R6_4[k] for k in ("front_left", "front_right", "back_right", "back_left")]
+
+    def edge_px(edge_idx, pt_yd):
+        """Pixel for a point known to lie on edge edge_idx of the
+        parallelogram (0=front, 1=right, 2=back, 3=left)."""
+        x, y = pt_yd
+        if edge_idx == 0:
+            return _interp_creek_img(_R6_4_CREEK_IMG, x)
+        p1_yd, p2_yd = corners_yd[edge_idx], corners_yd[(edge_idx + 1) % 4]
+        p1_px, p2_px = corners_px[edge_idx], corners_px[(edge_idx + 1) % 4]
+        # Parametrize by whichever coordinate actually varies along this edge.
+        if abs(p2_yd[0] - p1_yd[0]) > abs(p2_yd[1] - p1_yd[1]):
+            t = (x - p1_yd[0]) / (p2_yd[0] - p1_yd[0])
+        else:
+            t = (y - p1_yd[1]) / (p2_yd[1] - p1_yd[1])
+        return (p1_px[0] + t * (p2_px[0] - p1_px[0]), p1_px[1] + t * (p2_px[1] - p1_px[1]))
+
+    creek_xs = [c[0] for c in _R6_4_CREEK_IMG]
+    out = []
+    for ang in range(0, 360, 45):
+        pt, edge_idx = _ray_polygon_intersect(cx, cy, ang, corners_yd)
+        if pt is None:
+            continue
+        if edge_idx == 0 and any(abs(pt[0] - cxs) < 0.2 for cxs in creek_xs):
+            continue  # duplicate of an existing creek_far_bank sample
+        px = edge_px(edge_idx, pt)
+        edge_name = ["front", "right", "back", "left"][edge_idx]
+        out.append({
+            "label": f"green_boundary:{ang}deg({edge_name})",
+            "model_yd": pt,
+            "image_px": px,
+            "source": ("interpolated (on the creek far-bank curve)" if edge_idx == 0
+                       else "interpolated (linear, hand-picked green corners)"),
+        })
+    return out
+
+
+def build_r6_4_correspondences_v2():
+    """Round seven's full r6_4 correspondence set: the original creek
+    samples and back-bunker centroids (kept, per the brief), the new
+    8-point (minus duplicates) green boundary, the raw tee markers (kept as
+    direct TPS control points -- H0 does not reproduce them within 5px, see
+    the module docstring and README), and the 5x5 synthetic fairway grid."""
+    H0, h0_residuals = fit_h0_backbone()
+    tee_residuals = h0_residuals[-2:]  # last two H0_SRC/DST entries are the tee markers
+    keep_raw_tee = any(r > 5.0 for r in tee_residuals)
+
+    base = [c for c in CORRESPONDENCES["r6_4"]
+            if c["label"].startswith("creek_far_bank") or c["label"].startswith("bunker_back")]
+    green_pts = green_boundary_points()
+    tee_pts = [c for c in CORRESPONDENCES["r6_4"] if c["label"].startswith("tee_marker")] if keep_raw_tee else []
+    synthetic_pts = synthetic_grid_points(H0)
+
+    corr = base + green_pts + tee_pts + synthetic_pts
+    return corr, {"H0": H0.tolist(), "H0_residuals_px": h0_residuals, "tee_residuals_px": tee_residuals,
+                  "kept_raw_tee_markers": keep_raw_tee}
+
+
+# ---------------------------------------------------------------------------
 # Thin-plate spline
 # ---------------------------------------------------------------------------
 
@@ -280,7 +531,7 @@ def fit_camera(corr):
     return TPSCamera(src, dst[:, 0], dst[:, 1])
 
 
-def leave_one_out_residuals(corr):
+def leave_one_out_residuals(corr, lam=TPS_LAMBDA):
     src = np.array([c["model_yd"] for c in corr], dtype=np.float64)
     dst = np.array([c["image_px"] for c in corr], dtype=np.float64)
     n = len(corr)
@@ -288,7 +539,7 @@ def leave_one_out_residuals(corr):
     for i in range(n):
         mask = np.ones(n, dtype=bool)
         mask[i] = False
-        cam_loo = TPSCamera(src[mask], dst[mask, 0], dst[mask, 1])
+        cam_loo = TPSCamera(src[mask], dst[mask, 0], dst[mask, 1], lam=lam)
         pred_x, pred_y = cam_loo.project(*src[i])
         err_px = float(np.hypot(pred_x - dst[i, 0], pred_y - dst[i, 1]))
         rows.append({
@@ -307,10 +558,18 @@ def leave_one_out_residuals(corr):
 # Monotonicity check
 # ---------------------------------------------------------------------------
 
-def check_monotonicity(cam):
+# Lateral fold checks: 155 is the original centerline-ish check; 140/170/183
+# span the green complex's own front-to-back depth (front edge 131.75-157.25,
+# back edge 158.25-183.75 across the green's width) -- the brief's "fold
+# check ... across the green depth," not just at one representative y.
+LATERAL_CHECK_YS_YD = [140.0, 155.0, 170.0, 183.0]
+
+
+def check_monotonicity(cam, lateral_ys=LATERAL_CHECK_YS_YD):
     """Centerline x=0: screen y must decrease as model y increases 0->200.
-    Across x at y=155: screen x must increase with model x. Returns a dict
-    with both traces and a list of fold descriptions (empty if none)."""
+    Across x at each y in lateral_ys: screen x must increase with model x.
+    Returns a dict with every trace and a list of fold descriptions (empty
+    if none)."""
     folds = []
 
     ys = np.linspace(0.0, 200.0, 101)
@@ -322,18 +581,21 @@ def check_monotonicity(cam):
         folds.append(f"centerline fold: screen_y increased from y={ys[i]:.1f}yd (py={py[i]:.1f}) "
                       f"to y={ys[i+1]:.1f}yd (py={py[i+1]:.1f})")
 
+    lateral_traces = {}
     xs = np.linspace(-30.0, 30.0, 121)
-    ys155 = np.full_like(xs, 155.0)
-    px, _ = cam.project_many(np.stack([xs, ys155], axis=1))
-    d2 = np.diff(px)
-    bad2 = np.where(d2 < 0)[0]
-    for i in bad2:
-        folds.append(f"lateral fold at y=155yd: screen_x decreased from x={xs[i]:.1f}yd (px={px[i]:.1f}) "
-                      f"to x={xs[i+1]:.1f}yd (px={px[i+1]:.1f})")
+    for y_level in lateral_ys:
+        ys_level = np.full_like(xs, y_level)
+        px, _ = cam.project_many(np.stack([xs, ys_level], axis=1))
+        lateral_traces[y_level] = px.tolist()
+        d2 = np.diff(px)
+        bad2 = np.where(d2 < 0)[0]
+        for i in bad2:
+            folds.append(f"lateral fold at y={y_level:.0f}yd: screen_x decreased from x={xs[i]:.1f}yd (px={px[i]:.1f}) "
+                          f"to x={xs[i+1]:.1f}yd (px={px[i+1]:.1f})")
 
     return {
         "centerline_y_yd": ys.tolist(), "centerline_screen_py": py.tolist(),
-        "lateral_x_yd": xs.tolist(), "lateral_screen_px": px.tolist(),
+        "lateral_x_yd": xs.tolist(), "lateral_screen_px_by_y": lateral_traces,
         "folds": folds,
     }
 
@@ -392,10 +654,17 @@ def draw_overlay(name, cam, corr):
 # Driver
 # ---------------------------------------------------------------------------
 
-def run(name):
-    corr = CORRESPONDENCES[name]
-    cam = fit_camera(corr)
-    loo = leave_one_out_residuals(corr)
+def run(name, corr=None, lam=TPS_LAMBDA, extra_meta=None, write_camera=False):
+    corr = corr if corr is not None else CORRESPONDENCES[name]
+
+    cam = fit_camera(corr) if lam == TPS_LAMBDA else TPSCamera(
+        np.array([c["model_yd"] for c in corr]),
+        np.array([c["image_px"] for c in corr])[:, 0],
+        np.array([c["image_px"] for c in corr])[:, 1],
+        lam=lam,
+    )
+    loo_all = leave_one_out_residuals(corr, lam=lam)
+    loo = [r for r, c in zip(loo_all, corr) if c["source"] != "synthetic_h0"]
     mono = check_monotonicity(cam)
 
     max_err = max(r["loo_error_px"] for r in loo)
@@ -415,27 +684,95 @@ def run(name):
         "sources": [c["source"] for c in corr],
         "weights": {"wx": cam.wx.tolist(), "wy": cam.wy.tolist()},
         "affine": {"ax": cam.ax.tolist(), "ay": cam.ay.tolist()},
-        "lambda": TPS_LAMBDA,
+        "lambda": lam,
         "leave_one_out": loo,
         "residual_summary": {
             "max_error_px": max_err, "mean_error_px": mean_err,
             "max_error_pct_width": max_pct, "mean_error_pct_width": mean_pct,
-            "n_correspondences": len(loo),
+            "n_correspondences": len(loo), "n_control_points_total": len(corr),
         },
         "monotonicity": {"folds": mono["folds"]},
         "has_front_bunker": any(c["label"] == "bunker_front" for c in corr),
     }
+    if extra_meta:
+        report["backbone"] = extra_meta
     (CANDIDATES_DIR / f"{name}_tps.json").write_text(json.dumps(report, indent=2))
     draw_overlay(name, cam, corr)
 
     print(f"--- {name} ---")
     print(json.dumps(report["residual_summary"], indent=2))
     print("folds:", mono["folds"] if mono["folds"] else "none")
+
+    if write_camera:
+        write_camera_tps_json(name, cam, corr, report, mono)
+
     return report, cam
+
+
+def _green_polygon_center_px(cam):
+    corners = [GREEN_CORNERS_YD[k] for k in ("front_left", "front_right", "back_right", "back_left")]
+    pxs = [cam.project(x, y)[0] for x, y in corners]
+    return sum(pxs) / len(pxs)
+
+
+def write_camera_tps_json(name, cam, corr, report, mono):
+    """Commits art/camera_tps.json -- the file export.py and hero.js actually
+    read. mobile_crop_x0 is recomputed from THIS fit's own projection of the
+    green polygon (the TPS-projected horizontal center minus half the 506px
+    mobile crop width); playfield_y_max_yd is unchanged (pure model-space
+    geometry, the farther back bunker's model y plus 15yd -- not something
+    this pass's camera correction touches)."""
+    # Unchanged from round six: the green's own back-right corner model y
+    # (183.75) plus a 15yd buffer -- pure model-space geometry, untouched by
+    # this pass's camera correction.
+    playfield_y_max_yd = GREEN_CORNERS_YD["back_right"][1] + 15.0
+    green_center_px = _green_polygon_center_px(cam)
+    mobile_crop_x0 = round(green_center_px - 506 / 2.0)
+
+    formula = (
+        "TPS (thin-plate spline), fit separately per screen channel (px, py). "
+        "For a query model point (x, y): "
+        "f(x, y) = a0 + a1*x + a2*y + sum_i w_i * U(||(x,y) - p_i||), "
+        "U(r) = r^2 * log(r) with U(0) = 0, p_i = control_points_yd[i]. "
+        "wx/ax give px = f(x,y); wy/ay give py = f(x,y). "
+        "Weights solved from [[K + lambda*I, P], [P^T, 0]] @ [w; a] = [v; 0], "
+        "K_ij = U(|p_i - p_j|), P rows = [1, x_i, y_i]. "
+        "Clip to playfield_y_max_yd before projecting; subtract mobile_crop_x0 "
+        "from px when rendering the mobile crop."
+    )
+
+    out = {
+        "winner": name,
+        "canvas": [CANVAS_W, CANVAS_H],
+        "control_points_yd": report["control_points_yd"],
+        "targets_px": report["targets_px"],
+        "labels": report["labels"],
+        "sources": report["sources"],
+        "weights": report["weights"],
+        "affine": report["affine"],
+        "lambda": report["lambda"],
+        "formula": formula,
+        "mobile_crop_x0": mobile_crop_x0,
+        "playfield_y_max_yd": playfield_y_max_yd,
+        "leave_one_out": report["leave_one_out"],
+        "monotonicity_folds": mono["folds"],
+        "backbone": report.get("backbone"),
+    }
+    (HERE / "camera_tps.json").write_text(json.dumps(out, indent=2))
+    print(f"wrote {HERE / 'camera_tps.json'} (mobile_crop_x0={mobile_crop_x0}, "
+          f"playfield_y_max_yd={playfield_y_max_yd})")
 
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    names = ["r6_3", "r6_4"] if (not args or args == ["--all"]) else args
-    for n in names:
-        run(n)
+    if not args or args == ["--all"]:
+        run("r6_3")
+        corr_v2, meta = build_r6_4_correspondences_v2()
+        run("r6_4", corr=corr_v2, lam=R6_4_LAMBDA, extra_meta=meta, write_camera=True)
+    else:
+        for n in args:
+            if n == "r6_4":
+                corr_v2, meta = build_r6_4_correspondences_v2()
+                run("r6_4", corr=corr_v2, lam=R6_4_LAMBDA, extra_meta=meta, write_camera=True)
+            else:
+                run(n)

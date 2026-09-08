@@ -1,6 +1,6 @@
 # 003 hero art: a nano-banana painting with a TPS-fitted camera (issue #11)
 
-Status: **`hero.png` is `r6_4`, a nano-banana painting, camera fitted as a thin-plate spline (TPS).** Round six's "integration" pass (below) picked `r6_4` over `r6_3` on leave-one-out registration residual, removed its one painted flagstick with a Pillow clone-stamp, and made it the accepted hero art, replacing round four's code-rendered stencil (`hero_candidates/r4_code_rendered.png`, kept for the record). `hero_mobile_crop.png` is a 506x900 crop centered on the TPS-projected green, not the canvas. Everything below "Round six, integration" is earlier history, kept for the record of how the project got here: round four's procedural render (`render_ground.py`) replaced two rounds of texture-through-masks compositing (rounds two and three) after those failed on sight despite passing their own registration check; that whole stencil approach superseded a first architecture (asking nano-banana to respect pixel geometry directly via image-to-image), which failed registration on all 7 of its candidates. Round five is the owner's verdict on round four's `hero.png`: it read as a diagram, not Augusta's 12th. Round six inverted the whole approach in response -- a candidate's own painted geometry becomes the reference, and the model's camera is fit to it, first as a homography (round six, Part 1/2, below), which could not reconcile the near field with the green complex's own depth in any candidate; then as a TPS (round six, integration, below), which fixed that by registering every landmark exactly and staying smooth in between.
+Status: **`hero.png` is `r6_4`, a nano-banana painting, camera fitted as a thin-plate spline (TPS).** Round six's "integration" pass (below) picked `r6_4` over `r6_3` on leave-one-out registration residual, removed its one painted flagstick with a Pillow clone-stamp, and made it the accepted hero art, replacing round four's code-rendered stencil (`hero_candidates/r4_code_rendered.png`, kept for the record). `hero_mobile_crop.png` is a 506x900 crop centered on the TPS-projected green, not the canvas. Everything below "Round six, integration" is earlier history, kept for the record of how the project got here: round four's procedural render (`render_ground.py`) replaced two rounds of texture-through-masks compositing (rounds two and three) after those failed on sight despite passing their own registration check; that whole stencil approach superseded a first architecture (asking nano-banana to respect pixel geometry directly via image-to-image), which failed registration on all 7 of its candidates. Round five is the owner's verdict on round four's `hero.png`: it read as a diagram, not Augusta's 12th. Round six inverted the whole approach in response -- a candidate's own painted geometry becomes the reference, and the model's camera is fit to it, first as a homography (round six, Part 1/2, below), which could not reconcile the near field with the green complex's own depth in any candidate; then as a TPS (round six, integration, below), which fixed that by registering every landmark exactly and staying smooth in between. "Round six, camera correction" (further below) fixes two defects that leave-one-out residuals alone did not catch: looping flight arcs (an under-constrained warp between the tee and the green complex, fixed with a homography-projected synthetic backbone) and pins projecting outside the painted green (four green corners alone, fixed with eight angle-sampled boundary points). That pass also found that exact interpolation itself was the proximate cause of the loops and moved off it (`lambda=60`), so `camera_tps.json`'s fit is no longer pixel-exact at its own control points -- see that section for the tolerance this now uses instead.
 
 ## The pivot
 
@@ -383,6 +383,116 @@ Per the brief's own rule (lowest leave-one-out max, tie broken by feature comple
 - `hero.png` (1600x900) -- `r6_4`, flag removed, this round's accepted hero art, replacing round four's code-rendered stencil.
 - `hero_mobile_crop.png` (506x900) -- centered on the green (`crop_x0 = 592`), not the canvas.
 - `hero_candidates/r4_code_rendered.png` -- round four's code-rendered `hero.png`, kept for the record.
+
+## Round six, camera correction (2026-09-08): perspective backbone and green-boundary correspondences for the TPS camera (issue #11)
+
+### What was wrong
+
+An orchestrator review of round six's committed capture caught two defects a 15-point leave-one-out table cannot see, since it checks just a handful of points near the green complex, never the shape of the warp in between:
+
+1. The flight arcs looped sideways across the fairway instead of rising from the tee to a landing. The TPS had landmarks at the green complex (model y 124-184yd) and at the tee (y=-1yd) and nothing else -- a 125-yard stretch of model depth with nothing to anchor it. A thin-plate spline has no notion of "ground plane"; across an empty stretch it bends however its RBF terms want to, and that is what produced the loops.
+2. Interior pins mapped outside the painted green. The green was constrained by its four parallelogram corners alone, so a pin sitting inside that parallelogram had nothing nearby to anchor its own projection to, and the painted green is a wide shallow oval, not a diagonal parallelogram.
+
+### The fix, part one: a perspective backbone
+
+`fit_h0_backbone()` (`art/fit_tps.py`) fits a plain homography H0 on the same 9-point pairing round six's own diagnostic fit already showed holds up for `r6_4` (7 creek far-bank samples + 2 tee markers, see round six's "headline finding" above): max residual on those 9 points is 105px / 6.6% of canvas width, concentrated at the tee markers -- H0's lateral (px) prediction is good even near the tee; its depth (py) prediction is what drifts.
+
+`synthetic_grid_points()` then projects a fairway grid through H0 and feeds the results into the TPS as ordinary control points tagged `"source": "synthetic_h0"`: model x in {-15, -7.5, 0, 7.5, 15}yd, y in {5, 35, 65, 95, 120}yd, per the brief, plus a sixth row at y=140yd added after the first fit showed a visible kink right where the backbone's last row (120) met the real creek/green data (starting ~124.5yd) -- the brief's own anticipated remedy for that failure mode. 30 synthetic points in total. They are not landmarks: leave-one-out residuals and the committed residual table cover the 17 real correspondences alone.
+
+### The fix, part two: eight green-boundary points
+
+`green_boundary_points()` samples the model's green polygon at eight angles (0, 45, 90, ... 315 degrees) from its own centroid, matching each to the painted green at the same angle:
+
+- Four of the eight fall on the front (creek-side) edge, where the far-bank curve already gives an exact pixel by construction (front edge and creek far bank are the identical model curve). Two of those four sit within 0.2yd of an existing `creek_far_bank` sample and are dropped as duplicates rather than fed to the TPS twice.
+- The remaining points on the right, back, and left edges have no boundary as reliable as that: `r6_4`'s putting surface is a smooth, even-toned patch with no hue or saturation break from the fairway around it (the same finding round six's own `segment_green` hit). Each is a straight-line interpolation, in pixel space, along its edge between the two nearest already-accepted green-corner picks (e.g. the right-edge midpoint sits halfway, by the model's own y-fraction, between the `front_right` and `back_right` pixels already on file). Every resulting pixel was sampled against `hero.png` as a sanity check before use: all land on grass, none on sand, water, or azalea mulch.
+
+Six new points survive after dropping duplicates: `green_boundary:0deg/45deg` (right), `90deg/135deg` (back), `180deg/225deg` (left).
+
+### Why the backbone and the green points were not enough on their own
+
+The first fit (creek + bunkers + tee + green-boundary + 30-point backbone, near-exact interpolation) still produced flight arcs that looped back on themselves for several of the five curated shots -- confirmed by segment-pair self-intersection testing on the actual rendered paths, not just by eye. Three ablations isolated the cause:
+
+1. Fitting a TPS to the 30 synthetic backbone points *alone*, with no real landmarks at all, reproduced the same loops. The real landmarks were not the cause.
+2. Densifying the backbone to 9x10 and then 15x20 points did not remove the loops either. Backbone sparsity was not the cause.
+3. Replacing raw-pixel TPS targets with residuals from the H0 baseline (project = H0(x,y) + TPS-residual(x,y), fit at the 17 real landmarks alone) shrank the loops but did not eliminate them, and the residual magnitude at the real landmarks (up to 480px in x) showed H0 alone still cannot reconcile the near field with the green complex, matching round six's own homography section's finding.
+
+A thin-plate spline reproduces every control point's value with zero error, by construction. That is round six's whole selling point over a homography, but it is also the mechanism behind the loop: a handful of real landmarks here (bunker centroids and green-boundary points, measured or interpolated by different methods) do not all agree with a single smooth ground plane, and forcing exact interpolation through them bent the surface hard enough, in between, to fold back on itself. Relaxing exact interpolation was the fix that removed the loops.
+
+### Choosing the regularization
+
+A lambda sweep, checked against three things on every one of the five curated shots' actual rendered flight paths (tee to landing, with each shot's own `curve_yd` bow and parabolic height lift -- the exact path hero.js draws): segment-pair self-intersection count, the centerline/lateral monotonicity folds, and whether all three pins still land inside the green-boundary polygon.
+
+| lambda | self-intersections (5 shots) | folds | pins inside green | real-landmark max err |
+|---|---|---|---|---|
+| 1e-6 (round six's value) | several, large | 3 (tiny) | yes | 0px (exact) |
+| 10-40 | 0 | 3-6 (tiny, sub-few-px) | yes | 19-47px |
+| **60** | **0** | **0** | **yes, all 3** | **59px (3.7%)** |
+| 100-200 | 0 | 0 | yes | 76-108px |
+| 300+ | 0 | 0 | no -- left/sunday fall outside | 132px+ |
+
+60 is the smallest lambda in the sweep that clears every bar: the least smoothing that still kills every loop and every fold while keeping every pin on the green. Below it, tiny folds persist near the creek transition and one curved shot still self-intersects once; above about 250-300 the fit over-smooths toward the (imperfect) H0 baseline and pins start missing the green. `R6_4_LAMBDA = 60` in `art/fit_tps.py`.
+
+### Leave-one-out residuals (real landmarks alone, lambda=60)
+
+| Landmark | Error (px / %width) |
+|---|---|
+| creek_far_bank:0 | 47.8px / 2.99% |
+| creek_far_bank:1 | 35.8px / 2.24% |
+| creek_far_bank:2 | 13.2px / 0.82% |
+| creek_far_bank:3 | 45.6px / 2.85% |
+| creek_far_bank:4 | 59.8px / 3.74% |
+| creek_far_bank:5 | 19.4px / 1.21% |
+| creek_far_bank:6 | 68.7px / 4.29% |
+| bunker_backL | 60.6px / 3.79% |
+| bunker_backR | 140.6px / 8.79% |
+| green_boundary:0deg(right) | 9.5px / 0.60% |
+| green_boundary:45deg(right) | 80.4px / 5.03% |
+| green_boundary:90deg(back) | 31.5px / 1.97% |
+| green_boundary:135deg(back) | 32.5px / 2.03% |
+| green_boundary:180deg(left) | 68.8px / 4.30% |
+| green_boundary:225deg(left) | 125.2px / 7.82% |
+| tee_marker:0 | 175.2px / 10.95% |
+| tee_marker:1 | 164.4px / 10.28% |
+| **max / mean** | **175.2px / 69.4px** |
+
+Full table: `hero_candidates/r6_4_tps.json`. Overlay (10yd/20yd grid, creek, green polygon, back bunkers, tee box, three pins, all drawn through the corrected fit): `hero_candidates/r6_4_tps_overlay.png`.
+
+### Fold check
+
+Centerline (x=0yd, y 0 to 200) and lateral (y in {140, 155, 170, 183}yd, spanning the green's own front-to-back depth, x -30 to 30): zero folds at lambda=60. The tiny (sub-pixel to a few px) centerline folds present at lower lambda near the creek transition (y about 120-134yd) are gone.
+
+### Tee spread
+
+The five curated shots' tee x-values (+/-0.8 x the 7yd tee-box half-width, per `export.py`'s existing `_TEE_XS_YD`) project to px 79.4, 384.7, 736.4, 1129.5, 1561.0 -- a 1481.6px spread, 92.6% of the 1600px canvas. That is the art talking, not a fit defect: `r6_4`'s own two painted tee markers, a mere 7yd apart in model space, already sit 951px apart on screen (59% of canvas width) by direct color-segment detection (round six, Part 2) -- this painting's tee box reads very wide and very close to camera. Extrapolating the curated shots' full tee-box width through that same steep near-camera perspective spreads them close to the frame's edges as a direct consequence, not a defect. The fan still reads as five distinct tee positions rather than one point, and no shot's tee marker sits off-canvas.
+
+### Pins on the green
+
+All three pins project inside the green-boundary polygon traced by the six `green_boundary` points plus the seven `creek_far_bank` samples (ray-casting point-in-polygon test): left (-10, 148)yd to (769.3, 403.7)px, center (0, 155)yd to (999.0, 439.3)px, sunday (9, 162.5)yd to (1160.1, 506.3)px.
+
+### Verification in the browser
+
+`static-site` (`npx serve site`), `/augusta-12/?settled=1` and the animated run (`?shot=N` for individual shots), plus `hero_candidates/r6_4_tps_overlay.png` for the static diagnostic. Console: `hero: projection self-test 47/47` on every load, no errors -- hero.js's `runSelfTest` tolerance moved from a sub-pixel `<1px` (round six's near-exact fit) to source-aware tolerances (`SELF_TEST_TOL_REAL_PX=80`, `SELF_TEST_TOL_SYNTHETIC_PX=160`, both set a little above the worst error the fit produced) since exact interpolation is no longer the fit's own claim. `export.py`'s `landmarks_px_block` now carries each point's `source` through to the manifest so hero.js can tell real landmarks from backbone scaffolding.
+
+Read on the captures: arcs read as ball flights rising from a tee at the bottom of frame to landings on the painted green, sand, or water, with no self-crossing loop on any individual shot. Two of the five shots (`safe_center` and `draw`) share the "green" outcome color and their paths cross each other twice near the green, which can look like one tangled shape at a glance; each path checked in isolation (`?shot=N`, and the automated segment-intersection test below) is a single smooth curve. This is a pre-existing color-by-outcome-class design choice (`hero.js`'s `OUTCOME_COLOR`), not a geometry defect, and outside this pass's scope.
+
+### hero.js changes
+
+`APEX_YD` raised from 12 to 14yd, per the brief. `MAX_ARC_LIFT_SCALE` (12.5) and its role are unchanged -- comment updated to note it is now a safety-net cap rather than a load-bearing one, since the corrected camera's `pxPerYardAt` no longer swings 5x-10x across a single flight the way the under-constrained round six fit did. The draw/fade bow (`curve_yd`) still applies in model space before projection, unchanged. Tee positions are unchanged (the five shots' own tee x's from the manifest); see "Tee spread" above for the resulting screen spread.
+
+### Tests
+
+`tests/test_export.py`: `test_camera_synthetic_backbone_points_tagged` (30 `synthetic_h0`-tagged points present, everything else carrying its own distinct source), `test_pins_project_inside_painted_green_boundary` (ray-casting point-in-polygon against the `creek_far_bank` + `green_boundary` correspondences), `test_shot_flight_arcs_do_not_self_intersect` (a Python mirror of hero.js's `arcPoint`, segment-pair intersection test on all five curated shots -- the direct regression test for the loop this pass fixes). `test_camera_reproduces_every_target_pixel_within_half_px` is renamed `..._within_tolerance` and now checks source-aware tolerances (80px real / 160px synthetic) instead of 0.5px, with the reasoning inline.
+
+### Deliverables
+
+- `art/fit_tps.py` -- `fit_h0_backbone`, `synthetic_grid_points`, `green_boundary_points`, `build_r6_4_correspondences_v2`, `R6_4_LAMBDA`, extended `check_monotonicity` (lateral checks across the green's depth), `write_camera_tps_json`.
+- `art/camera_tps.json` -- refit: 17 real landmarks + 30 synthetic backbone points, lambda=60, `mobile_crop_x0` recomputed (679) from this fit's own projection of the green polygon.
+- `art/hero_candidates/r6_4_tps.json`, `r6_4_tps_overlay.png` -- regenerated against the corrected fit.
+- `site/augusta-12/hero.js` -- `APEX_YD`, self-test tolerance, comments.
+- `analysis/003-augusta-12/export.py` -- `landmarks_px_block` carries `source` through.
+- `outputs/003_manifest.json`, `site/augusta-12/data/003_manifest.json` -- regenerated.
+- `tests/test_export.py` -- new/updated tests above.
+- `docs/plans/assets/003-hero-desktop.png`, `003-hero-mobile.png` -- recaptured.
 
 ## Round-two generation prompts
 

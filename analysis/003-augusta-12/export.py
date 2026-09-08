@@ -604,11 +604,14 @@ def landmarks_px_block(tps=None):
     """The manifest's landmarks_px is now the TPS's own fitted
     correspondences (model yards + target pixels, one entry per hand-picked
     or detected landmark) rather than sketch.py's old piecewise-camera
-    coordinate dump -- see art/camera_tps.json and art/fit_tps.py."""
+    coordinate dump -- see art/camera_tps.json and art/fit_tps.py. "source"
+    is carried through (round seven, #11) so hero.js's projection self-test
+    can hold synthetic backbone points to a looser tolerance than real,
+    hand-picked/detected landmarks -- see hero.js's runSelfTest."""
     tps = tps if tps is not None else _load_tps_camera()
     return [
-        {"label": label, "model_yd": cp, "image_px": px}
-        for label, cp, px in zip(tps["labels"], tps["control_points_yd"], tps["targets_px"])
+        {"label": label, "model_yd": cp, "image_px": px, "source": source}
+        for label, cp, px, source in zip(tps["labels"], tps["control_points_yd"], tps["targets_px"], tps["sources"])
     ]
 
 
