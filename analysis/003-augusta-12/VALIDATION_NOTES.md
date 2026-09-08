@@ -1,6 +1,6 @@
 # Release 003 validation notes (issue #9, ADR 0002 pass)
 
-**Publication status (2026-09-07, updated after the creek band fix, #12):** the must-pass gates pass: the season-mean gate and the MC-vs-analytic fidelity gates all pass outright. The per-year shape checks for 2024 and 2025 are disclosed near-misses on the bogey bucket (details in "Creek band fix (rev 4)" below and in ADR 0002's rev 3 addendum), shipped under `xfail(strict=False)` rather than tuned to force a pass; 2019 and 2023 remain structural misses (their published means sit below this model's own achievable range). The region-geometry fix that closed the amateur-side creek defect reopened 2025 as a new, marginal (0.2-point) near-miss -- previously a clean pass. Sunny decides whether this is acceptable to publish or needs further model work first.
+**Publication status (2026-09-07, updated after the pitch-over-water risk fix, #8 rev 5):** the must-pass gates pass: the season-mean gate and the MC-vs-analytic fidelity gates all pass outright. The per-year shape checks for 2024 and 2025 are disclosed near-misses on the bogey bucket (details in "Creek band fix (rev 4)" and "Pitch-over-water risk (rev 5)" below and in ADR 0002's rev 3 addendum), shipped under `xfail(strict=False)` rather than tuned to force a pass; 2019 and 2023 remain structural misses (their published means sit below this model's own achievable range). The region-geometry fix that closed the amateur-side creek defect reopened 2025 as a new, marginal (0.2-point) near-miss -- previously a clean pass; rev 5's pitch-over-water fix barely moves it either way. Sunny decides whether this is acceptable to publish or needs further model work first. Rev 5 also closes a real gap the creek-band fix left open: the short_fairway pitch back over Rae's Creek carried no water risk at all, which had the optimizer recommending a 30+ yard Sunday-pin layup with no mechanism behind it -- see "Pitch-over-water risk (rev 5)" below for the fix, the sensitivity sweep, and the disclosed fact that several Sunday rows still lay up more than 15 yd even with the risk correctly priced.
 
 Dated 2026-09-07. Companion to `tests/test_model.py`, `tests/test_montecarlo.py`,
 and `tests/test_optimizer.py`. Numbers below come from running this tree's
@@ -634,6 +634,190 @@ parameter to chase this specific gate, both worse than disclosing a
 0.2-point miss in the open. Flagged explicitly for Sunny alongside the
 2019/2024 near-misses ADR 0002 already tracks.
 
+## Pitch-over-water risk (rev 5), 2026-09-07 (issue #8)
+
+### The defect
+
+`model._region_strokes`'s short_fairway branch (rev 4's creek-band fix)
+priced a pitch from the fairway back over Rae's Creek as a plain non-sand
+recovery leg -- the same price a fairway pitch with no hazard in front of
+it would get. That pitch has to carry the creek to reach the green;
+charging it zero water risk gave the optimizer no reason not to lay up as
+far short as the search box allowed. The published CSV's Sunday-pin
+optimal carry adjustment ran -17 yd (tiers 10 and 15, calm), -29.8 yd
+(tier 20, calm), and -44.6 yd (tier 20, wind) -- a deliberate 30-plus-yard
+layup on a 155-yard par 3 that this release could not publish with the
+missing mechanism left unpriced.
+
+### The fix
+
+`data.PITCH_OVER_WATER_DUNK_PCT` (`{0: 0.02, 5: 0.03, 10: 0.05, 15: 0.08,
+20: 0.12}`, MODELED, anchorless -- no source in the hunt publishes a dunk
+rate for a pitch over water at any tier; sensitivity range a 0.5x-1.5x
+multiplier on the whole table) and `data.TOUR_PITCH_OVER_WATER_DUNK_PCT`
+(0.01, MODELED, anchorless, a single scalar mirroring
+`TOUR_SCRAMBLING_PCT`/`TOUR_SAND_SAVE_PCT`'s own shape) set the share of
+these pitches that find the water instead of clearing it.
+
+`model._short_fairway_strokes` (new -- `model._region_strokes`'s
+short_fairway branch now calls it in place of the bare `_recovery_strokes`
+call) and `tour._tour_short_fairway_strokes` (its mirror) price the leg as:
+
+    (1 - p) * recovery + p * (CREEK_PENALTY_STROKES + 1.0 + recovery_after_drop)
+
+`recovery` is the existing plain non-sand recovery leg with the existing
+`far_short_yd` distance falloff, unchanged from rev 4. `recovery_after_drop`
+is the same non-sand recovery leg, but replayed from right at the creek's
+edge (`far_short_yd=0`) rather than carrying whatever falloff `recovery`
+itself may carry -- a drop and replay from the same side, not a second long
+pitch. The dunk branch charges `CREEK_PENALTY_STROKES` (the standard
+drop-and-replay convention) plus 1.0 (the pitch stroke itself, wasted in
+the water) plus `recovery_after_drop`.
+
+Two more call sites needed the identical formula, both found by running the
+existing test suite rather than by inspection: `montecarlo.
+simulate_tour_season` prices short_fairway inline (the same way it already
+prices creek/bunker/long_trouble inline, never through `tour.
+_tour_region_strokes`) and now calls `tour._tour_short_fairway_strokes`
+instead of the bare recovery call; `export.build_grid_for_combo` -- a
+third, independently vectorized mirror of this same formula, needed
+because it evaluates every aim point and integration node as numpy arrays
+at once rather than through `region_at`'s Python `if`/`elif` chain -- got
+the identical mixture. Its own round-trip test against
+`model.expected_score` (`tests/test_export.py::
+test_grid_builder_matches_expected_score_unrounded`) failed immediately
+when this fix landed everywhere except there, a real assertion failure
+(0.039-stroke gap at the first checked node) rather than something caught
+by inspection.
+
+### Sensitivity sweep
+
+`tests/test_model.py::test_pitch_over_water_dunk_pct_sensitivity_on_sunday_
+verdict_label` sweeps `PITCH_OVER_WATER_DUNK_PCT` by a 0.5x-1.5x multiplier
+(the constant's own stated range) on every tier's own figure. The
+Sunday-pin verdict label stays `bail` at every tested multiplier for tiers
+10/15/20, calm (flip_set's own cheaper search settings):
+
+| mult | tier 10 carry (delta) | tier 15 carry (delta) | tier 20 carry (delta) |
+|---|---|---|---|
+| 0.5x | -10.719 yd (0.1030) | -11.0 yd (0.0796) | -19.156 yd (0.1264) |
+| 1.0x (default) | -10.719 yd (0.1000) | -11.0 yd (0.0757) | -17.938 yd (0.1132) |
+| 1.5x | -10.719 yd (0.0969) | -11.0 yd (0.0717) | -13.438 yd (0.0942) |
+
+The label never flips. Tier 20's carry adjustment is the most sensitive to
+this MODELED table (a 5.7 yd swing across the sweep -- tier 20's wide
+dispersion puts the most weight on the short_fairway leg, so a bigger dunk
+rate there has more surface to act on); tiers 10/15 barely move at this
+search resolution.
+
+### Sunday layup check
+
+At `VERDICT_N_GRID` (the published resolution), the Sunday-pin optimal
+carry adjustment now sits inside 15 yd of the pin for tiers 0/5/10 calm
+(worst: tier 10 at -13.438 yd, versus -17.0 pre-fix) but still runs deeper
+than -15 yd at five of the ten Sunday rows: (10, wind), (15, calm), (15,
+wind), (20, calm), (20, wind). Re-optimizing each of those five with the
+carry search clamped to [-10, +10] yd (lateral unclamped, no other
+parameter touched) shows the model's claimed edge from laying up past -10
+yd is small in absolute terms:
+
+| tier | wind | full-search carry | full-search score | best carry in [-10,10] | score in [-10,10] | edge claimed for the deeper layup |
+|---|---|---|---|---|---|---|
+| 10 | wind | -18.625 yd | 4.0818 | -9.438 yd | 4.0889 | 0.0071 |
+| 15 | calm | -17.0 yd | 4.0814 | -10.0 yd | 4.0958 | 0.0144 |
+| 15 | wind | -26.5 yd | 4.2105 | -10.0 yd | 4.2245 | 0.0140 |
+| 20 | calm | -26.875 yd | 4.2563 | -10.0 yd | 4.2880 | 0.0317 |
+| 20 | wind | -38.75 yd | 4.3514 | -10.0 yd | 4.3935 | 0.0422 |
+
+Every one of these edges sits at or below `optimizer.
+TOSSUP_THRESHOLD_STROKES` (0.05) except tier 20 (both calm and wind),
+where it is still under a tenth of a stroke. This is not a re-opened
+defect: tier 20's own distance dispersion is wide enough (sigma ~33.6 yd)
+that a large share of its shots land in short_fairway however the aim
+point is chosen, so a further few yards of layup keeps trading a small
+amount of green/bunker/short-sided risk for a small amount of extra
+short_fairway risk long after the model's own decision-relevant edge has
+flattened out -- the same shallow-valley character this file's rev-4
+section and `tests/test_optimizer.py`'s n_grid-stability tests already
+document elsewhere on this surface, not a new pathology. No search clamp
+or tuning was applied to force these numbers inside -15 yd; they are
+reported here as found, for Sunny's own read on whether the remaining
+layup depth is still a defensible finding or needs a tighter dunk-risk
+model before publication.
+
+### Rebuilt verdict table (`outputs/003_results.csv`, `n_grid=121`)
+
+Every row's score moved up slightly (short_fairway got more expensive
+everywhere); `hit_search_boundary()` now reports 0 of 30, down from rev
+4's 1 of 30 -- `(20, "sunday", True)`'s near-boundary shallow-valley
+artifact resolved on its own once the dunk risk pulled that combination's
+true optimum back inside the box. No verdict label flipped in either
+direction: left/center stay "either works" at every tier and wind state,
+sunday stays "bail" at every tier and wind state, matching rev 4.
+
+Calm rows, score-optimum and delta before -> after this fix (windy rows
+move the same direction, full numbers in the CSV):
+
+| tier | pin | score_optimum (before -> after) | delta (before -> after) |
+|---|---|---|---|
+| 0 | left | 3.4597 -> 3.4590 | 0.0424 -> 0.0475 |
+| 0 | center | 3.4166 -> 3.4205 | 0.0101 -> 0.0118 |
+| 0 | sunday | 3.5959 -> 3.6035 | 0.0946 -> 0.0932 |
+| 5 | left | 3.5705 -> 3.5793 | 0.0472 -> 0.0464 |
+| 5 | center | 3.5335 -> 3.5403 | 0.0053 -> 0.0084 |
+| 5 | sunday | 3.7184 -> 3.7259 | 0.0847 -> 0.0880 |
+| 10 | left | 3.7792 -> 3.7980 | 0.0326 -> 0.0310 |
+| 10 | center | 3.7409 -> 3.7593 | 0.0133 -> 0.0147 |
+| 10 | sunday | 3.9164 -> 3.9444 | 0.1101 -> 0.1035 |
+| 15 | left | 3.9166 -> 3.9379 | 0.0103 -> 0.0201 |
+| 15 | center | 3.8577 -> 3.8948 | 0.0113 -> 0.0099 |
+| 15 | sunday | 4.0263 -> 4.0814 | 0.1126 -> 0.0960 |
+| 20 | left | 4.0332 -> 4.1062 | 0.0318 -> 0.0143 |
+| 20 | center | 4.0002 -> 4.0714 | 0.0117 -> 0.0017 |
+| 20 | sunday | 4.1457 -> 4.2563 | 0.1507 -> 0.1044 |
+
+Reading this: sunday's own delta actually SHRINKS at most tiers (the old
+underpriced short_fairway leg made the old bail-to-far-away optimum look
+cheaper than it really was; correctly pricing that leg raises both the
+at-pin and the optimal-aim score, but raises the optimal-aim score more,
+since it leaned harder on the underpriced leg) while staying a clear,
+unambiguous "bail" at every tier -- the sucker-pin finding survives a real
+tightening of its own margin, not just a favorable rerun. Left and center
+stay comfortably inside "either works" territory throughout; tier 20
+center's already-tiny delta (0.0117) shrinks almost to zero (0.0017),
+underscoring how close to a genuine tossup that pin already was.
+
+### Gate numbers
+
+MC-vs-analytic fidelity (Gate 1, re-run against the new pricing): amateur
+worst gap 0.0137 stroke (n=300,000, seed 20260816), tour worst gap 0.0121
+stroke -- both comfortably inside the 0.03 tolerance `tests/
+test_montecarlo.py` asserts.
+
+**Season-mean gate (must-pass, no xfail): still passes.** Analytic season
+mean: **3.1188** -- barely moved from rev 4's 3.1185 (`TOUR_
+PITCH_OVER_WATER_DUNK_PCT` is a small 0.01, so the Tour season surface
+shifts by roughly 0.0003 stroke), inside the modern-era band `[3.0586,
+3.2051]`. MC season mean at n=500,000 (seed 20260816): 3.1192, gap 0.00035
+stroke against the analytic mean (well inside the 0.01 fidelity bound).
+The calm floor (`wind_frequency=0`) moved from 3.0746 to 3.0749, and the
+windy ceiling (`wind_frequency=1`) from 3.2000 to 3.2004 -- both fractions
+of a hundredth of a stroke, the expected size of effect from a 1% Tour
+dunk rate.
+
+**Per-year shape gates** (bisection-fitted `tour.WIND_FREQUENCY` per year,
+n=1,000,000, seed 20260816): 2019 and 2023 remain structural misses
+(published means 3.053/3.058 both still sit below this release's own calm
+floor). 2024's fitted wind_frequency moved from 0.9839 to 0.9810 (still
+far outside the stated 0.2-0.5 sensitivity range), bogey bucket gap 6.55pp
+(was 6.58pp) against the 3.0pp tolerance -- the same disclosed near-miss,
+essentially unchanged. 2025's fitted wind_frequency moved from 0.5134 to
+0.5106 (still a hair above the stated range's own top end), bogey bucket
+gap 3.27pp (was 3.20pp) against the 3.0pp tolerance -- still a marginal,
+disclosed near-miss, not a new regression and not resolved by this fix;
+both stay `xfail(strict=False)`, unchanged from rev 4. No parameter was
+tuned to chase either gate.
+
 ## Suite state
 
 Full suite (`pytest -q`), after the creek band fix (rev 4, issue #12): 0
@@ -651,3 +835,25 @@ in its own xfail reason and here. Publication of the 2024/2025 shape
 near-misses, and of the substantially reshaped left/center verdict
 narrative flagged in "Rebuilt verdict table" above, is Sunny's call, not
 this suite's.
+
+**After the pitch-over-water risk fix (rev 5, issue #8):** 0 failed, 105
+passed, 4 xfailed, 109 total (389.84s). The three new tests are `tests/
+test_model.py::test_short_fairway_prices_the_pitch_over_water_dunk_risk`,
+`::test_tour_short_fairway_mirrors_amateur_formula_with_tour_dunk_pct`, and
+`::test_pitch_over_water_dunk_pct_sensitivity_on_sunday_verdict_label`. The
+same four xfails as rev 4, same reasons, magnitudes essentially unchanged
+(see "Pitch-over-water risk (rev 5)" above) -- this fix neither closes nor
+worsens any of them. No golden snapshot in `tests/test_optimizer.py` or
+`tests/test_export.py` needed updating: every previously-frozen scenario
+(the flip-set enumeration, the n_grid-stability pairs, the manifest's
+designated outcome classes) still passes unchanged, because this fix's
+dunk percentages (2-12% amateur, 1% Tour) are too small to move any of
+those specific frozen checks across a label boundary or outside its
+existing tolerance. The one real regression this fix caught was in
+`export.py`'s independently-vectorized grid builder (`build_grid_for_combo`),
+which still priced short_fairway the old way until it was updated to match
+-- `tests/test_export.py`'s round-trip test against `model.expected_score`
+failed with a real ~0.039-stroke gap until that third mirror was fixed
+too. No parameter was tuned to force a gate; the Sunday-pin layup depth
+that remains beyond -15 yd at five of ten rows (see "Sunday layup check"
+above) is disclosed, not tuned away.

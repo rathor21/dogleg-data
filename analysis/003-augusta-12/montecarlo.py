@@ -217,7 +217,7 @@ def simulate_tour_season(n=300_000, rng=None, pin_rotation=None, wind_frequency=
                     sub_strokes[j] = 1.0 + leg
                 elif region == "short_fairway":
                     far_short_yd = model._short_fairway_overshoot_yd(float(xi), float(yi), geom)
-                    mean_leg = tour._tour_recovery_strokes(short_sided, sand=False, far_short_yd=far_short_yd)
+                    mean_leg = tour._tour_short_fairway_strokes(short_sided, far_short_yd)
                     leg = _stochastic_round(mean_leg, rng, 1)[0]
                     sub_strokes[j] = 1.0 + leg
                 else:  # long_rough, greenside_rough

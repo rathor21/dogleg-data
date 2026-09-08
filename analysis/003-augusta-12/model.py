@@ -382,6 +382,36 @@ def _creek_strokes(tier, is_short_sided):
     return data.CREEK_PENALTY_STROKES + _recovery_strokes(tier, is_short_sided, sand=False)
 
 
+def _short_fairway_strokes(tier, is_short_sided, far_short_yd):
+    """Expected strokes for the short_fairway leg (rev 5, issue #8's
+    pitch-over-water risk fix): a pitch from the fairway that has to carry
+    Rae's Creek to reach the green, not a plain recovery with no hazard in
+    front of it the way rev 4's fix priced it.
+
+    Expected strokes = (1 - p) * recovery + p * (CREEK_PENALTY_STROKES + 1.0
+    + recovery_after_drop), where:
+
+    - p = data.PITCH_OVER_WATER_DUNK_PCT[tier] (MODELED, anchorless): the
+      share of these pitches a golfer of this tier fats or thins into the
+      creek instead of carrying it.
+    - recovery is the existing plain non-sand recovery leg, with the
+      existing far_short_yd distance falloff (_recovery_strokes), unchanged
+      from rev 4 -- the price when the pitch clears the water.
+    - the dunk branch charges CREEK_PENALTY_STROKES (the standard
+      drop-and-replay convention, same as _creek_strokes) PLUS 1.0 (the
+      pitch stroke itself, wasted in the water) PLUS recovery_after_drop, a
+      second plain non-sand recovery leg (no far_short_yd -- the drop area
+      sits right at the creek's edge, a genuine greenside chip, not another
+      long pitch) priced identically to _creek_strokes's own recovery term:
+      a drop and replay from the same side.
+    """
+    p = data.PITCH_OVER_WATER_DUNK_PCT[tier]
+    recovery = _recovery_strokes(tier, is_short_sided, sand=False, far_short_yd=far_short_yd)
+    recovery_after_drop = _recovery_strokes(tier, is_short_sided, sand=False)
+    dunk = data.CREEK_PENALTY_STROKES + 1.0 + recovery_after_drop
+    return (1.0 - p) * recovery + p * dunk
+
+
 def _long_trouble_overshoot_yd(x, y, geom):
     """Yards `y` sits past region_at's long_trouble boundary at lateral
     position `x` (region_at's own trouble_back computation, duplicated here
@@ -424,7 +454,7 @@ def _region_strokes(region, is_short_sided, tier, x, y, pin, *,
     if region == "short_fairway":
         geom = _resolve_geometry(green_width_yd, front_third_depth_yd)
         far_short_yd = _short_fairway_overshoot_yd(x, y, geom)
-        return _recovery_strokes(tier, is_short_sided, sand=False, far_short_yd=far_short_yd)
+        return _short_fairway_strokes(tier, is_short_sided, far_short_yd)
     # long_rough, greenside_rough: a plain non-sand recovery leg, no penalty
     # stroke.
     return _recovery_strokes(tier, is_short_sided, sand=False)

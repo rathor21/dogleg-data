@@ -125,6 +125,22 @@ def _tour_creek_strokes(is_short_sided):
     return data.CREEK_PENALTY_STROKES + _tour_recovery_strokes(is_short_sided, sand=False)
 
 
+def _tour_short_fairway_strokes(is_short_sided, far_short_yd):
+    """Mirrors model._short_fairway_strokes exactly (rev 5, issue #8's
+    pitch-over-water risk fix), using data.TOUR_PITCH_OVER_WATER_DUNK_PCT
+    (a single scalar, not a tier-keyed dict) in place of the amateur
+    data.PITCH_OVER_WATER_DUNK_PCT[tier] lookup.
+
+    Expected strokes = (1 - p) * recovery + p * (CREEK_PENALTY_STROKES + 1.0
+    + recovery_after_drop) -- see model._short_fairway_strokes's docstring
+    for the full reasoning behind each term."""
+    p = data.TOUR_PITCH_OVER_WATER_DUNK_PCT
+    recovery = _tour_recovery_strokes(is_short_sided, sand=False, far_short_yd=far_short_yd)
+    recovery_after_drop = _tour_recovery_strokes(is_short_sided, sand=False)
+    dunk = data.CREEK_PENALTY_STROKES + 1.0 + recovery_after_drop
+    return (1.0 - p) * recovery + p * dunk
+
+
 def _tour_region_strokes(region, is_short_sided, x, y, pin, *,
                           green_width_yd=None, front_third_depth_yd=None):
     """Mirrors model._region_strokes exactly, dispatching to the _tour_*
@@ -144,7 +160,7 @@ def _tour_region_strokes(region, is_short_sided, x, y, pin, *,
     if region == "short_fairway":
         geom = model._resolve_geometry(green_width_yd, front_third_depth_yd)
         far_short_yd = model._short_fairway_overshoot_yd(x, y, geom)
-        return _tour_recovery_strokes(is_short_sided, sand=False, far_short_yd=far_short_yd)
+        return _tour_short_fairway_strokes(is_short_sided, far_short_yd)
     # long_rough, greenside_rough: plain non-sand Tour scrambling rate
     # (data.TOUR["scrambling_pct"]), no penalty stroke.
     return _tour_recovery_strokes(is_short_sided, sand=False)

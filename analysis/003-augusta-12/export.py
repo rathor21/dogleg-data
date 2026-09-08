@@ -349,7 +349,19 @@ def build_grid_for_combo(tier, pin, wind, *, n_grid=GRID_N_GRID, n_std=GRID_N_ST
     ceiling_easy = data.MISSED_UP_AND_DOWN_STROKES
     ceiling_short = data.MISSED_UP_AND_DOWN_STROKES * data.SHORT_SIDE_PENALTY
     ceiling_arr = np.where(is_short_sided, ceiling_short, ceiling_easy)
-    short_fairway_strokes = rough_strokes * (1.0 - short_blend) + ceiling_arr * short_blend
+    short_fairway_recovery = rough_strokes * (1.0 - short_blend) + ceiling_arr * short_blend
+
+    # Pitch-over-water risk fix (rev 5, issue #8): mirrors model.
+    # _short_fairway_strokes exactly -- (1 - p) * recovery + p *
+    # (CREEK_PENALTY_STROKES + 1.0 + recovery_after_drop), where
+    # recovery_after_drop is the same non-sand recovery leg as
+    # `rough_strokes` above (a drop and replay right at the creek's edge,
+    # never carrying the far_short_yd falloff `short_fairway_recovery`
+    # itself carries). p = data.PITCH_OVER_WATER_DUNK_PCT[tier], a scalar
+    # for this whole grid (build_grid_for_combo is called once per tier).
+    dunk_pct = data.PITCH_OVER_WATER_DUNK_PCT[tier]
+    dunk_strokes = data.CREEK_PENALTY_STROKES + 1.0 + rough_strokes
+    short_fairway_strokes = (1.0 - dunk_pct) * short_fairway_recovery + dunk_pct * dunk_strokes
 
     strokes = np.where(m_green, green_strokes, 0.0)
     strokes = np.where(m_creek, creek_strokes, strokes)

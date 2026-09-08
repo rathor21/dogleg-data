@@ -403,6 +403,26 @@ LONG_TROUBLE_FALLOFF_YD = 15.0        # MODELED, anchorless; sensitivity range (
 LONG_TROUBLE_FALLOFF_YD_RANGE = (10.0, 25.0)
 
 # ---------------------------------------------------------------------------
+# Pitch-over-water risk fix (rev 5, issue #8): the short_fairway leg (rev 4's
+# creek-band fix) priced the pitch back over Rae's Creek as a plain
+# non-sand recovery leg, the same price a fairway pitch with no hazard in
+# front of it would get. That pitch has to carry the creek, so it charges
+# no water risk at all for a shot that must clear water -- the missing
+# mechanism behind the pre-fix optimizer's Sunday lay-up recommendation.
+#
+# PITCH_OVER_WATER_DUNK_PCT: the share of these pitches a golfer of each
+# tier fats or thins into the creek instead of advancing it past the water.
+# No source in the source-hunt log publishes a dunk rate for a short pitch
+# over water, by handicap tier or otherwise -- MODELED, anchorless, rising
+# with handicap the same direction every other recovery-rate table in this
+# file does. Swept by tests/test_model.py's sensitivity test at a stated
+# multiplicative range of 0.5x to 1.5x on every tier's own figure.
+# ---------------------------------------------------------------------------
+
+PITCH_OVER_WATER_DUNK_PCT = {0: 0.02, 5: 0.03, 10: 0.05, 15: 0.08, 20: 0.12}  # MODELED, anchorless; sensitivity range 0.5x-1.5x
+PITCH_OVER_WATER_DUNK_PCT_SENSITIVITY_MULT_RANGE = (0.5, 1.5)
+
+# ---------------------------------------------------------------------------
 # SOURCES: one row per exported anchor group; log fragments point at the
 # anchor sections of docs/sources/003_Source_Log.md.
 # ---------------------------------------------------------------------------
@@ -419,6 +439,7 @@ SOURCES = {
     "UP_AND_DOWN_PCT": {"log": "docs/sources/003_Source_Log.md#anchor-5", "status": "modeled, weakly-sourced (websearch synthesis, direct fetch failed 403)"},
     "CREEK_WIDTH_YD": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, no published creek width; sensitivity range 4.0-8.0 yd"},
     "BANK_ROLLBACK_YD": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, the shaved-bank rollback the 2019 Koepka/Molinari narrative describes; sensitivity range 2.0-5.0 yd"},
+    "PITCH_OVER_WATER_DUNK_PCT": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, anchorless -- no source in the hunt publishes a dunk rate for a pitch over water at any handicap tier; swept by a 0.5x-1.5x sensitivity test"},
 }
 
 # ---------------------------------------------------------------------------
@@ -525,6 +546,16 @@ TOUR_SAND_SAVE_PCT = 0.50    # PUBLISHED (WebSearch synthesis, corroborated twic
 # sourcing status.
 TOUR_MISSED_UP_AND_DOWN_STROKES = 2.94   # MODELED (derived), Anchor 10
 
+# TOUR_PITCH_OVER_WATER_DUNK_PCT: the pitch-over-water risk fix's Tour-side
+# counterpart to the amateur PITCH_OVER_WATER_DUNK_PCT table above (rev 5,
+# issue #8). No source publishes a Tour dunk rate for a short pitch over
+# water either -- MODELED, anchorless -- kept far below the amateur tiers'
+# own lowest figure (scratch, 0.02) since a Tour player's short-game miss
+# rate on a shot this short is lower still. A single scalar, not a
+# tier-keyed dict, matching every other Tour-only recovery constant in this
+# block (TOUR_SCRAMBLING_PCT, TOUR_SAND_SAVE_PCT).
+TOUR_PITCH_OVER_WATER_DUNK_PCT = 0.01     # MODELED, anchorless
+
 TOUR = {
     "sigma_iso_ft": _SIGMA_ISO_FT_TOUR,
     "proximity_ft": _PROXIMITY_FT_TOUR,
@@ -541,6 +572,10 @@ TOUR = {
 SOURCES["TOUR"] = {
     "log": "docs/sources/003_Source_Log.md#anchor-7",
     "status": "proximity/GIR anchored directly at 150-175yd (contains the 155yd shot, no extrapolation step); anisotropy anchored to Broadie's published pro ratio (Anchor 2); putting modeled-anchorless (see TOUR_THREE_PUTT_RATE above); recovery rates and missed-up-and-down cost anchored/derived per Anchor 10 (docs/sources/003_Source_Log.md#anchor-10), see TOUR_SCRAMBLING_PCT/TOUR_SAND_SAVE_PCT/TOUR_MISSED_UP_AND_DOWN_STROKES above",
+}
+SOURCES["TOUR_PITCH_OVER_WATER_DUNK_PCT"] = {
+    "log": "docs/sources/003_Source_Log.md#anchor-3",
+    "status": "modeled, anchorless -- no source in the hunt publishes a Tour dunk rate for a pitch over water",
 }
 
 # ---------------------------------------------------------------------------

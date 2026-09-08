@@ -580,3 +580,92 @@ def test_creek_band_width_sensitivity_on_sunday_verdict_label():
         f"Sunday verdict delta swings {spread:.4f} strokes across the "
         "creek-band sensitivity range, wider than expected"
     )
+
+
+# ---------------------------------------------------------------------------
+# Pitch-over-water risk fix (rev 5, issue #8): the short_fairway leg (rev 4's
+# creek-band fix) priced the pitch back over Rae's Creek as a plain non-sand
+# recovery leg with no water risk at all -- this section's tests check the
+# new dunk-risk mixture formula directly, and that the Sunday-pin bail
+# verdict is not an artifact of exactly where data.PITCH_OVER_WATER_DUNK_PCT
+# sits.
+# ---------------------------------------------------------------------------
+
+def test_short_fairway_prices_the_pitch_over_water_dunk_risk():
+    # model._short_fairway_strokes's own formula, checked directly against
+    # its primitives: (1 - p) * recovery + p * (CREEK_PENALTY_STROKES + 1.0
+    # + recovery_after_drop). recovery_after_drop is the same non-sand
+    # recovery leg as `recovery`, but replayed from the drop area right at
+    # the creek's edge (far_short_yd=0), never carrying the far_short_yd
+    # falloff `recovery` itself may carry.
+    for tier in data.TIERS:
+        p = data.PITCH_OVER_WATER_DUNK_PCT[tier]
+        for is_short_sided in (False, True):
+            for far_short_yd in (0.0, 5.0, 15.0):
+                recovery = model._recovery_strokes(tier, is_short_sided, sand=False, far_short_yd=far_short_yd)
+                recovery_after_drop = model._recovery_strokes(tier, is_short_sided, sand=False)
+                expected = (1.0 - p) * recovery + p * (data.CREEK_PENALTY_STROKES + 1.0 + recovery_after_drop)
+                priced = model._short_fairway_strokes(tier, is_short_sided, far_short_yd)
+                assert priced == pytest.approx(expected, abs=1e-9), (tier, is_short_sided, far_short_yd)
+                # The whole point of the fix: this leg must now cost strictly
+                # more than the plain (rev 4) recovery price it replaced,
+                # since PITCH_OVER_WATER_DUNK_PCT is positive at every tier
+                # and the dunk branch is always worse than the plain leg.
+                assert priced > recovery, (tier, is_short_sided, far_short_yd)
+
+
+def test_tour_short_fairway_mirrors_amateur_formula_with_tour_dunk_pct():
+    # tour._tour_short_fairway_strokes mirrors model._short_fairway_strokes
+    # exactly, using the scalar data.TOUR_PITCH_OVER_WATER_DUNK_PCT in place
+    # of the amateur tier-keyed dict.
+    p = data.TOUR_PITCH_OVER_WATER_DUNK_PCT
+    for is_short_sided in (False, True):
+        for far_short_yd in (0.0, 5.0, 15.0):
+            recovery = tour._tour_recovery_strokes(is_short_sided, sand=False, far_short_yd=far_short_yd)
+            recovery_after_drop = tour._tour_recovery_strokes(is_short_sided, sand=False)
+            expected = (1.0 - p) * recovery + p * (data.CREEK_PENALTY_STROKES + 1.0 + recovery_after_drop)
+            priced = tour._tour_short_fairway_strokes(is_short_sided, far_short_yd)
+            assert priced == pytest.approx(expected, abs=1e-9), (is_short_sided, far_short_yd)
+
+
+def test_pitch_over_water_dunk_pct_sensitivity_on_sunday_verdict_label():
+    # Sweep PITCH_OVER_WATER_DUNK_PCT by its own stated multiplicative
+    # sensitivity range (0.5x-1.5x on every tier's own figure) and confirm
+    # the Sunday-pin verdict label stays "bail" at tiers 10/15/20, calm, at
+    # every sweep point -- the sucker-pin finding should not be an artifact
+    # of exactly where this MODELED dunk rate sits. flip_set's own cheaper
+    # search settings (FLIP_SET_*) keep the sweep fast. See
+    # VALIDATION_NOTES.md for the recorded carry-adjustment swing.
+    import optimizer
+
+    orig = dict(data.PITCH_OVER_WATER_DUNK_PCT)
+    mults = (0.5, 1.0, 1.5)
+    labels = {}
+    carries = {}
+    try:
+        for mult in mults:
+            data.PITCH_OVER_WATER_DUNK_PCT = {t: v * mult for t, v in orig.items()}
+            for tier in (10, 15, 20):
+                v = optimizer.optimize_aim(tier, "sunday", False,
+                                            n_grid=optimizer.FLIP_SET_N_GRID,
+                                            search_n_grid=optimizer.FLIP_SET_SEARCH_N_GRID,
+                                            coarse_step_yd=optimizer.FLIP_SET_COARSE_STEP_YD,
+                                            lateral_range_yd=optimizer.FLIP_SET_LATERAL_RANGE_YD,
+                                            carry_range_yd=optimizer.FLIP_SET_CARRY_RANGE_YD)
+                labels[(mult, tier)] = optimizer.verdict_label(v)
+                carries[(mult, tier)] = v.carry_adjustment_yd
+    finally:
+        data.PITCH_OVER_WATER_DUNK_PCT = orig
+
+    for tier in (10, 15, 20):
+        tier_labels = {labels[(m, tier)] for m in mults}
+        assert tier_labels == {"bail"}, (tier, labels)
+
+    for tier in (10, 15, 20):
+        spread = max(carries[(m, tier)] for m in mults) - min(carries[(m, tier)] for m in mults)
+        # Recorded (not just bounded) so VALIDATION_NOTES.md can quote the
+        # exact swing; a generous bound still catches a runaway regression.
+        assert spread < 15.0, (
+            f"tier {tier}: Sunday carry-adjustment swings {spread:.2f} yd "
+            "across the dunk-pct sensitivity sweep, wider than expected"
+        )

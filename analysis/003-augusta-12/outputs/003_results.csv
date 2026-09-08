@@ -1,31 +1,31 @@
 tier,pin,wind,aim_lateral_offset_yd,aim_carry_adjustment_yd,score_optimum,score_at_pin,score_center_aim,delta_vs_at_pin_strokes,verdict_label,hit_search_boundary
-0,left,False,6.0,5.0,3.4597,3.5021,3.5149,0.0424,either works,False
-0,left,True,6.0,7.062,3.6194,3.6581,3.6661,0.0387,either works,False
-0,center,False,-1.5,3.0,3.4166,3.4267,3.4267,0.0101,either works,False
-0,center,True,-1.5,8.0,3.5834,3.6229,3.6229,0.0394,either works,False
-0,sunday,False,-7.5,-8.875,3.5959,3.6905,3.6064,0.0946,bail,False
-0,sunday,True,-6.0,-7.0,3.7511,3.8324,3.7599,0.0812,bail,False
-5,left,False,3.812,2.562,3.5705,3.6177,3.6216,0.0472,either works,False
-5,left,True,5.75,8.75,3.7244,3.7564,3.7475,0.032,either works,False
-5,center,False,-0.5,1.25,3.5335,3.5387,3.5387,0.0053,either works,False
-5,center,True,-0.062,3.0,3.6985,3.7063,3.7063,0.0078,either works,False
-5,sunday,False,-4.688,-8.438,3.7184,3.8031,3.729,0.0847,bail,False
-5,sunday,True,-9.0,-7.5,3.858,3.9234,3.858,0.0654,bail,False
-10,left,False,4.5,2.812,3.7792,3.8118,3.8244,0.0326,either works,False
-10,left,True,5.938,4.812,3.9141,3.9444,3.93,0.0303,either works,False
-10,center,False,-1.0,-3.0,3.7409,3.7542,3.7542,0.0133,either works,False
-10,center,True,1.0,0.062,3.8911,3.8931,3.8931,0.002,either works,False
-10,sunday,False,-7.0,-17.312,3.9164,4.0264,3.9644,0.1101,bail,False
-10,sunday,True,-7.875,-18.625,4.0392,4.1124,4.0657,0.0732,bail,False
-15,left,False,6.0,-11.0,3.9166,3.9269,3.9372,0.0103,either works,False
-15,left,True,7.0,2.0,4.0211,4.0357,4.0338,0.0146,either works,False
-15,center,False,-1.0,-5.0,3.8577,3.869,3.869,0.0113,either works,False
-15,center,True,2.0,0.0,3.9961,3.9968,3.9968,0.0007,either works,False
-15,sunday,False,-7.0,-17.0,4.0263,4.1388,4.0919,0.1126,bail,False
-15,sunday,True,-6.0,-29.0,4.1341,4.227,4.189,0.0929,bail,False
-20,left,False,4.0,-8.0,4.0332,4.0651,4.0647,0.0318,either works,False
-20,left,True,6.0,-11.125,4.1283,4.1564,4.1475,0.0281,either works,False
-20,center,False,0.5,-7.75,4.0002,4.0119,4.0119,0.0117,either works,False
-20,center,True,1.0,-10.188,4.1081,4.1194,4.1194,0.0113,either works,False
-20,sunday,False,-7.0,-29.812,4.1457,4.2965,4.2486,0.1507,bail,False
-20,sunday,True,-8.0,-44.562,4.2145,4.3668,4.3272,0.1523,bail,True
+0,left,False,3.5,2.5,3.459,3.5065,3.5206,0.0475,either works,False
+0,left,True,6.0,7.062,3.6285,3.6676,3.6768,0.0392,either works,False
+0,center,False,-1.5,3.0,3.4205,3.4324,3.4324,0.0118,either works,False
+0,center,True,-1.5,8.0,3.5905,3.6336,3.6336,0.0431,either works,False
+0,sunday,False,-5.875,-6.875,3.6035,3.6967,3.6121,0.0932,bail,False
+0,sunday,True,-6.0,-7.0,3.763,3.8438,3.7706,0.0807,bail,False
+5,left,False,3.812,2.562,3.5793,3.6257,3.6315,0.0464,either works,False
+5,left,True,3.938,6.938,3.7394,3.7718,3.7647,0.0324,either works,False
+5,center,False,-0.875,0.875,3.5403,3.5487,3.5487,0.0084,either works,False
+5,center,True,-1.062,5.0,3.709,3.7235,3.7235,0.0144,either works,False
+5,sunday,False,-7.0,-7.875,3.7259,3.8139,3.7389,0.088,bail,False
+5,sunday,True,-9.0,-7.5,3.8752,3.9413,3.8752,0.0661,bail,False
+10,left,False,4.5,2.812,3.798,3.8291,3.8442,0.031,either works,False
+10,left,True,4.5,3.375,3.9448,3.9725,3.9614,0.0277,either works,False
+10,center,False,-1.375,0.5,3.7593,3.774,3.774,0.0147,either works,False
+10,center,True,-1.938,5.0,3.9171,3.9245,3.9245,0.0074,either works,False
+10,sunday,False,-7.0,-13.438,3.9444,4.0479,3.9842,0.1035,bail,False
+10,sunday,True,-7.875,-18.625,4.0818,4.1451,4.0971,0.0633,bail,False
+15,left,False,5.0,-2.0,3.9379,3.9581,3.9729,0.0201,either works,False
+15,left,True,3.0,1.25,4.0745,4.0845,4.0856,0.01,either works,False
+15,center,False,-2.0,-1.0,3.8948,3.9047,3.9047,0.0099,either works,False
+15,center,True,0.25,1.0,4.0467,4.0487,4.0487,0.002,either works,False
+15,sunday,False,-7.0,-17.0,4.0814,4.1774,4.1276,0.096,bail,False
+15,sunday,True,-12.25,-26.5,4.2105,4.281,4.2408,0.0705,bail,False
+20,left,False,4.0,1.0,4.1062,4.1204,4.1259,0.0143,either works,False
+20,left,True,6.0,1.5,4.2232,4.2355,4.2314,0.0122,either works,False
+20,center,False,-1.5,-3.0,4.0714,4.0731,4.0731,0.0017,either works,False
+20,center,True,0.5,-1.0,4.2029,4.2033,4.2033,0.0004,either works,False
+20,sunday,False,-10.0,-26.875,4.2563,4.3607,4.3098,0.1044,bail,False
+20,sunday,True,-11.875,-38.75,4.3514,4.4522,4.4111,0.1008,bail,False

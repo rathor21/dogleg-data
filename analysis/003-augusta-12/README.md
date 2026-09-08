@@ -14,7 +14,7 @@ site.
 **data.py** holds every numeric input the model uses: proximity and
 dispersion figures by handicap tier, the hole's geometry (pins, green
 shape, bunkers, the creek), wind effects, and short-game pricing (putting,
-up-and-down rates, penalty strokes). Each constant names its source anchor
+up-and-down rates, penalty strokes, pitch-over-water dunk rates). Each constant names its source anchor
 in `docs/sources/003_Source_Log.md` and states whether it is published
 directly, computed from a published figure, or modeled with a disclosed
 sensitivity range. Nothing in this file comes from memory or invention
@@ -27,8 +27,12 @@ outcome region (green, bunker, a finite creek band, the fairway short of
 that band, rough, or the ledge behind the back bunkers) using the hole's
 diagonal geometry. Rae's Creek is `data.CREEK_WIDTH_YD` plus
 `data.BANK_ROLLBACK_YD` wide, not every yard of short miss back to the tee;
-short of that band is `short_fairway`, a pitch over the water priced as a
-recovery leg, not a penalty drop. `score_for_oval` integrates a truncated
+short of that band is `short_fairway`, a pitch that has to carry the creek
+back onto the green. That pitch itself can miss into the water: `data.
+PITCH_OVER_WATER_DUNK_PCT` sets the share of these pitches, by tier, that
+find the creek instead of clearing it, priced as a mixture of the plain
+recovery leg and a drop-and-replay penalty, not a flat recovery price with
+no water risk at all. `score_for_oval` integrates a truncated
 bivariate normal over those regions on a product grid, pricing each
 region's outcome in expected strokes. `expected_score` is the public,
 tier-and-wind-aware wrapper other modules call.
