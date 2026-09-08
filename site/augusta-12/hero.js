@@ -27,18 +27,34 @@ var STAGGER_S = 1.0;   // seconds between each shot's launch
 var FLIGHT_S = 2.2;    // seconds in the air
 var IMPACT_S = 0.4;    // squash-and-settle + puff fade
 var SCATTER_FADE_S = 0.5;
-var APEX_YD = 14;   // apex height in modeled yards, converted to px at the ball's
-                    // current depth (see arcPoint) -- tuned so the arc reads as a
-                    // rising flight, not a spike; see hero.js polish notes below
+var APEX_YD = 12;   // apex height in modeled yards, converted to px at the ball's
+                    // depth (see arcPoint) -- tuned by eye between 10 and 16yd so
+                    // the arc reads as a rising flight, not a spike (issue #12)
 var MAX_ARC_LIFT_SCALE = 12.5; // safety-net cap on the px-per-yard used to convert
-                    // APEX_YD to a pixel rise (see arcPoint). Round seven's
-                    // perspective-backbone camera (#11) keeps pxPerYardAt far
-                    // smoother across the flight than the old sparse TPS did, so
-                    // this cap rarely binds any more -- kept as a guard against a
-                    // future camera refit reintroducing a near-tee scale spike,
-                    // not because today's fit needs it. Using one scale per shot
-                    // (its own mid-flight depth) keeps the rise a clean h(t)
-                    // parabola instead of fighting a scale that changes every frame.
+                    // APEX_YD (and the bow, see MAX_BOW_YD) to a pixel offset. The
+                    // camera's own fitted warp (art/camera_tps.json) is not smooth
+                    // enough to sample at every in-flight t without reintroducing
+                    // the loops issue #12 fixes -- see MAX_BOW_YD and arcPoint's own
+                    // comment for how this cap and TEE_SPREAD_SCALE keep the arc
+                    // shaped like a tracer instead of routing through the warp's own
+                    // wobble near the green-complex transition (art/README.md,
+                    // "Round six, camera correction").
+var MAX_BOW_YD = 1.5; // issue #12: cap on the rendered lateral bow, in yards, for
+                    // the draw/fade curve_yd sine bulge. A rendering hint only --
+                    // the manifest's own curve_yd (up to 4yd) is still read for its
+                    // sign, just clamped in magnitude before it is turned into a
+                    // pixel offset. Uncapped, the fitted camera's near-tee px-per-yd
+                    // (around 130) turned even a modest yardage bow into a 150px
+                    // sideways swing, which read as a hook or a loop rather than a
+                    // shot shape.
+var TEE_SPREAD_SCALE = 0.3; // issue #12: shrinks each shot's tee.x (in yards) before
+                    // it is projected, so the five curated tees fan out across the
+                    // painted tee box rather than the model's own 7yd tee box, which
+                    // this camera's perspective already stretches across ~93% of the
+                    // canvas (see art/README.md "Tee spread"). A rendering choice
+                    // only -- the manifest's tee.x is unchanged, and the tee-box
+                    // outline (drawTeeBoxOutline) still draws the model's own
+                    // geometry unscaled.
 var SCATTER_ALPHA = 0.25;
 var DEPTH_CLIP_MARGIN_PX = 12; // never draw above the playfield_y_max_yd line by more than this
 var SCATTER_CAP_MOBILE = 600;
@@ -256,6 +272,24 @@ function init(){
     resize();
     window.__heroState = { phase: "idle", shotsLanded: 0 };
     window.__phaseComplete = false;
+    // issue #12: exposes arcPoint for the numeric fold/loop check
+    // (docs/plans -- sign changes of dx/dy along the sampled screen path)
+    // run against the live camera and constants, from outside the page.
+    window.__heroDebug = {
+      samplePath: function(shotIdOrIndex, steps){
+        steps = steps || 200;
+        var shot = typeof shotIdOrIndex === "string"
+          ? shots.filter(function(s){ return s.id === shotIdOrIndex; })[0]
+          : shots[shotIdOrIndex];
+        var pts = [];
+        for (var i = 0; i <= steps; i++){
+          pts.push(arcPoint(shot, i / steps));
+        }
+        return pts;
+      },
+      shotIds: shots.map(function(s){ return s.id; }),
+      constants: { APEX_YD: APEX_YD, MAX_ARC_LIFT_SCALE: MAX_ARC_LIFT_SCALE, MAX_BOW_YD: MAX_BOW_YD, TEE_SPREAD_SCALE: TEE_SPREAD_SCALE }
+    };
     startSequence();
   }
 
@@ -316,25 +350,57 @@ function init(){
   // ---------------------------------------------------------------
   // Flight math (model space, then projected + transformed to screen)
   // ---------------------------------------------------------------
+  // arcPoint (issue #12, "tracer-shaped arcs under the painted camera"):
+  // projects only the shot's two endpoints -- tee and landing -- through
+  // the TPS camera, then draws the flight between them as a straight line
+  // in screen space with a perpendicular bow and a vertical apex lift
+  // layered on top, both scaled in px by a smooth interpolation of the
+  // camera's own local px-per-yard at each endpoint. Earlier rounds
+  // projected the model-space lerp(tee, landing, t) at every t, which
+  // routes the visible path through the interior of camera_tps.json's own
+  // fitted warp -- a smooth surface in the TPS's own leave-one-out sense,
+  // but not smooth enough along an arbitrary diagonal path to stay
+  // monotonic (art/README.md, "Round six, camera correction," documents
+  // the same green-complex transition, y about 124-140yd, as a fit seam).
+  // Sampling pxPerYardAt at every intermediate t hits that seam too and
+  // wobbles the apex lift enough to fold the path a second and third time;
+  // interpolating the two endpoint scales instead keeps the lift a clean
+  // single hump. Anchoring the endpoints (not the interior) keeps tee
+  // placement and landing position exactly where the camera puts them --
+  // only the shape in between is a rendering choice.
   function arcPoint(shot, t){
-    var x = lerp(shot.tee.x, shot.landing.x, t) + (shot.curve_yd || 0) * Math.sin(Math.PI * t);
-    var y = lerp(shot.tee.y, shot.landing.y, t);
+    var curve = shot.curve_yd || 0;
+    var bow = Math.sign(curve) * Math.min(Math.abs(curve), MAX_BOW_YD);
+    var teeX = shot.tee.x * TEE_SPREAD_SCALE;
+    var teeY = shot.tee.y;
+    var landX = shot.landing.x;
     // Clamp to the TPS's trusted depth (playfield_y_max_yd) so a shot
-    // landing past it (or a ball whose apex would push it above that
-    // line) settles at the clipped edge instead of drawing over the tree
-    // line -- same rule the scatter cloud uses in bakeScatter.
-    var yClamped = Math.min(y, cam.playfield_y_max_yd);
+    // landing past it settles at the clipped edge instead of drawing over
+    // the tree line -- same rule the scatter cloud uses in bakeScatter.
+    var landY = Math.min(shot.landing.y, cam.playfield_y_max_yd);
+
+    var p0 = project(teeX, teeY, cam);
+    var p1 = project(landX, landY, cam);
+
+    var scaleTee = Math.min(pxPerYardAt(teeY, cam), MAX_ARC_LIFT_SCALE);
+    var scaleLand = Math.min(pxPerYardAt(landY, cam), MAX_ARC_LIFT_SCALE);
+    var localScale = lerp(scaleTee, scaleLand, t);
+
+    var baseX = lerp(p0[0], p1[0], t);
+    var baseY = lerp(p0[1], p1[1], t);
+
+    var bowPx = bow * localScale * Math.sin(Math.PI * t);
     var h = APEX_YD * 4 * t * (1 - t);
-    var p = project(x, yClamped, cam);
-    // liftScale is a per-shot constant (this shot's own mid-flight depth),
-    // not re-evaluated every t, so the rise stays a clean h(t) parabola in
-    // screen space -- see MAX_ARC_LIFT_SCALE above for why.
-    var refY = Math.min((shot.tee.y + shot.landing.y) / 2, cam.playfield_y_max_yd);
-    var liftScale = Math.min(pxPerYardAt(refY, cam), MAX_ARC_LIFT_SCALE);
-    var py = p[1] - h * liftScale;
-    py = Math.max(py, playfieldLimitPy(x, cam) - DEPTH_CLIP_MARGIN_PX);
-    var screen = toScreen(p[0], py);
-    return { px: screen[0], py: screen[1], x: x, y: yClamped };
+    var liftPx = h * localScale;
+
+    var px = baseX + bowPx;
+    var py = baseY - liftPx;
+    var xModelAtT = lerp(teeX, landX, t);
+    py = Math.max(py, playfieldLimitPy(xModelAtT, cam) - DEPTH_CLIP_MARGIN_PX);
+
+    var screen = toScreen(px, py);
+    var yModelAtT = Math.min(lerp(teeY, landY, t), cam.playfield_y_max_yd);
+    return { px: screen[0], py: screen[1], x: xModelAtT, y: yModelAtT };
   }
 
   // ---------------------------------------------------------------
