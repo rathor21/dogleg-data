@@ -1,0 +1,68 @@
+[
+  {
+    "name": "hero",
+    "url": "/augusta-12/?settled=1",
+    "captureMode": "clip"
+  },
+  {
+    "name": "chapter-1",
+    "url": "/augusta-12/?chapter=1&step=1",
+    "captureMode": "element",
+    "selector": "[data-social-card], .capture-card, .chapter-card, .chapter-figure",
+    "standinUrl": "/augusta-12/?settled=1&shot=1"
+  },
+  {
+    "name": "chapter-2",
+    "url": "/augusta-12/?chapter=2&step=1",
+    "captureMode": "element",
+    "selector": "[data-social-card], .capture-card, .chapter-card, .chapter-figure",
+    "standinUrl": "/augusta-12/?settled=1&shot=2"
+  },
+  {
+    "name": "chapter-3",
+    "url": "/augusta-12/?chapter=3&step=1",
+    "captureMode": "element",
+    "selector": "[data-social-card], .capture-card, .chapter-card, .chapter-figure",
+    "standinUrl": "/augusta-12/?settled=1&shot=3"
+  },
+  {
+    "name": "chapter-4",
+    "url": "/augusta-12/?chapter=4&step=1",
+    "captureMode": "element",
+    "selector": "[data-social-card], .capture-card, .chapter-card, .chapter-figure",
+    "standinUrl": "/augusta-12/?settled=1&shot=4"
+  },
+  {
+    "name": "chapter-5",
+    "url": "/augusta-12/?chapter=5&step=1",
+    "captureMode": "element",
+    "selector": "[data-social-card], .capture-card, .chapter-card, .chapter-figure",
+    "standinUrl": "/augusta-12/?settled=1&shot=5"
+  },
+  {
+    "name": "chapter-6",
+    "url": "/augusta-12/?chapter=6&step=1",
+    "captureMode": "element",
+    "selector": "[data-social-card], .capture-card, .chapter-card, .chapter-figure",
+    "standinUrl": "/augusta-12/?settled=1&shot=1"
+  },
+  {
+    "name": "chapter-7",
+    "url": "/augusta-12/?chapter=7&step=1",
+    "captureMode": "element",
+    "selector": "[data-social-card], .capture-card, .chapter-card, .chapter-figure",
+    "standinUrl": "/augusta-12/?settled=1&shot=2"
+  },
+  {
+    "name": "chapter-8",
+    "url": "/augusta-12/?chapter=8&step=1",
+    "captureMode": "element",
+    "selector": "[data-social-card], .capture-card, .chapter-card, .chapter-figure",
+    "standinUrl": "/augusta-12/?settled=1&shot=3"
+  },
+  {
+    "name": "shot-5",
+    "url": "/augusta-12/?shot=5",
+    "captureMode": "clip"
+  }
+]

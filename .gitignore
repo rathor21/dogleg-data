@@ -2,3 +2,5 @@
 founder-skills-main/
 founder-skills-main.zip
 .wrangler/
+node_modules/
+launch/003-social/out/
