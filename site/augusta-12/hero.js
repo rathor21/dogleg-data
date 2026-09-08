@@ -22,8 +22,11 @@ var STAGGER_S = 1.0;   // seconds between each shot's launch
 var FLIGHT_S = 2.2;    // seconds in the air
 var IMPACT_S = 0.4;    // squash-and-settle + puff fade
 var SCATTER_FADE_S = 0.5;
-var APEX_YD = 30;
+var APEX_YD = 12;   // apex height in modeled yards, converted to px at the ball's
+                    // current depth (see arcPoint) -- tuned so the arc reads as a
+                    // rising flight, not a spike; see hero.js polish notes below
 var SCATTER_ALPHA = 0.25;
+var DEPTH_CLIP_MARGIN_PX = 12; // never draw above horizon_px + this, in model-pixel space
 var SCATTER_CAP_MOBILE = 600;
 
 var qs = new URLSearchParams(location.search);
@@ -301,11 +304,17 @@ function init(){
   function arcPoint(shot, t){
     var x = lerp(shot.tee.x, shot.landing.x, t) + (shot.curve_yd || 0) * Math.sin(Math.PI * t);
     var y = lerp(shot.tee.y, shot.landing.y, t);
+    // Clamp to the projection's depth budget so a shot landing past y_max_yd
+    // (or a ball whose apex would push it above the horizon) settles at the
+    // clipped edge instead of drawing over the tree line -- same rule the
+    // scatter cloud uses in bakeScatter.
+    var yClamped = Math.min(y, cam.y_max_yd);
     var h = APEX_YD * 4 * t * (1 - t);
-    var p = project(x, y, cam);
-    var py = p[1] - h * pxPerYardAt(y, cam);
+    var p = project(x, yClamped, cam);
+    var py = p[1] - h * pxPerYardAt(yClamped, cam);
+    py = Math.max(py, cam.horizon_px + DEPTH_CLIP_MARGIN_PX);
     var screen = toScreen(p[0], py);
-    return { px: screen[0], py: screen[1], x: x, y: y };
+    return { px: screen[0], py: screen[1], x: x, y: yClamped };
   }
 
   // ---------------------------------------------------------------
@@ -447,7 +456,14 @@ function init(){
     var text = shot.label.toUpperCase();
     var textW = ctx.measureText(text).width;
     var padX = 6, h = 16, w = textW + padX * 2;
-    var candidates = [[10, -14], [10, 14], [-10 - w, -14], [-10 - w, 14], [10, -32], [10, 32]];
+    var leaderLen = 20; // gap between marker and label box, filled by the leader line
+    // Push the label outward from the fairway's centerline -- left-of-center
+    // landings get their label further left, right-of-center further right --
+    // so labels spread apart instead of stacking toward the middle.
+    var outward = shot.landing.x < 0 ? -1 : 1;
+    var candidates = outward < 0
+      ? [[-leaderLen - w, -14], [-leaderLen - w, 14], [10, -14], [10, 14], [-leaderLen - w, -32], [-leaderLen - w, 32]]
+      : [[leaderLen, -14], [leaderLen, 14], [-10 - w, -14], [-10 - w, 14], [leaderLen, -32], [leaderLen, 32]];
     var chosen = candidates[0];
     for (var i = 0; i < candidates.length; i++){
       var dx = candidates[i][0], dy = candidates[i][1];
@@ -457,11 +473,22 @@ function init(){
       if (i === candidates.length - 1) placedBoxes.push(box);
     }
     var lx = pt.px + chosen[0], ly = pt.py + chosen[1];
+
+    // Leader line from the marker to whichever box edge sits closest to it.
+    var boxLeft = lx - padX, boxRight = lx - padX + w;
+    var nearX = chosen[0] < 0 ? boxRight : boxLeft;
+    ctx.strokeStyle = withAlpha(COLORS.ink, 0.4);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pt.px, pt.py);
+    ctx.lineTo(nearX, ly);
+    ctx.stroke();
+
     ctx.fillStyle = withAlpha(COLORS.card, 0.92);
     ctx.strokeStyle = COLORS.line;
     ctx.lineWidth = 1;
-    ctx.fillRect(lx - padX, ly - h / 2, w, h);
-    ctx.strokeRect(lx - padX, ly - h / 2, w, h);
+    ctx.fillRect(boxLeft, ly - h / 2, w, h);
+    ctx.strokeRect(boxLeft, ly - h / 2, w, h);
     ctx.fillStyle = COLORS.inkSoft;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
@@ -478,8 +505,16 @@ function init(){
   }
 
   function bakeScatter(ctx, alpha){
+    var minPy = cam.horizon_px + DEPTH_CLIP_MARGIN_PX;
     scatterPointsForDraw().forEach(function(p){
-      var proj = project(p[0], p[1], cam);
+      var x_yd = p[0], y_yd = p[1];
+      // Drop points beyond the projection's depth budget or that would
+      // project above the horizon -- those are the dots that otherwise
+      // appear floating over the tree line.
+      if (y_yd > cam.y_max_yd) return;
+      var proj = project(x_yd, y_yd, cam);
+      if (proj[1] < minPy) return;
+      if (proj[0] < 0 || proj[0] > cam.canvas.width || proj[1] > cam.canvas.height) return;
       var s = toScreen(proj[0], proj[1]);
       var color = REGION_COLOR[p[2]] || COLORS.ink;
       ctx.fillStyle = withAlpha(color, alpha);

@@ -167,7 +167,11 @@ A light haze lifts the rendered ground toward the plate's own horizon tone, stro
 
 Registration: `python3 registration_qa.py hero.png` still reports 15/15 landmarks within 5.0% of image width, no threshold changes. `hero.png`, `hero_mobile_crop.png`, `hero_overlay.png`, and `registration_report_hero.json` are regenerated against this composite.
 
-## Deliverables
+### Round four, hero polish (2026-09-07): 6-yd creek re-render (issue #12)
+
+`sketch.py`'s `CREEK_WIDTH_YD` now reads `data.CREEK_WIDTH_YD` (6.0 yd, down from the old art-only 10.0), landed by the model's own region-geometry fix. `sketch_coords.json` had not been regenerated since that change and still recorded the old 10-yd geometry, so `sketch.py`, `masks.py`, and `composite.py` were re-run in that order to bring coordinates, masks, and the composite back in step with the model. The creek band is visibly narrower in `hero.png`, and the shaved-bank strip in front of the green still reads.
+
+Registration: `python3 registration_qa.py hero.png` reports 14/15, not 15/15. `creek_far_bank:3` (x=-5 yd) fails to find any blue pixel in its search window. Root cause is not a rendering defect: `data.HOLE["front_bunker_depth_yd"]` is 6.0, the same as the new `CREEK_WIDTH_YD`, and the front bunker's x-range (-10, 2) covers x=-5. `model.region_at` already gives the front bunker precedence over the creek in that overlap (`bunker_front <= y < front_edge` is checked before the creek band), and `sketch.py`'s render draws the bunker on top of the creek for the same reason -- so at x=-5 the bunker legitimately covers what used to be a visible sliver of far bank when the creek was 10 yd wide. The picture matches the model; the 9-point uniform sample grid in `registration_qa.py` just wasn't chosen with this coincidence in mind. Not fixed here since it touches the QA script and the model's own bunker/creek precedence rule, neither of which is this pass's file.
 
 - [x] `hero.png` -- 1600x900 accepted hero art, round four (code-rendered ground, generated sky/tree band), polished with perspective mow stripes and horizon haze
 - [x] `hero_variant_b.png` -- round four's deliberate-difference variant (stronger stripes, warmer turf); deleted in the round four polish pass once the orchestrator chose variant A
