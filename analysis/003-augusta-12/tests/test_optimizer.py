@@ -1,3 +1,5 @@
+import csv
+import os
 from math import hypot
 
 import pytest
@@ -5,6 +7,22 @@ import pytest
 import data
 import model
 import optimizer
+
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RESULTS_CSV_PATH = os.path.join(HERE, "outputs", "003_results.csv")
+
+
+def _load_results_csv():
+    """{(tier, pin, wind): row} from outputs/003_results.csv, read directly
+    rather than through export.load_results_csv so this test module keeps
+    its existing dependency footprint (data/model/optimizer only, no
+    art.sketch import via export.py)."""
+    rows = {}
+    with open(RESULTS_CSV_PATH, newline="") as f:
+        for row in csv.DictReader(f):
+            key = (int(row["tier"]), row["pin"], row["wind"] == "True")
+            rows[key] = row
+    return rows
 
 
 def _distance_from_pin(verdict):
@@ -349,3 +367,92 @@ def test_optimize_aim_returns_verdict_namedtuple_fields():
                           "score_optimum", "score_at_pin", "delta")
     assert isinstance(v.delta, float)
     assert v.delta >= -1e-6  # optimum is never worse than at-pin either
+
+
+# ---------------------------------------------------------------------------
+# published_move (issue #13): the "full shot" window rule the article
+# quotes for its aim verdicts (see optimizer.published_move's docstring).
+# ---------------------------------------------------------------------------
+
+def test_published_move_returns_namedtuple_fields():
+    m = optimizer.published_move(10, "left", n_grid=81)
+    assert m._fields == (
+        "lateral_offset_yd", "carry_adjustment_yd", "score_optimum", "score_at_pin", "delta",
+        "strict_lateral_offset_yd", "strict_carry_adjustment_yd", "strict_score_optimum",
+        "layup_edge_strokes", "layup_is_tossup",
+    )
+    assert isinstance(m.layup_edge_strokes, float)
+    assert isinstance(m.layup_is_tossup, (bool,))
+
+
+def test_published_move_carry_adjustment_stays_inside_the_full_shot_window():
+    # Every tier x pin x wind combination's PUBLISHED carry adjustment must
+    # sit inside +/- PUBLISHED_CARRY_RANGE_YD (10 yd) by construction (the
+    # search box itself is clamped there) -- this is a sanity check on the
+    # clamp, not a discovery.
+    for tier in data.TIERS:
+        for pin in data.PINS:
+            for wind in (False, True):
+                m = optimizer.published_move(tier, pin, wind, n_grid=81)
+                assert abs(m.carry_adjustment_yd) <= optimizer.PUBLISHED_CARRY_RANGE_YD + 1e-6, \
+                    (tier, pin, wind, m.carry_adjustment_yd)
+
+
+def test_published_move_agrees_with_results_csv_when_strict_optimum_inside_window():
+    # Wherever outputs/003_results.csv's own strict optimum already sits
+    # inside the +/- 10 yd published window (i.e. the model's unconstrained
+    # answer IS a full shot already), there is no real edge left to find by
+    # searching outside it: the layup edge should be small and the
+    # full-shot score should match the CSV's own optimum closely. This does
+    # NOT assert the two searches land on bit-identical (lateral, carry)
+    # coordinates -- optimize_aim's coarse-then-descent search is heuristic,
+    # not exhaustive, and two independently-run searches over different-
+    # sized boxes can settle in different, comparably-good basins on this
+    # surface's known shallow-valley stretches (see published_move's
+    # docstring). Score agreement is the real invariant; exact coordinates
+    # are not.
+    results = _load_results_csv()
+    for (tier, pin, wind), row in results.items():
+        strict_carry = float(row["aim_carry_adjustment_yd"])
+        if abs(strict_carry) > optimizer.PUBLISHED_CARRY_RANGE_YD:
+            continue
+        m = optimizer.published_move(tier, pin, wind, n_grid=81)
+        assert abs(m.score_optimum - float(row["score_optimum"])) < 0.02, (tier, pin, wind)
+        assert m.layup_edge_strokes < 0.02, (tier, pin, wind, m.layup_edge_strokes)
+
+
+def test_published_move_layup_edge_always_nonnegative_and_reports_exceedances():
+    # Every published_move's layup_edge_strokes is >= 0 (optimizer.
+    # published_move floors it there by construction, since the two
+    # independent searches it compares are not exhaustive and can disagree
+    # by search noise on a near-flat surface -- see the function's
+    # docstring). Any row whose edge clears TOSSUP_THRESHOLD_STROKES is
+    # collected and printed rather than asserted against, since
+    # VALIDATION_NOTES.md's own hand-check found the Sunday pin's higher
+    # tiers (10/15/20) sit close to that line and a future model change
+    # could legitimately push one of them over it.
+    exceeded = []
+    for tier in data.TIERS:
+        for pin in data.PINS:
+            for wind in (False, True):
+                m = optimizer.published_move(tier, pin, wind, n_grid=81)
+                assert m.layup_edge_strokes >= 0.0, (tier, pin, wind, m.layup_edge_strokes)
+                assert m.layup_is_tossup == (m.layup_edge_strokes <= optimizer.TOSSUP_THRESHOLD_STROKES)
+                if not m.layup_is_tossup:
+                    exceeded.append((tier, pin, wind, m.layup_edge_strokes))
+    if exceeded:
+        print(f"\n{len(exceeded)} (tier, pin, wind) row(s) whose strict-optimum "
+              f"layup edge exceeds TOSSUP_THRESHOLD_STROKES ({optimizer.TOSSUP_THRESHOLD_STROKES}):")
+        for tier, pin, wind, edge in exceeded:
+            print(f"  tier={tier} pin={pin} wind={wind} layup_edge_strokes={edge}")
+
+
+def test_published_move_sunday_pin_layup_edges_are_small_and_disclosed():
+    # Sunday pin, tiers 10/15/20 (VALIDATION_NOTES.md's "Sunday layup check",
+    # rev 5): the strict optimum's edge over the full-shot aim should stay
+    # small (comfortably under two tenths of a stroke at this release's
+    # defaults) even where it is not a strict tossup.
+    for tier in (10, 15, 20):
+        for wind in (False, True):
+            m = optimizer.published_move(tier, "sunday", wind, n_grid=optimizer.VERDICT_N_GRID)
+            assert 0.0 <= m.layup_edge_strokes < 0.2, (tier, wind, m.layup_edge_strokes)

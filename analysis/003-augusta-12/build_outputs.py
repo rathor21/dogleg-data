@@ -43,6 +43,15 @@ FIELDNAMES = [
     "verdict_label", "hit_search_boundary",
 ]
 
+MOVES_FIELDNAMES = [
+    "tier", "pin", "wind",
+    "aim_lateral_offset_yd", "aim_carry_adjustment_yd",
+    "score_optimum", "score_at_pin", "score_center_aim",
+    "delta_vs_at_pin_strokes", "verdict_label",
+    "strict_lateral_offset_yd", "strict_carry_adjustment_yd", "strict_score_optimum",
+    "layup_edge_strokes", "layup_is_tossup",
+]
+
 
 def build_rows(n_grid=optimizer.VERDICT_N_GRID):
     rows = []
@@ -67,6 +76,47 @@ def build_rows(n_grid=optimizer.VERDICT_N_GRID):
     return rows
 
 
+def build_moves_rows(n_grid=optimizer.VERDICT_N_GRID):
+    """One row per (tier, pin, wind), the published-move rule (issue #13):
+    the full-shot aim (carry clamped to optimizer.PUBLISHED_CARRY_RANGE_YD,
+    +/- 10 yd) the article quotes, alongside the strict (unclamped)
+    optimizer optimum -- identical to the matching row in
+    outputs/003_results.csv wherever that row's own aim_carry_adjustment_yd
+    already sits inside the +/- 10 yd window -- and the layup edge between
+    them. See optimizer.published_move's docstring."""
+    rows = []
+    for tier in data.TIERS:
+        for pin in data.PINS:
+            for wind in (False, True):
+                m = optimizer.published_move(tier, pin, wind, n_grid=n_grid)
+                center_s = optimizer.center_aim_score(tier, pin, wind, n_grid=n_grid)
+                verdict = optimizer.Verdict(
+                    lateral_offset_yd=m.lateral_offset_yd,
+                    carry_adjustment_yd=m.carry_adjustment_yd,
+                    score_optimum=m.score_optimum,
+                    score_at_pin=m.score_at_pin,
+                    delta=m.delta,
+                )
+                rows.append({
+                    "tier": tier,
+                    "pin": pin,
+                    "wind": wind,
+                    "aim_lateral_offset_yd": round(m.lateral_offset_yd, 3),
+                    "aim_carry_adjustment_yd": round(m.carry_adjustment_yd, 3),
+                    "score_optimum": round(m.score_optimum, 4),
+                    "score_at_pin": round(m.score_at_pin, 4),
+                    "score_center_aim": round(center_s, 4),
+                    "delta_vs_at_pin_strokes": round(m.delta, 4),
+                    "verdict_label": optimizer.verdict_label(verdict),
+                    "strict_lateral_offset_yd": round(m.strict_lateral_offset_yd, 3),
+                    "strict_carry_adjustment_yd": round(m.strict_carry_adjustment_yd, 3),
+                    "strict_score_optimum": round(m.strict_score_optimum, 4),
+                    "layup_edge_strokes": round(m.layup_edge_strokes, 4),
+                    "layup_is_tossup": m.layup_is_tossup,
+                })
+    return rows
+
+
 if __name__ == "__main__":
     rows = build_rows()
     out_path = os.path.join(OUT, "003_results.csv")
@@ -85,6 +135,23 @@ if __name__ == "__main__":
         for r in boundary_rows:
             print(f"  tier={r['tier']} pin={r['pin']} wind={r['wind']} "
                   f"lateral={r['aim_lateral_offset_yd']} carry={r['aim_carry_adjustment_yd']}")
+
+    moves_rows = build_moves_rows()
+    moves_path = os.path.join(OUT, "003_moves.csv")
+    with open(moves_path, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=MOVES_FIELDNAMES)
+        w.writeheader()
+        for r in moves_rows:
+            w.writerow(r)
+    print("wrote", moves_path, f"({len(moves_rows)} rows)")
+
+    tossup_exceed = [r for r in moves_rows if not r["layup_is_tossup"]]
+    if tossup_exceed:
+        print(f"\n{len(tossup_exceed)} row(s) where the strict optimum's layup edge "
+              "exceeds the tossup threshold (optimizer.TOSSUP_THRESHOLD_STROKES):")
+        for r in tossup_exceed:
+            print(f"  tier={r['tier']} pin={r['pin']} wind={r['wind']} "
+                  f"layup_edge_strokes={r['layup_edge_strokes']}")
 
     # Export seam (issue #10): sandbox grids + animation manifest, built
     # from this same CSV -- must run after the CSV write above.

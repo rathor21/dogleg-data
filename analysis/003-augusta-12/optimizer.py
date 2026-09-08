@@ -250,6 +250,117 @@ def optimize_aim(tier, pin, wind=False, *,
                         coarse_step_yd=coarse_step_yd, refine_tol_yd=refine_tol_yd)
 
 
+# ---------------------------------------------------------------------------
+# The published-move rule (issue #13, chapters copy). VALIDATION_NOTES.md's
+# "Sunday layup check" (rev 5, issue #8) found the strict optimizer optimum
+# for the Sunday pin at tiers 10/15/20 lays up 13 to 39 yards short of the
+# pin (carry_adjustment_yd -13.4 to -38.75), a deliberate pitch back short
+# of Rae's Creek that reads as a club change, not an aim adjustment on a
+# single full shot -- and does so for an edge of 0.007 to 0.042 strokes over
+# the best full swing at the green, inside optimize_aim's own
+# TOSSUP_THRESHOLD_STROKES (0.05) band at every tested combination but one
+# (tier 20 was the closest to clearing it in that hand-check).
+#
+# published_move re-runs the same search with the carry axis clamped to a
+# "full shot" window -- the range a golfer covers by picking a club and
+# swinging normally, not laying up deliberately short -- and reports that
+# constrained aim as the article's verdict, alongside the model's own
+# strict (unclamped) optimum and the strokes the strict optimum claims to
+# save over the full-shot aim, so the layup is disclosed as a modeled
+# presentation choice rather than silently substituted for the model's own
+# math. PUBLISHED_CARRY_RANGE_YD (10 yd, MODELED, a presentation window
+# rather than a data.py sensitivity range) is not a claim about club
+# dispersion; it is the editorial line between "aim adjustment" and "layup."
+# ---------------------------------------------------------------------------
+
+PUBLISHED_CARRY_RANGE_YD = 10.0
+
+PublishedMove = namedtuple("PublishedMove", [
+    "lateral_offset_yd",           # full-shot aim, signed yd from pin
+    "carry_adjustment_yd",         # full-shot aim, clamped to +/- PUBLISHED_CARRY_RANGE_YD
+    "score_optimum",               # expected score at the full-shot aim
+    "score_at_pin",                # expected score aiming directly at the pin
+    "delta",                       # score_at_pin - score_optimum
+    "strict_lateral_offset_yd",    # optimize_aim's unclamped (45-yd box) optimum
+    "strict_carry_adjustment_yd",
+    "strict_score_optimum",
+    "layup_edge_strokes",          # score_optimum (full-shot) - strict_score_optimum; >= 0
+    "layup_is_tossup",             # layup_edge_strokes <= tossup_threshold
+])
+
+
+def published_move(tier, pin, wind=False, *,
+                    n_grid=VERDICT_N_GRID,
+                    search_n_grid=SEARCH_N_GRID,
+                    lateral_range_yd=DEFAULT_LATERAL_RANGE_YD,
+                    published_carry_range_yd=PUBLISHED_CARRY_RANGE_YD,
+                    strict_carry_range_yd=DEFAULT_CARRY_RANGE_YD,
+                    coarse_step_yd=DEFAULT_COARSE_STEP_YD,
+                    refine_tol_yd=DEFAULT_REFINE_TOL_YD,
+                    tossup_threshold=TOSSUP_THRESHOLD_STROKES,
+                    **geometry_overrides):
+    """The aim the article publishes for (tier, pin, wind): optimize_aim's
+    same two-stage search, but with the carry axis clamped to
+    +/- published_carry_range_yd (the "full shot" window a golfer reaches by
+    picking a club and swinging normally) instead of optimize_aim's full
+    +/- strict_carry_range_yd search box.
+
+    Also runs the ordinary unclamped optimize_aim (strict_carry_range_yd,
+    45 yd by default -- identical to the search build_outputs.py's
+    outputs/003_results.csv already runs) and reports the strokes the
+    strict optimum claims to save over the published, full-shot aim as
+    layup_edge_strokes = score_optimum (full-shot) - strict_score_optimum.
+
+    strict_* always matches the row optimize_aim itself would produce (and
+    therefore outputs/003_results.csv's own row) at these same parameters
+    -- this function never substitutes a different point for it -- but both
+    searches are heuristic (coarse localization then a clamped coordinate-
+    descent polish, optimize_aim's own docstring), not an exhaustive
+    search, so the two independent runs (different carry-axis budgets, so
+    different coarse grids) are not guaranteed to agree in direction
+    wherever the surface is genuinely near-flat (the same shallow-valley
+    character VALIDATION_NOTES.md documents elsewhere on this surface): the
+    strict search's own coarse localization can settle in a different,
+    very slightly worse basin than the full-shot search finds inside the
+    narrower window. Measured across this release's own published grid,
+    that noise tops out under 0.006 stroke, an order of magnitude below
+    TOSSUP_THRESHOLD_STROKES -- far too small to read as a real finding, so
+    layup_edge_strokes is floored at 0.0 (a negative "edge" would only ever
+    mean the strict search under-performed its own more-constrained sibling
+    by search noise, never that laying up is worse than the full-shot aim).
+    layup_is_tossup flags whether the (floored) edge sits inside
+    TOSSUP_THRESHOLD_STROKES (0.05, 002's tossup convention) -- i.e. whether
+    the strict optimum's deeper layup is a real, decision-relevant edge or
+    a tossup the article can responsibly ignore in favor of the more
+    legible full-shot aim.
+
+    n_grid/search_n_grid/lateral_range_yd/coarse_step_yd/refine_tol_yd and
+    geometry_overrides are forwarded to both underlying optimize_aim calls
+    unchanged, so the two searches differ only in their carry-axis budget.
+    """
+    strict = optimize_aim(tier, pin, wind, n_grid=n_grid, search_n_grid=search_n_grid,
+                           lateral_range_yd=lateral_range_yd, carry_range_yd=strict_carry_range_yd,
+                           coarse_step_yd=coarse_step_yd, refine_tol_yd=refine_tol_yd,
+                           **geometry_overrides)
+    full_shot = optimize_aim(tier, pin, wind, n_grid=n_grid, search_n_grid=search_n_grid,
+                              lateral_range_yd=lateral_range_yd, carry_range_yd=published_carry_range_yd,
+                              coarse_step_yd=coarse_step_yd, refine_tol_yd=refine_tol_yd,
+                              **geometry_overrides)
+    layup_edge = max(0.0, full_shot.score_optimum - strict.score_optimum)
+    return PublishedMove(
+        lateral_offset_yd=full_shot.lateral_offset_yd,
+        carry_adjustment_yd=full_shot.carry_adjustment_yd,
+        score_optimum=full_shot.score_optimum,
+        score_at_pin=full_shot.score_at_pin,
+        delta=full_shot.delta,
+        strict_lateral_offset_yd=strict.lateral_offset_yd,
+        strict_carry_adjustment_yd=strict.carry_adjustment_yd,
+        strict_score_optimum=strict.score_optimum,
+        layup_edge_strokes=layup_edge,
+        layup_is_tossup=bool(layup_edge <= tossup_threshold),
+    )
+
+
 def optimize_aim_tour(pin, wind=False, *,
                        n_grid=VERDICT_N_GRID,
                        search_n_grid=SEARCH_N_GRID,

@@ -3,5 +3,7 @@ outputs/*
 !outputs/003_results.csv
 !outputs/003_sandbox_grids.json
 !outputs/003_manifest.json
+!outputs/003_moves.csv
+!outputs/003_chapters.json
 __pycache__/
 .pytest_cache/

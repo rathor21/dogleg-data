@@ -40,8 +40,10 @@ import art.sketch as sketch  # noqa: E402
 
 OUT = os.path.join(HERE, "outputs")
 CSV_PATH = os.path.join(OUT, "003_results.csv")
+MOVES_CSV_PATH = os.path.join(OUT, "003_moves.csv")
 GRIDS_PATH = os.path.join(OUT, "003_sandbox_grids.json")
 MANIFEST_PATH = os.path.join(OUT, "003_manifest.json")
+CHAPTERS_PATH = os.path.join(OUT, "003_chapters.json")
 
 # ---------------------------------------------------------------------------
 # Sandbox grid axes. 1-yd step across the full search box the optimizer
@@ -121,6 +123,33 @@ def load_results_csv(path=CSV_PATH):
                 "score_center_aim": float(row["score_center_aim"]),
                 "delta_vs_at_pin_strokes": float(row["delta_vs_at_pin_strokes"]),
                 "verdict_label": row["verdict_label"],
+            }
+    return rows
+
+
+def load_moves_csv(path=MOVES_CSV_PATH):
+    """{(tier:int, pin:str, wind:bool): row-dict-of-floats} from
+    outputs/003_moves.csv (issue #13's published-move rule; see
+    optimizer.published_move and build_outputs.build_moves_rows)."""
+    rows = {}
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            tier = int(row["tier"])
+            pin = row["pin"]
+            wind = row["wind"] == "True"
+            rows[(tier, pin, wind)] = {
+                "aim_lateral_offset_yd": float(row["aim_lateral_offset_yd"]),
+                "aim_carry_adjustment_yd": float(row["aim_carry_adjustment_yd"]),
+                "score_optimum": float(row["score_optimum"]),
+                "score_at_pin": float(row["score_at_pin"]),
+                "score_center_aim": float(row["score_center_aim"]),
+                "delta_vs_at_pin_strokes": float(row["delta_vs_at_pin_strokes"]),
+                "verdict_label": row["verdict_label"],
+                "strict_lateral_offset_yd": float(row["strict_lateral_offset_yd"]),
+                "strict_carry_adjustment_yd": float(row["strict_carry_adjustment_yd"]),
+                "strict_score_optimum": float(row["strict_score_optimum"]),
+                "layup_edge_strokes": float(row["layup_edge_strokes"]),
+                "layup_is_tossup": row["layup_is_tossup"] == "True",
             }
     return rows
 
@@ -858,6 +887,137 @@ def build_manifest(results=None):
     }
 
 
+# ---------------------------------------------------------------------------
+# Chapters export (issue #13): outputs/003_chapters.json -- the small
+# (well under 60 KB) data blob the scrollytelling chapters page reads. Per
+# (tier, pin, wind): the dispersion oval (wind-inflated where applicable),
+# the published full-shot aim (optimizer.published_move, clamped to
+# +/- optimizer.PUBLISHED_CARRY_RANGE_YD) and the strict unclamped optimum,
+# the at-pin/center-aim scores and delta already in outputs/003_moves.csv,
+# and p_water/p_green computed at both the pin and the published aim via
+# score_and_region_probs (the same slow, obviously-correct per-aim-point
+# reference build_sandbox_grids's fast vectorized builder is checked
+# against). Also carries geometry_yd/pins/wind/modeled -- the same blocks
+# build_manifest/build_sandbox_grids already compute -- so the chapters page
+# never has to cross-reference outputs/003_manifest.json for the top-down
+# figure.
+# ---------------------------------------------------------------------------
+
+def build_chapters(results=None, moves=None):
+    results = results if results is not None else load_results_csv()
+    moves = moves if moves is not None else load_moves_csv()
+
+    # moves.csv's strict_* fields are optimizer.published_move's own
+    # unclamped optimize_aim call, run at the exact same defaults
+    # build_outputs.build_rows uses for outputs/003_results.csv -- they
+    # should agree to rounding. Asserted here (not just in tests) so a
+    # future change to either build path that breaks this equivalence
+    # fails loudly at export time, not just in the test suite.
+    for key, row in results.items():
+        mv = moves[key]
+        assert abs(mv["strict_lateral_offset_yd"] - row["aim_lateral_offset_yd"]) < 0.01, key
+        assert abs(mv["strict_carry_adjustment_yd"] - row["aim_carry_adjustment_yd"]) < 0.01, key
+        assert abs(mv["strict_score_optimum"] - row["score_optimum"]) < 0.001, key
+
+    _camera, regions, landmarks = camera_block()
+    geometry_yd = geometry_yd_block(regions, landmarks)
+
+    pins = {key: {"x": p["x"], "y": p["y"], "label": p["label"]} for key, p in data.PINS.items()}
+
+    modeled = [
+        {
+            "name": "anisotropy_ratio", "value": data.ANISOTROPY["ratio"],
+            "range": data.ANISOTROPY["range"], **data.SOURCES["ANISOTROPY"],
+        },
+        {
+            "name": "front_third_depth_yd",
+            "value": sum(data.HOLE["front_third_depth_yd_range"]) / 2.0,
+            "range": data.HOLE["front_third_depth_yd_range"], **data.SOURCES["HOLE"],
+        },
+        {
+            "name": "wind_carry_penalty_yd", "value": data.WIND["carry_penalty_yd"],
+            "range": data.WIND["carry_penalty_range_yd"], **data.SOURCES["WIND"],
+        },
+        {
+            "name": "wind_dispersion_inflation", "value": data.WIND["dispersion_inflation"],
+            "range": data.WIND["dispersion_inflation_range"], **data.SOURCES["WIND"],
+        },
+        {
+            "name": "up_and_down_pct_by_tier", "value": data.UP_AND_DOWN_PCT,
+            "range": None, **data.SOURCES["UP_AND_DOWN_PCT"],
+        },
+        {
+            "name": "creek_width_plus_bank_rollback_yd",
+            "value": data.CREEK_WIDTH_YD + data.BANK_ROLLBACK_YD,
+            "range": [data.CREEK_WIDTH_YD_RANGE[0] + data.BANK_ROLLBACK_YD_RANGE[0],
+                      data.CREEK_WIDTH_YD_RANGE[1] + data.BANK_ROLLBACK_YD_RANGE[1]],
+            **data.SOURCES["CREEK_WIDTH_YD"],
+        },
+    ]
+
+    cells = {}
+    for tier in data.TIERS:
+        sigma_d0, sigma_l0 = model.oval_for_tier(tier)
+        for pin in data.PINS:
+            p = data.PINS[pin]
+            pin_xy = (p["x"], p["y"])
+            for wind in (False, True):
+                sigma_d, sigma_l, mean_shift_y = _oval_and_mean_shift(tier, wind)
+                mv = moves[(tier, pin, wind)]
+
+                aim_xy = (p["x"] + mv["aim_lateral_offset_yd"], p["y"] + mv["aim_carry_adjustment_yd"])
+                strict_xy = (p["x"] + mv["strict_lateral_offset_yd"], p["y"] + mv["strict_carry_adjustment_yd"])
+
+                _score_pin, p_water_pin, p_green_pin = score_and_region_probs(
+                    sigma_d, sigma_l, tier, pin, pin_xy, mean_shift_y)
+                _score_aim, p_water_aim, p_green_aim = score_and_region_probs(
+                    sigma_d, sigma_l, tier, pin, aim_xy, mean_shift_y)
+
+                key = f"{tier}|{pin}|{int(wind)}"
+                cells[key] = {
+                    "sigma_d_yd": round(sigma_d, 4),
+                    "sigma_l_yd": round(sigma_l, 4),
+                    "sigma_d_calm_yd": round(sigma_d0, 4),
+                    "sigma_l_calm_yd": round(sigma_l0, 4),
+                    "aim": {
+                        "lateral_offset_yd": mv["aim_lateral_offset_yd"],
+                        "carry_adjustment_yd": mv["aim_carry_adjustment_yd"],
+                        "x": round(aim_xy[0], 4), "y": round(aim_xy[1], 4),
+                    },
+                    "strict_aim": {
+                        "lateral_offset_yd": mv["strict_lateral_offset_yd"],
+                        "carry_adjustment_yd": mv["strict_carry_adjustment_yd"],
+                        "x": round(strict_xy[0], 4), "y": round(strict_xy[1], 4),
+                        "score": mv["strict_score_optimum"],
+                    },
+                    "score_optimum": mv["score_optimum"],
+                    "score_at_pin": mv["score_at_pin"],
+                    "score_center_aim": mv["score_center_aim"],
+                    "delta_vs_at_pin_strokes": mv["delta_vs_at_pin_strokes"],
+                    "verdict_label": mv["verdict_label"],
+                    "layup_edge_strokes": mv["layup_edge_strokes"],
+                    "layup_is_tossup": mv["layup_is_tossup"],
+                    "p_water_at_pin": round(p_water_pin, 4),
+                    "p_green_at_pin": round(p_green_pin, 4),
+                    "p_water_at_aim": round(p_water_aim, 4),
+                    "p_green_at_aim": round(p_green_aim, 4),
+                }
+
+    return {
+        "schema": "dogleg-003-chapters/1",
+        "generated_from": generated_from(),
+        "tiers": list(data.TIERS),
+        "pins": pins,
+        "wind": data.WIND,
+        "anisotropy_range": data.ANISOTROPY["range"],
+        "tossup_threshold_strokes": optimizer.TOSSUP_THRESHOLD_STROKES,
+        "published_carry_range_yd": optimizer.PUBLISHED_CARRY_RANGE_YD,
+        "modeled": modeled,
+        "geometry_yd": geometry_yd,
+        "cells": cells,
+    }
+
+
 def _write_json(obj, path, *, compact):
     kwargs = {"separators": (",", ":")} if compact else {"indent": 1}
     with open(path, "w") as f:
@@ -881,6 +1041,13 @@ def main():
     _write_json(manifest, MANIFEST_PATH, compact=False)
     manifest_size = os.path.getsize(MANIFEST_PATH)
     print(f"wrote {MANIFEST_PATH} ({manifest_size / 1e6:.2f} MB)")
+
+    chapters = build_chapters(results)
+    _write_json(chapters, CHAPTERS_PATH, compact=True)
+    chapters_size = os.path.getsize(CHAPTERS_PATH)
+    print(f"wrote {CHAPTERS_PATH} ({chapters_size / 1e3:.1f} KB)")
+    if chapters_size > 60_000:
+        print("WARNING: 003_chapters.json exceeds the 60 KB budget (issue #13).")
 
 
 if __name__ == "__main__":

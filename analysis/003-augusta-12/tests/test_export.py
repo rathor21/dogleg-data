@@ -60,11 +60,15 @@ def exported():
         grids_bytes = f.read()
     with open(export.MANIFEST_PATH, "rb") as f:
         manifest_bytes = f.read()
+    with open(export.CHAPTERS_PATH, "rb") as f:
+        chapters_bytes = f.read()
     return {
         "grids": json.loads(grids_bytes),
         "manifest": json.loads(manifest_bytes),
+        "chapters": json.loads(chapters_bytes),
         "grids_bytes": grids_bytes,
         "manifest_bytes": manifest_bytes,
+        "chapters_bytes": chapters_bytes,
     }
 
 
@@ -292,6 +296,98 @@ def test_manifest_schema(exported):
 
 
 # ---------------------------------------------------------------------------
+# Chapters (issue #13): outputs/003_chapters.json, the scrollytelling page's
+# data contract.
+# ---------------------------------------------------------------------------
+
+def test_chapters_schema_and_size(exported):
+    chapters = exported["chapters"]
+    assert chapters["schema"] == "dogleg-003-chapters/1"
+    assert chapters["tiers"] == list(data.TIERS)
+    assert set(chapters["pins"]) == set(data.PINS)
+    assert len(chapters["cells"]) == len(data.TIERS) * len(data.PINS) * 2
+    size = os.path.getsize(export.CHAPTERS_PATH)
+    assert size < 60_000, f"003_chapters.json is {size} bytes, over the 60 KB budget"
+
+
+def test_chapters_cells_match_moves_csv_exactly(exported):
+    chapters = exported["chapters"]
+    moves = export.load_moves_csv()
+    for (tier, pin, wind), row in moves.items():
+        cell = chapters["cells"][f"{tier}|{pin}|{int(wind)}"]
+        assert cell["aim"]["lateral_offset_yd"] == pytest.approx(row["aim_lateral_offset_yd"], abs=1e-9)
+        assert cell["aim"]["carry_adjustment_yd"] == pytest.approx(row["aim_carry_adjustment_yd"], abs=1e-9)
+        assert cell["score_optimum"] == pytest.approx(row["score_optimum"], abs=1e-9)
+        assert cell["score_at_pin"] == pytest.approx(row["score_at_pin"], abs=1e-9)
+        assert cell["score_center_aim"] == pytest.approx(row["score_center_aim"], abs=1e-9)
+        assert cell["delta_vs_at_pin_strokes"] == pytest.approx(row["delta_vs_at_pin_strokes"], abs=1e-9)
+        assert cell["verdict_label"] == row["verdict_label"]
+        assert cell["strict_aim"]["lateral_offset_yd"] == pytest.approx(row["strict_lateral_offset_yd"], abs=1e-9)
+        assert cell["strict_aim"]["carry_adjustment_yd"] == pytest.approx(row["strict_carry_adjustment_yd"], abs=1e-9)
+        assert cell["strict_aim"]["score"] == pytest.approx(row["strict_score_optimum"], abs=1e-9)
+        assert cell["layup_edge_strokes"] == pytest.approx(row["layup_edge_strokes"], abs=1e-9)
+        assert cell["layup_is_tossup"] == row["layup_is_tossup"]
+        assert cell["layup_edge_strokes"] >= 0.0
+
+
+def test_chapters_cells_strict_aim_matches_results_csv_where_strict_optimum_agrees(exported):
+    """Wherever moves.csv's own strict optimum matches results.csv's row
+    (optimizer.published_move never substitutes a different point for
+    strict_*, see its docstring), the chapters export's strict_aim block
+    must match outputs/003_results.csv exactly too -- the cross-release-
+    style equality check the task spec calls for ("Equality test ... against
+    the CSVs")."""
+    chapters = exported["chapters"]
+    results = export.load_results_csv()
+    for (tier, pin, wind), row in results.items():
+        cell = chapters["cells"][f"{tier}|{pin}|{int(wind)}"]
+        assert cell["strict_aim"]["lateral_offset_yd"] == pytest.approx(row["aim_lateral_offset_yd"], abs=1e-9)
+        assert cell["strict_aim"]["carry_adjustment_yd"] == pytest.approx(row["aim_carry_adjustment_yd"], abs=1e-9)
+        assert cell["strict_aim"]["score"] == pytest.approx(row["score_optimum"], abs=1e-9)
+
+
+def test_chapters_cells_p_water_p_green_match_model_expected_score(exported):
+    """p_water_at_pin/p_green_at_pin and their _at_aim counterparts match a
+    fresh export.score_and_region_probs call (the slow, obviously-correct
+    per-aim-point reference model.expected_score's own integration also
+    uses) at a sample of cells spanning every pin and both wind states."""
+    chapters = exported["chapters"]
+    sample = [(t, p, w) for t in (0, 10, 20) for p in data.PINS for w in (False, True)]
+    for tier, pin, wind in sample:
+        cell = chapters["cells"][f"{tier}|{pin}|{int(wind)}"]
+        sigma_d, sigma_l, mean_shift_y = export._oval_and_mean_shift(tier, wind)
+        pin_x, pin_y = data.PINS[pin]["x"], data.PINS[pin]["y"]
+
+        _s, pw_pin, pg_pin = export.score_and_region_probs(sigma_d, sigma_l, tier, pin, (pin_x, pin_y), mean_shift_y)
+        assert cell["p_water_at_pin"] == pytest.approx(pw_pin, abs=5e-4)
+        assert cell["p_green_at_pin"] == pytest.approx(pg_pin, abs=5e-4)
+
+        aim = (cell["aim"]["x"], cell["aim"]["y"])
+        _s, pw_aim, pg_aim = export.score_and_region_probs(sigma_d, sigma_l, tier, pin, aim, mean_shift_y)
+        assert cell["p_water_at_aim"] == pytest.approx(pw_aim, abs=5e-4)
+        assert cell["p_green_at_aim"] == pytest.approx(pg_aim, abs=5e-4)
+
+
+def test_chapters_sigma_matches_oval_for_tier(exported):
+    chapters = exported["chapters"]
+    for tier in data.TIERS:
+        sigma_d0, sigma_l0 = model.oval_for_tier(tier)
+        for pin in data.PINS:
+            calm = chapters["cells"][f"{tier}|{pin}|0"]
+            assert calm["sigma_d_yd"] == pytest.approx(sigma_d0, abs=1e-3)
+            assert calm["sigma_l_yd"] == pytest.approx(sigma_l0, abs=1e-3)
+            assert calm["sigma_d_calm_yd"] == pytest.approx(sigma_d0, abs=1e-3)
+
+            windy = chapters["cells"][f"{tier}|{pin}|1"]
+            assert windy["sigma_d_yd"] == pytest.approx(sigma_d0 * data.WIND["dispersion_inflation"], abs=1e-3)
+            assert windy["sigma_l_yd"] == pytest.approx(sigma_l0 * data.WIND["dispersion_inflation"], abs=1e-3)
+
+
+def test_chapters_geometry_yd_matches_manifest(exported):
+    assert exported["chapters"]["geometry_yd"] == exported["manifest"]["geometry_yd"]
+
+
+# ---------------------------------------------------------------------------
 # Determinism
 # ---------------------------------------------------------------------------
 
@@ -301,3 +397,5 @@ def test_export_main_is_deterministic(exported):
         assert f.read() == exported["grids_bytes"]
     with open(export.MANIFEST_PATH, "rb") as f:
         assert f.read() == exported["manifest_bytes"]
+    with open(export.CHAPTERS_PATH, "rb") as f:
+        assert f.read() == exported["chapters_bytes"]
