@@ -277,7 +277,7 @@ const OVALS = {
 // GIR50_DISTANCE_YD), not directly anchored.
 const OVAL_MODELED_TIERS = [15, 20];
 
-const TIER_LABELS = {0: "Scratch", 5: "5-hcp", 10: "10-hcp", 15: "15-hcp", 20: "20-hcp"};
+const TIER_LABELS = {0: "scratch player", 5: "5-handicap", 10: "10-handicap", 15: "15-handicap", 20: "20-handicap"};
 
 // ---------------------------------------------------------------------
 // Bilinear grid lookup: ports analysis/003-augusta-12/export.py's
@@ -323,23 +323,19 @@ function sandboxLookup(grids, tier, pin, wind, lateral, carryAdj){
 function clamp(v, lo, hi){ return Math.min(Math.max(v, lo), hi); }
 function pct(v){ return Math.round(v * 100) + "%"; }
 
-// Describes an (lateral, carry) offset relative to a named pin in plain
-// golfer language: "9 yd left of the sunday pin and 8 yd short of the
-// sunday pin". Positive lateral = right (Sunday side, per data.py);
-// positive carry = past the pin, negative = short of it. "past" and "short
-// of" take different prepositions in English, so this builds both clauses
-// directly rather than gluing a shared suffix onto two half-phrases.
-function describeAim(lateralOffset, carryOffset, pinLower){
+// Describes an (lateral, carry) offset from the flag in plain golfer
+// language, naming the flag once: "7 yd left of the flag and 5 yd short of
+// it", "on the flag's line and 8 yd short of it", "pin high, 3 yd right of
+// the flag". Positive lateral = right (Sunday side, per data.py); positive
+// carry = past the flag, negative = short of it.
+function describeAim(lateralOffset, carryOffset){
   const latN = Math.round(Math.abs(lateralOffset));
   const carN = Math.round(Math.abs(carryOffset));
-  const latPhrase = latN < 1
-    ? "on the " + pinLower + " pin's line"
-    : latN + " yd " + (lateralOffset > 0 ? "right" : "left") + " of the " + pinLower + " pin";
-  let carPhrase;
-  if(carN < 1) carPhrase = "pin high at the " + pinLower + " pin";
-  else if(carryOffset > 0) carPhrase = carN + " yd past the " + pinLower + " pin";
-  else carPhrase = carN + " yd short of the " + pinLower + " pin";
-  return latPhrase + " and " + carPhrase;
+  const side = lateralOffset > 0 ? "right" : "left";
+  if(latN < 1 && carN < 1) return "at the flag";
+  if(latN < 1) return "on the flag's line and " + carN + " yd " + (carryOffset > 0 ? "past it" : "short of it");
+  if(carN < 1) return "pin high, " + latN + " yd " + side + " of the flag";
+  return latN + " yd " + side + " of the flag and " + carN + " yd " + (carryOffset > 0 ? "past it" : "short of it");
 }
 
 // ---------------------------------------------------------------------
@@ -651,27 +647,26 @@ function render(){
   }
 
   // verdict sentence
-  const tierLabel = TIER_LABELS[tier] || (tier + "-hcp");
-  const pinLower = pin.label.replace(/\s*\([^)]*\)/, "").toLowerCase();
-  const nearPin = Math.abs(state.lateral) < 1 && Math.abs(carryAdj) < 1;
-  const aimDesc = nearPin
-    ? "at the " + pinLower + " pin"
-    : describeAim(state.lateral, carryAdj, pinLower);
+  const tierLabel = TIER_LABELS[tier] || (tier + "-handicap");
+  const pinBase = pin.label.replace(/\s*\([^)]*\)/, "").trim();
+  const pinName = "the " + (pinBase.toLowerCase() === "sunday" ? "Sunday" : pinBase.toLowerCase()) + " pin";
+  const aimDesc = describeAim(state.lateral, carryAdj);
   const opt = lookup.cell.optimum;
-  const modelAimSentence = "The model aims " + describeAim(opt.lateral_offset_yd, opt.carry_adjustment_yd, pinLower) + ".";
+  const modelAimSentence = "The model aims " + describeAim(opt.lateral_offset_yd, opt.carry_adjustment_yd) + ".";
+  const subject = "A " + tierLabel + " at " + pinName + ", aiming " + aimDesc + ",";
 
   els.verdict.className = "verdict " + (lookup.tossup ? "fairway" : (delta > 0 ? "rough" : "fairway"));
   if(lookup.tossup){
     els.headline.textContent = "Either aim works here";
-    els.detail.textContent = "A " + tierLabel + " aiming " + aimDesc + " plays within " + grids.tossup_threshold_strokes.toFixed(2)
-      + " strokes of the model's optimum and finds the water " + pct(lookup.p_water) + " of the time.";
+    els.detail.textContent = subject + " plays within " + grids.tossup_threshold_strokes.toFixed(2)
+      + " strokes of the model's aim and finds the water " + pct(lookup.p_water) + " of the time.";
   } else if(delta > 0){
     els.headline.textContent = "This aim gives up strokes";
-    els.detail.textContent = "A " + tierLabel + " aiming " + aimDesc + " gives up " + delta.toFixed(2)
-      + " strokes to the model's optimum and finds the water " + pct(lookup.p_water) + " of the time. " + modelAimSentence;
+    els.detail.textContent = subject + " gives up " + delta.toFixed(2)
+      + " strokes to the model's aim and finds the water " + pct(lookup.p_water) + " of the time. " + modelAimSentence;
   } else {
     els.headline.textContent = "This aim matches the model";
-    els.detail.textContent = "A " + tierLabel + " aiming " + aimDesc + " plays the model's optimum here and finds the water "
+    els.detail.textContent = subject + " plays the model's aim and finds the water "
       + pct(lookup.p_water) + " of the time.";
   }
 
