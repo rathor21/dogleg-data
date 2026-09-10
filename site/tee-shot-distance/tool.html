@@ -192,7 +192,7 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
 
 <div class="card">
   <h2>Driver or the backup?</h2>
-  <div class="sub">Same hole, same tier, but your driver drive compared against your backup club at the distance you actually carry it.</div>
+  <div class="sub">Same hole, same tier, but your driver drive compared against your backup club at the distance you carry it.</div>
 
   <div id="ts-backup-verdict" class="verdict fairway">
     <div class="headline" id="ts-backup-headline">&mdash;</div>
@@ -494,7 +494,7 @@ function render(){
   const xMin = DRIVES[0], xMax = DRIVES[DRIVES.length - 1];
 
   const datasets = [
-    { label: DATA.tiers[tier] + ' — expected score, driver', data: DRIVES.map((d,i)=>({x:d, y:driverCurve[i]})), borderColor: TIER_COLORS[tier], backgroundColor: TIER_COLORS[tier]+'22', borderWidth:2.5, pointRadius:0, fill:false, tension:0.15 },
+    { label: DATA.tiers[tier] + ', expected score, driver', data: DRIVES.map((d,i)=>({x:d, y:driverCurve[i]})), borderColor: TIER_COLORS[tier], backgroundColor: TIER_COLORS[tier]+'22', borderWidth:2.5, pointRadius:0, fill:false, tension:0.15 },
     { label:'Tier benchmark', data:[{x:xMin,y:benchmark},{x:xMax,y:benchmark}], borderColor:'#4A4437', borderDash:[6,4], borderWidth:1.5, pointRadius:0 },
     { label:'Cost line margin', data:[{x:xMin,y:benchmark+margin},{x:xMax,y:benchmark+margin}], borderColor:'#C05A36', borderDash:[2,3], borderWidth:1.5, pointRadius:0 },
     { label:'Your drive', data:[{x:drive, y:myScore}], type:'scatter', backgroundColor: TIER_COLORS[tier], pointRadius:6, showLine:false }

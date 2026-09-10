@@ -331,7 +331,7 @@ function renderBreakeven(){
     data:{ labels: beDist,
       datasets:[
         { label:'No lie advantage (reference)', data: beDist.map(d=>d), borderColor:'#CBBFA9', borderDash:[5,4], borderWidth:1.5, pointRadius:0 },
-        { label: DATA.worth.tiers[tier] + ' — rough ties at', data: roughTieCurve, borderColor: TIER_COLORS[tier], backgroundColor: TIER_COLORS[tier]+'22', borderWidth:2.5, pointRadius:0, fill:true, tension:0.15 },
+        { label: DATA.worth.tiers[tier] + ', rough ties at', data: roughTieCurve, borderColor: TIER_COLORS[tier], backgroundColor: TIER_COLORS[tier]+'22', borderWidth:2.5, pointRadius:0, fill:true, tension:0.15 },
         { label:'Selected distance', data: beDist.map(d=> d===Math.round(D/2)*2 ? roughTieAtD : null),
           type:'scatter', backgroundColor: TIER_COLORS[tier], pointRadius:6, showLine:false }
       ]},
