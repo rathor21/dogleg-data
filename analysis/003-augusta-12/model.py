@@ -25,6 +25,16 @@ Three-step oval construction:
 Own-tier baseline. Every MODELED constant lives in data.py with its
 sensitivity range; this module's job is the construction and integration
 logic, not new numbers.
+
+Rev 6 (Sunny's finding): distance error is a two-component mixture, not one
+symmetric Gaussian. mishit_mixture_params() below re-splits Step 1's
+isotropic sigma into a tighter solid-strike core plus a short mishit tail,
+preserving Step 1+2's own anchored second moment; expected_score() becomes
+the mixture-weighted sum of two score_for_oval() calls instead of one. See
+mishit_mixture_params's docstring for why (a single symmetric Gaussian let
+a 20-handicap post a lower water rate than a scratch player at the same aim
+and still showed water risk at a 200-yd carry, both wrong on the real hole)
+and the algebra that keeps the anchored proximity reproduced.
 """
 
 from math import exp, pi, sqrt
@@ -68,6 +78,60 @@ def oval_for_tier(tier, anisotropy_ratio=None, shot_yd=data.TEE_SHOT_YD):
     sigma_l = sigma_iso_yd * sqrt(2.0 / (ratio ** 2 + 1.0))
     sigma_d = ratio * sigma_l
     return sigma_d, sigma_l
+
+
+def mishit_mixture_params(tier, anisotropy_ratio=None, shot_yd=data.TEE_SHOT_YD):
+    """(sigma_solid_d_yd, sigma_l_yd, p_mis, k_mis_yd): rev 6's two-component
+    distance-error mixture (Sunny's finding, data.py's mishit-mixture append
+    block). A single symmetric Gaussian per tier for distance error let a
+    20-handicap post a LOWER water rate than a scratch player at the same
+    aim, and still showed water risk at a 200-yd carry -- both wrong on the
+    real hole, since the 20-handicap's own distance sigma (33.6 yd) dwarfs
+    the 9-yd creek-plus-bank band and spreads mass past it symmetrically in
+    both directions.
+
+    Distance error is now a mixture: with probability 1 - p_mis, N(0,
+    sigma_solid) (a solid strike); with probability p_mis (data.MISHIT_PCT
+    [tier], MODELED, sensitivity range a 0.5x-1.5x multiplier), N(-k_mis,
+    sigma_solid) (a mishit, same spread as the solid strike, its mean
+    shifted short by k_mis = data.MISHIT_SHORT_FRAC * shot_yd, MODELED,
+    sensitivity range 0.10-0.20 of shot distance). Lateral error (sigma_l)
+    is untouched by the mixture -- it stays exactly oval_for_tier's own
+    line-axis sigma.
+
+    Anchor preservation: sigma_solid is solved so the mixture's TOTAL second
+    moment about zero equals the tier's already-anchored, anisotropy-split
+    distance sigma (oval_for_tier(tier, anisotropy_ratio, shot_yd)'s own
+    sigma_d), so the tier's anchored mean proximity is still reproduced to
+    first order. For X ~ the mixture:
+
+        E[X^2] = (1 - p_mis) * sigma_solid^2 + p_mis * (sigma_solid^2 + k_mis^2)
+               = sigma_solid^2 + p_mis * k_mis^2
+
+    (the second component's own second moment about zero is its variance
+    plus its squared mean; the first component's mean is zero, so it
+    contributes no cross term). Setting E[X^2] == sigma_d^2 and solving:
+
+        sigma_solid = sqrt(sigma_d^2 - p_mis * k_mis^2)
+
+    Checked at every corner of both sensitivity ranges (data.
+    MISHIT_PCT_SENSITIVITY_MULT_RANGE x data.MISHIT_SHORT_FRAC_RANGE) for
+    every tier: sigma_solid stays real and positive throughout this
+    release's own stated ranges (worst case, tier 20 at the widest corner,
+    sigma_solid ~= 27.7 yd against sigma_d = 33.6 yd) -- see
+    tests/test_model.py::test_mixture_preserves_anchored_second_moment.
+    """
+    sigma_d, sigma_l = oval_for_tier(tier, anisotropy_ratio, shot_yd)
+    p_mis = data.MISHIT_PCT[tier]
+    k_mis = data.MISHIT_SHORT_FRAC * shot_yd
+    sigma_solid_sq = sigma_d ** 2 - p_mis * k_mis ** 2
+    if sigma_solid_sq <= 0.0:
+        raise ValueError(
+            f"mishit mixture second-moment equation has no real solution for tier={tier}: "
+            f"sigma_d={sigma_d:.4f} yd, p_mis={p_mis}, k_mis={k_mis:.4f} yd"
+        )
+    sigma_solid = sqrt(sigma_solid_sq)
+    return sigma_solid, sigma_l, p_mis, k_mis
 
 
 def mean_radial_ft(sigma_d_yd, sigma_l_yd):
@@ -528,20 +592,40 @@ def expected_score(tier, pin, aim_point, wind=False, *,
     wind: bool. When True, applies data.WIND's carry penalty (shortens the
     mean landing distance) and dispersion inflation (widens both oval axes),
     MODELED with a stated sensitivity range (Anchor 6 is narrative only).
+    Both the carry penalty and the dispersion inflation apply identically to
+    the mishit mixture's two components (see mishit_mixture_params): the
+    carry penalty shifts both components' means by the same amount, and the
+    dispersion inflation scales the shared sigma_solid/sigma_l both
+    components use.
 
     green_width_yd/front_third_depth_yd/anisotropy_ratio: override the
     published-range defaults (data.HOLE, data.ANISOTROPY) instead of a
     single buried constant; None uses each range's midpoint (or, for
     anisotropy, data.ANISOTROPY["ratio"]).
+
+    Rev 6 (Sunny's finding): the distance axis is a two-component mixture,
+    not one symmetric Gaussian (see mishit_mixture_params) -- this function
+    is the mixture-weighted sum of two score_for_oval calls, one for each
+    component (mean_shift_y unshifted for the solid strike, shifted an
+    additional -k_mis for the mishit), each with the SAME sigma_solid/
+    sigma_l (the mixture only shifts the mishit component's mean, never its
+    spread).
     """
-    sigma_d, sigma_l = oval_for_tier(tier, anisotropy_ratio)
+    sigma_solid, sigma_l, p_mis, k_mis = mishit_mixture_params(tier, anisotropy_ratio)
     mean_shift_y = 0.0
     if wind:
         mean_shift_y = -data.WIND["carry_penalty_yd"]
-        sigma_d = sigma_d * data.WIND["dispersion_inflation"]
+        sigma_solid = sigma_solid * data.WIND["dispersion_inflation"]
         sigma_l = sigma_l * data.WIND["dispersion_inflation"]
 
-    return score_for_oval(sigma_d, sigma_l, tier, pin, aim_point, mean_shift_y,
-                           green_width_yd=green_width_yd,
-                           front_third_depth_yd=front_third_depth_yd,
-                           n_std=n_std, n_grid=n_grid)
+    score_solid = score_for_oval(sigma_solid, sigma_l, tier, pin, aim_point, mean_shift_y,
+                                  green_width_yd=green_width_yd,
+                                  front_third_depth_yd=front_third_depth_yd,
+                                  n_std=n_std, n_grid=n_grid)
+    if p_mis <= 0.0:
+        return score_solid
+    score_mis = score_for_oval(sigma_solid, sigma_l, tier, pin, aim_point, mean_shift_y - k_mis,
+                                green_width_yd=green_width_yd,
+                                front_third_depth_yd=front_third_depth_yd,
+                                n_std=n_std, n_grid=n_grid)
+    return (1.0 - p_mis) * score_solid + p_mis * score_mis

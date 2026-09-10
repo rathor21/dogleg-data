@@ -51,6 +51,28 @@ def tour_oval(anisotropy_ratio=None, shot_yd=data.TEE_SHOT_YD):
     return sigma_d, sigma_l
 
 
+def tour_mishit_mixture_params(anisotropy_ratio=None, shot_yd=data.TEE_SHOT_YD):
+    """(sigma_solid_d_yd, sigma_l_yd, p_mis, k_mis_yd): the Tour-tier
+    counterpart to model.mishit_mixture_params (rev 6, Sunny's finding),
+    identical algebra sourced from tour_oval's own sigma_d instead of the
+    amateur oval_for_tier, and data.TOUR_MISHIT_PCT (a single scalar, far
+    below the amateur tiers' own lowest figure) in place of the amateur
+    tier-keyed data.MISHIT_PCT dict. data.MISHIT_SHORT_FRAC (the short-miss
+    fraction of shot distance) is shared with the amateur tiers -- only the
+    mishit RATE, not the short-miss fraction, is tour-specific."""
+    sigma_d, sigma_l = tour_oval(anisotropy_ratio, shot_yd)
+    p_mis = data.TOUR_MISHIT_PCT
+    k_mis = data.MISHIT_SHORT_FRAC * shot_yd
+    sigma_solid_sq = sigma_d ** 2 - p_mis * k_mis ** 2
+    if sigma_solid_sq <= 0.0:
+        raise ValueError(
+            f"tour mishit mixture second-moment equation has no real solution: "
+            f"sigma_d={sigma_d:.4f} yd, p_mis={p_mis}, k_mis={k_mis:.4f} yd"
+        )
+    sigma_solid = sqrt(sigma_solid_sq)
+    return sigma_solid, sigma_l, p_mis, k_mis
+
+
 def tour_putt_probabilities(dist_ft):
     """(p1, p2, p3): probability of holing out in one, two, or three-plus
     putts from dist_ft, PGA Tour tier.
@@ -212,17 +234,30 @@ def tour_expected_score(pin, aim_point, wind=False, *,
     model.expected_score's wind handling exactly (data.WIND's carry penalty
     and dispersion inflation, the same amateur-sourced narrative-anchored
     constants, applied to the Tour tier as a MODELED extension -- Anchor 6
-    is a narrative anchor only and was never tier-specific)."""
-    sigma_d, sigma_l = tour_oval(anisotropy_ratio)
+    is a narrative anchor only and was never tier-specific).
+
+    Rev 6 (Sunny's finding): mirrors model.expected_score's mishit-mixture
+    change exactly -- the mixture-weighted sum of two tour_score_for_oval
+    calls (tour_mishit_mixture_params's solid-strike and mishit components)
+    instead of one, using data.TOUR_MISHIT_PCT in place of the amateur
+    tier-keyed data.MISHIT_PCT."""
+    sigma_solid, sigma_l, p_mis, k_mis = tour_mishit_mixture_params(anisotropy_ratio)
     mean_shift_y = 0.0
     if wind:
         mean_shift_y = -data.WIND["carry_penalty_yd"]
-        sigma_d = sigma_d * data.WIND["dispersion_inflation"]
+        sigma_solid = sigma_solid * data.WIND["dispersion_inflation"]
         sigma_l = sigma_l * data.WIND["dispersion_inflation"]
-    return tour_score_for_oval(sigma_d, sigma_l, pin, aim_point, mean_shift_y,
-                                green_width_yd=green_width_yd,
-                                front_third_depth_yd=front_third_depth_yd,
-                                n_std=n_std, n_grid=n_grid)
+    score_solid = tour_score_for_oval(sigma_solid, sigma_l, pin, aim_point, mean_shift_y,
+                                       green_width_yd=green_width_yd,
+                                       front_third_depth_yd=front_third_depth_yd,
+                                       n_std=n_std, n_grid=n_grid)
+    if p_mis <= 0.0:
+        return score_solid
+    score_mis = tour_score_for_oval(sigma_solid, sigma_l, pin, aim_point, mean_shift_y - k_mis,
+                                     green_width_yd=green_width_yd,
+                                     front_third_depth_yd=front_third_depth_yd,
+                                     n_std=n_std, n_grid=n_grid)
+    return (1.0 - p_mis) * score_solid + p_mis * score_mis
 
 
 # ---------------------------------------------------------------------------

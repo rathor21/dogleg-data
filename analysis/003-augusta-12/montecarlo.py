@@ -3,11 +3,14 @@
 Peer-review artifact, same framing 002's montecarlo.py uses: nothing here
 feeds a published chart. It simulates the SAME distributions model.py (and
 tour.py, for the Tour tier) integrate analytically -- oval_for_tier's
-variance-preserving anisotropy split, data.WIND's mean shift and dispersion
-inflation when wind is on -- and prices each sampled landing point through
-the SAME region_at classification and _region_strokes formulas the analytic
-grid uses per cell. Agreement is therefore a check on the grid integration,
-not independent evidence of anything model.py/tour.py assumes.
+variance-preserving anisotropy split, rev 6's mishit mixture on top of it
+(mishit_mixture_params/tour_mishit_mixture_params: a per-sample coin flip
+picks the solid-strike or mishit component, Sunny's finding), data.WIND's
+mean shift and dispersion inflation when wind is on -- and prices each
+sampled landing point through the SAME region_at classification and
+_region_strokes formulas the analytic grid uses per cell. Agreement is
+therefore a check on the grid integration, not independent evidence of
+anything model.py/tour.py assumes.
 
 Two harnesses:
 
@@ -44,22 +47,27 @@ import tour
 def simulate_amateur(tier, pin, aim_point, wind=False, *, n=300_000, rng=None,
                       green_width_yd=None, front_third_depth_yd=None, anisotropy_ratio=None):
     """Mean strokes over n sampled amateur approach shots. Mirrors
-    model.expected_score's distributions exactly: oval_for_tier's
-    (sigma_d, sigma_l), data.WIND's mean shift/dispersion inflation when
-    wind=True, region_at for classification, and _region_strokes for pricing
-    -- the same three functions the analytic grid in model.score_for_oval
-    calls per cell, called here per random sample instead.
+    model.expected_score's distributions exactly: model.mishit_mixture_
+    params's two-component distance-error mixture (rev 6, Sunny's finding --
+    a solid-strike core plus a short mishit tail, drawn per sample here
+    rather than integrated analytically), data.WIND's mean shift/dispersion
+    inflation when wind=True, region_at for classification, and
+    _region_strokes for pricing -- the same functions the analytic grid in
+    model.score_for_oval calls per cell, called here per random sample
+    instead.
     """
     rng = rng if rng is not None else np.random.default_rng()
-    sigma_d, sigma_l = model.oval_for_tier(tier, anisotropy_ratio)
+    sigma_solid, sigma_l, p_mis, k_mis = model.mishit_mixture_params(tier, anisotropy_ratio)
     mean_shift_y = 0.0
     if wind:
         mean_shift_y = -data.WIND["carry_penalty_yd"]
-        sigma_d = sigma_d * data.WIND["dispersion_inflation"]
+        sigma_solid = sigma_solid * data.WIND["dispersion_inflation"]
         sigma_l = sigma_l * data.WIND["dispersion_inflation"]
     mean_x, mean_y = aim_point[0], aim_point[1] + mean_shift_y
 
-    ys = rng.normal(mean_y, sigma_d, n)
+    is_mishit = rng.random(n) < p_mis
+    y_shift = np.where(is_mishit, -k_mis, 0.0)
+    ys = rng.normal(mean_y, sigma_solid, n) + y_shift
     xs = rng.normal(mean_x, sigma_l, n)
     total = 0.0
     for xi, yi in zip(xs, ys):
@@ -74,18 +82,21 @@ def simulate_amateur(tier, pin, aim_point, wind=False, *, n=300_000, rng=None,
 
 def simulate_tour(pin, aim_point, wind=False, *, n=300_000, rng=None,
                    green_width_yd=None, front_third_depth_yd=None, anisotropy_ratio=None):
-    """Tour-tier analog of simulate_amateur, routed through tour.py's oval
-    and pricing helpers instead of the amateur tier-keyed ones."""
+    """Tour-tier analog of simulate_amateur, routed through tour.py's
+    mishit-mixture and pricing helpers instead of the amateur tier-keyed
+    ones."""
     rng = rng if rng is not None else np.random.default_rng()
-    sigma_d, sigma_l = tour.tour_oval(anisotropy_ratio)
+    sigma_solid, sigma_l, p_mis, k_mis = tour.tour_mishit_mixture_params(anisotropy_ratio)
     mean_shift_y = 0.0
     if wind:
         mean_shift_y = -data.WIND["carry_penalty_yd"]
-        sigma_d = sigma_d * data.WIND["dispersion_inflation"]
+        sigma_solid = sigma_solid * data.WIND["dispersion_inflation"]
         sigma_l = sigma_l * data.WIND["dispersion_inflation"]
     mean_x, mean_y = aim_point[0], aim_point[1] + mean_shift_y
 
-    ys = rng.normal(mean_y, sigma_d, n)
+    is_mishit = rng.random(n) < p_mis
+    y_shift = np.where(is_mishit, -k_mis, 0.0)
+    ys = rng.normal(mean_y, sigma_solid, n) + y_shift
     xs = rng.normal(mean_x, sigma_l, n)
     total = 0.0
     for xi, yi in zip(xs, ys):
@@ -143,9 +154,11 @@ def simulate_tour_season(n=300_000, rng=None, pin_rotation=None, wind_frequency=
     mean (checked against the published 3.27-3.28 all-time average).
 
     Each play: sample (pin, wind) from the season weights, sample a landing
-    point from tour.tour_oval around the aim point tour.tour_aim_point
-    resolves for that (pin, wind, aim_policy) (wind-shifted/inflated exactly
-    as tour.tour_expected_score does), classify it with model.region_at
+    point from tour.tour_mishit_mixture_params's two-component mixture (rev
+    6, Sunny's finding: a per-play coin flip on p_mis picks the solid-strike
+    or mishit component) around the aim point tour.tour_aim_point resolves
+    for that (pin, wind, aim_policy) (wind-shifted/inflated exactly as
+    tour.tour_expected_score does), classify it with model.region_at
     (unmodified, tier-agnostic), then discretize tour.py's exact pricing
     formula for that region (_tour_green_strokes for "green",
     _tour_recovery_strokes/_tour_creek_strokes otherwise) via
@@ -180,15 +193,17 @@ def simulate_tour_season(n=300_000, rng=None, pin_rotation=None, wind_frequency=
             m = int(mask.sum())
             if m == 0:
                 continue
-            sigma_d, sigma_l = tour.tour_oval()
+            sigma_solid, sigma_l, p_mis, k_mis = tour.tour_mishit_mixture_params()
             mean_shift_y = 0.0
             if wind_on:
                 mean_shift_y = -data.WIND["carry_penalty_yd"]
-                sigma_d = sigma_d * data.WIND["dispersion_inflation"]
+                sigma_solid = sigma_solid * data.WIND["dispersion_inflation"]
                 sigma_l = sigma_l * data.WIND["dispersion_inflation"]
             aim_x, aim_y = tour.tour_aim_point(pin_name, wind_on, aim_policy, attack_when_fair_threshold)
             mean_x, mean_y = aim_x, aim_y + mean_shift_y
-            ys = rng.normal(mean_y, sigma_d, m)
+            is_mishit = rng.random(m) < p_mis
+            y_shift = np.where(is_mishit, -k_mis, 0.0)
+            ys = rng.normal(mean_y, sigma_solid, m) + y_shift
             xs = rng.normal(mean_x, sigma_l, m)
 
             geom = model._resolve_geometry()

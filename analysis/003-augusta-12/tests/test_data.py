@@ -118,8 +118,34 @@ def test_up_and_down_pct_well_formed():
     assert all(a >= b for a, b in zip(vals, vals[1:])), "up-and-down rate must not rise as handicap rises"
 
 
+def test_bank_rollback_widened_for_mishit_mixture():
+    # rev 6 (Sunny's finding): the shaved bank is what feeds a short mishit
+    # into the water, widened from 3.0 to 8.0 yd; range widened to match.
+    assert data.BANK_ROLLBACK_YD == 8.0
+    lo, hi = data.BANK_ROLLBACK_YD_RANGE
+    assert (lo, hi) == (5.0, 12.0)
+    assert lo <= data.BANK_ROLLBACK_YD <= hi
+
+
+def test_mishit_pct_well_formed():
+    assert set(data.MISHIT_PCT) == set(data.TIERS)
+    vals = [data.MISHIT_PCT[t] for t in data.TIERS]
+    assert all(0.0 < v < 1.0 for v in vals)
+    assert all(a <= b for a, b in zip(vals, vals[1:])), "mishit rate must not fall as handicap rises"
+    lo, hi = data.MISHIT_PCT_SENSITIVITY_MULT_RANGE
+    assert (lo, hi) == (0.5, 1.5)
+    assert data.TOUR_MISHIT_PCT < data.MISHIT_PCT[0], "Tour mishit rate must sit below the amateur tiers' own lowest"
+
+
+def test_mishit_short_frac_well_formed():
+    assert 0.0 < data.MISHIT_SHORT_FRAC < 1.0
+    lo, hi = data.MISHIT_SHORT_FRAC_RANGE
+    assert (lo, hi) == (0.10, 0.20)
+    assert lo <= data.MISHIT_SHORT_FRAC <= hi
+
+
 def test_every_anchor_group_carries_source():
     assert isinstance(data.SOURCES, dict)
     for key in ("GIR50_DISTANCE_YD", "SIGMA_ISO_FT", "ANISOTROPY", "HOLE", "PINS", "WIND",
-                "THREE_PUTT_RATE", "UP_AND_DOWN_PCT"):
+                "THREE_PUTT_RATE", "UP_AND_DOWN_PCT", "MISHIT_PCT", "MISHIT_SHORT_FRAC", "TOUR_MISHIT_PCT"):
         assert key in data.SOURCES and "003_Source_Log.md" in data.SOURCES[key]["log"]

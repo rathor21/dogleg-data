@@ -1,31 +1,31 @@
 tier,pin,wind,aim_lateral_offset_yd,aim_carry_adjustment_yd,score_optimum,score_at_pin,score_center_aim,delta_vs_at_pin_strokes,verdict_label,hit_search_boundary
-0,left,False,3.5,2.5,3.459,3.5065,3.5206,0.0475,either works,False
-0,left,True,6.0,7.062,3.6285,3.6676,3.6768,0.0392,either works,False
-0,center,False,-1.5,3.0,3.4205,3.4324,3.4324,0.0118,either works,False
-0,center,True,-1.5,8.0,3.5905,3.6336,3.6336,0.0431,either works,False
-0,sunday,False,-5.875,-6.875,3.6035,3.6967,3.6121,0.0932,bail,False
-0,sunday,True,-6.0,-7.0,3.763,3.8438,3.7706,0.0807,bail,False
-5,left,False,3.812,2.562,3.5793,3.6257,3.6315,0.0464,either works,False
-5,left,True,3.938,6.938,3.7394,3.7718,3.7647,0.0324,either works,False
-5,center,False,-0.875,0.875,3.5403,3.5487,3.5487,0.0084,either works,False
-5,center,True,-1.062,5.0,3.709,3.7235,3.7235,0.0144,either works,False
-5,sunday,False,-7.0,-7.875,3.7259,3.8139,3.7389,0.088,bail,False
-5,sunday,True,-9.0,-7.5,3.8752,3.9413,3.8752,0.0661,bail,False
-10,left,False,4.5,2.812,3.798,3.8291,3.8442,0.031,either works,False
-10,left,True,4.5,3.375,3.9448,3.9725,3.9614,0.0277,either works,False
-10,center,False,-1.375,0.5,3.7593,3.774,3.774,0.0147,either works,False
-10,center,True,-1.938,5.0,3.9171,3.9245,3.9245,0.0074,either works,False
-10,sunday,False,-7.0,-13.438,3.9444,4.0479,3.9842,0.1035,bail,False
-10,sunday,True,-7.875,-18.625,4.0818,4.1451,4.0971,0.0633,bail,False
-15,left,False,5.0,-2.0,3.9379,3.9581,3.9729,0.0201,either works,False
-15,left,True,3.0,1.25,4.0745,4.0845,4.0856,0.01,either works,False
-15,center,False,-2.0,-1.0,3.8948,3.9047,3.9047,0.0099,either works,False
-15,center,True,0.25,1.0,4.0467,4.0487,4.0487,0.002,either works,False
-15,sunday,False,-7.0,-17.0,4.0814,4.1774,4.1276,0.096,bail,False
-15,sunday,True,-12.25,-26.5,4.2105,4.281,4.2408,0.0705,bail,False
-20,left,False,4.0,1.0,4.1062,4.1204,4.1259,0.0143,either works,False
-20,left,True,6.0,1.5,4.2232,4.2355,4.2314,0.0122,either works,False
-20,center,False,-1.5,-3.0,4.0714,4.0731,4.0731,0.0017,either works,False
-20,center,True,0.5,-1.0,4.2029,4.2033,4.2033,0.0004,either works,False
-20,sunday,False,-10.0,-26.875,4.2563,4.3607,4.3098,0.1044,bail,False
-20,sunday,True,-11.875,-38.75,4.3514,4.4522,4.4111,0.1008,bail,False
+0,left,False,3.5,5.875,3.4856,3.5347,3.5599,0.0491,either works,False
+0,left,True,5.438,14.938,3.6443,3.7085,3.7097,0.0642,bail,False
+0,center,False,-1.812,3.75,3.4458,3.4719,3.4719,0.0261,either works,False
+0,center,True,-1.312,11.625,3.6129,3.6671,3.6671,0.0542,bail,False
+0,sunday,False,-7.5,-4.875,3.6366,3.7268,3.6442,0.0902,bail,False
+0,sunday,True,-8.688,-4.688,3.7875,3.8665,3.7978,0.079,bail,False
+5,left,False,3.812,6.375,3.6072,3.65,3.6671,0.0428,either works,False
+5,left,True,3.938,12.5,3.7589,3.8068,3.8043,0.0479,either works,False
+5,center,False,-1.75,4.0,3.5663,3.5853,3.5853,0.0189,either works,False
+5,center,True,-1.75,10.75,3.7279,3.7642,3.7642,0.0363,either works,False
+5,sunday,False,-7.0,-6.0,3.7581,3.8418,3.765,0.0837,bail,False
+5,sunday,True,-9.0,-5.875,3.9026,3.9624,3.9053,0.0598,bail,False
+10,left,False,4.5,6.562,3.8267,3.8599,3.8691,0.0332,either works,False
+10,left,True,5.938,12.438,3.9642,3.992,3.9894,0.0278,either works,False
+10,center,False,-2.062,3.25,3.7871,3.8,3.8,0.0129,either works,False
+10,center,True,-1.062,8.5,3.9352,3.954,3.954,0.0188,either works,False
+10,sunday,False,-7.0,-12.0,3.9807,4.0652,3.9933,0.0846,bail,False
+10,sunday,True,-10.0,-14.625,4.1018,4.1584,4.1129,0.0566,bail,False
+15,left,False,4.75,6.688,3.9618,3.9805,3.9943,0.0187,either works,False
+15,left,True,3.0,8.625,4.0883,4.1037,4.1057,0.0154,either works,False
+15,center,False,-1.25,4.5,3.9202,3.9287,3.9287,0.0085,either works,False
+15,center,True,-0.5,7.625,4.0586,4.0705,4.0705,0.0119,either works,False
+15,sunday,False,-7.0,-12.625,4.1146,4.1838,4.1281,0.0693,bail,False
+15,sunday,True,-7.0,-15.25,4.2247,4.2799,4.2408,0.0552,bail,False
+20,left,False,4.0,6.0,4.1267,4.14,4.1466,0.0132,either works,False
+20,left,True,6.0,9.25,4.2358,4.2469,4.2438,0.011,either works,False
+20,center,False,-1.0,4.5,4.0913,4.0969,4.0969,0.0056,either works,False
+20,center,True,0.0,7.875,4.2121,4.2166,4.2166,0.0046,either works,False
+20,sunday,False,-10.0,-21.0,4.2782,4.3479,4.3019,0.0697,bail,False
+20,sunday,True,-10.0,-24.875,4.3633,4.4381,4.3969,0.0748,bail,False

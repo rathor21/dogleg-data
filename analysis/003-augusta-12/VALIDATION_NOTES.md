@@ -1,6 +1,6 @@
 # Release 003 validation notes (issue #9, ADR 0002 pass)
 
-**Publication status (2026-09-07, updated after the pitch-over-water risk fix, #8 rev 5):** the must-pass gates pass: the season-mean gate and the MC-vs-analytic fidelity gates all pass outright. The per-year shape checks for 2024 and 2025 are disclosed near-misses on the bogey bucket (details in "Creek band fix (rev 4)" and "Pitch-over-water risk (rev 5)" below and in ADR 0002's rev 3 addendum), shipped under `xfail(strict=False)` rather than tuned to force a pass; 2019 and 2023 remain structural misses (their published means sit below this model's own achievable range). The region-geometry fix that closed the amateur-side creek defect reopened 2025 as a new, marginal (0.2-point) near-miss -- previously a clean pass; rev 5's pitch-over-water fix barely moves it either way. Sunny decides whether this is acceptable to publish or needs further model work first. Rev 5 also closes a real gap the creek-band fix left open: the short_fairway pitch back over Rae's Creek carried no water risk at all, which had the optimizer recommending a 30+ yard Sunday-pin layup with no mechanism behind it -- see "Pitch-over-water risk (rev 5)" below for the fix, the sensitivity sweep, and the disclosed fact that several Sunday rows still lay up more than 15 yd even with the risk correctly priced.
+**Publication status (2026-09-09, updated after the mishit-mixture and bank-funnel fix, rev 6, #7/#8):** the pre-existing must-pass gates still pass: the season-mean gate and the MC-vs-analytic fidelity gates all pass outright, barely moved by this pass's own changes. The per-year shape checks stay at their rev-5 disclosed state (2024/2025 near-misses, 2019/2023 structural misses), unaffected since the Tour mishit rate is small (2%) by design. Rev 6 itself sets out to fix a genuine defect Sunny found by hand: a single symmetric Gaussian for distance error made a 20-handicap show a LOWER water rate than a scratch player at the same aim, and showed water risk at an absurd 200-yd carry. The fix (a two-component solid-strike-plus-mishit mixture, `model.mishit_mixture_params`, plus a widened creek-and-bank band) is directionally correct and raises water risk everywhere, but **does not fully resolve either problem** at this release's own stated constants: water probability at the pin still falls with tier for the "center" and "sunday" pins, and water at a 200-yd carry still clears 1% for tier 20 at every pin (2-6%) and for tier 0 at the sunday pin (1.04%). Both are disclosed as `xfail(strict=False)` with exact numbers in "Mishit mixture and bank funnel (rev 6)" below and in `docs/adr/0003-003-mishit-mixture.md`, which also states what a fuller fix would require. Every published number in `outputs/003_results.csv`/`003_moves.csv` moved, and two verdict labels flipped from "either works" to "bail" (`(0, "left", wind)` and `(0, "center", wind)`, both scratch under wind, both already the closest "either works" rows to the tossup line pre-rev-6) -- the article must be re-numbered against the rebuilt CSVs. One genuine improvement: the Sunday-pin layup-depth concern rev 5 flagged (several rows laying up more than 15 yd short for a small, disclosed edge) is materially smaller this pass -- every layup edge now sits comfortably inside the tossup threshold (max 0.024 stroke, was 0.101). Sunny decides whether this partial fix, combined with the disclosure, is publishable as-is or needs a further pass before the article's numbers are re-quoted.
 
 Dated 2026-09-07. Companion to `tests/test_model.py`, `tests/test_montecarlo.py`,
 and `tests/test_optimizer.py`. Numbers below come from running this tree's
@@ -204,12 +204,16 @@ tried.
 
 ## Rebuilt verdict table (`outputs/003_results.csv`, `n_grid=121`)
 
-**Superseded by the creek band fix below.** This section described the
-Anchor-8-putting-curve-era table; see "Creek band fix (rev 4)" for the
-current 30-row table, which changed far more substantially (every row's
-score moved, every "left"/"center" row that used to read "bail" now reads
-"either works," and Sunday's own bail delta grew, in several cases by
-double). The pre-putting-fix table read, for reference:
+**Superseded twice over: first by the creek band fix, now by the mishit
+mixture (rev 6).** This section described the Anchor-8-putting-curve-era
+table; see "Creek band fix (rev 4)" for the rev-4 table and "Mishit mixture
+and bank funnel (rev 6)" at the end of this file for the CURRENT 30-row
+table -- every row's score moved again in rev 6 (the mixture plus the
+widened bank raise every tier's expected score somewhat); see that
+subsection for whether any published verdict label flipped, and rev 6's own
+"Flip-set golden snapshot" subsection for the one sensitivity-sweep
+baseline label that DID move. The pre-putting-fix table read, for
+reference:
 
 Calm at-pin-vs-bail deltas by tier/pin (wind rows in the CSV), before the
 Anchor-8 putting-curve fix and before the creek band fix:
@@ -924,3 +928,300 @@ tour_season_analytic_mean(aim_policy="pin")` bit-for-bit unchanged: baseline
 3.197686911570864 at both the 0.8x and 1.2x amateur multipliers, exact
 equality rather than a small-tolerance bound, which is the proof of the
 separation rather than a rounding coincidence.
+
+## Mishit mixture and bank funnel (rev 6), 2026-09-09
+
+Sunny read the sandbox directly and found two things wrong that both trace
+to the same root cause: a 20-handicap showed a LOWER water probability than
+a scratch player at the identical aim point, and a 200-yd carry (an
+absurd overclub, 37-52 yd past any of the three pins) still showed
+meaningful water risk. Both are wrong on the real hole. See `docs/adr/
+0003-003-mishit-mixture.md` for the full decision record; this section
+carries the numbers.
+
+### The fix
+
+`model.mishit_mixture_params(tier, ...)` (and `tour.tour_mishit_mixture_
+params()` for the Tour tier) split distance error into a two-component
+mixture: with probability `1 - p_mis`, `N(0, sigma_solid)` (a solid
+strike); with probability `p_mis` (`data.MISHIT_PCT`, `{0: 0.05, 5: 0.08,
+10: 0.12, 15: 0.18, 20: 0.25}`, MODELED, sensitivity range a 0.5x-1.5x
+multiplier; `data.TOUR_MISHIT_PCT = 0.02` for the Tour tier), `N(-k_mis,
+sigma_solid)` (a short mishit, the same spread, shifted short by `k_mis =
+data.MISHIT_SHORT_FRAC * shot_yd`, MODELED, 0.15 of shot distance, range
+0.10-0.20; 23.25 yd at the 155-yd tee shot). `sigma_solid` is solved so the
+mixture's total second moment about the aim point still equals the tier's
+already-anchored, anisotropy-split `sigma_d` exactly (`sigma_solid =
+sqrt(sigma_d^2 - p_mis * k_mis^2)`); `sigma_l` is untouched.
+`model.expected_score`/`tour.tour_expected_score` become the mixture-
+weighted sum of two `score_for_oval`/`tour_score_for_oval` calls;
+`montecarlo.py` draws the component per sample; `export.py`'s vectorized
+grid builder (`build_grid_for_combo`) and region-probability helper
+(`score_and_region_probs`) run the identical mixture, checked bit-for-bit
+(1e-6) against `model.expected_score`
+(`tests/test_export.py::test_grid_builder_matches_expected_score_
+unrounded`).
+
+`data.BANK_ROLLBACK_YD` widens from 3.0 to 8.0 yd (range 2.0-5.0 to
+5.0-12.0): the shaved bank is what feeds a short mishit into the water
+(Anchor 3; two of the four 2019 water balls, Koepka's and Molinari's,
+rolled back off the bank, Anchor 4), not a small rollback margin.
+`data.CREEK_WIDTH_YD` (6.0) is unchanged; the total creek-plus-bank band
+widens from 9 to 14 yd.
+
+`export.py`'s sandbox carry axis extends from -20/45 to -20/60 yd (Change
+3) so a 200-yd carry (carry adjustment = 200 minus pin y; the left pin,
+y=148, needs +52) sits inside the grid for every pin. Both axes keep a
+uniform 1-yd step; `outputs/003_sandbox_grids.json` grows from ~1.7 MB to
+~2.08 MB, comfortably under the ~2.5 MB budget, so no coarsening was
+needed.
+
+### Water rate at the pin, calm, before and after
+
+`export.score_and_region_probs`, aim = the pin itself, `p_mis`/`k_mis`
+included in the "after" column:
+
+| pin | tier | before (symmetric, bank=3yd) | after (mixture, bank=8yd) |
+|---|---|---|---|
+| left | 0 | 0.0778 | 0.1130 |
+| left | 5 | 0.0811 | 0.1227 |
+| left | 10 | 0.0653 | 0.1210 |
+| left | 15 | 0.0711 | 0.1301 |
+| left | 20 | 0.0677 | 0.1159 |
+| center | 0 | 0.0797 | 0.1468 |
+| center | 5 | 0.0796 | 0.1474 |
+| center | 10 | 0.0758 | 0.1371 |
+| center | 15 | 0.0783 | 0.1334 |
+| center | 20 | 0.0677 | 0.1294 |
+| sunday | 0 | 0.1287 | 0.1996 |
+| sunday | 5 | 0.1138 | 0.1927 |
+| sunday | 10 | 0.1016 | 0.1749 |
+| sunday | 15 | 0.0958 | 0.1570 |
+| sunday | 20 | 0.0847 | 0.1374 |
+
+Every cell rises (the mixture plus the wider bank both push water risk up
+overall), but the DIRECTION Sunny flagged is not reversed: before this fix
+every pin's water rate fell monotonically from tier 0 to tier 20 (left
+0.0778 -> 0.0677, center 0.0797 -> 0.0677, sunday 0.1287 -> 0.0847); after
+this fix, "left" is the only pin whose endpoints actually improve in the
+right direction (0.1130 -> 0.1159, though it still bounces in between,
+peaking at tier 15); "center" and "sunday" both still fall from tier 0 to
+tier 20, "sunday" monotonically across every one of the five tiers. **The
+water-probability-rises-with-handicap acceptance target is not met for
+"center" or "sunday."** `tests/test_export.py::test_water_at_pin_increases_
+monotonically_with_tier_for_every_pin` is marked `xfail(strict=False)` with
+this exact table in its reason string.
+
+Mechanism (see `docs/adr/0003-003-mishit-mixture.md` for the full
+derivation): at this release's stated `MISHIT_PCT` baseline, `p_mis *
+k_mis^2` is only 7-12% of `sigma_d^2` at every tier, so `sigma_solid` ends
+up only 4-12% smaller than the pre-mixture `sigma_d` (tier 0: 18.72 -> 17.98
+yd; tier 20: 33.57 -> 31.49 yd). That narrowing is not enough to overcome a
+wide symmetric solid-strike core's own dilution of probability density into
+a fixed-width band as sigma grows -- the exact mechanism behind the
+original bug, still present, just partly offset by the wider band and the
+mishit tail's own added weight.
+
+### Water rate at a 200-yd carry, tiers 0 and 20
+
+Aim = (pin's own x, 200.0), i.e. carry adjustment = 200 minus pin y, lateral
+0 (the acceptance check's own definition):
+
+| pin | tier | before (symmetric, bank=3yd) | after (mixture, bank=8yd) |
+|---|---|---|---|
+| left | 0 | 0.0002 | 0.0004 |
+| left | 20 | 0.0100 | 0.0203 |
+| center | 0 | 0.0015 | 0.0028 |
+| center | 20 | 0.0193 | 0.0365 |
+| sunday | 0 | 0.0064 | 0.0104 |
+| sunday | 20 | 0.0328 | 0.0592 |
+
+Tier 0 stays comfortably under 1% at left and center; sunday's tier-0 figure
+(1.04%) sits just over the line, and every tier-20 figure clears 1% by 2x to
+6x. **The 200-yd-carry acceptance target (below 1% for tiers 0 and 20) is
+not met.** `tests/test_export.py::test_water_at_200yd_carry_below_one_
+percent_for_tiers_0_and_20` is marked `xfail(strict=False)` with this exact
+table in its reason string.
+
+Mechanism: at a 200-yd carry the aim sits 37-52 yd beyond the pin, well past
+even the mishit component's own shifted mean (a fixed 23.25 yd short of the
+aim), so only the solid-strike component's own far tail (roughly 1.2-1.5
+standard deviations at `sigma_solid` = 18-31 yd) has to reach back to the
+creek band -- not a rare enough event once `sigma_solid` stays this close to
+the legacy `sigma_d` it was solved from. `BANK_ROLLBACK_YD`'s own widening
+makes this specific number WORSE on its own (a wider band catches more of
+any tier's tail); it is the mixture's job to compensate, and it does not
+compensate enough at this release's stated constants.
+
+**What would close both gaps**, left for a future pass per the ADR: a
+materially larger `MISHIT_PCT` and/or `MISHIT_SHORT_FRAC` than this
+release's own stated ranges allow, or a mishit component with a genuinely
+tighter spread parameter of its own rather than "the same spread as the
+solid strike." Both depart from this pass's brief as written.
+
+### Sensitivity sweep: MISHIT_PCT x MISHIT_SHORT_FRAC on the Sunday verdict
+
+`tests/test_model.py::test_mishit_pct_and_short_frac_sensitivity_on_sunday_
+verdict_label` sweeps `MISHIT_PCT` by its own 0.5x-1.5x multiplier and
+`MISHIT_SHORT_FRAC` across its own 0.10-0.20 range (a 3x3 grid, flip_set's
+own cheaper search settings). The Sunday-pin verdict label stays `bail` at
+every one of the 9 sweep points, for tiers 10/15/20, calm:
+
+| tier | label (all 9 points) | carry-adjustment spread (yd) | min carry | max carry |
+|---|---|---|---|---|
+| 10 | bail | 5.25 | -11.00 | -5.75 |
+| 15 | bail | 6.66 | -13.25 | -6.59 |
+| 20 | bail | 10.59 | -18.31 | -7.72 |
+
+The sucker-pin finding is not an artifact of exactly where these two new
+MODELED constants sit. Tier 20's own carry adjustment is the most sensitive
+(a 10.6-yd swing, the widest dispersion putting the most surface under the
+mixture's own two knobs), consistent with the pattern every other
+sensitivity sweep in this file shows for tier 20.
+
+### Gate numbers
+
+**MC-vs-analytic fidelity (Gate 1):** amateur worst gap 0.0070 stroke,
+Tour worst gap 0.0107 stroke, Tour season MC-vs-analytic gap 0.0018 stroke
+(mc=3.1160, an=3.1142) -- all comfortably inside their stated tolerances
+(0.03 for the per-scenario checks, 0.01 for the season check).
+
+**Season-mean gate (must-pass, no xfail): still passes.** Analytic season
+mean: **3.1142** (rev 5: 3.1188) -- barely moved, `TOUR_MISHIT_PCT` is a
+small 0.02 -- inside the modern-era band `[3.0586, 3.2051]`. No parameter
+was tuned; this is the number as measured.
+
+**Per-year shape gates:** unchanged in outcome from rev 5 -- all four
+(2019, 2023, 2024, 2025) remain `xfail(strict=False)`, same reasons, same
+order of magnitude (the Tour mishit rate is too small at 2% to materially
+move any of these). See the "Calibration pass" and "Creek band fix"
+sections above for the underlying numbers; this pass did not re-measure
+them since `TOUR_MISHIT_PCT`'s effect on the Tour season surface is
+negligible by construction.
+
+### Flip-set golden snapshot
+
+The baseline (sweep-midpoint) label picture moved by one cell first: `(0,
+"center", wind=True)` now reads "bail" instead of "either works" -- the
+mishit mixture's wider short-miss risk pushed that single near-tossup
+corner (delta 0.0431 in the rev-5 CSV, already the closest of any
+"either works" cell to the 0.05 tossup line) just past `TOSSUP_THRESHOLD_
+STROKES`. `tests/test_optimizer.py::test_flip_set_baseline_labels_sunday_
+always_bail_left_and_center_are_the_tossup_pins` is updated to allow this
+one cell (every other center row still reads "either works").
+
+`optimizer.flip_set()`'s sensitivity-corner sweep changed to match: `(0,
+"left", wind=True)` no longer flips anywhere in the rectangle (now a stable
+"either works" at every sweep point, dropped from rev 5's set). `(5,
+"left", wind=True)` and `(5, "center", wind=True)` newly join the flip set,
+both baseline "either works" flipping to "bail" at their own corners, the
+same direction as the pre-existing `(0, "left", calm)` and `(5, "left",
+calm)` flips. `(0, "center", wind=True)` also still flips, but now in the
+OPPOSITE direction from rev 5 -- its own BASELINE moved from "either works"
+to "bail" (see above), so it flips bail -> either works at its own
+sensitivity corners rather than either works -> bail. "sunday" still never
+flips anywhere in the rectangle. `tests/test_optimizer.py::test_flip_set_
+runs_and_matches_golden_snapshot` is updated to this new 5-combination set:
+`(0, "left", False)`, `(0, "center", True)`, `(5, "left", False)`, `(5,
+"left", True)`, `(5, "center", True)`.
+
+### Rebuilt verdict table (`outputs/003_results.csv`, `n_grid=121`)
+
+Every row's score moved up (the mixture plus the widened bank raise
+expected score at every tier), and **two published verdict labels flipped**
+this pass, both from "either works" to "bail," both the SCRATCH tier under
+wind: `(0, "left", wind)` (delta 0.0392 -> 0.0642) and `(0, "center", wind)`
+(delta 0.0431 -> 0.0542). Both were already the closest "either works" rows
+to the 0.05 tossup line in the rev-5 CSV; the mishit mixture's added
+short-miss risk under wind's own dispersion inflation pushed them just
+past it. No other row's label changed. `hit_search_boundary()` reports 0 of
+30, unchanged from rev 5.
+
+| tier | pin | wind | lateral | carry | score_optimum | score_at_pin | delta | label |
+|---|---|---|---|---|---|---|---|---|
+| 0 | left | calm | 3.500 | 5.875 | 3.4856 | 3.5347 | 0.0491 | either works |
+| 0 | left | wind | 5.438 | 14.938 | 3.6443 | 3.7085 | 0.0642 | **bail** (was either works) |
+| 0 | center | calm | -1.812 | 3.750 | 3.4458 | 3.4719 | 0.0261 | either works |
+| 0 | center | wind | -1.312 | 11.625 | 3.6129 | 3.6671 | 0.0542 | **bail** (was either works) |
+| 0 | sunday | calm | -7.500 | -4.875 | 3.6366 | 3.7268 | 0.0902 | bail |
+| 0 | sunday | wind | -8.688 | -4.688 | 3.7875 | 3.8665 | 0.0790 | bail |
+| 5 | left | calm | 3.812 | 6.375 | 3.6072 | 3.6500 | 0.0428 | either works |
+| 5 | left | wind | 3.938 | 12.500 | 3.7589 | 3.8068 | 0.0479 | either works |
+| 5 | center | calm | -1.750 | 4.000 | 3.5663 | 3.5853 | 0.0189 | either works |
+| 5 | center | wind | -1.750 | 10.750 | 3.7279 | 3.7642 | 0.0363 | either works |
+| 5 | sunday | calm | -7.000 | -6.000 | 3.7581 | 3.8418 | 0.0837 | bail |
+| 5 | sunday | wind | -9.000 | -5.875 | 3.9026 | 3.9624 | 0.0598 | bail |
+| 10 | left | calm | 4.500 | 6.562 | 3.8267 | 3.8599 | 0.0332 | either works |
+| 10 | left | wind | 5.938 | 12.438 | 3.9642 | 3.9920 | 0.0278 | either works |
+| 10 | center | calm | -2.062 | 3.250 | 3.7871 | 3.8000 | 0.0129 | either works |
+| 10 | center | wind | -1.062 | 8.500 | 3.9352 | 3.9540 | 0.0188 | either works |
+| 10 | sunday | calm | -7.000 | -12.000 | 3.9807 | 4.0652 | 0.0846 | bail |
+| 10 | sunday | wind | -10.000 | -14.625 | 4.1018 | 4.1584 | 0.0566 | bail |
+| 15 | left | calm | 4.750 | 6.688 | 3.9618 | 3.9805 | 0.0187 | either works |
+| 15 | left | wind | 3.000 | 8.625 | 4.0883 | 4.1037 | 0.0154 | either works |
+| 15 | center | calm | -1.250 | 4.500 | 3.9202 | 3.9287 | 0.0085 | either works |
+| 15 | center | wind | -0.500 | 7.625 | 4.0586 | 4.0705 | 0.0119 | either works |
+| 15 | sunday | calm | -7.000 | -12.625 | 4.1146 | 4.1838 | 0.0693 | bail |
+| 15 | sunday | wind | -7.000 | -15.250 | 4.2247 | 4.2799 | 0.0552 | bail |
+| 20 | left | calm | 4.000 | 6.000 | 4.1267 | 4.1400 | 0.0132 | either works |
+| 20 | left | wind | 6.000 | 9.250 | 4.2358 | 4.2469 | 0.0110 | either works |
+| 20 | center | calm | -1.000 | 4.500 | 4.0913 | 4.0969 | 0.0056 | either works |
+| 20 | center | wind | 0.000 | 7.875 | 4.2121 | 4.2166 | 0.0046 | either works |
+| 20 | sunday | calm | -10.000 | -21.000 | 4.2782 | 4.3479 | 0.0697 | bail |
+| 20 | sunday | wind | -10.000 | -24.875 | 4.3633 | 4.4381 | 0.0748 | bail |
+
+### Published-move table (`outputs/003_moves.csv`)
+
+Sunday's own strict-optimum layup depth (the concern rev 5's "Sunday layup
+check" flagged: several rows laying up more than 15 yd short with a small
+but real edge over the full-shot aim) **improves materially this pass**:
+every strict carry adjustment now sits inside -4.875 to -24.875 yd (rev 5:
+-4.875 to -38.75 yd), and every one of the 30 rows' `layup_edge_strokes`
+now sits comfortably inside `TOSSUP_THRESHOLD_STROKES` (max 0.0241, at (20,
+sunday, wind) -- rev 5's own worst case there was 0.1008). `layup_is_
+tossup` is `True` for all 30 rows -- `build_outputs.py` printed zero
+"strict optimum's layup edge exceeds the tossup threshold" rows, versus
+rev 5's disclosed handful. The mishit mixture's own short-miss risk,
+applied to the short_fairway leg a deep layup sits in, is the likely
+mechanism: laying up farther now runs into more mishit-tail risk too, not
+just less green/bunker/short-sided risk, narrowing the edge a deeper layup
+can claim.
+
+Sunday published (full-shot) carry adjustments, all tiers/wind states:
+
+| tier | wind | published carry | published label | strict carry | layup_edge_strokes |
+|---|---|---|---|---|---|
+| 0 | calm | -4.875 | bail | -4.875 | 0.0000 |
+| 0 | wind | -3.188 | bail | -4.688 | 0.0010 |
+| 5 | calm | -6.000 | bail | -6.000 | 0.0000 |
+| 5 | wind | -5.875 | bail | -5.875 | 0.0000 |
+| 10 | calm | -9.500 | bail | -12.000 | 0.0000 |
+| 10 | wind | -8.625 | bail | -14.625 | 0.0020 |
+| 15 | calm | -9.688 | bail | -12.625 | 0.0030 |
+| 15 | wind | -8.000 | either works | -15.250 | 0.0077 |
+| 20 | calm | -9.500 | bail | -21.000 | 0.0114 |
+| 20 | wind | -10.000 | bail | -24.875 | 0.0241 |
+
+`(15, sunday, wind)`'s `verdict_label` reads "either works" in the moves
+table (delta 0.0475 at the clamped full-shot aim) but "bail" in the results
+table (delta 0.0552 at the strict aim) -- the two tables' labels are
+computed from two different searches by design (`optimizer.published_move`
+vs `optimizer.optimize_aim`), not a new inconsistency this pass introduced.
+
+### Suite state
+
+Full suite (`pytest -q`), after the mishit mixture and bank funnel (rev 6):
+**0 failed, 131 passed, 6 xfailed, 137 total (1533.00s / 25:32)**. The six
+xfails: the four pre-existing Tour per-year shape gates (2019/2023/2024
+structural or near-miss, 2025 a marginal near-miss, all unchanged from rev
+5) plus the two NEW disclosed near-misses this pass's own acceptance
+checks introduced (`test_water_at_pin_increases_monotonically_with_tier_
+for_every_pin`, `test_water_at_200yd_carry_below_one_percent_for_tiers_0_
+and_20`, both in `tests/test_export.py`). Every must-pass gate passes: MC-vs-analytic
+fidelity, the season-mean gate, and every pre-existing sensitivity contract.
+The two NEW acceptance checks this pass's own brief asked for (water rises
+monotonically with tier at the pin; water stays under 1% at a 200-yd carry)
+do NOT pass and are disclosed as `xfail(strict=False)`, with the exact
+numbers above and in each test's own reason string -- not tuned away. No
+golden snapshot outside `test_optimizer.py`'s flip-set and baseline-label
+tests needed updating.

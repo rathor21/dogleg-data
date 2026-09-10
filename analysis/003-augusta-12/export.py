@@ -60,8 +60,16 @@ CHAPTERS_PATH = os.path.join(OUT, "003_chapters.json")
 # into the JSON cells (region-geometry fix, this pass).
 # ---------------------------------------------------------------------------
 
+# CARRY_MAX_YD extended 45.0 -> 60.0 (rev 6, Sunny's sandbox finding): a
+# 200-yd carry (the sandbox's own water-risk sanity check) needs carry
+# adjustment = 200 - pin_y inside the grid for every pin -- the left pin
+# (y=148) needs +52 -- so 45 yd was not enough. Both axes stay a uniform
+# 1-yd step (no coarsening was needed to stay under budget: the resulting
+# file grows from ~1.7 MB to ~2.1 MB, still comfortably under the ~2.5 MB
+# ceiling -- see build_outputs.py's own printed size and tests/test_export.
+# py::test_grids_schema_and_size).
 LATERAL_MIN_YD, LATERAL_MAX_YD = -20.0, 20.0
-CARRY_MIN_YD, CARRY_MAX_YD = -20.0, 45.0
+CARRY_MIN_YD, CARRY_MAX_YD = -20.0, 60.0
 AXIS_STEP_YD = 1.0
 
 # Matches model.expected_score's own default integration resolution -- the
@@ -169,34 +177,33 @@ def _oval_and_mean_shift(tier, wind):
     return sigma_d, sigma_l, mean_shift_y
 
 
-def score_and_region_probs(sigma_d_yd, sigma_l_yd, tier, pin, aim_point, mean_shift_y=0.0, *,
-                            green_width_yd=None, front_third_depth_yd=None,
-                            n_std=GRID_N_STD, n_grid=GRID_N_GRID):
-    """(score, p_water, p_green): one pass over the SAME truncated product-
-    Gaussian grid model.score_for_oval integrates (identical grid points,
-    identical density weights, identical renormalization), additionally
-    accumulating the probability mass landing in the creek ("p_water",
-    region == "creek") and on the green ("p_green", region == "green").
+def _mishit_oval_and_mean_shift(tier, wind):
+    """(sigma_solid_yd, sigma_l_yd, mean_shift_y, p_mis, k_mis_yd): rev 6's
+    mishit-mixture counterpart to _oval_and_mean_shift above (Sunny's
+    finding) -- the SOLID-strike sigma (model.mishit_mixture_params) instead
+    of the plain oval_for_tier sigma_d, wind-inflated the same way
+    _oval_and_mean_shift already inflates sigma_d. Chapters' own
+    sigma_d_yd/sigma_l_yd display fields still come from _oval_and_mean_
+    shift (model.oval_for_tier), unchanged -- see tests/test_export.py::
+    test_chapters_sigma_matches_oval_for_tier; this function feeds only
+    score_and_region_probs / build_grid_for_combo's mixture math."""
+    sigma_solid, sigma_l, p_mis, k_mis = model.mishit_mixture_params(tier)
+    mean_shift_y = 0.0
+    if wind:
+        mean_shift_y = -data.WIND["carry_penalty_yd"]
+        sigma_solid = sigma_solid * data.WIND["dispersion_inflation"]
+        sigma_l = sigma_l * data.WIND["dispersion_inflation"]
+    return sigma_solid, sigma_l, mean_shift_y, p_mis, k_mis
 
-    Deliberately duplicates score_for_oval's loop rather than calling
-    model.expected_score and a second helper: doing both in one pass costs
-    the same as one model.expected_score call instead of two, and the
-    identical arithmetic (same numpy ops, same order) means `score` here
-    matches model.expected_score bit-for-bit at the same aim point.
-    model.py itself is never modified or reimplemented with different math,
-    only its published public functions (region_at, _region_strokes) are
-    called from here.
 
-    This is the slow, obviously-correct per-aim-point reference: one call
-    per aim point, same as model.expected_score's own cost. build_sandbox_
-    grids uses the vectorized bulk builder below instead (same formulas,
-    numpy-broadcast over every aim point and integration node in a combo at
-    once) to build the full grid in seconds rather than minutes; tests/
-    test_export.py's round-trip test spot-checks the fast builder's stored
-    values against this slow function (and against model.expected_score
-    directly) at a handful of nodes, so an error in the vectorized
-    reimplementation below cannot slip past uncaught.
-    """
+def _oval_score_and_region_probs(sigma_d_yd, sigma_l_yd, tier, pin, aim_point, mean_shift_y=0.0, *,
+                                  green_width_yd=None, front_third_depth_yd=None,
+                                  n_std=GRID_N_STD, n_grid=GRID_N_GRID):
+    """(score, p_water, p_green) for a SINGLE oval (no mishit mixture) --
+    one pass over the truncated product-Gaussian grid model.score_for_oval
+    integrates for one component. score_and_region_probs below calls this
+    once per mixture component and combines them; this function is also
+    what a p_mis=0.0 call degenerates to."""
     sigma_d = max(sigma_d_yd, 1e-6)
     sigma_l = max(sigma_l_yd, 1e-6)
     mean_x, mean_y = aim_point[0], aim_point[1] + mean_shift_y
@@ -229,6 +236,60 @@ def score_and_region_probs(sigma_d_yd, sigma_l_yd, tier, pin, aim_point, mean_sh
             elif region == "green":
                 p_green += w
     return 1.0 + total, p_water, p_green
+
+
+def score_and_region_probs(sigma_solid_yd, sigma_l_yd, tier, pin, aim_point, mean_shift_y=0.0, *,
+                            p_mis=0.0, k_mis_yd=0.0,
+                            green_width_yd=None, front_third_depth_yd=None,
+                            n_std=GRID_N_STD, n_grid=GRID_N_GRID):
+    """(score, p_water, p_green): the mixture-weighted sum of two
+    _oval_score_and_region_probs calls (rev 6, Sunny's finding) -- one for
+    the solid-strike component (mean_shift_y unshifted) and one for the
+    mishit component (mean_shift_y - k_mis_yd), both sharing the SAME
+    sigma_solid_yd/sigma_l_yd (see model.mishit_mixture_params), combined
+    (1 - p_mis) * solid + p_mis * mishit. p_mis=0.0 (the default) skips the
+    second integral entirely and returns the solid-only result, matching
+    every call site that has not been given the tier's mixture parameters.
+
+    sigma_solid_yd/sigma_l_yd are expected to already be the SOLID-strike
+    oval (wind-inflated where applicable, see _mishit_oval_and_mean_shift)
+    -- not the plain oval_for_tier sigma_d/sigma_l used for cosmetic sigma
+    reporting elsewhere in this module.
+
+    Deliberately duplicates score_for_oval's loop (via
+    _oval_score_and_region_probs) rather than calling model.expected_score
+    and a second helper: the identical arithmetic (same numpy ops, same
+    order, same mixture weighting model.expected_score itself performs)
+    means `score` here matches model.expected_score bit-for-bit at the same
+    aim point when passed the same mixture parameters. model.py itself is
+    never modified or reimplemented with different math, only its published
+    public functions (region_at, _region_strokes) are called from here.
+
+    This is the slow, obviously-correct per-aim-point reference: two calls
+    per aim point (one per mixture component), same as model.expected_
+    score's own cost. build_sandbox_grids uses the vectorized bulk builder
+    below instead (same formulas, numpy-broadcast over every aim point and
+    integration node in a combo at once, mixture included) to build the
+    full grid in seconds rather than minutes; tests/test_export.py's
+    round-trip test spot-checks the fast builder's stored values against
+    this slow function (and against model.expected_score directly) at a
+    handful of nodes, so an error in the vectorized reimplementation below
+    cannot slip past uncaught.
+    """
+    score_solid, pw_solid, pg_solid = _oval_score_and_region_probs(
+        sigma_solid_yd, sigma_l_yd, tier, pin, aim_point, mean_shift_y,
+        green_width_yd=green_width_yd, front_third_depth_yd=front_third_depth_yd,
+        n_std=n_std, n_grid=n_grid)
+    if p_mis <= 0.0:
+        return score_solid, pw_solid, pg_solid
+    score_mis, pw_mis, pg_mis = _oval_score_and_region_probs(
+        sigma_solid_yd, sigma_l_yd, tier, pin, aim_point, mean_shift_y - k_mis_yd,
+        green_width_yd=green_width_yd, front_third_depth_yd=front_third_depth_yd,
+        n_std=n_std, n_grid=n_grid)
+    score = (1.0 - p_mis) * score_solid + p_mis * score_mis
+    p_water = (1.0 - p_mis) * pw_solid + p_mis * pw_mis
+    p_green = (1.0 - p_mis) * pg_solid + p_mis * pg_mis
+    return score, p_water, p_green
 
 
 def _recovery_leg_constants(tier):
@@ -267,9 +328,19 @@ def build_grid_for_combo(tier, pin, wind, *, n_grid=GRID_N_GRID, n_std=GRID_N_ST
     round-trip test cross-checks this function's output against model.
     expected_score and against score_and_region_probs above at sampled
     nodes, so a mismatch here cannot pass silently.
+
+    Rev 6 (Sunny's finding): the inner `_component` closure below computes
+    one mixture component's (score, p_water, p_green, p_short) grids at a
+    given additional mean shift (0.0 for the solid strike, -k_mis for the
+    mishit); build_grid_for_combo calls it twice and combines the results
+    (1 - p_mis) * solid + p_mis * mishit, mirroring model.expected_score's
+    own mixture-weighted sum of two score_for_oval calls exactly. Both
+    components share the same sigma_solid/sigma_l (and therefore the same
+    integration weights wy/wx/weight4d, computed once and reused for both
+    calls, not recomputed per component).
     """
-    sigma_d, sigma_l, mean_shift_y = _oval_and_mean_shift(tier, wind)
-    sigma_d = max(sigma_d, 1e-6)
+    sigma_solid, sigma_l, mean_shift_y, p_mis, k_mis = _mishit_oval_and_mean_shift(tier, wind)
+    sigma_solid = max(sigma_solid, 1e-6)
     sigma_l = max(sigma_l, 1e-6)
     geom = model._resolve_geometry()
     p = data.PINS[pin]
@@ -278,9 +349,9 @@ def build_grid_for_combo(tier, pin, wind, *, n_grid=GRID_N_GRID, n_std=GRID_N_ST
     half_width = geom["width"] / 2.0
     left_edge, right_edge = -half_width, half_width
 
-    rel_y = np.linspace(-n_std * sigma_d, n_std * sigma_d, n_grid)
+    rel_y = np.linspace(-n_std * sigma_solid, n_std * sigma_solid, n_grid)
     rel_x = np.linspace(-n_std * sigma_l, n_std * sigma_l, n_grid)
-    wy = np.exp(-0.5 * (rel_y / sigma_d) ** 2)
+    wy = np.exp(-0.5 * (rel_y / sigma_solid) ** 2)
     wy = wy / wy.sum()
     wx = np.exp(-0.5 * (rel_x / sigma_l) ** 2)
     wx = wx / wx.sum()
@@ -288,121 +359,138 @@ def build_grid_for_combo(tier, pin, wind, *, n_grid=GRID_N_GRID, n_std=GRID_N_ST
 
     carry_arr = np.array(CARRY_AXIS)
     lateral_arr = np.array(LATERAL_AXIS)
-    mean_y_arr = py + carry_arr + mean_shift_y
     mean_x_arr = px + lateral_arr
 
-    # (n_carry, n_lateral, n_grid, n_grid): absolute landing coordinates for
-    # every (aim point, integration node) pair in this combo at once.
-    YY = mean_y_arr[:, None, None, None] + rel_y[None, None, :, None]
-    XX = mean_x_arr[None, :, None, None] + rel_x[None, None, None, :]
-
-    front_edge_arr = model._front_edge_yd(XX, geom)
-    back_edge_arr = model._back_edge_yd(XX, geom)
-
-    m_green = (YY >= front_edge_arr) & (YY <= back_edge_arr) & (XX >= left_edge) & (XX <= right_edge)
-    m_front_side = (~m_green) & (YY < front_edge_arr)
-    m_back_side = (~m_green) & (~m_front_side) & (YY > back_edge_arr)
-    m_greenside_rough = (~m_green) & (~m_front_side) & (~m_back_side)
-
-    on_front_side = YY < py
-    is_short_sided = (on_front_side & (front_frac < 0.5)) | ((~on_front_side) & (back_frac < 0.5))
-
-    bunker_lo, bunker_hi = data.HOLE["front_bunker_x_range"]
-    bunker_front_arr = front_edge_arr - data.HOLE["front_bunker_depth_yd"]
-    m_front_bunker = (m_front_side & (XX >= bunker_lo) & (XX <= bunker_hi)
-                      & (YY >= bunker_front_arr) & (YY < front_edge_arr))
-    # Finite creek band (region-geometry fix, this pass): only the strip
-    # between the front edge and CREEK_WIDTH_YD + BANK_ROLLBACK_YD short of
-    # it is "creek" -- mirrors model.region_at exactly. Anything short of
-    # that band, short of the pin's front side and not in the front bunker,
-    # is "short_fairway": a pitch over the water from the fairway, not a
-    # hazard. m_creek is NOT "everything short of the green" any more.
-    creek_near_edge_arr = front_edge_arr - (data.CREEK_WIDTH_YD + data.BANK_ROLLBACK_YD)
-    m_creek = m_front_side & (~m_front_bunker) & (YY >= creek_near_edge_arr)
-    m_short_fairway = m_front_side & (~m_front_bunker) & (YY < creek_near_edge_arr)
-
-    bunker_back_arr = back_edge_arr + data.HOLE["back_bunker_depth_yd"]
-    m_back_bunker = np.zeros_like(m_back_side)
-    for lo, hi in data.HOLE["back_bunker_x_ranges"]:
-        m_back_bunker = m_back_bunker | (m_back_side & (XX >= lo) & (XX <= hi)
-                                          & (YY > back_edge_arr) & (YY <= bunker_back_arr))
-    trouble_back_arr = bunker_back_arr + data.LONG_TROUBLE_BUFFER_YD
-    m_long_trouble = m_back_side & (~m_back_bunker) & (YY > trouble_back_arr)
-    m_long_rough = m_back_side & (~m_back_bunker) & (~m_long_trouble)
-
-    # Green: vectorized model.putt_probabilities / model._green_strokes,
-    # using np.interp for model._lerp_table (same flat-extrapolation
-    # behavior outside the table's own range).
-    dist_ft = np.sqrt((XX - px) ** 2 + (YY - py) ** 2) * model.FT_PER_YD
-    make_table = data.AMATEUR_MAKE_PCT_BY_BAND[tier]
-    mk_keys = sorted(make_table)
-    mk_vals = [make_table[k] for k in mk_keys]
-    p1 = np.interp(dist_ft, mk_keys, mk_vals)
-    tp_keys = sorted(data.TOUR_THREE_PUTT_PCT_BY_FT)
-    tp_vals = [data.TOUR_THREE_PUTT_PCT_BY_FT[k] for k in tp_keys]
-    tour_p3_shape = np.where(dist_ft <= 5.0, 0.0, np.interp(dist_ft, tp_keys, tp_vals))
-    p3_raw = tour_p3_shape * data.AMATEUR_THREE_PUTT_SHAPE_SCALE[tier]
-    p3 = np.minimum(p3_raw, np.maximum(0.0, 1.0 - p1))
-    p2 = np.maximum(0.0, 1.0 - p1 - p3)
-    green_strokes = p1 + 2.0 * p2 + 3.0 * p3
-
     rc = _recovery_leg_constants(tier)
-    recovery_nonsand = np.where(is_short_sided, rc["nonsand_short"], rc["nonsand_easy"])
-    recovery_sand = np.where(is_short_sided, rc["sand_short"], rc["sand_easy"])
-    creek_strokes = data.CREEK_PENALTY_STROKES + recovery_nonsand
-    rough_strokes = recovery_nonsand
-    bunker_strokes = recovery_sand
-
-    updown = data.UP_AND_DOWN_PCT[tier]
-    updown = min(0.95, updown * data.ROUGH_RECOVERY_EASE)
-    updown = updown * data.LONG_TROUBLE_UPDOWN_MULT
-    e_easy = updown * 2.0 + (1.0 - updown) * data.MISSED_UP_AND_DOWN_STROKES
-    e_short = e_easy * data.SHORT_SIDE_PENALTY
-    hazard_easy = data.CREEK_PENALTY_STROKES + rc["nonsand_easy"]
-    hazard_short = data.CREEK_PENALTY_STROKES + rc["nonsand_short"]
-    overshoot = np.maximum(0.0, YY - trouble_back_arr)
-    blend = 1.0 - np.exp(-overshoot / data.LONG_TROUBLE_FALLOFF_YD)
-    e_arr = np.where(is_short_sided, e_short, e_easy)
-    hazard_arr = np.where(is_short_sided, hazard_short, hazard_easy)
-    long_trouble_strokes = e_arr * (1.0 - blend) + hazard_arr * blend
-
-    # short_fairway distance falloff (region-geometry fix): mirrors
-    # model._recovery_strokes's far_short_yd blend exactly -- fades this
-    # leg's up-and-down odds toward zero the farther short of the creek
-    # band's own near edge the miss sits, converging on MISSED_UP_AND_DOWN_
-    # STROKES (never a hazard-like price). Without this, a flat price with
-    # no distance term reproduces #8's "no interior minimum" defect on the
-    # short side of the green (see data.SHORT_FAIRWAY_FALLOFF_YD's comment).
-    far_short = np.maximum(0.0, creek_near_edge_arr - YY)
-    short_blend = 1.0 - np.exp(-far_short / data.SHORT_FAIRWAY_FALLOFF_YD)
-    ceiling_easy = data.MISSED_UP_AND_DOWN_STROKES
-    ceiling_short = data.MISSED_UP_AND_DOWN_STROKES * data.SHORT_SIDE_PENALTY
-    ceiling_arr = np.where(is_short_sided, ceiling_short, ceiling_easy)
-    short_fairway_recovery = rough_strokes * (1.0 - short_blend) + ceiling_arr * short_blend
-
-    # Pitch-over-water risk fix (rev 5, issue #8): mirrors model.
-    # _short_fairway_strokes exactly -- (1 - p) * recovery + p *
-    # (CREEK_PENALTY_STROKES + 1.0 + recovery_after_drop), where
-    # recovery_after_drop is the same non-sand recovery leg as
-    # `rough_strokes` above (a drop and replay right at the creek's edge,
-    # never carrying the far_short_yd falloff `short_fairway_recovery`
-    # itself carries). p = data.PITCH_OVER_WATER_DUNK_PCT[tier], a scalar
-    # for this whole grid (build_grid_for_combo is called once per tier).
     dunk_pct = data.PITCH_OVER_WATER_DUNK_PCT[tier]
-    dunk_strokes = data.CREEK_PENALTY_STROKES + 1.0 + rough_strokes
-    short_fairway_strokes = (1.0 - dunk_pct) * short_fairway_recovery + dunk_pct * dunk_strokes
 
-    strokes = np.where(m_green, green_strokes, 0.0)
-    strokes = np.where(m_creek, creek_strokes, strokes)
-    strokes = np.where(m_short_fairway, short_fairway_strokes, strokes)
-    strokes = np.where(m_front_bunker | m_back_bunker, bunker_strokes, strokes)
-    strokes = np.where(m_long_trouble, long_trouble_strokes, strokes)
-    strokes = np.where(m_long_rough | m_greenside_rough, rough_strokes, strokes)
+    def _component(shift_y):
+        mean_y_arr = py + carry_arr + mean_shift_y + shift_y
 
-    score = 1.0 + (weight4d * strokes).sum(axis=(2, 3))
-    p_water = (weight4d * m_creek).sum(axis=(2, 3))  # short_fairway is explicitly excluded -- it is not water
-    p_green = (weight4d * m_green).sum(axis=(2, 3))
-    p_short = (weight4d * m_short_fairway).sum(axis=(2, 3))
+        # (n_carry, n_lateral, n_grid, n_grid): absolute landing coordinates
+        # for every (aim point, integration node) pair in this combo at once.
+        YY = mean_y_arr[:, None, None, None] + rel_y[None, None, :, None]
+        XX = mean_x_arr[None, :, None, None] + rel_x[None, None, None, :]
+
+        front_edge_arr = model._front_edge_yd(XX, geom)
+        back_edge_arr = model._back_edge_yd(XX, geom)
+
+        m_green = (YY >= front_edge_arr) & (YY <= back_edge_arr) & (XX >= left_edge) & (XX <= right_edge)
+        m_front_side = (~m_green) & (YY < front_edge_arr)
+        m_back_side = (~m_green) & (~m_front_side) & (YY > back_edge_arr)
+        m_greenside_rough = (~m_green) & (~m_front_side) & (~m_back_side)
+
+        on_front_side = YY < py
+        is_short_sided = (on_front_side & (front_frac < 0.5)) | ((~on_front_side) & (back_frac < 0.5))
+
+        bunker_lo, bunker_hi = data.HOLE["front_bunker_x_range"]
+        bunker_front_arr = front_edge_arr - data.HOLE["front_bunker_depth_yd"]
+        m_front_bunker = (m_front_side & (XX >= bunker_lo) & (XX <= bunker_hi)
+                          & (YY >= bunker_front_arr) & (YY < front_edge_arr))
+        # Finite creek band (region-geometry fix): only the strip between
+        # the front edge and CREEK_WIDTH_YD + BANK_ROLLBACK_YD short of it
+        # is "creek" -- mirrors model.region_at exactly. Anything short of
+        # that band, short of the pin's front side and not in the front
+        # bunker, is "short_fairway": a pitch over the water from the
+        # fairway, not a hazard. m_creek is NOT "everything short of the
+        # green" any more.
+        creek_near_edge_arr = front_edge_arr - (data.CREEK_WIDTH_YD + data.BANK_ROLLBACK_YD)
+        m_creek = m_front_side & (~m_front_bunker) & (YY >= creek_near_edge_arr)
+        m_short_fairway = m_front_side & (~m_front_bunker) & (YY < creek_near_edge_arr)
+
+        bunker_back_arr = back_edge_arr + data.HOLE["back_bunker_depth_yd"]
+        m_back_bunker = np.zeros_like(m_back_side)
+        for lo, hi in data.HOLE["back_bunker_x_ranges"]:
+            m_back_bunker = m_back_bunker | (m_back_side & (XX >= lo) & (XX <= hi)
+                                              & (YY > back_edge_arr) & (YY <= bunker_back_arr))
+        trouble_back_arr = bunker_back_arr + data.LONG_TROUBLE_BUFFER_YD
+        m_long_trouble = m_back_side & (~m_back_bunker) & (YY > trouble_back_arr)
+        m_long_rough = m_back_side & (~m_back_bunker) & (~m_long_trouble)
+
+        # Green: vectorized model.putt_probabilities / model._green_strokes,
+        # using np.interp for model._lerp_table (same flat-extrapolation
+        # behavior outside the table's own range).
+        dist_ft = np.sqrt((XX - px) ** 2 + (YY - py) ** 2) * model.FT_PER_YD
+        make_table = data.AMATEUR_MAKE_PCT_BY_BAND[tier]
+        mk_keys = sorted(make_table)
+        mk_vals = [make_table[k] for k in mk_keys]
+        p1 = np.interp(dist_ft, mk_keys, mk_vals)
+        tp_keys = sorted(data.TOUR_THREE_PUTT_PCT_BY_FT)
+        tp_vals = [data.TOUR_THREE_PUTT_PCT_BY_FT[k] for k in tp_keys]
+        tour_p3_shape = np.where(dist_ft <= 5.0, 0.0, np.interp(dist_ft, tp_keys, tp_vals))
+        p3_raw = tour_p3_shape * data.AMATEUR_THREE_PUTT_SHAPE_SCALE[tier]
+        p3 = np.minimum(p3_raw, np.maximum(0.0, 1.0 - p1))
+        p2 = np.maximum(0.0, 1.0 - p1 - p3)
+        green_strokes = p1 + 2.0 * p2 + 3.0 * p3
+
+        recovery_nonsand = np.where(is_short_sided, rc["nonsand_short"], rc["nonsand_easy"])
+        recovery_sand = np.where(is_short_sided, rc["sand_short"], rc["sand_easy"])
+        creek_strokes = data.CREEK_PENALTY_STROKES + recovery_nonsand
+        rough_strokes = recovery_nonsand
+        bunker_strokes = recovery_sand
+
+        updown = data.UP_AND_DOWN_PCT[tier]
+        updown = min(0.95, updown * data.ROUGH_RECOVERY_EASE)
+        updown = updown * data.LONG_TROUBLE_UPDOWN_MULT
+        e_easy = updown * 2.0 + (1.0 - updown) * data.MISSED_UP_AND_DOWN_STROKES
+        e_short = e_easy * data.SHORT_SIDE_PENALTY
+        hazard_easy = data.CREEK_PENALTY_STROKES + rc["nonsand_easy"]
+        hazard_short = data.CREEK_PENALTY_STROKES + rc["nonsand_short"]
+        overshoot = np.maximum(0.0, YY - trouble_back_arr)
+        blend = 1.0 - np.exp(-overshoot / data.LONG_TROUBLE_FALLOFF_YD)
+        e_arr = np.where(is_short_sided, e_short, e_easy)
+        hazard_arr = np.where(is_short_sided, hazard_short, hazard_easy)
+        long_trouble_strokes = e_arr * (1.0 - blend) + hazard_arr * blend
+
+        # short_fairway distance falloff (region-geometry fix): mirrors
+        # model._recovery_strokes's far_short_yd blend exactly -- fades this
+        # leg's up-and-down odds toward zero the farther short of the creek
+        # band's own near edge the miss sits, converging on MISSED_UP_AND_
+        # DOWN_STROKES (never a hazard-like price). Without this, a flat
+        # price with no distance term reproduces #8's "no interior minimum"
+        # defect on the short side of the green (see data.
+        # SHORT_FAIRWAY_FALLOFF_YD's comment).
+        far_short = np.maximum(0.0, creek_near_edge_arr - YY)
+        short_blend = 1.0 - np.exp(-far_short / data.SHORT_FAIRWAY_FALLOFF_YD)
+        ceiling_easy = data.MISSED_UP_AND_DOWN_STROKES
+        ceiling_short = data.MISSED_UP_AND_DOWN_STROKES * data.SHORT_SIDE_PENALTY
+        ceiling_arr = np.where(is_short_sided, ceiling_short, ceiling_easy)
+        short_fairway_recovery = rough_strokes * (1.0 - short_blend) + ceiling_arr * short_blend
+
+        # Pitch-over-water risk fix (rev 5, issue #8): mirrors model.
+        # _short_fairway_strokes exactly -- (1 - p) * recovery + p *
+        # (CREEK_PENALTY_STROKES + 1.0 + recovery_after_drop), where
+        # recovery_after_drop is the same non-sand recovery leg as
+        # `rough_strokes` above (a drop and replay right at the creek's
+        # edge, never carrying the far_short_yd falloff `short_fairway_
+        # recovery` itself carries). p = data.PITCH_OVER_WATER_DUNK_PCT
+        # [tier], a scalar for this whole grid (build_grid_for_combo is
+        # called once per tier).
+        dunk_strokes = data.CREEK_PENALTY_STROKES + 1.0 + rough_strokes
+        short_fairway_strokes = (1.0 - dunk_pct) * short_fairway_recovery + dunk_pct * dunk_strokes
+
+        strokes = np.where(m_green, green_strokes, 0.0)
+        strokes = np.where(m_creek, creek_strokes, strokes)
+        strokes = np.where(m_short_fairway, short_fairway_strokes, strokes)
+        strokes = np.where(m_front_bunker | m_back_bunker, bunker_strokes, strokes)
+        strokes = np.where(m_long_trouble, long_trouble_strokes, strokes)
+        strokes = np.where(m_long_rough | m_greenside_rough, rough_strokes, strokes)
+
+        c_score = 1.0 + (weight4d * strokes).sum(axis=(2, 3))
+        c_p_water = (weight4d * m_creek).sum(axis=(2, 3))  # short_fairway is explicitly excluded -- it is not water
+        c_p_green = (weight4d * m_green).sum(axis=(2, 3))
+        c_p_short = (weight4d * m_short_fairway).sum(axis=(2, 3))
+        return c_score, c_p_water, c_p_green, c_p_short
+
+    score_solid, pw_solid, pg_solid, ps_solid = _component(0.0)
+    if p_mis <= 0.0:
+        return score_solid, pw_solid, pg_solid, ps_solid
+    score_mis, pw_mis, pg_mis, ps_mis = _component(-k_mis)
+
+    score = (1.0 - p_mis) * score_solid + p_mis * score_mis
+    p_water = (1.0 - p_mis) * pw_solid + p_mis * pw_mis
+    p_green = (1.0 - p_mis) * pg_solid + p_mis * pg_mis
+    p_short = (1.0 - p_mis) * ps_solid + p_mis * ps_mis
     return score, p_water, p_green, p_short
 
 
@@ -997,15 +1085,22 @@ def build_chapters(results=None, moves=None):
             pin_xy = (p["x"], p["y"])
             for wind in (False, True):
                 sigma_d, sigma_l, mean_shift_y = _oval_and_mean_shift(tier, wind)
+                sigma_solid, _sigma_l_solid, _mean_shift_y_solid, p_mis, k_mis = _mishit_oval_and_mean_shift(tier, wind)
                 mv = moves[(tier, pin, wind)]
 
                 aim_xy = (p["x"] + mv["aim_lateral_offset_yd"], p["y"] + mv["aim_carry_adjustment_yd"])
                 strict_xy = (p["x"] + mv["strict_lateral_offset_yd"], p["y"] + mv["strict_carry_adjustment_yd"])
 
+                # Rev 6 (Sunny's finding): p_water/p_green use the mishit-
+                # mixture oval (sigma_solid, p_mis, k_mis) so the chapters
+                # export's water/green probabilities match model.
+                # expected_score's own mixture exactly. sigma_d/sigma_l
+                # above (model.oval_for_tier, unmixed) still feed only the
+                # cosmetic sigma_d_yd/sigma_l_yd display fields below.
                 _score_pin, p_water_pin, p_green_pin = score_and_region_probs(
-                    sigma_d, sigma_l, tier, pin, pin_xy, mean_shift_y)
+                    sigma_solid, sigma_l, tier, pin, pin_xy, mean_shift_y, p_mis=p_mis, k_mis_yd=k_mis)
                 _score_aim, p_water_aim, p_green_aim = score_and_region_probs(
-                    sigma_d, sigma_l, tier, pin, aim_xy, mean_shift_y)
+                    sigma_solid, sigma_l, tier, pin, aim_xy, mean_shift_y, p_mis=p_mis, k_mis_yd=k_mis)
 
                 key = f"{tier}|{pin}|{int(wind)}"
                 cells[key] = {

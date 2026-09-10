@@ -628,6 +628,124 @@ def test_tour_short_fairway_mirrors_amateur_formula_with_tour_dunk_pct():
             assert priced == pytest.approx(expected, abs=1e-9), (is_short_sided, far_short_yd)
 
 
+
+# ---------------------------------------------------------------------------
+# Mishit mixture (rev 6, Sunny's finding): a single symmetric Gaussian per
+# tier for distance error let a 20-handicap post a LOWER water rate than a
+# scratch player at the same aim, and still showed water risk at a 200-yd
+# carry -- both wrong on the real hole. model.mishit_mixture_params splits
+# each tier's anchored, anisotropy-split distance sigma into a solid-strike
+# core plus a short mishit tail; these tests check the algebra directly and
+# the Sunday-pin verdict's stability across the new constants' own
+# sensitivity ranges. See tests/test_export.py for the water-rate
+# acceptance checks themselves (both disclosed as xfail near-misses).
+# ---------------------------------------------------------------------------
+
+def test_mixture_preserves_anchored_second_moment():
+    # sigma_solid^2 + p_mis * k_mis^2 must equal the anchored, anisotropy-
+    # split sigma_d^2 (model.oval_for_tier's own sigma_d), to high
+    # precision, for every tier -- the algebra model.mishit_mixture_params'
+    # docstring states. This is what keeps the tier's anchored mean
+    # proximity reproduced to first order despite the mixture.
+    for tier in data.TIERS:
+        sigma_d, sigma_l_plain = model.oval_for_tier(tier)
+        sigma_solid, sigma_l, p_mis, k_mis = model.mishit_mixture_params(tier)
+        assert abs(sigma_l - sigma_l_plain) < 1e-12, "sigma_l must be untouched by the mixture"
+        lhs = sigma_solid ** 2 + p_mis * k_mis ** 2
+        assert abs(lhs - sigma_d ** 2) < 1e-6, (tier, lhs, sigma_d ** 2)
+        # sigma_solid must be strictly positive (the equation has a real
+        # solution) and strictly less than sigma_d (some of the total
+        # spread now lives in the mishit tail's offset, not the core).
+        assert 0.0 < sigma_solid < sigma_d, (tier, sigma_solid, sigma_d)
+
+
+def test_mishit_mixture_params_matches_data_constants():
+    for tier in data.TIERS:
+        _sigma_solid, _sigma_l, p_mis, k_mis = model.mishit_mixture_params(tier)
+        assert p_mis == data.MISHIT_PCT[tier]
+        assert abs(k_mis - data.MISHIT_SHORT_FRAC * data.TEE_SHOT_YD) < 1e-9
+
+
+def test_tour_mishit_mixture_preserves_anchored_second_moment():
+    sigma_d, sigma_l_plain = tour.tour_oval()
+    sigma_solid, sigma_l, p_mis, k_mis = tour.tour_mishit_mixture_params()
+    assert abs(sigma_l - sigma_l_plain) < 1e-12
+    assert p_mis == data.TOUR_MISHIT_PCT
+    lhs = sigma_solid ** 2 + p_mis * k_mis ** 2
+    assert abs(lhs - sigma_d ** 2) < 1e-6
+    assert 0.0 < sigma_solid < sigma_d
+
+
+def test_expected_score_mixture_matches_manual_weighted_sum():
+    # model.expected_score must equal (1 - p_mis) * score_for_oval(solid) +
+    # p_mis * score_for_oval(mishit), computed directly against the same
+    # primitives, for both calm and windy conditions.
+    for tier in (0, 20):
+        for wind in (False, True):
+            pin = "sunday"
+            p = data.PINS[pin]
+            aim = (p["x"], p["y"])
+            sigma_solid, sigma_l, p_mis, k_mis = model.mishit_mixture_params(tier)
+            mean_shift_y = 0.0
+            if wind:
+                mean_shift_y = -data.WIND["carry_penalty_yd"]
+                sigma_solid = sigma_solid * data.WIND["dispersion_inflation"]
+                sigma_l = sigma_l * data.WIND["dispersion_inflation"]
+            score_solid = model.score_for_oval(sigma_solid, sigma_l, tier, pin, aim, mean_shift_y)
+            score_mis = model.score_for_oval(sigma_solid, sigma_l, tier, pin, aim, mean_shift_y - k_mis)
+            expected = (1.0 - p_mis) * score_solid + p_mis * score_mis
+            got = model.expected_score(tier, pin, aim, wind=wind)
+            assert abs(got - expected) < 1e-9, (tier, wind, got, expected)
+
+
+def test_mishit_pct_and_short_frac_sensitivity_on_sunday_verdict_label():
+    # Sweep MISHIT_PCT by its own stated 0.5x-1.5x multiplier and
+    # MISHIT_SHORT_FRAC across its own stated 0.10-0.20 range (a 3x3 grid,
+    # flip_set's own cheaper search settings) and confirm the Sunday-pin
+    # verdict label stays "bail" at tiers 10/15/20, calm, at every sweep
+    # point -- the sucker-pin finding should not be an artifact of exactly
+    # where these two new MODELED constants sit. See VALIDATION_NOTES.md
+    # for the recorded carry-adjustment swing and what else moves.
+    import optimizer
+
+    orig_pct = dict(data.MISHIT_PCT)
+    orig_frac = data.MISHIT_SHORT_FRAC
+    labels = {}
+    carries = {}
+    try:
+        for pct_mult in (0.5, 1.0, 1.5):
+            for frac in (0.10, 0.15, 0.20):
+                data.MISHIT_PCT = {t: v * pct_mult for t, v in orig_pct.items()}
+                data.MISHIT_SHORT_FRAC = frac
+                for tier in (10, 15, 20):
+                    v = optimizer.optimize_aim(tier, "sunday", False,
+                                                n_grid=optimizer.FLIP_SET_N_GRID,
+                                                search_n_grid=optimizer.FLIP_SET_SEARCH_N_GRID,
+                                                coarse_step_yd=optimizer.FLIP_SET_COARSE_STEP_YD,
+                                                lateral_range_yd=optimizer.FLIP_SET_LATERAL_RANGE_YD,
+                                                carry_range_yd=optimizer.FLIP_SET_CARRY_RANGE_YD)
+                    labels[(pct_mult, frac, tier)] = optimizer.verdict_label(v)
+                    carries[(pct_mult, frac, tier)] = v.carry_adjustment_yd
+    finally:
+        data.MISHIT_PCT = orig_pct
+        data.MISHIT_SHORT_FRAC = orig_frac
+
+    for tier in (10, 15, 20):
+        tier_labels = {labels[(m, f, tier)] for m in (0.5, 1.0, 1.5) for f in (0.10, 0.15, 0.20)}
+        assert tier_labels == {"bail"}, (tier, labels)
+
+    for tier in (10, 15, 20):
+        tier_carries = [carries[(m, f, tier)] for m in (0.5, 1.0, 1.5) for f in (0.10, 0.15, 0.20)]
+        spread = max(tier_carries) - min(tier_carries)
+        # Recorded (not just bounded), matching this file's other
+        # sensitivity sweeps, so VALIDATION_NOTES.md can quote the exact
+        # swing; a generous bound still catches a runaway regression.
+        assert spread < 15.0, (
+            f"tier {tier}: Sunday carry-adjustment swings {spread:.2f} yd "
+            "across the mishit-mixture sensitivity sweep, wider than expected"
+        )
+
+
 def test_pitch_over_water_dunk_pct_sensitivity_on_sunday_verdict_label():
     # Sweep PITCH_OVER_WATER_DUNK_PCT by its own stated multiplicative
     # sensitivity range (0.5x-1.5x on every tier's own figure) and confirm

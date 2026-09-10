@@ -274,29 +274,46 @@ def test_verdict_label_bail_either_works_or_attack_by_threshold():
 # function is actually used in practice; frozen here as the golden snapshot
 # so a future model or optimizer change that moves this picture fails
 # loudly instead of silently changing the article's sensitivity disclosure.
+#
+# Re-taken after rev 6 (Sunny's mishit-mixture finding, #7/#8): the mixture
+# raises every tier's expected score somewhat (short misses now split
+# between a solid-strike core and a short-mishit tail rather than one
+# symmetric spread, and the wider BANK_ROLLBACK_YD band prices more of that
+# tail as water), which shifts a handful of near-tossup corners across their
+# own label boundary. (0, "left", True) no longer flips (now a stable
+# "either works" everywhere in the sensitivity rectangle) -- dropped from
+# rev 5's set. (5, "left", True) and (5, "center", True) newly join the
+# flip set, both baseline "either works" flipping to "bail" at their own
+# corners, the same direction as the pre-existing (0, "left", calm) and
+# (5, "left", calm) flips. (0, "center", True) also still flips, but its
+# own BASELINE moved from "either works" (rev 5) to "bail" (rev 6: the
+# mixture's added short-miss risk pushed this already-near-tossup corner,
+# delta 0.0431 in the rev-5 CSV, just past TOSSUP_THRESHOLD_STROKES), so it
+# is the one cell in this set that flips bail -> either works rather than
+# either works -> bail. "sunday" still never flips anywhere in the
+# rectangle -- the sucker-pin finding remains the most robust of the three
+# pins' verdicts.
 # ---------------------------------------------------------------------------
 
 def test_flip_set_runs_and_matches_golden_snapshot():
     flips = optimizer.flip_set()
     flips_by_key = {(f["tier"], f["pin"], f["wind"]): f for f in flips}
     assert set(flips_by_key) == {
-        (0, "left", False), (0, "left", True), (0, "center", True),
-        (5, "left", False),
+        (0, "left", False), (0, "center", True),
+        (5, "left", False), (5, "left", True), (5, "center", True),
     }
-    # "sunday" no longer appears at all -- see the comment above for why
-    # this is a real strengthening of the "sunday never flips" finding, not
-    # a search artifact.
+    # "sunday" still never appears -- see the comment above for why this
+    # stays the most robust of the three pins' verdicts across rev 6.
     assert {(t, p, w) for (t, p, w) in flips_by_key if p == "sunday"} == set()
 
-    # either works -> bail flips (tier 0, at the sensitivity rectangle's
-    # own corners: wide anisotropy for "left" at both wind states, and the
-    # anisotropy=2.0 corner for "center" under wind).
-    for key in [(0, "left", False), (0, "left", True), (0, "center", True)]:
+    # either works -> bail flips: tier 0 "left" and all three tier-5 corners.
+    for key in [(0, "left", False), (5, "left", False), (5, "left", True), (5, "center", True)]:
         assert flips_by_key[key]["baseline_label"] == "either works"
         assert {d["label"] for d in flips_by_key[key]["flipped_at"]} == {"bail"}
 
-    # bail -> either works flips (tier 5, calm, "left" only).
-    for key in [(5, "left", False)]:
+    # bail -> either works: (0, "center", True), the one cell whose own
+    # BASELINE moved past the tossup line this pass (see the comment above).
+    for key in [(0, "center", True)]:
         assert flips_by_key[key]["baseline_label"] == "bail"
         assert {d["label"] for d in flips_by_key[key]["flipped_at"]} == {"either works"}
 
@@ -305,18 +322,16 @@ def test_flip_set_baseline_labels_sunday_always_bail_left_and_center_are_the_tos
     # Companion to the golden snapshot above: confirms flip_set is actually
     # exercising real (non-degenerate) baseline verdicts, not e.g. silently
     # returning [] because every call errored out and got swallowed, and
-    # pins the actual post-reposition, post-region-geometry-fix label
+    # pins the actual post-rev-6 (mishit mixture, Sunny's finding) label
     # pattern: "sunday" never reads anything but "bail"; "left" still sits
     # near the tossup line (either "bail" or "either works" depending on
     # tier/wind); "center" reads "either works" at every tier and wind
-    # state at these baseline (sweep-midpoint) settings -- the fix's own
-    # point: attacking the center pin now costs barely more than the
-    # center-of-green bailout it is already defined against (the two are
-    # literally the same aim point, see optimizer._center_of_green_offset),
-    # since the old inflated short-miss penalty was the main thing making
-    # that gap look larger than it really is. Neither pin ever reads
-    # "attack" -- optimize_aim's own search always evaluates the pin as a
-    # candidate, so a genuine delta < 0 never happens here.
+    # state EXCEPT (0, "center", wind=True), which now reads "bail" -- the
+    # mishit mixture's wider short-miss risk (rev 6) pushed that single
+    # near-tossup corner (already the closest to the line pre-rev-6, delta
+    # 0.0431 in the rev-5 CSV) just past TOSSUP_THRESHOLD_STROKES. Neither
+    # pin ever reads "attack" -- optimize_aim's own search always evaluates
+    # the pin as a candidate, so a genuine delta < 0 never happens here.
     labels = {}
     for tier in data.TIERS:
         for pin in data.PINS:
@@ -343,11 +358,15 @@ def test_flip_set_baseline_labels_sunday_always_bail_left_and_center_are_the_tos
     left_labels = {k: v for k, v in labels.items() if k[1] == "left"}
     assert "bail" in left_labels.values(), "left should still read as bail somewhere"
 
-    # "center" (region-geometry fix, this pass): always "either works" at
-    # baseline settings now, for every tier and wind state -- see the
-    # docstring above.
+    # "center" reads "either works" at every tier and wind state EXCEPT
+    # (0, "center", wind=True), which reads "bail" as of rev 6 (see the
+    # docstring above) -- a single near-tossup corner crossing the line,
+    # not a wholesale change to center's own tossup-pin character.
     center_labels = {k: v for k, v in labels.items() if k[1] == "center"}
-    assert set(center_labels.values()) == {"either works"}
+    assert set(center_labels.values()) == {"either works", "bail"}
+    assert labels[(0, "center", True)] == "bail"
+    non_flipped_center = {k: v for k, v in center_labels.items() if k != (0, "center", True)}
+    assert set(non_flipped_center.values()) == {"either works"}
 
 
 # ---------------------------------------------------------------------------

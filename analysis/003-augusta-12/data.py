@@ -195,8 +195,16 @@ HOLE = {
 
 CREEK_WIDTH_YD = 6.0        # MODELED, no published width in the log; range (4.0, 8.0)
 CREEK_WIDTH_YD_RANGE = (4.0, 8.0)
-BANK_ROLLBACK_YD = 3.0      # MODELED, the shaved bank short of the creek that returns balls to the water (Anchor 3 narrative); range (2.0, 5.0)
-BANK_ROLLBACK_YD_RANGE = (2.0, 5.0)
+
+# BANK_ROLLBACK_YD widened 3.0 -> 8.0 yd (rev 6, Sunny's mishit-mixture
+# finding, append below): the bank is not a small rollback margin on an
+# otherwise-clean tee shot, it is what feeds a mishit tee shot that comes up
+# short back into the water -- Anchor 3's shaved bank, and Anchor 4's own
+# 2019 narrative (two of the four water balls that final round, Koepka's and
+# Molinari's, hit the bank and rolled back into the creek rather than flying
+# into it on the fly). Range widened to match (5.0, 12.0).
+BANK_ROLLBACK_YD = 8.0      # MODELED, the shaved bank short of the creek that returns balls to the water (Anchor 3/4 narrative); range (5.0, 12.0)
+BANK_ROLLBACK_YD_RANGE = (5.0, 12.0)
 
 # A flat short_fairway price with no distance term reproduces #8's exact
 # "no interior minimum" defect (module docstring in optimizer.py), now on
@@ -468,7 +476,7 @@ SOURCES = {
     "THREE_PUTT_RATE": {"log": "docs/sources/003_Source_Log.md#anchor-5", "status": "published at 5/15/25; modeled (lsq) at 0/10/20"},
     "UP_AND_DOWN_PCT": {"log": "docs/sources/003_Source_Log.md#anchor-5", "status": "modeled, weakly-sourced (websearch synthesis, direct fetch failed 403); sensitivity range a 0.8x-1.2x multiplier per tier, capped at 0.95 (UP_AND_DOWN_PCT_RANGE_MULT)"},
     "CREEK_WIDTH_YD": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, no published creek width; sensitivity range 4.0-8.0 yd"},
-    "BANK_ROLLBACK_YD": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, the shaved-bank rollback the 2019 Koepka/Molinari narrative describes; sensitivity range 2.0-5.0 yd"},
+    "BANK_ROLLBACK_YD": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, the shaved-bank rollback the 2019 Koepka/Molinari narrative describes; widened rev 6 (mishit mixture, Sunny's finding) since the bank is what feeds a short mishit back into the water; sensitivity range 5.0-12.0 yd"},
     "PITCH_OVER_WATER_DUNK_PCT": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, anchorless -- no source in the hunt publishes a dunk rate for a pitch over water at any handicap tier; swept by a 0.5x-1.5x sensitivity test"},
 }
 
@@ -731,4 +739,83 @@ HOLE12_OUTCOMES_BY_YEAR = {
 SOURCES["HOLE12_MODERN_AVG_BY_YEAR"] = {
     "log": "docs/sources/003_Source_Log.md#anchor-9",
     "status": "2019/2024 anchored (two independent fetches each); 2021/2022/2023/2025 published single-source (2022 WebSearch-synthesis only); all-time 3.27-3.28 kept as context, not the gate target",
+}
+
+# ---------------------------------------------------------------------------
+# Mishit mixture (rev 6, append, 2026-09-09): Sunny's own read of the
+# sandbox found two things wrong with a single symmetric Gaussian for
+# distance error -- a 20-handicap posted a LOWER water rate than a scratch
+# player at the SAME aim point, and a 200-yd carry still showed nonzero
+# water risk. Both are wrong on the real hole.
+#
+# Cause: each tier's distance-error sigma (model.oval_for_tier's sigma_d,
+# Anchor 1's proximity/GIR inversion times the 3:1 ANISOTROPY split) is
+# large for the higher tiers -- 33.6 yd for the 20-handicap -- and a single
+# symmetric Gaussian with that sigma spreads mass past the 9-yd creek-plus-
+# bank band in BOTH directions equally. Only a thin slice of that wide,
+# symmetric spread ever lands in the band at all, which is what drove the
+# water rate down as handicap rose instead of up. The same wide symmetric
+# spread also puts several percent of mass at a 200-yd carry (50 yd short of
+# the pin) still inside the 9-yd band, when a real 50-yd-short miss is
+# nowhere near the water.
+#
+# Real high-handicap distance error is not one wide symmetric bell curve. It
+# is a solid-strike core (roughly the same shape at every tier) plus a
+# fat-or-thin mishit that comes up well short and rarely, if ever, comes up
+# long by the same margin. The mown bank in front of Rae's Creek
+# (BANK_ROLLBACK_YD above, widened this same pass; Anchor 3's shaved bank,
+# and Anchor 4's 2019 Koepka/Molinari bank-and-roll-back water balls) is the
+# real feature that turns those short mishits into water balls, not a
+# generic rollback margin on an otherwise-clean shot.
+#
+# MISHIT_PCT: the share of a tier's approach shots that are a mishit rather
+# than a solid strike, rising with handicap the same direction every other
+# recovery-rate table in this file does. MODELED, anchorless -- no source in
+# the hunt publishes a mishit rate by handicap for a ~155-yd approach shot.
+# Sensitivity range a 0.5x-1.5x multiplier on every tier's own figure,
+# swept by tests/test_model.py's mishit-mixture sensitivity test.
+#
+# MISHIT_SHORT_FRAC: how far short a mishit comes up, as a fraction of the
+# shot distance (0.15 * 155 = 23.25 yd at the tee shot). MODELED, anchorless;
+# sensitivity range 0.10-0.20, shared by the amateur tiers and the Tour tier
+# (TOUR_MISHIT_PCT below) alike -- only the MISHIT rate itself, not the
+# short-miss fraction, is tier/tour-specific.
+#
+# TOUR_MISHIT_PCT: the Tour-tier counterpart, a single scalar (not a
+# tier-keyed dict, matching TOUR_SCRAMBLING_PCT/TOUR_SAND_SAVE_PCT/
+# TOUR_PITCH_OVER_WATER_DUNK_PCT's own shape above) -- far below the amateur
+# tiers' own lowest figure (scratch, 0.05), since a Tour player mishits a
+# ~155-yd approach far less often than any amateur tier does.
+#
+# model.mishit_mixture_params (and tour.tour_mishit_mixture_params) solve
+# for the mixture's own solid-strike sigma so the two-component mixture's
+# TOTAL second moment matches the tier's already-anchored, anisotropy-split
+# distance sigma exactly -- see that function's docstring for the algebra.
+# Nothing here reopens Anchor 1's own proximity/GIR inversion; the mixture
+# only redistributes the SAME total spread between a tighter solid-strike
+# core and a short mishit tail instead of spreading it symmetrically, so the
+# tier's anchored mean proximity is still reproduced to first order
+# (tests/test_model.py::test_mixture_preserves_anchored_second_moment).
+# ---------------------------------------------------------------------------
+
+MISHIT_PCT = {0: 0.05, 5: 0.08, 10: 0.12, 15: 0.18, 20: 0.25}  # MODELED, anchorless; sensitivity range 0.5x-1.5x
+MISHIT_PCT_SENSITIVITY_MULT_RANGE = (0.5, 1.5)
+
+MISHIT_SHORT_FRAC = 0.15   # MODELED, anchorless; fraction of shot distance a mishit comes up short (23 yd at 155); sensitivity range (0.10, 0.20)
+MISHIT_SHORT_FRAC_RANGE = (0.10, 0.20)
+
+TOUR_MISHIT_PCT = 0.02     # MODELED, anchorless; a single scalar, far below the amateur tiers' own lowest figure
+
+SOURCES["MISHIT_PCT"] = {
+    "log": "docs/sources/003_Source_Log.md#anchor-3",
+    "status": ("modeled, anchorless -- no source in the hunt publishes a mishit rate by "
+               "handicap for a ~155-yd approach; sensitivity range a 0.5x-1.5x multiplier per tier"),
+}
+SOURCES["MISHIT_SHORT_FRAC"] = {
+    "log": "docs/sources/003_Source_Log.md#anchor-3",
+    "status": "modeled, anchorless -- fraction of shot distance a mishit comes up short; sensitivity range 0.10-0.20",
+}
+SOURCES["TOUR_MISHIT_PCT"] = {
+    "log": "docs/sources/003_Source_Log.md#anchor-3",
+    "status": "modeled, anchorless -- a single scalar, far below the amateur tiers' own lowest figure",
 }
