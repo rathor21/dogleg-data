@@ -149,7 +149,7 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
     <a class="home-link" href="/">&larr; Dogleg Data home</a>
   </div>
   <h1>Where should you aim on Augusta's 12th?</h1>
-  <p>Pick a handicap tier, a pin, and a wind state, then drag the aim point around the green complex. The model scores every spot you could stand over: your expected score, your odds of finding Rae's Creek, your odds of holding the green, and how many strokes that aim gives up against the model's own best spot for that tier and pin.</p>
+  <p>Pick a handicap tier, a pin, and a wind state, then drag the aim point around the green complex. The model scores every spot you could stand over: your expected score, your odds of finding Rae's Creek, your odds of holding the green, and how many strokes that aim gives up against the model's best spot for that tier and pin.</p>
   <p>Read the full write-up on <a href="/augusta-12/">the 12th hole analysis</a>.</p>
 </header>
 
@@ -242,7 +242,7 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
   <p class="signoff">Dogleg Data &middot; Play the percentages.</p>
   <p>Charts and sized exports are free to use with credit: <a href="/cite/">doglegdata.com/cite</a></p>
   <h3>Sources &amp; methodology</h3>
-  <p>Hole yardage, bunker count, and the general green shape: PGA.com, NBC Sports/Golf Channel, and The Fried Egg, cross-checked in the source hunt. Amateur approach proximity and GIR-by-distance: Arccos and Shot Scope, inverted into a per-tier dispersion oval the same way release 002 inverts fairway-hit percentages into lateral spread. Every pin's lateral coordinate, the hazard boundaries, the wind carry penalty and dispersion inflation, and the up-and-down odds by tier are modeled, each with a stated sensitivity range carried into the aim-point search. The model's own aim for each tier, pin, and wind state comes from a bounded optimizer that scores a grid of candidate aim points and reports the minimum, the same numbers published in the analysis.</p>
+  <p>Hole yardage, bunker count, and the general green shape: PGA.com, NBC Sports/Golf Channel, and The Fried Egg, cross-checked across sources. Amateur approach proximity and GIR-by-distance: Arccos and Shot Scope, inverted into a per-tier dispersion oval the same way release 002 inverts fairway-hit percentages into lateral spread. Every pin's lateral coordinate, the hazard boundaries, the wind carry penalty and dispersion inflation, and the up-and-down odds by tier are modeled, each with a stated sensitivity range carried into the aim-point search. The model's own aim for each tier, pin, and wind state comes from a bounded optimizer that scores a grid of candidate aim points and reports the minimum, the same numbers published in the analysis.</p>
 </footer>
 
 </div>
@@ -671,7 +671,7 @@ function render(){
       + " strokes to the model's optimum and finds the water " + pct(lookup.p_water) + " of the time. " + modelAimSentence;
   } else {
     els.headline.textContent = "This aim matches the model";
-    els.detail.textContent = "A " + tierLabel + " aiming " + aimDesc + " plays the model's own optimum here and finds the water "
+    els.detail.textContent = "A " + tierLabel + " aiming " + aimDesc + " plays the model's optimum here and finds the water "
       + pct(lookup.p_water) + " of the time.";
   }
 

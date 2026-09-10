@@ -96,12 +96,11 @@ Delta band "0.053 to 0.095 strokes": min/max of all five tiers' deltas (0.0948, 
 
 ## Chapter 6 -- April 14, 2019
 
-Unchanged from prior revs (no model-dependent numbers).
+Unchanged from prior revs (no model-dependent numbers). The prose pass at 003.8/9 drops the Molinari hole-15 correction paragraph (the second, tree-deflected water ball, previously sourced to Anchor 4's "Discrepancy caught and resolved" paragraph) as process narration; the four hole-12 water balls stay.
 
 | Fact | Source |
 |---|---|
 | Koepka (9-iron, drifted right, bank, rolled back), Poulter (8-iron, didn't carry), Molinari (tee shot into the bank, rolled back), Finau (water), all double bogey | `docs/sources/003_Source_Log.md#anchor-4` |
-| Molinari's tree-deflected chip found water on the 15th, not the 12th | Anchor 4's "Discrepancy caught and resolved" paragraph |
 | ~20 mph gusts | Anchor 6 / Anchor 4 (PGATOUR.com retrospective) |
 | 2019 scoring average 3.053 | `data.HOLE12_MODERN_AVG_BY_YEAR[2019]`, Anchor 4/Anchor 9 |
 | 52 birdies / 200 pars / 38 bogeys / 14 double-or-worse of 304 | `data.HOLE12_OUTCOMES_BY_YEAR[2019]`, Anchor 4 |
@@ -163,7 +162,9 @@ No quoted numbers (CTA card only).
 ## Reading time and word count
 
 Article body (chapters through method and sources, excluding the dek and
-byline): 3,852 words (up from 3,099 pre-003.8/9, the owner's-finding
-paragraph and the short-of-the-creek figures added throughout account for
-most of the growth). At 200 words/minute (002's own convention), that
-rounds up to 20 minutes, the figure the byline states.
+byline): 3,783 words (down from 3,852 after the 003.8/9 Sepia and Humanizer
+prose pass, which trims the "'s own" overuse throughout, drops the
+Molinari hole-15 correction paragraph and other process narration, and
+otherwise reworks wording only, no figures touched). At 200 words/minute
+(002's own convention), that rounds up to 19 minutes, the figure the
+byline states.
