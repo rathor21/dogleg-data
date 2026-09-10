@@ -16,6 +16,8 @@
 "use strict";
 
 var DATA_URL = "/augusta-12/data/003_chapters.json";
+var AERIAL_MAP_URL = "/augusta-12/data/aerial_map.json";
+var AERIAL_IMG_URL = "/assets/img/003_aerial.png";
 var TIER_LABELS = {0: "Scratch", 5: "5-handicap", 10: "10-handicap", 15: "15-handicap", 20: "20-handicap"};
 var PIN_LABELS = {left: "Left pin", center: "Center pin", sunday: "Sunday pin"};
 
@@ -26,6 +28,9 @@ var qs = new URLSearchParams(location.search);
 // prefers-reduced-motion media query already disables.
 
 var chaptersData = null;
+var aerialMap = null;
+var aerialImg = null;
+var aerialReady = false;
 
 window.__chapterState = {chapter: null, step: null};
 
@@ -34,37 +39,111 @@ function fmtPct(p){ return (Math.round(p * 1000) / 10).toFixed(1) + "%"; }
 function cellKey(tier, pin, wind){ return tier + "|" + pin + "|" + (wind ? 1 : 0); }
 
 // ---------------------------------------------------------------
-// Top-down projection: geometry_yd is already a plan view (x =
-// lateral yd, y = carry yd from tee), so this is a plain linear
-// map, no camera perspective -- unlike the hero scene's elevated
-// three-quarter camera.
+// Top-down projection: every chapter figure draws over 003_aerial.png,
+// positioned/scaled through aerial_map.json's own shape-affine (model yd
+// -> aerial pixels, analysis/003-augusta-12/art/fit_shapes.py) composed
+// with a crop-and-scale that fits the same model-yard viewport this page
+// always showed (VIEW_X_MIN/MAX, VIEW_Y_MIN/MAX) into the canvas. No
+// separate y-flip is needed here the way the old code-drawn projector
+// needed one: the aerial photo and its affine already agree on "tee near
+// the bottom, green near the top."
 // ---------------------------------------------------------------
 var VIEW_X_MIN = -22, VIEW_X_MAX = 22;
 var VIEW_Y_MIN = 108, VIEW_Y_MAX = 205;
 
-function makeProjector(canvas){
-  var w = canvas.width, h = canvas.height;
-  var xr = VIEW_X_MAX - VIEW_X_MIN, yr = VIEW_Y_MAX - VIEW_Y_MIN;
-  var scale = Math.min(w / xr, h / yr);
-  var offX = (w - xr * scale) / 2;
-  var offY = (h - yr * scale) / 2;
-  return {
-    scale: scale,
-    toPx: function(x_yd, y_yd){
-      var px = offX + (x_yd - VIEW_X_MIN) * scale;
-      var py = h - (offY + (y_yd - VIEW_Y_MIN) * scale); // flip: tee (low y) at bottom
-      return [px, py];
-    }
-  };
+function applyAerialAffine(affine, x_yd, y_yd){
+  return [
+    affine[0][0] * x_yd + affine[0][1] * y_yd + affine[0][2],
+    affine[1][0] * x_yd + affine[1][1] * y_yd + affine[1][2]
+  ];
 }
 
-function polyPath(ctx, proj, poly){
-  ctx.beginPath();
-  poly.forEach(function(pt, i){
-    var p = proj.toPx(pt[0], pt[1]);
-    if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
-  });
-  ctx.closePath();
+function frontEdgeYd(x_yd, map){
+  var f = map.short_affine_blend.front_edge;
+  return f.front_edge_at_x0_yd + f.slope_yd_per_yd * x_yd;
+}
+
+// modelToAerialPx: model yd -> aerial_final.png pixel, blending
+// green_affine / short_affine at the front edge exactly like hero.js's
+// project() does (aerial_map.json carries the same short_affine_blend
+// shape when a short_affine was needed; see fit_shapes.py).
+function modelToAerialPx(x_yd, y_yd, map){
+  if (!map.short_affine){
+    return applyAerialAffine(map.affine, x_yd, y_yd);
+  }
+  var fe = frontEdgeYd(x_yd, map);
+  var margin = map.short_affine_blend.blend_margin_yd;
+  var g = applyAerialAffine(map.affine, x_yd, y_yd);
+  if (y_yd >= fe + margin) return g;
+  var s = applyAerialAffine(map.short_affine, x_yd, y_yd);
+  if (y_yd <= fe - margin) return s;
+  var t = Math.min(1, Math.max(0, (y_yd - (fe - margin)) / (2 * margin)));
+  return [s[0] + (g[0] - s[0]) * t, s[1] + (g[1] - s[1]) * t];
+}
+
+function makeProjector(canvas){
+  var w = canvas.width, h = canvas.height;
+  if (!aerialReady){
+    // Fallback while the aerial map/image are still loading: same model
+    // viewport, no image, so a figure requested before boot still gets
+    // sane (if imageless) coordinates instead of throwing.
+    var xr0 = VIEW_X_MAX - VIEW_X_MIN, yr0 = VIEW_Y_MAX - VIEW_Y_MIN;
+    var scale0 = Math.min(w / xr0, h / yr0);
+    var offX0 = (w - xr0 * scale0) / 2, offY0 = (h - yr0 * scale0) / 2;
+    return {
+      scale: scale0,
+      drawBase: function(){},
+      toPx: function(x_yd, y_yd){
+        return [offX0 + (x_yd - VIEW_X_MIN) * scale0, h - (offY0 + (y_yd - VIEW_Y_MIN) * scale0)];
+      }
+    };
+  }
+
+  var corners = [
+    [VIEW_X_MIN, VIEW_Y_MIN], [VIEW_X_MAX, VIEW_Y_MIN],
+    [VIEW_X_MIN, VIEW_Y_MAX], [VIEW_X_MAX, VIEW_Y_MAX]
+  ].map(function(p){ return modelToAerialPx(p[0], p[1], aerialMap); });
+  var minAx = Math.min.apply(null, corners.map(function(c){ return c[0]; }));
+  var maxAx = Math.max.apply(null, corners.map(function(c){ return c[0]; }));
+  var minAy = Math.min.apply(null, corners.map(function(c){ return c[1]; }));
+  var maxAy = Math.max.apply(null, corners.map(function(c){ return c[1]; }));
+  // Cover-fit (max), not contain-fit: the model viewport (44 x 97 yd,
+  // portrait) and this square canvas rarely share an aspect ratio once
+  // run through the aerial's own anisotropic px/yd scale, and a
+  // contain-fit leaves bare canvas margins a wide dispersion oval (tier
+  // 20, say) can visibly spill past. Cover-fit fills the whole canvas,
+  // showing a little more surrounding fairway/trees on one axis instead.
+  var scale = Math.max(w / (maxAx - minAx), h / (maxAy - minAy));
+  var offX = (w - (maxAx - minAx) * scale) / 2;
+  var offY = (h - (maxAy - minAy) * scale) / 2;
+
+  // Effective model-yd -> canvas-px scale, for dispersion ovals: the mean
+  // magnitude of the affine's two column vectors (px per yd of x, px per
+  // yd of y) times the crop-to-canvas scale above. The aerial is close to
+  // orthographic (art/README.md), so this isotropic approximation reads
+  // the same as the old plain top-down projector did, now driven by the
+  // fitted affine instead of a hand-typed constant.
+  var A = aerialMap.affine;
+  var colX = [A[0][0], A[1][0]], colY = [A[0][1], A[1][1]];
+  var magX = Math.hypot(colX[0], colX[1]), magY = Math.hypot(colY[0], colY[1]);
+  var modelScale = ((magX + magY) / 2) * scale;
+  // Rotation of the model's x-axis (lateral, the oval's "line" axis) as it
+  // lands in canvas space -- used to draw ovals at the aerial's own tilt
+  // instead of assuming the tee-to-green line is perfectly vertical.
+  var rotation = Math.atan2(colX[1], colX[0]);
+
+  return {
+    scale: modelScale,
+    rotation: rotation,
+    drawBase: function(ctx){
+      ctx.drawImage(aerialImg, minAx, minAy, maxAx - minAx, maxAy - minAy,
+        offX, offY, (maxAx - minAx) * scale, (maxAy - minAy) * scale);
+    },
+    toPx: function(x_yd, y_yd){
+      var a = modelToAerialPx(x_yd, y_yd, aerialMap);
+      return [offX + (a[0] - minAx) * scale, offY + (a[1] - minAy) * scale];
+    }
+  };
 }
 
 function readColors(){
@@ -78,36 +157,17 @@ function readColors(){
   };
 }
 
-function drawBaseGeometry(ctx, proj, geo, colors){
-  // Fairway
-  ctx.fillStyle = colors.card;
-  ctx.strokeStyle = colors.line;
-  ctx.lineWidth = 1.5;
-  polyPath(ctx, proj, geo.fairway);
-  ctx.fill(); ctx.stroke();
+// The hole itself is now carried entirely by the aerial photograph
+// (proj.drawBase, wired through aerial_map.json) -- no code-drawn green
+// parallelogram, creek band, or bunker boxes; see chapters.js's header
+// comment and makeProjector above.
 
-  // Creek
-  ctx.fillStyle = hexA(colors.blue, 0.35);
-  ctx.strokeStyle = colors.blueText;
-  ctx.lineWidth = 1;
-  polyPath(ctx, proj, geo.creek.polygon);
-  ctx.fill(); ctx.stroke();
-
-  // Green (putting surface) -- warm neutral, never green hue (brand rule).
-  ctx.fillStyle = colors.bg;
-  ctx.strokeStyle = colors.inkSoft;
-  ctx.lineWidth = 1.5;
-  polyPath(ctx, proj, geo.green);
-  ctx.fill(); ctx.stroke();
-
-  // Bunkers
-  ctx.fillStyle = hexA(colors.clay, 0.4);
-  ctx.strokeStyle = colors.clayText;
-  ctx.lineWidth = 1;
-  geo.bunkers.forEach(function(b){
-    polyPath(ctx, proj, b.polygon);
-    ctx.fill(); ctx.stroke();
-  });
+// labelPlate: a small translucent card-colored backing behind a text
+// label so it stays readable over the aerial photo's own busy colors,
+// same trick a printed map uses under a place name.
+function labelPlate(ctx, x, y, w, h, colors){
+  ctx.fillStyle = hexA(colors.card, 0.82);
+  ctx.fillRect(x, y, w, h);
 }
 
 function hexA(hex, alpha){
@@ -140,14 +200,17 @@ function drawPinMarker(ctx, proj, x, y, color){
 }
 
 function drawOval(ctx, proj, cx, cy, sigmaD, sigmaL, opts){
-  // sigmaD is the distance (y) axis sigma, sigmaL the line (x) axis sigma --
-  // both already in yards, no rotation needed in this top-down tee-shot
-  // frame (aim direction runs straight along +y).
+  // sigmaD is the distance (y) axis sigma, sigmaL the line (x) axis sigma,
+  // both in yards. Rotated by proj.rotation (the model's x/lateral axis's
+  // own tilt as it lands in the aerial photo, from makeProjector) so the
+  // oval sits true to the aerial's actual camera angle instead of assuming
+  // the tee-to-green line renders perfectly vertical.
   var c = proj.toPx(cx, cy);
-  var rx = sigmaL * proj.scale * opts.nSigma;
-  var ry = sigmaD * proj.scale * opts.nSigma;
+  var rx = sigmaL * proj.scale * opts.nSigma; // along the model's lateral (x) axis
+  var ry = sigmaD * proj.scale * opts.nSigma; // along the model's depth (y) axis
+  var rotation = proj.rotation || 0; // model x-axis's own tilt in canvas space
   ctx.beginPath();
-  ctx.ellipse(c[0], c[1], Math.max(rx, 1), Math.max(ry, 1), 0, 0, Math.PI * 2);
+  ctx.ellipse(c[0], c[1], Math.max(rx, 1), Math.max(ry, 1), rotation, 0, Math.PI * 2);
   if (opts.fill){ ctx.fillStyle = opts.fill; ctx.fill(); }
   ctx.strokeStyle = opts.stroke;
   ctx.lineWidth = opts.lineWidth || 1.5;
@@ -174,9 +237,8 @@ function drawAllTiersFigure(canvas, data){
   var ctx = canvas.getContext("2d");
   var colors = readColors();
   var proj = makeProjector(canvas);
-  var geo = data.geometry_yd;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawBaseGeometry(ctx, proj, geo, colors);
+  proj.drawBase(ctx);
 
   var ref = data.pins.center; // shared reference aim point for comparison
   var tierColors = [colors.ink, colors.blueText, colors.clayText, colors.maroon, colors.muted];
@@ -189,7 +251,9 @@ function drawAllTiersFigure(canvas, data){
   });
   drawPinMarker(ctx, proj, ref.x, ref.y, colors.ink);
 
-  // Sigma readout, largest (tier 20) to smallest, stacked top-left.
+  // Sigma readout, largest (tier 20) to smallest, stacked top-left, over a
+  // translucent plate so it stays readable against the photo underneath.
+  labelPlate(ctx, 4, 4, 186, data.tiers.length * 15 + 8, colors);
   var ty = 18;
   data.tiers.slice().reverse().forEach(function(tier){
     var cell = data.cells[cellKey(tier, "center", false)];
@@ -208,9 +272,8 @@ function drawPinFigure(canvas, data, pin, tier, wind){
   var ctx = canvas.getContext("2d");
   var colors = readColors();
   var proj = makeProjector(canvas);
-  var geo = data.geometry_yd;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawBaseGeometry(ctx, proj, geo, colors);
+  proj.drawBase(ctx);
 
   var p = data.pins[pin];
   var cell = data.cells[cellKey(tier, pin, wind)];
@@ -231,8 +294,10 @@ function drawPinFigure(canvas, data, pin, tier, wind){
   ctx.fillStyle = colors.clayText;
   ctx.fill();
 
+  labelPlate(ctx, 4, 4, 210, 18, colors);
   label(ctx, 10, 18, PIN_LABELS[pin] + " · " + TIER_LABELS[tier] + (wind ? " · wind" : ""),
     colors.inkSoft, {size: 10.5});
+  labelPlate(ctx, 4, canvas.height - 22, 260, 18, colors);
   label(ctx, 10, canvas.height - 12,
     "aim: " + fmt1(cell.aim.lateral_offset_yd) + " lat / " + fmt1(cell.aim.carry_adjustment_yd) + " carry yd",
     colors.muted, {size: 9.5});
@@ -246,9 +311,8 @@ function drawWindFigure(canvas, data, tier, showWind){
   var ctx = canvas.getContext("2d");
   var colors = readColors();
   var proj = makeProjector(canvas);
-  var geo = data.geometry_yd;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawBaseGeometry(ctx, proj, geo, colors);
+  proj.drawBase(ctx);
 
   var p = data.pins.sunday;
   var calmCell = data.cells[cellKey(tier, "sunday", false)];
@@ -265,12 +329,14 @@ function drawWindFigure(canvas, data, tier, showWind){
   }
 
   drawPinMarker(ctx, proj, p.x, p.y, colors.ink);
+  labelPlate(ctx, 4, 4, 190, 18, colors);
   label(ctx, 10, 18, "Sunday pin · " + TIER_LABELS[tier], colors.inkSoft, {size: 10.5});
-  label(ctx, 10, canvas.height - 12,
-    showWind ? "clay = calm oval, blue = windy oval (shifted " + data.wind.carry_penalty_yd + " yd short, "
+  var windLine = showWind ? "clay = calm oval, blue = windy oval (shifted " + data.wind.carry_penalty_yd + " yd short, "
       + data.wind.dispersion_inflation + "x wider)"
-      : "clay = calm oval",
-    colors.muted, {size: 9.5});
+      : "clay = calm oval";
+  ctx.font = "500 9.5px 'IBM Plex Mono', ui-monospace, monospace";
+  labelPlate(ctx, 4, canvas.height - 22, Math.min(canvas.width - 8, ctx.measureText(windLine).width + 14), 18, colors);
+  label(ctx, 10, canvas.height - 12, windLine, colors.muted, {size: 9.5});
 }
 
 // ---------------------------------------------------------------
@@ -500,14 +566,30 @@ function sizeCanvases(){
   });
 }
 
+function loadAerialImage(){
+  return new Promise(function(resolve, reject){
+    var img = new Image();
+    img.onload = function(){ resolve(img); };
+    img.onerror = function(){ reject(new Error("failed to load " + AERIAL_IMG_URL)); };
+    img.src = AERIAL_IMG_URL;
+  });
+}
+
 function init(){
   sizeCanvases();
-  fetch(DATA_URL).then(function(r){ return r.json(); }).then(function(json){
-    chaptersData = json;
+  Promise.all([
+    fetch(DATA_URL).then(function(r){ return r.json(); }),
+    fetch(AERIAL_MAP_URL).then(function(r){ return r.json(); }),
+    loadAerialImage()
+  ]).then(function(results){
+    chaptersData = results[0];
+    aerialMap = results[1];
+    aerialImg = results[2];
+    aerialReady = true;
     var captured = maybeRenderCaptureMode();
     if (!captured) wireScrolly();
   }).catch(function(err){
-    console.error("chapters: failed to load " + DATA_URL, err);
+    console.error("chapters: failed to load " + DATA_URL + " / " + AERIAL_MAP_URL, err);
   });
 }
 

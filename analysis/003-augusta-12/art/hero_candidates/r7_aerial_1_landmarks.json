@@ -1,0 +1,134 @@
+{
+  "source_image": "hero_candidates/r7_aerial_1.png",
+  "size": [
+    1024,
+    1024
+  ],
+  "creek_far_bank": [
+    {
+      "point": [
+        100,
+        508
+      ],
+      "source": "hand"
+    },
+    {
+      "point": [
+        300,
+        538
+      ],
+      "source": "hand"
+    },
+    {
+      "point": [
+        500,
+        580
+      ],
+      "source": "hand"
+    },
+    {
+      "point": [
+        700,
+        514
+      ],
+      "source": "hand"
+    },
+    {
+      "point": [
+        800,
+        460
+      ],
+      "source": "hand"
+    }
+  ],
+  "green_centroid": {
+    "point": [
+      550,
+      400
+    ],
+    "source": "hand"
+  },
+  "green_boundary": {
+    "0deg": {
+      "point": [
+        850.0,
+        400.0
+      ],
+      "source": "hand"
+    },
+    "45deg": {
+      "point": [
+        762.1,
+        329.3
+      ],
+      "source": "hand"
+    },
+    "90deg": {
+      "point": [
+        550.0,
+        300.0
+      ],
+      "source": "hand"
+    },
+    "135deg": {
+      "point": [
+        337.9,
+        329.3
+      ],
+      "source": "hand"
+    },
+    "180deg": {
+      "point": [
+        250.0,
+        400.0
+      ],
+      "source": "hand"
+    },
+    "225deg": {
+      "point": [
+        337.9,
+        470.7
+      ],
+      "source": "hand"
+    },
+    "270deg": {
+      "point": [
+        550.0,
+        500.0
+      ],
+      "source": "hand"
+    },
+    "315deg": {
+      "point": [
+        762.1,
+        470.7
+      ],
+      "source": "hand"
+    }
+  },
+  "bunkers": {
+    "bunker_left": {
+      "point": [
+        384,
+        380
+      ],
+      "source": "hand"
+    },
+    "bunker_right": {
+      "point": [
+        773,
+        350
+      ],
+      "source": "hand"
+    }
+  },
+  "bridge_near_end": {
+    "point": [
+      280,
+      500
+    ],
+    "source": "hand",
+    "note": "for orientation only"
+  },
+  "bunker_count_note": "Only 2 bunkers rendered (both behind the green); no front bunker touching the creek is present in this candidate."
+}

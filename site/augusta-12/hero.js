@@ -1,5 +1,5 @@
 /* ============================================================
-   Augusta 12 hero scene (issue #12).
+   Augusta 12 hero scene (issue #12, camera replaced #17/#11).
    Canvas 2D only, no libraries. Three offscreen layers composited
    onto one visible canvas each frame:
      base    - hero art, drawn once per resize (object-fit: cover)
@@ -8,14 +8,16 @@
      overlay - the flying ball, landing impact, in-progress scatter
                fade (cleared and redrawn every frame)
 
-   Camera projection is ported from the manifest's `camera` block: a
-   thin-plate spline (TPS) fit to the accepted nano-banana art (release
-   003, round six -- see analysis/003-augusta-12/art/README.md and
-   art/fit_tps.py), replacing the old piecewise-homography camera
-   sketch.py used through round five. A TPS registers every one of its own
-   control points exactly and stays smooth in between; there is no more
-   closed-form horizon/mid/tee-front breakpoints to port, only the RBF
-   weights and affine terms already baked into the manifest.
+   Camera projection reads data/camera_hero.json's "shape_affine" maps
+   (analysis/003-augusta-12/art/fit_shapes.py) instead of the old
+   thin-plate-spline camera the manifest used to carry: a shape-to-shape
+   fit of the model's own green polygon onto the painted green's outline
+   (green_affine), a second affine for the region short of the green's
+   front edge fit to the creek's own two banks (short_affine, blended
+   with green_affine at the seam), and an exact similarity from the tee
+   box's front corners to the two painted tee markers (tee). All three
+   are plain 2x3 affines -- no RBF weights, no per-call self-test tuning,
+   since an affine either reproduces its own fitted points or it doesn't.
    ============================================================ */
 (function(){
 "use strict";
@@ -32,72 +34,73 @@ var APEX_YD = 12;   // apex height in modeled yards, converted to px at the ball
                     // the arc reads as a rising flight, not a spike (issue #12)
 var MAX_ARC_LIFT_SCALE = 12.5; // safety-net cap on the px-per-yard used to convert
                     // APEX_YD (and the bow, see MAX_BOW_YD) to a pixel offset. The
-                    // camera's own fitted warp (art/camera_tps.json) is not smooth
-                    // enough to sample at every in-flight t without reintroducing
-                    // the loops issue #12 fixes -- see MAX_BOW_YD and arcPoint's own
-                    // comment for how this cap and TEE_SPREAD_SCALE keep the arc
-                    // shaped like a tracer instead of routing through the warp's own
-                    // wobble near the green-complex transition (art/README.md,
-                    // "Round six, camera correction").
+                    // shape-affine camera is piecewise (green_affine / short_affine,
+                    // blended at the front edge, see project()) rather than one
+                    // smooth warp, so the local scale can still step at that seam;
+                    // this cap keeps a shot that arcs across the seam from spiking.
 var MAX_BOW_YD = 1.5; // issue #12: cap on the rendered lateral bow, in yards, for
                     // the draw/fade curve_yd sine bulge. A rendering hint only --
                     // the manifest's own curve_yd (up to 4yd) is still read for its
                     // sign, just clamped in magnitude before it is turned into a
-                    // pixel offset. Uncapped, the fitted camera's near-tee px-per-yd
-                    // (around 130) turned even a modest yardage bow into a 150px
-                    // sideways swing, which read as a hook or a loop rather than a
-                    // shot shape.
-var TEE_SPREAD_SCALE = 0.3; // issue #12: shrinks each shot's tee.x (in yards) before
-                    // it is projected, so the five curated tees fan out across the
-                    // painted tee box rather than the model's own 7yd tee box, which
-                    // this camera's perspective already stretches across ~93% of the
-                    // canvas (see art/README.md "Tee spread"). A rendering choice
-                    // only -- the manifest's tee.x is unchanged, and the tee-box
-                    // outline (drawTeeBoxOutline) still draws the model's own
-                    // geometry unscaled.
+                    // pixel offset, so a bow never reads as a hook or a loop.
 var SCATTER_ALPHA = 0.25;
-var DEPTH_CLIP_MARGIN_PX = 12; // never draw above the playfield_y_max_yd line by more than this
+var DEPTH_CLIP_MARGIN_PX = 12; // never draw above camera_hero.json's horizon_px by more than this
 var SCATTER_CAP_MOBILE = 600;
 
 var qs = new URLSearchParams(location.search);
 var isDev = location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname === "";
 
 // ---------------------------------------------------------------
-// Camera projection: thin-plate spline, ported from manifest.camera.
-// U(r) = r^2 * log(r), U(0) = 0 -- the standard TPS radial basis. Two
-// independent 1-D fits (screen x, screen y) share the same control
-// points; cam.weights.wx/wy are the RBF weights, cam.affine.ax/ay the
-// [a0,a1,a2] affine terms.
+// Camera projection: shape-affine, read from data/camera_hero.json
+// (analysis/003-augusta-12/art/fit_shapes.py). Three plain 2x3 affines,
+// applied to (x_yd, y_yd, 1):
+//   green_affine  - the green shape-fit, used at/behind the front edge
+//   short_affine  - fit to the creek's two banks, used short of it
+//   tee.affine    - exact similarity from the tee box's front corners to
+//                   the two painted tee markers, used for tee positions
+// green_affine and short_affine are blended linearly across a small
+// margin straddling the front edge (front_edge_yd(x) = a + b*x, both
+// carried in short_affine_blend) so nothing pops at the seam.
 // ---------------------------------------------------------------
 function lerp(a, b, t){ return a + (b - a) * t; }
 function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
 
-function tpsU(r){
-  if (r <= 1e-12) return 0;
-  return r * r * Math.log(r);
+function applyAffine(M, x_yd, y_yd){
+  return [
+    M[0][0] * x_yd + M[0][1] * y_yd + M[0][2],
+    M[1][0] * x_yd + M[1][1] * y_yd + M[1][2]
+  ];
 }
 
-function tpsEval(x_yd, y_yd, controlPoints, w, a){
-  var sum = a[0] + a[1] * x_yd + a[2] * y_yd;
-  for (var i = 0; i < controlPoints.length; i++){
-    var dx = x_yd - controlPoints[i][0];
-    var dy = y_yd - controlPoints[i][1];
-    sum += w[i] * tpsU(Math.sqrt(dx * dx + dy * dy));
-  }
-  return sum;
+function frontEdgeYd(x_yd, cam){
+  var f = cam.short_affine_blend.front_edge;
+  return f.front_edge_at_x0_yd + f.slope_yd_per_yd * x_yd;
 }
 
+// project: the green/short-affine map used for landings, pins, and
+// scatter. Tee positions use projectTee below instead.
 function project(x_yd, y_yd, cam){
-  var cps = cam.control_points_yd;
-  var px = tpsEval(x_yd, y_yd, cps, cam.weights.wx, cam.affine.ax);
-  var py = tpsEval(x_yd, y_yd, cps, cam.weights.wy, cam.affine.ay);
-  return [px, py];
+  if (!cam.short_affine){
+    return applyAffine(cam.green_affine, x_yd, y_yd);
+  }
+  var fe = frontEdgeYd(x_yd, cam);
+  var margin = cam.short_affine_blend.blend_margin_yd;
+  if (y_yd >= fe + margin) return applyAffine(cam.green_affine, x_yd, y_yd);
+  if (y_yd <= fe - margin) return applyAffine(cam.short_affine, x_yd, y_yd);
+  var t = clamp((y_yd - (fe - margin)) / (2 * margin), 0, 1);
+  var s = applyAffine(cam.short_affine, x_yd, y_yd);
+  var g = applyAffine(cam.green_affine, x_yd, y_yd);
+  return [lerp(s[0], g[0], t), lerp(s[1], g[1], t)];
 }
 
-// pxPerYardAt: local lateral scale, a finite difference of the TPS in x
-// at (0, y_yd) -- there is no closed-form half-width function anymore, so
-// this replaces sketch.py's half_width_px_for/frame_half_width_yd ratio
-// with a direct derivative of the fitted warp itself.
+function projectTee(x_yd, y_yd, cam){
+  return applyAffine(cam.tee.affine, x_yd, y_yd);
+}
+
+// pxPerYardAt: local lateral scale, a finite difference of project() in x
+// at (0, y_yd) -- since project() is piecewise-affine (blended at the
+// front edge), this stays a true local derivative rather than assuming a
+// single global scale.
 var PX_PER_YARD_DELTA = 0.5;
 function pxPerYardAt(y_yd, cam){
   var p0 = project(-PX_PER_YARD_DELTA, y_yd, cam);
@@ -106,41 +109,47 @@ function pxPerYardAt(y_yd, cam){
 }
 
 // ---------------------------------------------------------------
-// Self-test against manifest.landmarks_px -- the TPS's own fitted
-// correspondences (one entry per hand-picked/detected landmark: label,
-// model_yd, image_px, source), not a nested sketch.py coordinate dump.
-//
-// Tolerance is no longer sub-pixel (round seven, #11): the camera now fits
-// with a deliberate ridge term (lambda=60, see art/fit_tps.py's
-// R6_4_LAMBDA) that trades exact interpolation for a smooth-enough warp
-// that flight-path arcs stop looping back on themselves. Real landmarks
-// (creek/bunker/green-boundary/tee, hand-picked or detected off the art)
-// land within SELF_TEST_TOL_REAL_PX; the synthetic homography-backbone
-// grid (calibration scaffolding, not measured off the art) is held to the
-// looser SELF_TEST_TOL_SYNTHETIC_PX -- both set a little above the worst
-// error actually observed in the fit (see art/README.md, round seven).
+// Self-test against camera_hero.json's own fitted points: every
+// pins_px must be reproduced by project() within 1px (the pins are on
+// the green, so always green_affine, no blending), and every pin must
+// fall inside playfield_polygon_px.
 // ---------------------------------------------------------------
-var SELF_TEST_TOL_REAL_PX = 80;
-var SELF_TEST_TOL_SYNTHETIC_PX = 160;
+var SELF_TEST_TOL_PX = 1.0;
 
-function runSelfTest(cam, landmarksPx){
-  var pass = 0;
+function pointInPolygon(pt, poly){
+  var inside = false;
+  for (var i = 0, j = poly.length - 1; i < poly.length; j = i++){
+    var xi = poly[i][0], yi = poly[i][1];
+    var xj = poly[j][0], yj = poly[j][1];
+    var intersect = ((yi > pt[1]) !== (yj > pt[1])) &&
+      (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function runSelfTest(cam, manifestPins){
   var failures = [];
-  landmarksPx.forEach(function(lm){
-    var out = project(lm.model_yd[0], lm.model_yd[1], cam);
-    var dx = Math.abs(out[0] - lm.image_px[0]);
-    var dy = Math.abs(out[1] - lm.image_px[1]);
-    var tol = lm.source === "synthetic_h0" ? SELF_TEST_TOL_SYNTHETIC_PX : SELF_TEST_TOL_REAL_PX;
-    if (dx < tol && dy < tol){
+  var pass = 0;
+  Object.keys(manifestPins).forEach(function(key){
+    var p = manifestPins[key];
+    var expected = cam.pins_px[key];
+    if (!expected){ failures.push({ name: key, reason: "no pins_px entry" }); return; }
+    var got = project(p.x, p.y, cam);
+    var dx = Math.abs(got[0] - expected[0]);
+    var dy = Math.abs(got[1] - expected[1]);
+    var inside = pointInPolygon(got, cam.playfield_polygon_px);
+    if (dx < SELF_TEST_TOL_PX && dy < SELF_TEST_TOL_PX && inside){
       pass++;
     } else {
-      failures.push({ name: lm.label, expected: lm.image_px, got: out });
+      failures.push({ name: key, expected: expected, got: got, inside: inside });
     }
   });
+  var total = Object.keys(manifestPins).length;
   if (failures.length === 0){
-    if (isDev) console.log("hero: projection self-test " + pass + "/" + landmarksPx.length);
+    if (isDev) console.log("hero: projection self-test " + pass + "/" + total);
   } else {
-    console.error("hero: projection self-test " + pass + "/" + landmarksPx.length + " failed", failures);
+    console.error("hero: projection self-test " + pass + "/" + total + " failed", failures);
   }
 }
 
@@ -245,26 +254,31 @@ function init(){
   var pinHunterScatter = [];
   var ready = false;
 
-  fetch("/augusta-12/data/003_manifest.json")
-    .then(function(r){
+  Promise.all([
+    fetch("/augusta-12/data/003_manifest.json").then(function(r){
       if (!r.ok) throw new Error("manifest fetch failed: " + r.status);
       return r.json();
+    }),
+    fetch("/augusta-12/data/camera_hero.json").then(function(r){
+      if (!r.ok) throw new Error("camera_hero fetch failed: " + r.status);
+      return r.json();
     })
-    .then(function(m){
-      manifest = m;
-      cam = m.camera;
-      shots = m.shots;
-      runSelfTest(cam, m.landmarks_px);
+  ])
+    .then(function(results){
+      manifest = results[0];
+      cam = results[1];
+      shots = manifest.shots;
+      runSelfTest(cam, manifest.geometry_yd.pins);
       var pinHunter = shots.filter(function(s){ return s.id === "pin_hunter"; })[0] || shots[0];
       var key = pinHunter.tier + "|" + pinHunter.pin + "|" + (pinHunter.wind ? 1 : 0);
-      var scatterSet = m.scatter[key];
+      var scatterSet = manifest.scatter[key];
       pinHunterScatter = scatterSet ? scatterSet.points : [];
       populateShotLegend(shotLegendList, shots);
       ready = true;
       onAssetReady();
     })
     .catch(function(err){
-      console.error("hero: could not load manifest", err);
+      console.error("hero: could not load manifest/camera", err);
     });
 
   function onAssetReady(){
@@ -288,7 +302,7 @@ function init(){
         return pts;
       },
       shotIds: shots.map(function(s){ return s.id; }),
-      constants: { APEX_YD: APEX_YD, MAX_ARC_LIFT_SCALE: MAX_ARC_LIFT_SCALE, MAX_BOW_YD: MAX_BOW_YD, TEE_SPREAD_SCALE: TEE_SPREAD_SCALE }
+      constants: { APEX_YD: APEX_YD, MAX_ARC_LIFT_SCALE: MAX_ARC_LIFT_SCALE, MAX_BOW_YD: MAX_BOW_YD }
     };
     startSequence();
   }
@@ -339,47 +353,27 @@ function init(){
     baseCtx.drawImage(img, cover.offsetX, cover.offsetY, cover.imgW * cover.scale, cover.imgH * cover.scale);
   }
 
-  // playfieldLimitPy: the fitted image y of the (x_yd, playfield_y_max_yd)
-  // line -- the TPS camera's own trusted depth limit, replacing the old
-  // fixed horizon_px constant a piecewise camera could give in closed
-  // form. Computed per-x since a TPS's depth line need not be flat.
-  function playfieldLimitPy(x_yd, cam){
-    return project(x_yd, cam.playfield_y_max_yd, cam)[1];
-  }
-
   // ---------------------------------------------------------------
   // Flight math (model space, then projected + transformed to screen)
   // ---------------------------------------------------------------
   // arcPoint (issue #12, "tracer-shaped arcs under the painted camera"):
-  // projects only the shot's two endpoints -- tee and landing -- through
-  // the TPS camera, then draws the flight between them as a straight line
-  // in screen space with a perpendicular bow and a vertical apex lift
-  // layered on top, both scaled in px by a smooth interpolation of the
-  // camera's own local px-per-yard at each endpoint. Earlier rounds
-  // projected the model-space lerp(tee, landing, t) at every t, which
-  // routes the visible path through the interior of camera_tps.json's own
-  // fitted warp -- a smooth surface in the TPS's own leave-one-out sense,
-  // but not smooth enough along an arbitrary diagonal path to stay
-  // monotonic (art/README.md, "Round six, camera correction," documents
-  // the same green-complex transition, y about 124-140yd, as a fit seam).
-  // Sampling pxPerYardAt at every intermediate t hits that seam too and
-  // wobbles the apex lift enough to fold the path a second and third time;
-  // interpolating the two endpoint scales instead keeps the lift a clean
-  // single hump. Anchoring the endpoints (not the interior) keeps tee
-  // placement and landing position exactly where the camera puts them --
-  // only the shape in between is a rendering choice.
+  // projects only the shot's two endpoints -- tee (through the tee
+  // similarity) and landing (through the green/short shape-affine) --
+  // then draws the flight between them as a straight line in screen space
+  // with a perpendicular bow and a vertical apex lift layered on top, both
+  // scaled in px by a smooth interpolation of the camera's own local
+  // px-per-yard at each endpoint. Anchoring the endpoints (not the
+  // interior) keeps tee placement and landing position exactly where the
+  // camera puts them -- only the shape in between is a rendering choice.
   function arcPoint(shot, t){
     var curve = shot.curve_yd || 0;
     var bow = Math.sign(curve) * Math.min(Math.abs(curve), MAX_BOW_YD);
-    var teeX = shot.tee.x * TEE_SPREAD_SCALE;
+    var teeX = shot.tee.x;
     var teeY = shot.tee.y;
     var landX = shot.landing.x;
-    // Clamp to the TPS's trusted depth (playfield_y_max_yd) so a shot
-    // landing past it settles at the clipped edge instead of drawing over
-    // the tree line -- same rule the scatter cloud uses in bakeScatter.
-    var landY = Math.min(shot.landing.y, cam.playfield_y_max_yd);
+    var landY = shot.landing.y;
 
-    var p0 = project(teeX, teeY, cam);
+    var p0 = projectTee(teeX, teeY, cam);
     var p1 = project(landX, landY, cam);
 
     var scaleTee = Math.min(pxPerYardAt(teeY, cam), MAX_ARC_LIFT_SCALE);
@@ -395,11 +389,15 @@ function init(){
 
     var px = baseX + bowPx;
     var py = baseY - liftPx;
-    var xModelAtT = lerp(teeX, landX, t);
-    py = Math.max(py, playfieldLimitPy(xModelAtT, cam) - DEPTH_CLIP_MARGIN_PX);
+    // Never draw above the hero art's own horizon line (the tree canopy),
+    // by more than a small margin -- camera_hero.json's horizon_px is a
+    // single nominal top-of-frame value (see art/README.md), not a
+    // per-x line, so this clamp is a flat one rather than a projected one.
+    py = Math.max(py, cam.horizon_px + DEPTH_CLIP_MARGIN_PX);
 
     var screen = toScreen(px, py);
-    var yModelAtT = Math.min(lerp(teeY, landY, t), cam.playfield_y_max_yd);
+    var xModelAtT = lerp(teeX, landX, t);
+    var yModelAtT = lerp(teeY, landY, t);
     return { px: screen[0], py: screen[1], x: xModelAtT, y: yModelAtT };
   }
 
@@ -413,7 +411,7 @@ function init(){
     ctx.lineWidth = 1;
     ctx.beginPath();
     tee.forEach(function(pt, i){
-      var proj = project(pt[0], pt[1], cam);
+      var proj = projectTee(pt[0], pt[1], cam);
       var s = toScreen(proj[0], proj[1]);
       if (i === 0) ctx.moveTo(s[0], s[1]); else ctx.lineTo(s[0], s[1]);
     });
@@ -632,13 +630,11 @@ function init(){
   function bakeScatter(ctx, alpha){
     scatterPointsForDraw().forEach(function(p){
       var x_yd = p[0], y_yd = p[1];
-      // Drop points beyond the TPS's trusted depth (playfield_y_max_yd) or
-      // that would project above that line's own fitted image -- those are
-      // the dots that otherwise appear floating over the tree line.
-      if (y_yd > cam.playfield_y_max_yd) return;
       var proj = project(x_yd, y_yd, cam);
-      if (proj[1] < playfieldLimitPy(x_yd, cam) - DEPTH_CLIP_MARGIN_PX) return;
-      if (proj[0] < 0 || proj[0] > cam.canvas.width || proj[1] > cam.canvas.height) return;
+      // Clip to camera_hero.json's own playfield_polygon_px -- the dots
+      // that would otherwise float over the tree line or off the sides of
+      // the frame land outside this polygon by construction.
+      if (!pointInPolygon(proj, cam.playfield_polygon_px)) return;
       var s = toScreen(proj[0], proj[1]);
       var color = REGION_COLOR[p[2]] || COLORS.ink;
       ctx.fillStyle = withAlpha(color, alpha);

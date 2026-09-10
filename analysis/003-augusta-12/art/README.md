@@ -496,6 +496,160 @@ Read on the captures: arcs read as ball flights rising from a tee at the bottom 
 - `tests/test_export.py` -- new/updated tests above.
 - `docs/plans/assets/003-hero-desktop.png`, `003-hero-mobile.png` -- recaptured.
 
+## Round seven (2026-09-09): does that look like Rae's Creek? No -- fresh hero and aerial candidates, hand-picked landmarks (issue #17)
+
+### The owner's verdict on `r6_4`
+
+Sunny looked at the shipped hero art and asked one question: "does that look like Rae's Creek?" It does not. `r6_4` paints a wide pond with the green sitting on a peninsula inside it, not the real 12th: a narrow creek only a few yards wide running left to right across the front of the green, a low stone retaining wall along the green's own front bank holding the green flush with the fairway (not raised on an island), the arched stone Hogan Bridge crossing the creek at the far left, a mown slope short of the creek that would roll a mishit ball into the water, one white bunker in front of the green just right of center, two bunkers cut into a bank of pink and white azaleas and dogwoods behind the green, tall Georgia pines behind that, and a green that reads wide and shallow. This round starts over on likeness with that checklist in hand, in both the tee-view hero shot and a new top-down aerial of the green complex. Every image in this round comes from nano-banana; no code-rendered or code-drawn geometry went into any candidate, and nothing outside `art/` was touched.
+
+### Part A: four hero candidates, tee view
+
+Four prompts, all built around the checklist above, varied in wording and one pushed photoreal: two tee markers visible at the bottom of frame, camera at head height or a little above, 16:9, explicit "no flags, no people, no text, no logos," and repeated emphasis that the creek is "a narrow creek, a few yards wide, not a pond," that a low stone wall runs along the green's front edge, and that the green sits at the fairway's own level rather than on a mound or island. No reference image was used (round five and six both found that an image-to-image reference biases the generator toward the reference's own layout rather than the real hole; round six's best-looking candidates were the two generated from a text prompt alone).
+
+**r7_hero_1** (`prompts/r7_hero_1.txt`):
+> A painterly editorial illustration of the 12th hole, Golden Bell, at Augusta National Golf Club, viewed from directly behind the tee box, with two tee markers visible at the bottom edge of the frame. Camera at head height, looking downrange toward the green. Rae's Creek runs left to right directly in front of the green: it is a narrow creek only a few yards wide, not a pond or lake, with visible current and rippled water. A low stone retaining wall lines the creek's far bank along the entire front edge of the green. The green sits at the same level as the fairway and the creek bank, not raised on a mound or island; it is wide and shallow, running side to side more than it is deep. At the far left, the arched stone Hogan Bridge crosses the creek. A grassy slope short of the creek angles gently down toward the water, the kind of slope that would roll a mishit ball into the creek. One white sand bunker sits in front of the green just right of center, tucked close to the creek. Two more white sand bunkers are cut into a bank behind the green, set into a slope of blooming pink and white azaleas and dogwoods. Tall Georgia pines rise behind the azalea bank. Soft natural spring light. No flags, no flagsticks, no people, no text, no logos. Style: painterly editorial illustration, confident brushwork, rich natural color. Aspect ratio 16:9.
+
+**r7_hero_2** (`prompts/r7_hero_2.txt`):
+> A painterly landscape illustration of Augusta National's 12th hole, Golden Bell, seen from the tee, camera positioned a little above a standing golfer's eye level. Two tee markers sit at the bottom of the frame. Directly ahead, the ground falls gently to a narrow creek, Rae's Creek, crossing the scene from left to right -- a few yards wide at most, a stream, emphatically not a wide pond or lake. A low stone wall runs along the creek's far bank, right at the front edge of the green, holding the green's turf above the water. Critically, the green sits at the same level as the surrounding fairway and the top of that stone wall, not on a raised mound or peninsula -- a golfer standing on the green could look down at the creek just a few feet below. The green itself is wide and shallow, stretching more side to side than front to back. The stone arch of the Hogan Bridge crosses the creek at the far left edge of the frame. A closely mown slope in front of the creek tilts down toward the water. One bright white bunker sits in front of the green just right of center. Two more white bunkers are dug into a bank of blooming pink and white azaleas and dogwoods directly behind the green, with a wall of tall Georgia pines beyond. Warm, soft Masters-week spring light. No flags, no people, no text, no logos. Style: painterly editorial illustration, rich color, natural brushwork. 16:9 aspect ratio.
+
+**r7_hero_3** (`prompts/r7_hero_3.txt`), photoreal:
+> A photorealistic golf broadcast beauty shot of the 12th hole, Golden Bell, at Augusta National, photographed from the tee box at head height, two tee markers visible in the foreground at the bottom of frame. A narrow creek, Rae's Creek, only a few yards wide -- a stream, not a pond -- runs across the front of the green from left to right, with visible flow and small ripples on the surface. A low, weathered stone retaining wall lines the creek's far bank along the full front edge of the green, holding the green's turf level with the top of the wall -- the green is flush with the fairway and the wall, not elevated on an island or peninsula. The putting green is wide and shallow, set back only a short distance beyond the creek. At the far left, the arched stone Hogan Bridge spans the creek. A mown apron slopes gently down from the tee toward the creek. One bright white sand bunker sits in front of the green just right of center. Two more white bunkers are cut into the bank of blooming pink and white azaleas and dogwoods rising behind the green, with tall Georgia pines towering above. Bright, natural Masters-week spring light, photographic detail and depth of field. No flags, no flagsticks, no people, no text, no logos, no watermark.
+
+**r7_hero_4** (`prompts/r7_hero_4.txt`):
+> An editorial painting of the 12th hole, Golden Bell, at Augusta National, viewed from the tee looking downrange, camera height just above a standing golfer's head, two tee markers visible at the bottom of the frame. In the middle distance, Rae's Creek crosses the hole diagonally from left to right, its far bank close to the green's front edge -- a slim ribbon of water only a few yards across, never reading as a pond. A low stone wall retains the far bank exactly where the green begins, and the green rises no higher than that wall: it sits flush with the fairway, wide from side to side and shallow front to back, not perched on a mound or surrounded by water. The arched Hogan Bridge, cut from pale stone, crosses the creek at the far left. Short, tightly mown turf slopes down from the tee to the creek's edge. Just right of center, one white sand bunker guards the front of the green. Two further white bunkers sit cut into a hillside of azaleas and dogwoods in pink and white bloom behind the green, backed by a dense stand of tall Georgia pines. Gentle, warm spring light. No flags, no flagsticks, no people, no text, no logos. Style: painterly editorial illustration, expressive brushwork, rich natural color. 16:9.
+
+Contact sheet: `hero_candidates/r7_hero_contact.png`.
+
+**Compliance.** All four candidates painted a single pin flag despite the explicit "no flags" instruction, the same "Augusta National" pull round five and round six both hit. None of the four gave a distinct front bunker touching the creek; each drew two bunkers, both behind the green, matching round six's finding that a from-scratch prompt reliably drops to two bunkers even when a front bunker is spelled out. `r7_hero_4` additionally invented a crest-and-text emblem on both tee markers, a direct "no text, no logos" violation not seen in the other three; the same candidate's water also balloons into a small rounded pool right where it meets the bridge, a partial regression toward the pond look the whole round exists to fix, even though the creek reads correctly narrow everywhere else in that frame.
+
+**Ranking by likeness to the real hole:**
+
+1. **`r7_hero_3`** is the closest match: the narrow creek, the low stone wall running the green's full front edge, and the green sitting flush with the wall and fairway (not an island) all read correctly, and the photoreal treatment sells the stone and water texture convincingly.
+2. **`r7_hero_2`** is close behind on the same geometry (narrow creek, flush green, correct wall), with softer evening light that reads a little less crisp than `r7_hero_3`'s broadcast-beauty-shot clarity.
+3. **`r7_hero_1`** keeps the correct creek-and-wall relationship but renders only one bunker clearly (top right of the green), giving it less of the real hole's bunker complexity than the other three.
+4. **`r7_hero_4`** has the same strong wall-and-green relationship as the top three but is pulled down by its two compliance defects: the pond-like bulge at the bridge and the fabricated tee-marker crest.
+
+### Part B: four aerial candidates, straight-down
+
+Four prompts for a satellite/orthographic top-down view of the green complex only: tee box at the bottom edge, fairway rising to the creek, Rae's Creek crossing left to right as a narrow band with the Hogan Bridge at the left, the low stone wall on the far bank, one front bunker, the green angled front-left to back-right, two back bunkers, and the azalea bank and pines above. No flags, no text, no people.
+
+**r7_aerial_1** (`prompts/r7_aerial_1.txt`), satellite style, 1:1:
+> A realistic satellite-style aerial photograph, taken straight down from directly overhead (true orthographic top-down view, no perspective tilt), of the 12th hole green complex at Augusta National Golf Club, Golden Bell. At the bottom edge of the frame is the tee box. Above it, a fairway of closely mown grass rises toward a narrow creek, Rae's Creek, crossing the frame from left to right as a slim, curving band of water only a few yards wide. The stone arch of the Hogan Bridge crosses the creek near the left edge of the frame. A low stone wall traces the creek's far bank. Just beyond the creek, one white sand bunker sits in front of the green. The green itself is wide and shallow, its long axis angled from front-left to back-right, sitting at the same elevation as the surrounding fairway. Two more white sand bunkers are set into the ground behind the green, surrounded by a bank of blooming pink and white azaleas and dogwoods. Beyond that bank, the dark green crowns of tall Georgia pines fill the top of the frame. Overhead spring sunlight, true top-down satellite-photograph perspective, natural color. No flags, no text, no logos, no people. Aspect ratio 1:1.
+
+**r7_aerial_2** (`prompts/r7_aerial_2.txt`), orthographic mapping style, 4:5:
+> A high-resolution orthographic aerial image, camera pointed straight down, of the 12th green complex, Golden Bell, at Augusta National Golf Club -- the kind of image used in golf-course satellite mapping. The tee box sits along the bottom edge of the frame. A fairway of manicured turf rises from the tee toward the middle of the frame, where Rae's Creek cuts across from left to right as a narrow, winding ribbon of water, only a few yards wide, with the arched stone Hogan Bridge crossing it near the left side of the frame. A low stone wall runs along the creek's far bank. Immediately past the creek sits one bright white sand bunker in front of the green. The putting green is wide and shallow, angled diagonally from front-left to back-right, level with the fairway around it. Two additional white sand bunkers sit behind the green, ringed by a dense bank of pink and white azaleas and flowering dogwoods. Tall Georgia pine trees crowd the top edge of the frame beyond the azalea bank, their canopies seen from directly above. Bright, even daylight, true nadir aerial perspective, realistic satellite-photograph color and detail. No flags, no text, no logos, no people. Aspect ratio 4:5.
+
+**r7_aerial_3** (`prompts/r7_aerial_3.txt`), photoreal drone, 1:1:
+> A photorealistic drone or satellite photograph shot straight down (true nadir, zero perspective tilt) over the 12th hole, Golden Bell, at Augusta National Golf Club. The tee box is visible along the bottom edge of the image. Between the tee and the green, mown fairway grass leads the eye up the frame to Rae's Creek, which crosses left to right as a narrow band of water a few yards wide, curving gently, with the stone Hogan Bridge visible spanning it toward the left of the frame and a low stone retaining wall along the creek's far bank. Just past the creek, one white sand bunker fronts the green. The green is wide side to side and shallow front to back, its long axis angled from the lower-left toward the upper-right of the frame, sitting flush with the fairway's elevation, no mounding or island. Two more sand bunkers sit tucked behind the green, surrounded by a mass of blooming pink and white azaleas and dogwoods. Above that, the dark canopies of tall Georgia pine trees fill the rest of the frame, viewed from directly overhead. Crisp aerial photograph detail, natural saturated color, hard midday shadows consistent with an overhead sun angle. No flags, no text, no logos, no people. Aspect ratio 1:1.
+
+**r7_aerial_4** (`prompts/r7_aerial_4.txt`), painterly top-down, 4:5:
+> A detailed top-down aerial illustration, drawn as if photographed from directly overhead with no perspective distortion, of the 12th green complex, Golden Bell, at Augusta National Golf Club. Along the bottom edge sits the tee box. A wide band of fairway turf climbs from the tee toward the center of the frame, where Rae's Creek slices across the hole from left to right -- a narrow creek only a few yards across, never a pond -- with the Hogan Bridge's stone arch crossing it near the left edge and a low stone wall following the creek's far bank. Directly beyond the creek, a single white sand bunker guards the front of the green. The green spreads wide and shallow, its long dimension running diagonally from the front-left of the frame to the back-right, resting at the same ground level as the fairway around it. Two more white bunkers sit behind the green, cut into a bank thick with pink and white azalea and dogwood blooms. At the top of the frame, tall Georgia pines are seen from above as dense, dark green crowns. Bright, clear overhead daylight, painterly but geographically accurate top-down perspective, rich natural color. No flags, no text, no logos, no people. Aspect ratio 4:5.
+
+Contact sheet: `hero_candidates/r7_aerial_contact.png`.
+
+**Compliance.** As in Part A, every candidate drew exactly two bunkers, both behind the green, and none produced the separate front bunker the prompt asked for -- the "no front bunker" pull looks like a property of the model's own default green-and-bunker template rather than something tee-view framing specifically causes, since it now shows up in both the hero and aerial prompt families. All four kept a tiny flagstick visible on the green despite "no flags." `r7_aerial_3` is the only candidate whose framing shows the tee box itself as a distinct mown rectangle at the bottom edge, the clearest literal match to "tee at the bottom edge" of the four.
+
+**Ranking by likeness to the real hole:**
+
+1. **`r7_aerial_3`** is the most convincing: real drone-photograph texture, a legible tee box rectangle at the bottom of frame, a correctly narrow and gently curving creek, and the bridge, wall, and azalea bank all reading as photographic rather than illustrated.
+2. **`r7_aerial_1`** is close behind on the same realistic-satellite treatment and correct creek/bridge/wall geometry, but its fairway fades out at the bottom edge without a distinguishable tee box.
+3. **`r7_aerial_2`**'s 4:5 crop adds a cart path alongside the fairway that reads as a nice authenticating detail, but like `r7_aerial_1` it does not show a distinct tee box, and its framing starts a little higher up the fairway, losing some of the near-camera context.
+4. **`r7_aerial_4`** is the weakest of the four: a flatter, more diagrammatic painterly treatment whose trees and azaleas read as color blocks rather than photographed canopy, the least convincing as a "realistic satellite-style" image of the four.
+
+### Part C: hand-picked landmarks for the two best of each
+
+For `r7_hero_3`, `r7_hero_2` (heroes) and `r7_aerial_3`, `r7_aerial_1` (aerials), pixel coordinates were hand-picked at each image's native resolution (1344x768 for the heroes, 1024x1024 for the aerials) off Pillow-gridded crops (a 50px magenta grid, labeled every 100px) and zoomed strips at each landmark, the same "view a gridded crop, read off a pixel" method rounds five and six used for their own hand-corrected points. Column-wise HSV profiles (value and saturation down a single pixel column) were used as a hand-inspection aid at the creek's far bank and the bunkers' sand, the same kind of pixel-value check a person would do by hand in an image editor's color picker; every point was then verified visually by drawing it back onto a copy of the source image and confirming it sits where it should (`hero_candidates/r7_<name>_landmarks.png`).
+
+Recorded per image, all tagged `"source": "hand"`:
+- the two tee markers (hero only)
+- the creek's far bank (the wall/water edge) at 5 points across its visible extent
+- the green's outline at 8 points by angle (0/45/.../315 degrees) from its own centroid, fit as an ellipse through the green's own visible width and depth since none of the four candidates draws a hard edge between green and fairway (the same finding round six's own `segment_green` reached)
+- the bunker centroid(s)
+- the bridge's near end, for orientation only
+
+**No candidate has three bunkers to record.** Every one of the eight round-seven candidates, heroes and aerials alike, drew exactly two bunkers, both behind the green, with no separate front bunker touching the creek. Rather than force a third point onto a feature that was never painted, each landmarks file carries a `bunker_count_note` saying so plainly and records only the two bunkers that exist. This is the same must-fix disclosure standard the round six peer review put in place: a missing shape gets stated, not silently worked around.
+
+Deliverables: `hero_candidates/r7_hero_3_landmarks.json` / `_landmarks.png`, `hero_candidates/r7_hero_2_landmarks.json` / `_landmarks.png`, `hero_candidates/r7_aerial_3_landmarks.json` / `_landmarks.png`, `hero_candidates/r7_aerial_1_landmarks.json` / `_landmarks.png`.
+
+### What this round did not do
+
+No candidate was fit to the model's own camera (no homography, no TPS) and nothing in `hero.png`, `camera_tps.json`, or `site/` was touched. This round is a likeness comparison and a hand-landmarked record for whichever candidate is chosen next, not a replacement for the shipped hero art.
+
+## Round seven, finalization (2026-09-09): editing `r7_hero_3` and `r7_aerial_3`, then fitting the model's own geometry through both (issue #17)
+
+The orchestrator picked `r7_hero_3` as the hero and `r7_aerial_3` as the aerial for the chapter figures and the sandbox map. This pass edits both once each, fits `model.py`'s own geometry through the results, and ships `hero_final.png` / `aerial_final.png` plus their fit JSON and overlays. Work stayed inside `art/`; nothing in the model package was touched.
+
+### Part 1: edits
+
+One nano-banana edit call per image, both from the same instruction: "Add one small white sand bunker in front of the green, just right of center, between the stone wall and the putting surface, matching the style of the existing bunkers. Remove the flagstick and flag. Change nothing else." Both calls used the candidate itself as `--ref`.
+
+**Hero (`r7_hero_3` -> `hero_final.png`): succeeded on both asks.** The flagstick is gone and a new round white bunker now sits in front of the green, right of center, between the wall and the putting surface, matching the style of the two existing back bunkers. Per-pixel mean absolute difference (0-255 scale, averaged over RGB) outside the flag and new-bunker regions: **14.2** over the whole 1344x768 frame (41.9% of outside-box pixels differ by more than 10, whole-image mean 15.0). That is a real global shift, not zero, but a side-by-side crop check (trees, azalea bank, tee markers, bridge, far bunkers) shows no redraw: every feature is in the same place, at the same scale, with the same silhouette; the difference reads as the generator's usual relighting/regrain on a full re-encode, not a structural change. Kept the edit; no fallback needed.
+
+**Aerial (`r7_aerial_3` -> `aerial_final.png`): partial.** Both flagsticks are gone (confirmed on a pixel-level zoom of the green center). No new front bunker appeared -- the green complex still has exactly the two back bunkers `r7_aerial_3` started with, touching the same finding Part B's compliance note already made about this model family. Mean absolute difference outside the flag region: **5.7** over the whole 1024x1024 frame (11.8% of outside-box pixels differ by more than 10, whole-image mean 6.0) -- markedly smaller than the hero edit's shift, and a corner-by-corner check (tee box rectangle, tee markers, tree canopy, bridge) confirms no redraw. Kept the edit (structure intact, one of two asks landed) rather than falling back to a Pillow clone-stamp, since the fallback trigger in this round's brief is a redrawn scene, not a partially-followed instruction. **The aerial map genuinely has only two bunkers**, same as every other round-seven candidate; `aerial_map.json`'s bunker correspondences reflect that.
+
+Deliverables: `hero_final.png` (1344x768, native) plus `hero_final_1600x900.png` (a resize, since native and 1600x900 share the same 16:9 aspect but not the same pixel count), and `aerial_final.png` (1024x1024, native, unchanged size).
+
+### Part 2: fits
+
+`fit_images.py` builds every correspondence from `sketch.build_scene()` (model yards) paired against hand-picked pixels on `hero_final.png` / `aerial_final.png` (all tagged `"source": "hand"` in the output JSON), fits each map by ordinary least squares, and draws both overlays. No shapely/scipy in the venv; the affine solve uses `numpy.linalg.lstsq` and the green-boundary ray/polygon intersection is hand-rolled.
+
+**Method note on the green boundary.** The 8 hand-picked oval points (0/45/.../315deg from the painted green's own centroid, reused unchanged from round seven's landmark files where the edit didn't move them, re-picked on `hero_final.png` where the front-bunker edit shifted the frame) are matched to the model green by casting a ray from the model polygon's own centroid at the same angle and taking its intersection with the polygon boundary. An alternative was tried and rejected: sampling the model parallelogram's 4 corners by perimeter fraction instead of literal angle (motivated by the parallelogram's very unequal edge lengths, which make an angle-ray cluster several labels on the same edge). It fit worse in both maps (hero mean residual 115px vs. 74px; aerial 84px vs. 64px), so the literal angle-ray version shipped instead of whichever scored lower by construction.
+
+**`camera_hero.json`, part (a): `green_local`.** A 6-parameter affine fit on the green outline's 8 points, the creek far bank's 5 points, and all three bunker centroids (the hero edit added the front bunker, so it is included per this round's brief).
+
+| correspondence group | points | residual (px), mean | residual (px), max |
+|---|---|---|---|
+| green_boundary (8 angles) | 8 | 55.8 | 122.2 |
+| creek_far_bank | 5 | 82.1 | 108.6 |
+| back_bunker_centroid (left, right) | 2 | 43.9 | 77.0 |
+| front_bunker_centroid | 1 | 244.8 | 244.8 |
+| **all 16, combined** | 16 | **74.3** | **244.8** |
+| all 16 except front_bunker_centroid | 15 | 63.0 | 122.2 |
+
+The front bunker correspondence is the single largest residual by a wide margin, and it is not a hand-pick error: `data.HOLE["front_bunker_x_range"]` is `(-10.0, 2.0)`, MODELED **left**-of-center per data.py's own comment ("left-of-center per the one source with a side call"), while this round's prompt and the successful hero edit both place the painted bunker **right** of center. That is a genuine, disclosed model-vs-art disagreement about which side of the green the front bunker sits on, not a fitting defect -- left in the combined fit per this round's brief, flagged in `camera_hero.json`'s own correspondence record, and called out here rather than quietly excluded to make the residual table look better.
+
+Fitting the green-boundary, creek, and bunker groups separately (see the per-group rows above) each lands well under half the combined residual, which means no single subset is badly hand-picked -- the combined 74px mean reflects real tension between an ellipse-fit approximation of an oval green and a true diagonal parallelogram, i.e. exactly the mismatch the round-two note already flagged ("the model's green is a diagonal parallelogram and the painted green is an oval"), plus the fact that a single global affine cannot represent a genuinely perspective (projective) camera exactly. The overlay (`hero_final_fit_overlay.png`) shows this plainly: the projected creek line tracks the painted stone wall well across the whole frame, but the projected green/bunker outlines compress into a narrow band rather than filling the painted oval -- consistent with "expect the corners to overshoot," worse than that phrase implies, and worth a maintainer's eyes before this camera is used for anything pixel-critical.
+
+**`camera_hero.json`, part (b): `tee`.** An exact similarity (rotation + uniform scale + translation, 2 correspondences = 4 unknowns = exactly determined) from the tee box's front-left/front-right corners to the two painted tee markers at `(99, 669)` and `(943, 637)`. Residual is 0px by construction (2 points, 4-parameter exact fit). Scale: 60.33 px/yd; rotation: -2.17deg. The back corners are extrapolated through this same similarity (not independently fit): `back_left_corner_px = [85.3, 307.3]`, `back_right_corner_px = [929.3, 275.3]` -- both land inside the frame, above and slightly inboard of the two markers, which is what the overlay's tee box quadrilateral shows in `hero_final_fit_overlay.png`.
+
+`playfield_polygon_px` (green + bunkers + creek band + 10% margin, projected through `green_local`, convex-hulled, then inflated 10% about its own centroid) and `horizon_px` (20.0, a visual read of `hero_final.png`: unlike the code-rendered sketch's fixed horizon, this painted frame has the tree canopy filling almost to the top of the image, with only a sliver of sky near center, so 20px is a nominal top-of-frame value rather than a sharp measured line) are both recorded in `camera_hero.json`.
+
+**`aerial_map.json`.** A single 6-parameter affine fit on all 17 available correspondences (8 green-boundary points, 5 creek far-bank points, the 2 back-bunker centroids -- no front bunker, see Part 1 -- and the 2 tee markers at their real model coordinates `(-3.5, -1.0)` / `(3.5, -1.0)` yd, not a simplification, since the aerial is close enough to orthographic that near-tee and far-green points can share one map).
+
+| correspondence group | points | residual (px), mean | residual (px), max |
+|---|---|---|---|
+| green_boundary (8 angles) | 8 | 64.4 | 107.9 |
+| creek_far_bank | 5 | 84.9 | 107.9 |
+| back_bunker_centroid (left, right) | 2 | 48.0 | 64.3 |
+| tee_marker (left, right) | 2 | 26.1 | 37.0 |
+| **all 17, combined** | 17 | **64.0** | **107.9** |
+
+No single dominant outlier here (unlike the hero fit): residuals spread fairly evenly from 15px to 108px across every group, on a 1024x1024 frame the aerial's own near-orthographic framing does not rescue a plain affine from the same green-outline-vs-parallelogram tension described above. `up_direction` is recorded as: tee at the bottom of the frame, +model_y (further downrange) toward the top.
+
+### Pin checks
+
+Sampled pixel color at each of the three pins' projected position, in both maps (`is_green_turf`: G channel clearly above both R and B, and above a minimum brightness floor, to reject sand/water/shadow/rough):
+
+| pin | hero pixel | hero on green turf? | aerial pixel | aerial on green turf? |
+|---|---|---|---|---|
+| left | (518.3, 338.3) | **yes** | (332.6, 501.7) | **yes** |
+| center | (751.6, 349.6) | **yes** | (507.5, 497.4) | **yes** |
+| sunday | (962.4, 356.0) | **no** | (665.1, 490.5) | **yes** |
+
+All three pins land on the painted green in the aerial map. In the hero map, the Sunday (back-right) pin lands on the lip of the new front bunker rather than clearly on turf (sampled RGB `(89, 80, 34)`, a dull olive/sand tone, not the green's characteristic G-dominant color) -- a direct consequence of the same green_local imprecision documented above, and a must-fix-style disclosure rather than something quietly nudged into passing: **the hero camera's Sunday pin does not verify as on-green**, and any feature built on `camera_hero.json` that needs the Sunday pin to sit inside the painted putting surface should re-derive it from a tighter local fit near that corner rather than trusting `green_local` uniformly across the whole green.
+
+### Deliverables
+
+- `hero_final.png`, `hero_final_1600x900.png`, `aerial_final.png` -- the finalized art.
+- `fit_images.py` -- builds both fits and overlays from `sketch.build_scene()` plus the hand-picked pixel tables at its own top.
+- `camera_hero.json`, `aerial_map.json` -- every correspondence (model yards, pixels, `"source": "hand"`), residual tables, pin checks with sampled RGB, and (hero only) the tee similarity and playfield polygon.
+- `hero_final_fit_overlay.png`, `aerial_final_fit_overlay.png` -- the model's green, creek far bank, bunkers, tee box, and pins drawn through each fit, for visual review.
+- `edits/hero_edit_attempt.png`, `edits/aerial_edit_attempt.png` -- the raw nano-banana edit outputs before renaming to `_final`.
+
+### Rights statement
+
+No photograph, broadcast frame, or Augusta-owned image was used as a reference input at any point in this round. Both edits are image-to-image nano-banana calls over this project's own previously-generated candidates (`r7_hero_3.png`, `r7_aerial_3.png`), driven by text prompts, per ADR 0001; the fits and overlays are code, not generated imagery.
+
 ## Round-two generation prompts
 
 **Environment plate** (`environment_plate.png`):

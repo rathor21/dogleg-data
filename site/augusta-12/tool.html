@@ -62,9 +62,9 @@ header p{font-size:14px;color:var(--ink-soft);max-width:70ch;margin-bottom:4px;}
 .controls{display:flex;flex-wrap:wrap;gap:22px;margin-bottom:22px;padding-bottom:20px;border-bottom:1px solid var(--line);}
 .control{display:flex;flex-direction:column;gap:7px;min-width:170px;flex:1;}
 .control label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
-.control select, .control input[type=range]{width:100%;}
-.control select{padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);font-family:var(--sans);font-size:14px;background:#FFFFFF;color:var(--ink);}
-.control select:hover{border-color:var(--clay);}
+.control select, .control input[type=range], .control input[type=number]{width:100%;}
+.control select, .control input[type=number]{padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);font-family:var(--sans);font-size:14px;background:#FFFFFF;color:var(--ink);}
+.control select:hover, .control input[type=number]:hover{border-color:var(--clay);}
 .control input[type=range]{accent-color:var(--clay);height:22px;cursor:pointer;}
 .control .val{font-family:var(--mono);font-size:12.5px;font-weight:500;color:var(--clay-text);text-transform:none;letter-spacing:0;}
 .control .hint{font-size:10.5px;color:var(--muted);line-height:1.4;margin-top:2px;}
@@ -180,6 +180,11 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
         <div class="hint">The model treats your carry as the aim depth. The hole plays 155 yards from the tee.</div>
       </div>
       <div class="control">
+        <label for="sb-lateral">Left or right of the flag (yards)</label>
+        <input type="number" id="sb-lateral" min="-20" max="20" step="1" value="0">
+        <div class="hint">Negative is left, positive is right.</div>
+      </div>
+      <div class="control">
         <label for="sb-pin">Pin</label>
         <select id="sb-pin"></select>
       </div>
@@ -213,13 +218,10 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
           <title id="sb-map-title">Top-down map of Augusta's 12th green complex</title>
         </svg>
         <div class="map-legend">
-          <span class="item"><span class="swatch" style="background:#8FA7C2;"></span>Rae's Creek</span>
-          <span class="item"><span class="swatch" style="background:#DCCBA5;"></span>Bunker</span>
-          <span class="item"><span class="swatch" style="background:#F0E9D9;border:1px solid #C9BC9F;"></span>Green</span>
           <span class="item"><span class="swatch" style="background:#C05A36;border-radius:50%;"></span>Your aim</span>
           <span class="item"><span class="swatch" style="background:transparent;border:2px solid #1C1B18;border-radius:50%;"></span>Model's aim</span>
         </div>
-        <div class="map-note">Dashed ellipse: your tier's 1&sigma; dispersion oval at this aim, inflated when wind is on. Drag or use arrow keys to move the clay marker.</div>
+        <div class="map-note">Dashed ellipse: your tier's 1&sigma; dispersion oval at this aim, inflated when wind is on. Drag or use arrow keys to move the clay marker, or type the carry and left/right numbers above.</div>
       </div>
     </div>
   </div>
@@ -339,7 +341,7 @@ function describeAim(lateralOffset, carryOffset, pinLower){
 // ---------------------------------------------------------------------
 // State + DOM
 // ---------------------------------------------------------------------
-let grids = null, manifest = null;
+let grids = null, manifest = null, aerialMap = null;
 const state = { tier: 15, pin: "center", wind: false, lateral: 0 };
 
 const els = {
@@ -353,6 +355,7 @@ const els = {
   windHint: document.getElementById("sb-wind-hint"),
   carry: document.getElementById("sb-carry"),
   carryVal: document.getElementById("sb-carry-val"),
+  lateral: document.getElementById("sb-lateral"),
   kpiScore: document.getElementById("kpi-score"),
   kpiWater: document.getElementById("kpi-water"),
   kpiGreen: document.getElementById("kpi-green"),
@@ -376,14 +379,31 @@ const MAP_H = (Y_MAX - Y_MIN) * SCALE;
 
 function sx(xYd){ return (xYd - X_MIN) * SCALE; }
 function sy(yYd){ return MAP_H - (yYd - Y_MIN) * SCALE; }
-function pathFromPoly(poly){
-  return poly.map((p, i) => (i === 0 ? "M" : "L") + sx(p[0]).toFixed(1) + "," + sy(p[1]).toFixed(1)).join(" ") + "Z";
-}
 const svgNS = "http://www.w3.org/2000/svg";
 function el(tag, attrs){
   const e = document.createElementNS(svgNS, tag);
   for(const k in attrs) e.setAttribute(k, attrs[k]);
   return e;
+}
+
+// ---------------------------------------------------------------------
+// Aerial photo placement: an unrotated similarity (uniform scale +
+// translate), not the full fitted affine, on purpose. aerial_map.json's
+// affine registers model yards to the photo's own pixels exactly, but its
+// rotation (real, needed to make that registration exact) makes the
+// photo itself render tilted if applied to the <image> directly. This
+// page's marker/oval math (sx/sy below, unchanged, per this round's
+// brief) already draws a clean unrotated top-down grid, so the photo is
+// scaled by the fitted affine's own average px/yd magnitude and anchored
+// so the green's fitted centroid lands exactly on that same grid's
+// sx/sy(centroid) point -- exact at the green, and close nearby, with any
+// drift growing only toward the crop's edges (the creek, the tee) where a
+// single unrotated scale cannot fully capture the fitted rotation.
+// ---------------------------------------------------------------------
+function aerialAverageScale(){
+  const A = aerialMap.affine;
+  const colX = [A[0][0], A[1][0]], colY = [A[0][1], A[1][1]];
+  return (Math.hypot(colX[0], colX[1]) + Math.hypot(colY[0], colY[1])) / 2; // aerial px per model yd
 }
 
 let markerEl = null, optimumEl = null, ovalEl = null, dragging = false;
@@ -399,23 +419,24 @@ function buildStaticMap(){
   const g = el("g", {id: "sb-map-geometry"});
   svg.appendChild(g);
 
-  // rough / background
+  // rough / background: a plain fallback fill, shown if the aerial photo
+  // is slow to load; the aerial <image> below draws over it once ready.
   g.appendChild(el("rect", {x: 0, y: 0, width: MAP_W, height: MAP_H, fill: "#EFE6D4"}));
 
-  // fairway
-  const geo = manifest.geometry_yd;
-  g.appendChild(el("path", {d: pathFromPoly(geo.fairway), fill: "#E7DDC5", stroke: "#D8CBAC", "stroke-width": 1}));
-
-  // creek
-  g.appendChild(el("path", {d: pathFromPoly(geo.creek.polygon), fill: "#8FA7C2", stroke: "#5B7FA6", "stroke-width": 1}));
-
-  // bunkers
-  geo.bunkers.forEach(b => {
-    g.appendChild(el("path", {d: pathFromPoly(b.polygon), fill: "#DCCBA5", stroke: "#C3AF85", "stroke-width": 1}));
-  });
-
-  // green
-  g.appendChild(el("path", {d: pathFromPoly(geo.green), fill: "#F0E9D9", stroke: "#C9BC9F", "stroke-width": 1.25}));
+  // The hole itself is carried by the aerial photo -- no code-drawn
+  // fairway/creek/bunker/green polygons.
+  const photoScale = SCALE / aerialAverageScale(); // svg px per aerial px
+  const anchorModel = aerialMap.affine_fit.model_centroid_yd;
+  const anchorAerialPx = aerialMap.affine_fit.pix_centroid_px;
+  const anchorSvgX = sx(anchorModel[0]), anchorSvgY = sy(anchorModel[1]);
+  const photoOffX = anchorSvgX - anchorAerialPx[0] * photoScale;
+  const photoOffY = anchorSvgY - anchorAerialPx[1] * photoScale;
+  const [cw, ch] = aerialMap.canvas;
+  g.appendChild(el("image", {
+    href: "/assets/img/003_aerial.png", x: 0, y: 0, width: cw, height: ch,
+    preserveAspectRatio: "none",
+    transform: "matrix(" + photoScale.toFixed(6) + ",0,0," + photoScale.toFixed(6) + "," + photoOffX.toFixed(2) + "," + photoOffY.toFixed(2) + ")"
+  }));
 
   // pins (drawn per-render so the selected one can be emphasized)
   svg.appendChild(el("g", {id: "sb-map-pins"}));
@@ -553,6 +574,11 @@ function populateControls(){
   els.pin.addEventListener("input", render);
   els.wind.addEventListener("input", render);
   els.carry.addEventListener("input", render);
+  els.lateral.addEventListener("input", () => {
+    const v = Number(els.lateral.value);
+    state.lateral = clamp(Number.isFinite(v) ? v : 0, -20, 20);
+    render();
+  });
 }
 
 function populateDisclosure(){
@@ -592,6 +618,7 @@ function render(){
   state.tier = tier; state.pin = pinKey; state.wind = wind;
 
   els.carryVal.textContent = carry + " yd";
+  if(document.activeElement !== els.lateral) els.lateral.value = Math.round(state.lateral);
 
   const tierLabelEl = document.querySelector('label[for="sb-tier"]');
   tierLabelEl.innerHTML = "Handicap" + (OVAL_MODELED_TIERS.includes(tier) ? '<span class="badge-modeled">modeled</span>' : "");
@@ -667,9 +694,10 @@ function render(){
 // ---------------------------------------------------------------------
 Promise.all([
   fetch("/augusta-12/data/003_sandbox_grids.json").then(r => { if(!r.ok) throw new Error("grids fetch failed"); return r.json(); }),
-  fetch("/augusta-12/data/003_manifest.json").then(r => { if(!r.ok) throw new Error("manifest fetch failed"); return r.json(); })
-]).then(([g, m]) => {
-  grids = g; manifest = m;
+  fetch("/augusta-12/data/003_manifest.json").then(r => { if(!r.ok) throw new Error("manifest fetch failed"); return r.json(); }),
+  fetch("/augusta-12/data/aerial_map.json").then(r => { if(!r.ok) throw new Error("aerial map fetch failed"); return r.json(); })
+]).then(([g, m, am]) => {
+  grids = g; manifest = m; aerialMap = am;
   populateControls();
   populateDisclosure();
   buildStaticMap();

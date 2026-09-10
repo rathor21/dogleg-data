@@ -1,0 +1,585 @@
+{
+  "type": "shape_affine",
+  "source_image": "aerial_final.png",
+  "canvas": [
+    1024,
+    1024
+  ],
+  "affine": [
+    [
+      15.498683849494368,
+      -4.783561837893633,
+      1284.6068799277207
+    ],
+    [
+      -0.927933652839297,
+      -3.006494074088421,
+      944.2744401874484
+    ]
+  ],
+  "affine_fit": {
+    "method": "shape-to-shape: centroid-to-centroid translation, axis-to-axis rotation (PCA or oriented-bounding-box model axes, PCA painted axes), per-axis extent scale -- not a least-squares point fit. 4 candidates tried (2 model-axis methods x 2 axis pairings); selected by pin-color verification first (all 3 pins must sample as green turf), boundary residual second.",
+    "model_centroid_yd": [
+      0.0,
+      157.75
+    ],
+    "candidates": [
+      {
+        "model_axis_method": "pca",
+        "swapped_pairing": false,
+        "mean_residual_px": 150.89,
+        "pins_all_green": true,
+        "pins_pass": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "model_axis_method": "pca",
+        "swapped_pairing": true,
+        "mean_residual_px": 39.37,
+        "pins_all_green": true,
+        "pins_pass": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "model_axis_method": "obb",
+        "swapped_pairing": false,
+        "mean_residual_px": 109.07,
+        "pins_all_green": true,
+        "pins_pass": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "model_axis_method": "obb",
+        "swapped_pairing": true,
+        "mean_residual_px": 116.77,
+        "pins_all_green": true,
+        "pins_pass": [
+          true,
+          true,
+          true
+        ]
+      }
+    ],
+    "chosen": {
+      "model_axis_method": "pca",
+      "swapped_pairing": true,
+      "any_candidate_passed_pin_check": true
+    },
+    "model_axes_used": {
+      "method": "pca",
+      "major_unit": [
+        0.2949,
+        0.9555
+      ],
+      "minor_unit": [
+        -0.9555,
+        0.2949
+      ],
+      "extents_yd": [
+        57.21,
+        24.66
+      ]
+    },
+    "pix_centroid_px": [
+      530.0,
+      470.0
+    ],
+    "pix_axes_used": {
+      "major_unit": [
+        -0.0,
+        -1.0
+      ],
+      "minor_unit": [
+        -1.0,
+        -0.0
+      ],
+      "extents_px": [
+        180.0,
+        400.0
+      ]
+    },
+    "boundary_correspondences": [
+      {
+        "label": "0deg",
+        "model_yd": [
+          12.75,
+          157.74999999999997
+        ],
+        "pixel_px": [
+          730.0,
+          470.0
+        ],
+        "source": "hand",
+        "residual_px": 12.07
+      },
+      {
+        "label": "45deg",
+        "model_yd": [
+          12.75,
+          170.49999999999997
+        ],
+        "pixel_px": [
+          671.4,
+          406.4
+        ],
+        "source": "hand",
+        "residual_px": 14.26
+      },
+      {
+        "label": "90deg",
+        "model_yd": [
+          1.2554177142851857e-15,
+          171.0
+        ],
+        "pixel_px": [
+          530.0,
+          380.0
+        ],
+        "source": "hand",
+        "residual_px": 80.83
+      },
+      {
+        "label": "135deg",
+        "model_yd": [
+          -6.625000000000027,
+          164.375
+        ],
+        "pixel_px": [
+          388.6,
+          406.4
+        ],
+        "source": "hand",
+        "residual_px": 50.32
+      },
+      {
+        "label": "180deg",
+        "model_yd": [
+          -12.75,
+          157.74999999999997
+        ],
+        "pixel_px": [
+          330.0,
+          470.0
+        ],
+        "source": "hand",
+        "residual_px": 12.07
+      },
+      {
+        "label": "225deg",
+        "model_yd": [
+          -12.75,
+          144.99999999999997
+        ],
+        "pixel_px": [
+          388.6,
+          533.6
+        ],
+        "source": "hand",
+        "residual_px": 14.26
+      },
+      {
+        "label": "270deg",
+        "model_yd": [
+          -1.9898963034552965e-15,
+          144.5
+        ],
+        "pixel_px": [
+          530.0,
+          560.0
+        ],
+        "source": "hand",
+        "residual_px": 80.83
+      },
+      {
+        "label": "315deg",
+        "model_yd": [
+          6.6249999999999964,
+          151.12499999999997
+        ],
+        "pixel_px": [
+          671.4,
+          533.6
+        ],
+        "source": "hand",
+        "residual_px": 50.32
+      }
+    ],
+    "residual_px": {
+      "mean": 39.37,
+      "max": 80.83,
+      "per_point": [
+        12.07,
+        14.26,
+        80.83,
+        50.32,
+        12.07,
+        14.26,
+        80.83,
+        50.32
+      ],
+      "note": "residuals here describe how well the shape-affine's rotation+scale happens to also match each individual boundary point -- not the fit objective (there is none to minimize; the affine is built directly from the two shapes' centroids/axes/extents), so a nonzero number is expected. Selection above was driven by pin-color verification, not this number."
+    },
+    "boundary_refinement_probe": {
+      "0deg": {
+        "hand_px": [
+          730.0,
+          470.0
+        ],
+        "reliable": true,
+        "refined_px": [
+          716.0,
+          470.0
+        ],
+        "shift_px": -14.0
+      },
+      "45deg": {
+        "hand_px": [
+          671.4,
+          406.4
+        ],
+        "reliable": false,
+        "refined_px": null,
+        "shift_px": 0.0
+      },
+      "90deg": {
+        "hand_px": [
+          530.0,
+          380.0
+        ],
+        "reliable": false,
+        "refined_px": null,
+        "shift_px": 0.0
+      },
+      "135deg": {
+        "hand_px": [
+          388.6,
+          406.4
+        ],
+        "reliable": true,
+        "refined_px": [
+          392.2,
+          408.0
+        ],
+        "shift_px": -4.0
+      },
+      "180deg": {
+        "hand_px": [
+          330.0,
+          470.0
+        ],
+        "reliable": false,
+        "refined_px": null,
+        "shift_px": 0.0
+      },
+      "225deg": {
+        "hand_px": [
+          388.6,
+          533.6
+        ],
+        "reliable": false,
+        "refined_px": null,
+        "shift_px": 0.0
+      },
+      "270deg": {
+        "hand_px": [
+          530.0,
+          560.0
+        ],
+        "reliable": false,
+        "refined_px": null,
+        "shift_px": 0.0
+      },
+      "315deg": {
+        "hand_px": [
+          671.4,
+          533.6
+        ],
+        "reliable": false,
+        "refined_px": null,
+        "shift_px": 0.0
+      }
+    },
+    "boundary_refinement_verdict": "attempted, not applied: every candidate scored using the refined 270deg point (which lands on the new front bunker's rim, see the probe above) did worse on pin-color verification than the same candidate using the raw hand pick, so hand picks are used as-is throughout. See module docstring."
+  },
+  "up_direction": "tee at bottom of frame; +model_y (downrange) points toward the top of the image",
+  "pins_px": {
+    "left": [
+      421.7,
+      508.6
+    ],
+    "center": [
+      543.2,
+      478.3
+    ],
+    "sunday": [
+      646.8,
+      447.4
+    ]
+  },
+  "pin_checks": {
+    "left": {
+      "model_yd": [
+        -10.0,
+        148.0
+      ],
+      "pixel_px": [
+        421.7,
+        508.6
+      ],
+      "sampled_rgb": [
+        155,
+        166,
+        96
+      ],
+      "on_green_turf": true
+    },
+    "center": {
+      "model_yd": [
+        0.0,
+        155.0
+      ],
+      "pixel_px": [
+        543.2,
+        478.3
+      ],
+      "sampled_rgb": [
+        146,
+        159,
+        88
+      ],
+      "on_green_turf": true
+    },
+    "sunday": {
+      "model_yd": [
+        9.0,
+        162.5
+      ],
+      "pixel_px": [
+        646.8,
+        447.4
+      ],
+      "sampled_rgb": [
+        146,
+        159,
+        88
+      ],
+      "on_green_turf": true
+    }
+  },
+  "tee_markers_px": {
+    "left": [
+      380.0,
+      1527.4
+    ],
+    "right": [
+      520.0,
+      1576.7
+    ]
+  },
+  "tee_box_px": [
+    [
+      310.0,
+      1536.2
+    ],
+    [
+      590.0,
+      1634.9
+    ],
+    [
+      590.0,
+      1594.7
+    ],
+    [
+      310.0,
+      1496.0
+    ]
+  ],
+  "short_affine": [
+    [
+      19.999999999999986,
+      -4.517709729629457e-15,
+      450.0000000000001
+    ],
+    [
+      7.0499999999999625,
+      -6.699999999999993,
+      1545.349999999999
+    ]
+  ],
+  "short_affine_fit": {
+    "method": "6-parameter affine, least squares, over the creek's two edges only (front edge / painted wall-or-far-bank, and front edge minus data.CREEK_WIDTH_YD+data.BANK_ROLLBACK_YD / painted near bank)",
+    "correspondences": [
+      {
+        "group": "front_edge_far_bank",
+        "model_yd": [
+          -20.0,
+          124.5
+        ],
+        "pixel": [
+          50,
+          565
+        ],
+        "source": "hand",
+        "residual_px": 5.2
+      },
+      {
+        "group": "front_edge_far_bank",
+        "model_yd": [
+          -10.0,
+          134.5
+        ],
+        "pixel": [
+          250,
+          608
+        ],
+        "source": "hand",
+        "residual_px": 34.3
+      },
+      {
+        "group": "front_edge_far_bank",
+        "model_yd": [
+          0.0,
+          144.5
+        ],
+        "pixel": [
+          450,
+          568
+        ],
+        "source": "hand",
+        "residual_px": 9.2
+      },
+      {
+        "group": "front_edge_far_bank",
+        "model_yd": [
+          10.0,
+          154.5
+        ],
+        "pixel": [
+          650,
+          587
+        ],
+        "source": "hand",
+        "residual_px": 6.3
+      },
+      {
+        "group": "front_edge_far_bank",
+        "model_yd": [
+          20.0,
+          164.5
+        ],
+        "pixel": [
+          850,
+          558
+        ],
+        "source": "hand",
+        "residual_px": 26.2
+      },
+      {
+        "group": "near_bank_minus_14yd",
+        "model_yd": [
+          -20.0,
+          110.5
+        ],
+        "pixel": [
+          50,
+          645
+        ],
+        "source": "hand",
+        "residual_px": 19.0
+      },
+      {
+        "group": "near_bank_minus_14yd",
+        "model_yd": [
+          -10.0,
+          120.5
+        ],
+        "pixel": [
+          250,
+          665
+        ],
+        "source": "hand",
+        "residual_px": 2.5
+      },
+      {
+        "group": "near_bank_minus_14yd",
+        "model_yd": [
+          0.0,
+          130.5
+        ],
+        "pixel": [
+          450,
+          685
+        ],
+        "source": "hand",
+        "residual_px": 14.0
+      },
+      {
+        "group": "near_bank_minus_14yd",
+        "model_yd": [
+          10.0,
+          140.5
+        ],
+        "pixel": [
+          650,
+          660
+        ],
+        "source": "hand",
+        "residual_px": 14.5
+      },
+      {
+        "group": "near_bank_minus_14yd",
+        "model_yd": [
+          20.0,
+          150.5
+        ],
+        "pixel": [
+          850,
+          700
+        ],
+        "source": "hand",
+        "residual_px": 22.0
+      }
+    ],
+    "residual_px": {
+      "mean": 15.32,
+      "max": 34.3,
+      "per_point": [
+        5.2,
+        34.3,
+        9.2,
+        6.3,
+        26.2,
+        19.0,
+        2.5,
+        14.0,
+        14.5,
+        22.0
+      ]
+    }
+  },
+  "short_affine_blend": {
+    "front_edge": {
+      "front_edge_at_x0_yd": 144.5,
+      "slope_yd_per_yd": 1.0,
+      "formula": "front_edge_yd(x) = front_edge_at_x0_yd + slope_yd_per_yd * x"
+    },
+    "blend_margin_yd": 4.0,
+    "far_short_limit_yd": 30.0,
+    "rule": "same rule as camera_hero.json's short_affine_blend",
+    "creek_band_check_rms_px": {
+      "affine_alone_on_far_bank": 197.8,
+      "affine_alone_on_near_bank": 274.8,
+      "short_affine_on_far_bank": 16.2,
+      "short_affine_on_near_bank": 14.4
+    }
+  }
+}

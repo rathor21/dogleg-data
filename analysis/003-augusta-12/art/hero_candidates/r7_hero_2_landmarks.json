@@ -1,0 +1,150 @@
+{
+  "source_image": "hero_candidates/r7_hero_2.png",
+  "size": [
+    1344,
+    768
+  ],
+  "tee_markers": [
+    {
+      "point": [
+        271,
+        687
+      ],
+      "source": "hand"
+    },
+    {
+      "point": [
+        1005,
+        684
+      ],
+      "source": "hand"
+    }
+  ],
+  "creek_far_bank": [
+    {
+      "point": [
+        150,
+        362
+      ],
+      "source": "hand"
+    },
+    {
+      "point": [
+        350,
+        386
+      ],
+      "source": "hand"
+    },
+    {
+      "point": [
+        600,
+        380
+      ],
+      "source": "hand"
+    },
+    {
+      "point": [
+        850,
+        400
+      ],
+      "source": "hand"
+    },
+    {
+      "point": [
+        1100,
+        415
+      ],
+      "source": "hand"
+    }
+  ],
+  "green_centroid": {
+    "point": [
+      586,
+      320
+    ],
+    "source": "hand"
+  },
+  "green_boundary": {
+    "0deg": {
+      "point": [
+        904.0,
+        320.0
+      ],
+      "source": "hand"
+    },
+    "45deg": {
+      "point": [
+        810.9,
+        284.6
+      ],
+      "source": "hand"
+    },
+    "90deg": {
+      "point": [
+        586.0,
+        270.0
+      ],
+      "source": "hand"
+    },
+    "135deg": {
+      "point": [
+        361.1,
+        284.6
+      ],
+      "source": "hand"
+    },
+    "180deg": {
+      "point": [
+        268.0,
+        320.0
+      ],
+      "source": "hand"
+    },
+    "225deg": {
+      "point": [
+        361.1,
+        355.4
+      ],
+      "source": "hand"
+    },
+    "270deg": {
+      "point": [
+        586.0,
+        370.0
+      ],
+      "source": "hand"
+    },
+    "315deg": {
+      "point": [
+        810.9,
+        355.4
+      ],
+      "source": "hand"
+    }
+  },
+  "bunkers": {
+    "bunker_upper": {
+      "point": [
+        954,
+        277
+      ],
+      "source": "hand"
+    },
+    "bunker_lower": {
+      "point": [
+        938,
+        372
+      ],
+      "source": "hand"
+    }
+  },
+  "bridge_near_end": {
+    "point": [
+      198,
+      351
+    ],
+    "source": "hand",
+    "note": "for orientation only"
+  },
+  "bunker_count_note": "Only 2 bunkers rendered (both behind the green); no front bunker touching the creek is present in this candidate."
+}
