@@ -122,7 +122,8 @@ No quoted numbers (CTA card only).
 | Creek width + bank rollback 9.0 yd, range 6–13 | `data.CREEK_WIDTH_YD` + `data.BANK_ROLLBACK_YD` = 9.0; `data.CREEK_WIDTH_YD_RANGE` (4–8) + `data.BANK_ROLLBACK_YD_RANGE` (2–5) = 6–13 |
 | Wind carry penalty 8 yd, range 4–12 | `data.WIND` (as above) |
 | Wind dispersion inflation 1.3x, range 1.15–1.5x | `data.WIND` (as above) |
-| Up-and-down rate 30% to 54% by tier | `data.UP_AND_DOWN_PCT` (0.30 at tier 20 to 0.54 at tier 0) |
+| Up-and-down rate 30% to 54% by tier, sensitivity range 0.8x to 1.2x | `data.UP_AND_DOWN_PCT` (0.30 at tier 20 to 0.54 at tier 0); `data.UP_AND_DOWN_PCT_RANGE_MULT` |
+| Up-and-down sweep flips no pin's label at any tier | `tests/test_montecarlo.py::test_up_and_down_pct_sensitivity_on_amateur_verdicts`; `VALIDATION_NOTES.md`, "UP_AND_DOWN_PCT sensitivity (peer review Should-Fix 3)" |
 | Pitch-over-water dunk rate 2% to 12% by tier | `data.PITCH_OVER_WATER_DUNK_PCT` (0.02 at tier 0 to 0.12 at tier 20) |
 | Flip set: Sunday never flips | `optimizer.flip_set()`; `tests/test_optimizer.py::test_flip_set_baseline_labels_sunday_always_bail_left_and_center_are_the_tossup_pins`; `VALIDATION_NOTES.md` "Flip-set golden snapshot" (rev 4, unchanged by rev 5) |
 | Scratch left pin flips to bail at anisotropy 3.5 (both wind states) | `tests/test_optimizer.py::test_flip_set_runs_and_matches_golden_snapshot`, key `(0, "left", False/True)` |

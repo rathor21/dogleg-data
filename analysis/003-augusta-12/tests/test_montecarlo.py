@@ -582,3 +582,104 @@ def test_long_trouble_constants_sensitivity_on_tour_gate():
     finally:
         data.LONG_TROUBLE_BUFFER_YD = orig_buf
     assert max(means) - min(means) < 0.01, "LONG_TROUBLE_BUFFER_YD should barely move the tour season mean"
+
+
+# ---------------------------------------------------------------------------
+# UP_AND_DOWN_PCT sensitivity (peer review Should-Fix 3, issue #17's
+# review): Anchor 5 flags this whole table WebSearch-synthesis-only, and
+# unlike every other MODELED recovery constant in data.py it shipped with
+# no stated sensitivity range and no sensitivity test. UP_AND_DOWN_PCT_
+# RANGE_MULT (0.8x-1.2x per tier, capped at 0.95) closes that gap; the two
+# tests below check the amateur verdicts and the Tour gate the same way
+# this file already checks LONG_TROUBLE_UPDOWN_MULT/BUFFER_YD above.
+# ---------------------------------------------------------------------------
+
+def test_up_and_down_pct_sensitivity_on_amateur_verdicts():
+    # Sweep UP_AND_DOWN_PCT across both endpoints of its stated range
+    # (0.8x/1.2x, data.UP_AND_DOWN_PCT_RANGE_MULT) and confirm no pin's
+    # qualitative verdict label flips at tiers 10/15/20, calm air: Sunday
+    # stays "bail," left and center stay "either works."
+    #
+    # Uses optimizer.optimize_aim at flip_set's own cheaper FLIP_SET_*
+    # search settings and optimizer.verdict_label on the result -- the
+    # pattern tests/test_model.py's creek-band-width and pitch-over-water
+    # sensitivity tests already use for a three-pin check -- rather than
+    # this file's own LONG_TROUBLE at-pin-vs-center-aim shortcut above.
+    # That shortcut is Sunday-specific: it stands in for the real verdict
+    # only because Sunday's "bail" always means bailing to the center-aim
+    # point, so at-pin-vs-center-aim score is the delta. Left and center's
+    # own "either works" label has no such fixed alternative baked in (the
+    # optimizer may prefer a point that is neither the pin nor dead
+    # center), so confirming it needs the real search, not the shortcut.
+    import optimizer
+
+    lo, hi = data.UP_AND_DOWN_PCT_RANGE_MULT
+    orig = dict(data.UP_AND_DOWN_PCT)
+    labels = {}
+    deltas = {}
+    try:
+        for mult in (lo, 1.0, hi):
+            data.UP_AND_DOWN_PCT = {t: data.up_and_down_pct_scaled(t, mult) for t in data.TIERS}
+            for pin in ("left", "center", "sunday"):
+                for tier in (10, 15, 20):
+                    v = optimizer.optimize_aim(tier, pin, False,
+                                                n_grid=optimizer.FLIP_SET_N_GRID,
+                                                search_n_grid=optimizer.FLIP_SET_SEARCH_N_GRID,
+                                                coarse_step_yd=optimizer.FLIP_SET_COARSE_STEP_YD,
+                                                lateral_range_yd=optimizer.FLIP_SET_LATERAL_RANGE_YD,
+                                                carry_range_yd=optimizer.FLIP_SET_CARRY_RANGE_YD)
+                    labels[(mult, pin, tier)] = optimizer.verdict_label(v)
+                    deltas[(mult, pin, tier)] = v.delta
+    finally:
+        data.UP_AND_DOWN_PCT = orig
+
+    for tier in (10, 15, 20):
+        sunday_labels = {labels[(m, "sunday", tier)] for m in (lo, 1.0, hi)}
+        assert sunday_labels == {"bail"}, (tier, "sunday", labels)
+        for pin in ("left", "center"):
+            pin_labels = {labels[(m, pin, tier)] for m in (lo, 1.0, hi)}
+            assert pin_labels == {"either works"}, (tier, pin, labels)
+
+    for pin in ("left", "center", "sunday"):
+        for tier in (10, 15, 20):
+            tier_deltas = [deltas[(m, pin, tier)] for m in (lo, 1.0, hi)]
+            spread = max(tier_deltas) - min(tier_deltas)
+            # Recorded (not just bounded) so VALIDATION_NOTES.md can quote
+            # the exact swing per tier and pin; a generous bound still
+            # catches a runaway regression.
+            assert spread < 0.05, (
+                f"{pin} tier {tier}: verdict delta swings {spread:.4f} strokes "
+                "across the UP_AND_DOWN_PCT sensitivity sweep, wider than expected"
+            )
+
+
+def test_up_and_down_pct_amateur_range_does_not_move_tour_season_mean():
+    """UP_AND_DOWN_PCT's sensitivity range applies to the amateur tiers
+    only. The Tour tier prices every recovery leg from its own anchored
+    Anchor 10 figures (TOUR_SCRAMBLING_PCT, TOUR_SAND_SAVE_PCT,
+    TOUR_MISSED_UP_AND_DOWN_STROKES), never from UP_AND_DOWN_PCT[tier] --
+    see tour.py's own module docstring ("recovery rates instead of
+    data.UP_AND_DOWN_PCT[tier] lookups those functions perform"). Sweeping
+    UP_AND_DOWN_PCT across its full stated range should therefore leave the
+    Tour season analytic mean bit-for-bit unchanged, not merely "barely
+    move" the way test_long_trouble_constants_sensitivity_on_tour_gate's
+    cross-cutting constants do above -- exact equality is the proof that
+    the amateur-only range has no code path into any Tour calculation.
+    """
+    lo, hi = data.UP_AND_DOWN_PCT_RANGE_MULT
+    orig = dict(data.UP_AND_DOWN_PCT)
+    baseline = tour.tour_season_analytic_mean(aim_policy="pin")
+    means = {}
+    try:
+        for mult in (lo, hi):
+            data.UP_AND_DOWN_PCT = {t: data.up_and_down_pct_scaled(t, mult) for t in data.TIERS}
+            means[mult] = tour.tour_season_analytic_mean(aim_policy="pin")
+    finally:
+        data.UP_AND_DOWN_PCT = orig
+
+    for mult, mean in means.items():
+        assert mean == baseline, (
+            f"UP_AND_DOWN_PCT is an amateur-only constant; the Tour season "
+            f"mean at mult={mult} ({mean}) should be bit-for-bit identical "
+            f"to the baseline ({baseline})"
+        )

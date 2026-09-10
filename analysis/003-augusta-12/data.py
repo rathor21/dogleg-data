@@ -336,6 +336,14 @@ WIND = {
 #   sensitivity range or narrative color, not for a chart claiming a specific
 #   published figure"). Kept as the release's working recovery-pricing input
 #   with that caveat carried in SOURCES below, since no better anchor exists.
+#   UP_AND_DOWN_PCT_RANGE_MULT (peer review Should-Fix 3) states the
+#   sensitivity range Anchor 5 itself calls for: since no source in the hunt
+#   publishes a numeric confidence interval around these WebSearch-synthesis
+#   figures, the range applied is a stated +/-20% multiplier on every
+#   tier's own rate, capped at 0.95 after scaling -- the same "stated
+#   multiplier on the published/modeled figure" convention already used for
+#   PITCH_OVER_WATER_DUNK_PCT's own 0.5x-1.5x range, not a new invented
+#   sourcing method.
 # ---------------------------------------------------------------------------
 
 _THREE_PUTT_RATE_PUB = {5: 1.0 / 16.7, 15: 1.0 / 9.7, 25: 1.0 / 7.6}  # ANCHORED, Anchor 5
@@ -366,6 +374,28 @@ THREE_PUTT_RATE = {
 }
 
 UP_AND_DOWN_PCT = {0: 0.54, 5: 0.50, 10: 0.40, 15: 0.35, 20: 0.30}  # MODELED, weakly-sourced; Anchor 5
+
+# Frozen snapshot of the table above, taken before any test monkeypatches
+# the live UP_AND_DOWN_PCT dict. up_and_down_pct_scaled reads this snapshot,
+# not the live dict, so a sensitivity sweep that reassigns
+# data.UP_AND_DOWN_PCT = {t: up_and_down_pct_scaled(t, mult) for t in
+# data.TIERS} can be called at any multiplier, any number of times, in any
+# order, without compounding a previous call's scaling into the next one.
+_UP_AND_DOWN_PCT_BASE = dict(UP_AND_DOWN_PCT)
+
+UP_AND_DOWN_PCT_RANGE_MULT = (0.8, 1.2)  # MODELED sensitivity range, peer review Should-Fix 3
+
+
+def up_and_down_pct_scaled(tier, mult):
+    """The original UP_AND_DOWN_PCT[tier] (the frozen _UP_AND_DOWN_PCT_BASE
+    snapshot above) scaled by `mult` and capped at 0.95, the same ceiling
+    model._recovery_strokes already enforces after ROUGH_RECOVERY_EASE's own
+    multiplicative discount, so a scaled rate can never read as more certain
+    than every other capped rate in this file allows. Used by
+    tests/test_montecarlo.py's UP_AND_DOWN_PCT sensitivity tests to build a
+    scaled dict at each tested multiplier in UP_AND_DOWN_PCT_RANGE_MULT."""
+    return min(0.95, _UP_AND_DOWN_PCT_BASE[tier] * mult)
+
 
 ROUGH_RECOVERY_EASE = 1.05    # MODELED: a non-sand recovery is a bit easier than a bunker shot; no anchor
 MISSED_UP_AND_DOWN_STROKES = 3.3  # MODELED average strokes after a failed up-and-down; sensitivity range (3.0, 3.6)
@@ -436,7 +466,7 @@ SOURCES = {
     "PINS": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "center yardage and sunday depth offset anchored; lateral coordinates and left/sunday local depth modeled"},
     "WIND": {"log": "docs/sources/003_Source_Log.md#anchor-6", "status": "narrative anchor only; carry penalty and dispersion inflation modeled"},
     "THREE_PUTT_RATE": {"log": "docs/sources/003_Source_Log.md#anchor-5", "status": "published at 5/15/25; modeled (lsq) at 0/10/20"},
-    "UP_AND_DOWN_PCT": {"log": "docs/sources/003_Source_Log.md#anchor-5", "status": "modeled, weakly-sourced (websearch synthesis, direct fetch failed 403)"},
+    "UP_AND_DOWN_PCT": {"log": "docs/sources/003_Source_Log.md#anchor-5", "status": "modeled, weakly-sourced (websearch synthesis, direct fetch failed 403); sensitivity range a 0.8x-1.2x multiplier per tier, capped at 0.95 (UP_AND_DOWN_PCT_RANGE_MULT)"},
     "CREEK_WIDTH_YD": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, no published creek width; sensitivity range 4.0-8.0 yd"},
     "BANK_ROLLBACK_YD": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, the shaved-bank rollback the 2019 Koepka/Molinari narrative describes; sensitivity range 2.0-5.0 yd"},
     "PITCH_OVER_WATER_DUNK_PCT": {"log": "docs/sources/003_Source_Log.md#anchor-3", "status": "modeled, anchorless -- no source in the hunt publishes a dunk rate for a pitch over water at any handicap tier; swept by a 0.5x-1.5x sensitivity test"},

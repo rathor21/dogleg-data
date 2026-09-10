@@ -857,3 +857,70 @@ failed with a real ~0.039-stroke gap until that third mirror was fixed
 too. No parameter was tuned to force a gate; the Sunday-pin layup depth
 that remains beyond -15 yd at five of ten rows (see "Sunday layup check"
 above) is disclosed, not tuned away.
+
+## UP_AND_DOWN_PCT sensitivity (peer review Should-Fix 3), 2026-09-09
+
+The peer review (`docs/sources/Peer_Review_003_Augusta_12.md`, Should-Fix
+3) flagged `UP_AND_DOWN_PCT` as the one MODELED recovery constant with no
+stated sensitivity range and no sensitivity test, unlike
+`LONG_TROUBLE_UPDOWN_MULT`, `CREEK_WIDTH_YD`/`BANK_ROLLBACK_YD`,
+`SHORT_FAIRWAY_FALLOFF_YD`, and `PITCH_OVER_WATER_DUNK_PCT`. Anchor 5 flags
+the whole table WebSearch-synthesis-only (GolfWRX and MyGolfSpy both
+returned HTTP 403 on direct fetch), so no source publishes a numeric
+confidence interval to draw a range from. `data.UP_AND_DOWN_PCT_RANGE_MULT`
+closes the gap the same way `PITCH_OVER_WATER_DUNK_PCT`'s own range does: a
+stated +/-20% multiplier (0.8x-1.2x) on every tier's own rate, capped at
+0.95 after scaling. `data.up_and_down_pct_scaled(tier, mult)` reads a
+frozen snapshot of the table taken before any test monkeypatches the live
+dict, so repeated sweep calls never compound.
+
+### Sensitivity sweep
+
+`tests/test_montecarlo.py::test_up_and_down_pct_sensitivity_on_amateur_
+verdicts` sweeps `UP_AND_DOWN_PCT` across both endpoints of its stated
+range (plus the 1.0x baseline) and checks all three pins at tiers 10/15/20,
+calm, using `optimizer.optimize_aim` at flip_set's own cheaper `FLIP_SET_*`
+search settings and `optimizer.verdict_label` on the result -- the same
+pattern `tests/test_model.py`'s creek-band-width and pitch-over-water
+sensitivity tests already use, not this file's own LONG_TROUBLE
+at-pin-vs-center-aim shortcut (that shortcut only stands in for the real
+verdict on Sunday, where "bail" always means bailing to center; left and
+center's own "either works" label needs the real search since the
+alternative it is measured against is not fixed at center).
+
+No label flips at any tier or pin. Sunday stays `bail`; left and center
+stay `either works`, at every tested multiplier:
+
+| pin | tier | 0.8x delta | 1.0x delta (default) | 1.2x delta | spread | label (all three) |
+|---|---|---|---|---|---|---|
+| left | 10 | 0.0313 | 0.0243 | 0.0214 | 0.0099 | either works |
+| left | 15 | 0.0351 | 0.0289 | 0.0227 | 0.0124 | either works |
+| left | 20 | 0.0253 | 0.0194 | 0.0150 | 0.0103 | either works |
+| center | 10 | 0.0092 | 0.0093 | 0.0095 | 0.0003 | either works |
+| center | 15 | 0.0048 | 0.0039 | 0.0030 | 0.0019 | either works |
+| center | 20 | 0.0026 | 0.0024 | 0.0025 | 0.0002 | either works |
+| sunday | 10 | 0.1120 | 0.1000 | 0.0880 | 0.0239 | bail |
+| sunday | 15 | 0.0972 | 0.0757 | 0.0672 | 0.0300 | bail |
+| sunday | 20 | 0.1237 | 0.1132 | 0.0938 | 0.0299 | bail |
+
+Sunday's own delta moves the most in absolute terms (0.024-0.030 stroke
+across the sweep, the same order of magnitude as the creek-band and
+pitch-over-water sweeps above), consistent with `UP_AND_DOWN_PCT` feeding
+every recovery leg and Sunday carrying the largest recovery-pricing weight
+of the three pins. Left and center barely move (well under 0.02 stroke
+each), and neither approaches the 0.05-stroke tossup band from either
+direction. **Verdict: the sucker-pin finding is not an artifact of exactly
+where this weakly-sourced table sits.**
+
+### Tour separation check
+
+`tests/test_montecarlo.py::test_up_and_down_pct_amateur_range_does_not_
+move_tour_season_mean` confirms `UP_AND_DOWN_PCT` is an amateur-only
+constant: the Tour tier prices every recovery leg from its own anchored
+Anchor 10 figures (`TOUR_SCRAMBLING_PCT`, `TOUR_SAND_SAVE_PCT`,
+`TOUR_MISSED_UP_AND_DOWN_STROKES`), never from `UP_AND_DOWN_PCT[tier]`.
+Sweeping the amateur range end to end leaves `tour.
+tour_season_analytic_mean(aim_policy="pin")` bit-for-bit unchanged: baseline
+3.197686911570864 at both the 0.8x and 1.2x amateur multipliers, exact
+equality rather than a small-tolerance bound, which is the proof of the
+separation rather than a rounding coincidence.
