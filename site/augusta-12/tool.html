@@ -8,8 +8,8 @@
 <meta name="description" content="Drag the aim point on Augusta National's 12th. See the expected score, water odds, and green odds for your handicap tier, and compare against the model's own optimal aim for each pin and wind state.">
 <link rel="canonical" href="https://doglegdata.com/augusta-12/tool.html">
 <meta name="theme-color" content="#F4EDE0">
-<link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="../assets/brand/apple-touch-icon.png">
+<link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Aim sandbox: Augusta's 12th · Dogleg Data">
 <meta property="og:description" content="Drag the aim point on Augusta National's 12th. See the expected score, water odds, and green odds for your handicap tier, and compare against the model's own optimal aim for each pin and wind state.">
@@ -146,19 +146,19 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
     </svg>
     <span class="wordmark">Dogleg Data</span>
     <span class="tagline">Play the percentages</span>
-    <a class="home-link" href="../index.html">&larr; Dogleg Data home</a>
+    <a class="home-link" href="/">&larr; Dogleg Data home</a>
   </div>
   <h1>Where should you aim on Augusta's 12th?</h1>
   <p>Pick a handicap tier, a pin, and a wind state, then drag the aim point around the green complex. The model scores every spot you could stand over: your expected score, your odds of finding Rae's Creek, your odds of holding the green, and how many strokes that aim gives up against the model's own best spot for that tier and pin.</p>
-  <p>Read the full write-up on <a href="./">the 12th hole analysis</a>.</p>
+  <p>Read the full write-up on <a href="/augusta-12/">the 12th hole analysis</a>.</p>
 </header>
 
 <nav class="tabs">
   <span class="tab-btn active">Aim sandbox</span>
-  <a class="tab-btn" href="../tee-shot-distance/tool.html">Tee shot calculator</a>
-  <a class="tab-btn" href="../fairway-vs-rough/dashboard.html#scramble">Scramble decision</a>
-  <a class="tab-btn" href="../fairway-vs-rough/dashboard.html#breakeven">Break-even explorer</a>
-  <a class="tab-btn" href="../fairway-vs-rough/dashboard.html#gir">Monte Carlo GIR%</a>
+  <a class="tab-btn" href="/tee-shot-distance/tool.html">Tee shot calculator</a>
+  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#scramble">Scramble decision</a>
+  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#breakeven">Break-even explorer</a>
+  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#gir">Monte Carlo GIR%</a>
 </nav>
 
 <div class="card">
@@ -231,12 +231,12 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
   <ul class="disclosure-list" id="disclosure-list"></ul>
   <p class="note">Handicap tiers 15 and 20 sit well outside the published GIR-by-distance anchor band for a 155-yard shot, so their dispersion ovals come from an extrapolation of the same formula the anchored tiers use, not a direct anchor. See <code>analysis/003-augusta-12/data.py</code> for the full anchor-by-anchor breakdown.</p>
   <p class="note">This sandbox recomputes every number in your browser from the exported grids. No server, no tracking.</p>
-  <p class="note">Read the full write-up on <a href="./">the 12th hole analysis</a>, or check the sourcing yourself in the <a href="https://github.com/rathor21/dogleg-data/blob/main/docs/sources/003_Source_Log.md">source log on GitHub</a>.</p>
+  <p class="note">Read the full write-up on <a href="/augusta-12/">the 12th hole analysis</a>, or check the sourcing yourself in the <a href="https://github.com/rathor21/dogleg-data/blob/main/docs/sources/003_Source_Log.md">source log on GitHub</a>.</p>
 </div>
 
 <footer>
   <p class="signoff">Dogleg Data &middot; Play the percentages.</p>
-  <p>Charts and sized exports are free to use with credit: <a href="../cite/index.html">doglegdata.com/cite</a></p>
+  <p>Charts and sized exports are free to use with credit: <a href="/cite/">doglegdata.com/cite</a></p>
   <h3>Sources &amp; methodology</h3>
   <p>Hole yardage, bunker count, and the general green shape: PGA.com, NBC Sports/Golf Channel, and The Fried Egg, cross-checked in the source hunt. Amateur approach proximity and GIR-by-distance: Arccos and Shot Scope, inverted into a per-tier dispersion oval the same way release 002 inverts fairway-hit percentages into lateral spread. Every pin's lateral coordinate, the hazard boundaries, the wind carry penalty and dispersion inflation, and the up-and-down odds by tier are modeled, each with a stated sensitivity range carried into the aim-point search. The model's own aim for each tier, pin, and wind state comes from a bounded optimizer that scores a grid of candidate aim points and reports the minimum, the same numbers published in the analysis.</p>
 </footer>
@@ -666,8 +666,8 @@ function render(){
 // Boot
 // ---------------------------------------------------------------------
 Promise.all([
-  fetch("./data/003_sandbox_grids.json").then(r => { if(!r.ok) throw new Error("grids fetch failed"); return r.json(); }),
-  fetch("./data/003_manifest.json").then(r => { if(!r.ok) throw new Error("manifest fetch failed"); return r.json(); })
+  fetch("/augusta-12/data/003_sandbox_grids.json").then(r => { if(!r.ok) throw new Error("grids fetch failed"); return r.json(); }),
+  fetch("/augusta-12/data/003_manifest.json").then(r => { if(!r.ok) throw new Error("manifest fetch failed"); return r.json(); })
 ]).then(([g, m]) => {
   grids = g; manifest = m;
   populateControls();

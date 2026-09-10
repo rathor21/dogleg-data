@@ -15,7 +15,7 @@
 (function(){
 "use strict";
 
-var DATA_URL = "data/003_chapters.json";
+var DATA_URL = "/augusta-12/data/003_chapters.json";
 var TIER_LABELS = {0: "Scratch", 5: "5-handicap", 10: "10-handicap", 15: "15-handicap", 20: "20-handicap"};
 var PIN_LABELS = {left: "Left pin", center: "Center pin", sunday: "Sunday pin"};
 

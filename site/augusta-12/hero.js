@@ -236,8 +236,8 @@ function init(){
   heroImgMobile.onload = function(){ imagesReady.mobile = true; onAssetReady(); };
   heroImg.onerror = function(){ console.error("hero: failed to load hero art (003_hero.png)"); };
   heroImgMobile.onerror = function(){ console.error("hero: failed to load mobile hero art (003_hero_mobile.png)"); };
-  heroImg.src = "../assets/img/003_hero.png";
-  heroImgMobile.src = "../assets/img/003_hero_mobile.png";
+  heroImg.src = "/assets/img/003_hero.png";
+  heroImgMobile.src = "/assets/img/003_hero_mobile.png";
 
   var manifest = null;
   var cam = null;
@@ -245,7 +245,7 @@ function init(){
   var pinHunterScatter = [];
   var ready = false;
 
-  fetch("data/003_manifest.json")
+  fetch("/augusta-12/data/003_manifest.json")
     .then(function(r){
       if (!r.ok) throw new Error("manifest fetch failed: " + r.status);
       return r.json();
