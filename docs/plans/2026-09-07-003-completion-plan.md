@@ -31,6 +31,8 @@ Test suite: 76 passed, 2 xfailed (the two Tour gates), 3.5 minutes under `analys
 - Site: hero page (#12), chapters and The move (#13), sandbox (#14), social export (#15), site integration (nav, home, sitemap, llms.txt), QA pass (#16, all pass).
 - Art, 2026-09-07 to 08: Sunny rejected every geometry-first rendering. Final: nano-banana painting of Golden Bell from a text prompt (`art/hero_candidates/r6_4.png`), camera fitted to the art as a thin-plate spline with a homography backbone (`art/camera_tps.json`), arcs drawn as screen-space tracers between projected endpoints.
 
+- Sunny's second review (2026-09-09): pins off the green, arcs mislanded, water read as a pond, chapter figures illegible, water rate falling with handicap, no left-right control visible. Responses: photoreal nano-banana hero and aerial with shape-fit maps (2961b55), model revs 6 and 7 (3eb94d0, 06f48f1: mishit mixture anchored on green-hit rates, bank funnel), article re-numbered with the water-by-tier finding disclosed, short-of-creek rate added to the sandbox. The water ordering Sunny expects does not follow from the published anchors; recorded in ADR 0003 for Sunny's call.
+
 ## Tasks, in order
 
 | # | Task | Ticket | Depends on |
