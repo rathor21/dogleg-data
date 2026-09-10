@@ -38,16 +38,18 @@ region's outcome in expected strokes. `expected_score` is the public,
 tier-and-wind-aware wrapper other modules call.
 
 Distance error itself is a two-component mixture (rev 6, Sunny's finding),
-not one symmetric Gaussian: `mishit_mixture_params` splits each tier's
-anchored, anisotropy-split distance sigma into a solid-strike core plus a
-short mishit tail (`data.MISHIT_PCT`, `data.MISHIT_SHORT_FRAC`), solved so
-the mixture's total second moment still matches the tier's own anchored
-figure. `expected_score` is the mixture-weighted sum of two `score_for_oval`
-calls. See `mishit_mixture_params`'s docstring and `docs/adr/0003-003-
-mishit-mixture.md` for why (a single symmetric Gaussian let a 20-handicap
-post a lower water rate than a scratch player at the same aim and still
-showed water risk at a 200-yd carry) and for what this fix does and does
-not fully resolve.
+not one symmetric Gaussian: `mishit_mixture_params` splits distance error
+into a solid-strike core plus a short mishit tail (`data.MISHIT_PCT`,
+`data.MISHIT_SHORT_FRAC`). `expected_score` is the mixture-weighted sum of
+two `score_for_oval` calls. Rev 7 (GIR-anchored core) re-solves the core so
+the full mixture reproduces each tier's own published green-hit rate at
+its own anchor distance (`data.solid_strike_sigma_iso_ft`), replacing rev
+6's total-second-moment match. See `mishit_mixture_params`'s docstring and
+`docs/adr/0003-003-mishit-mixture.md` (including its rev 7 dated addendum)
+for why (a single symmetric Gaussian let a 20-handicap post a lower water
+rate than a scratch player at the same aim and still showed water risk at
+a 200-yd carry) and for what each pass's fix does and does not fully
+resolve.
 
 **tour.py** repeats the same construction for the PGA Tour tier, using its
 own anisotropy ratio and proximity anchor, so the piece can show where the

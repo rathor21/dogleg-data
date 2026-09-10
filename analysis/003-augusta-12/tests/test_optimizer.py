@@ -293,6 +293,27 @@ def test_verdict_label_bail_either_works_or_attack_by_threshold():
 # either works -> bail. "sunday" still never flips anywhere in the
 # rectangle -- the sucker-pin finding remains the most robust of the three
 # pins' verdicts.
+#
+# Re-taken again after rev 7 (GIR-anchored core, MISHIT_PCT x1.25/MISHIT_
+# SHORT_FRAC 0.25/ANISOTROPY ratio 2.5): the retuned mixture shape moves
+# scores again, and "sunday" loses its rev-6 status as the pin that never
+# flips anywhere in the rectangle -- (10, "sunday", True), (15, "sunday",
+# True), and (20, "sunday", True) now each flip bail -> either works at one
+# or more sensitivity corners. This is disclosed, not silently absorbed:
+# the SUCKER-PIN FINDING ITSELF still holds at every tier and wind state at
+# flip_set's own (cheap) default settings (test_flip_set_baseline_labels_
+# sunday_always_bail_left_and_center_are_the_tossup_pins below still passes
+# unmodified), and calm sunday stays "bail" at verdict-grade resolution for
+# every tier too -- only WINDY sunday at the higher tiers has sensitivity-
+# rectangle corners where the finding is no longer unanimous, and the
+# published verdict-grade CSV (outputs/003_results.csv, VERDICT_N_GRID=121)
+# shows one of those near-tossup cells, (15, "sunday", wind), actually
+# cross the line at its own BASELINE settings (delta 0.0552 -> 0.0488;
+# see VALIDATION_NOTES.md's rev 7 section). (5, "center", True) drops out
+# of the flip set entirely (a stable "either works" everywhere in the
+# rectangle this pass). (0, "left", False) and (0, "center", True) both
+# still flip, but now bail -> either works rather than either works ->
+# bail -- their own BASELINES moved past the tossup line this pass.
 # ---------------------------------------------------------------------------
 
 def test_flip_set_runs_and_matches_golden_snapshot():
@@ -300,20 +321,21 @@ def test_flip_set_runs_and_matches_golden_snapshot():
     flips_by_key = {(f["tier"], f["pin"], f["wind"]): f for f in flips}
     assert set(flips_by_key) == {
         (0, "left", False), (0, "center", True),
-        (5, "left", False), (5, "left", True), (5, "center", True),
+        (5, "left", False), (5, "left", True),
+        (10, "sunday", True), (15, "sunday", True), (20, "sunday", True),
     }
-    # "sunday" still never appears -- see the comment above for why this
-    # stays the most robust of the three pins' verdicts across rev 6.
-    assert {(t, p, w) for (t, p, w) in flips_by_key if p == "sunday"} == set()
 
-    # either works -> bail flips: tier 0 "left" and all three tier-5 corners.
-    for key in [(0, "left", False), (5, "left", False), (5, "left", True), (5, "center", True)]:
+    # either works -> bail flips: both tier-5 "left" corners.
+    for key in [(5, "left", False), (5, "left", True)]:
         assert flips_by_key[key]["baseline_label"] == "either works"
         assert {d["label"] for d in flips_by_key[key]["flipped_at"]} == {"bail"}
 
-    # bail -> either works: (0, "center", True), the one cell whose own
-    # BASELINE moved past the tossup line this pass (see the comment above).
-    for key in [(0, "center", True)]:
+    # bail -> either works: tier 0's own two flips (both BASELINES moved
+    # past the tossup line this pass) plus all three windy "sunday" cells
+    # (see the comment above -- the sucker-pin finding's own robustness,
+    # not its baseline verdict, is what erodes here).
+    for key in [(0, "left", False), (0, "center", True),
+                (10, "sunday", True), (15, "sunday", True), (20, "sunday", True)]:
         assert flips_by_key[key]["baseline_label"] == "bail"
         assert {d["label"] for d in flips_by_key[key]["flipped_at"]} == {"either works"}
 

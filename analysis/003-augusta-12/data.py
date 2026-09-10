@@ -17,7 +17,10 @@ in the comment next to the value rather than presenting an interpretive
 choice as if it were sourced.
 """
 
+from functools import lru_cache
 from math import log, pi, sqrt
+
+import numpy as np
 
 TIERS = [0, 5, 10, 15, 20]  # scratch, 5, 10, 15, 20-handicap; matches 002's tier-0-is-scratch convention
 
@@ -125,9 +128,27 @@ PROXIMITY_FT = {t: SIGMA_ISO_FT[t] * sqrt(pi / 2.0) for t in TIERS}  # mean radi
 # 0-50 yd sand shots, not approach irons; the 100-150 yd ellipses in the same
 # paper are described only qualitatively). Sensitivity range 2:1 to 3.5:1,
 # floored below the published short-game ratio and capped at its upper bound.
+#
+# Default ratio retuned 3.0 -> 2.5 (rev 7, GIR-anchored core, dated addendum
+# below): part of the three-parameter sweep (MISHIT_PCT scale x MISHIT_
+# SHORT_FRAC x this ratio) run to bring the mishit mixture closer to both
+# owner checks (water-at-pin rising with tier, water at a 200-yd carry
+# staying low). Two candidates with a smaller residual violation were tried
+# and rejected because each reverses a separate, pre-existing invariant this
+# package already tests: {frac=0.20, mult=1.5, ratio=2.0} (the single
+# smallest-violation combination among the 36 swept) reverses tests/
+# test_optimizer.py::test_wind_pushes_optimal_aim_farther_from_sunday_pin at
+# tier 5 (11.72 yd windy vs 11.91 yd calm); {frac=0.25, mult=1.0, ratio=2.5}
+# reverses the "sunday always reads bail" pattern tests/test_optimizer.py::
+# test_flip_set_baseline_labels_sunday_always_bail_left_and_center_are_the_
+# tossup_pins checks, at tiers 10 and 20 under wind (delta 0.0463/0.0487,
+# just under optimizer.TOSSUP_THRESHOLD_STROKES). {frac=0.25, mult=1.25,
+# ratio=2.5} is the smallest-violation combination that reverses NEITHER
+# invariant -- chosen for that reason. See the rev 7 block below for the
+# sweep table.
 # ---------------------------------------------------------------------------
 
-ANISOTROPY = {"ratio": 3.0, "range": (2.0, 3.5)}
+ANISOTROPY = {"ratio": 2.5, "range": (2.0, 3.5)}
 
 # ---------------------------------------------------------------------------
 # Anchor 3: hole geometry. Yardage, bunker count/position, diagonal shoe-sole
@@ -776,10 +797,11 @@ SOURCES["HOLE12_MODERN_AVG_BY_YEAR"] = {
 # swept by tests/test_model.py's mishit-mixture sensitivity test.
 #
 # MISHIT_SHORT_FRAC: how far short a mishit comes up, as a fraction of the
-# shot distance (0.15 * 155 = 23.25 yd at the tee shot). MODELED, anchorless;
-# sensitivity range 0.10-0.20, shared by the amateur tiers and the Tour tier
-# (TOUR_MISHIT_PCT below) alike -- only the MISHIT rate itself, not the
-# short-miss fraction, is tier/tour-specific.
+# shot distance (0.15 * 155 = 23.25 yd at the tee shot, this constant's rev
+# 6 value; see the rev 7 GIR-anchored-core block below for the retuned
+# value and range). MODELED, anchorless; shared by the amateur tiers and the
+# Tour tier (TOUR_MISHIT_PCT below) alike -- only the MISHIT rate itself,
+# not the short-miss fraction, is tier/tour-specific.
 #
 # TOUR_MISHIT_PCT: the Tour-tier counterpart, a single scalar (not a
 # tier-keyed dict, matching TOUR_SCRAMBLING_PCT/TOUR_SAND_SAVE_PCT/
@@ -787,35 +809,328 @@ SOURCES["HOLE12_MODERN_AVG_BY_YEAR"] = {
 # tiers' own lowest figure (scratch, 0.05), since a Tour player mishits a
 # ~155-yd approach far less often than any amateur tier does.
 #
-# model.mishit_mixture_params (and tour.tour_mishit_mixture_params) solve
-# for the mixture's own solid-strike sigma so the two-component mixture's
-# TOTAL second moment matches the tier's already-anchored, anisotropy-split
+# tour.tour_mishit_mixture_params (Tour tier, unchanged by rev 7 below) still
+# solves for its own solid-strike sigma so the two-component mixture's TOTAL
+# second moment matches tour_oval's already-anchored, anisotropy-split
 # distance sigma exactly -- see that function's docstring for the algebra.
-# Nothing here reopens Anchor 1's own proximity/GIR inversion; the mixture
-# only redistributes the SAME total spread between a tighter solid-strike
-# core and a short mishit tail instead of spreading it symmetrically, so the
-# tier's anchored mean proximity is still reproduced to first order
-# (tests/test_model.py::test_mixture_preserves_anchored_second_moment).
+# This second-moment approach is RETIRED for the amateur tiers by rev 7
+# (below): model.mishit_mixture_params no longer calls oval_for_tier's
+# sigma_d as its target; see the GIR-anchored-core block below for why and
+# for the replacement construction.
 # ---------------------------------------------------------------------------
 
-MISHIT_PCT = {0: 0.05, 5: 0.08, 10: 0.12, 15: 0.18, 20: 0.25}  # MODELED, anchorless; sensitivity range 0.5x-1.5x
+# Rev 6 table, {0: 0.05, 5: 0.08, 10: 0.12, 15: 0.18, 20: 0.25}, scaled by
+# 1.25x (rev 7's chosen sweep point -- see the GIR-anchored-core block below
+# for why the joint sweep's nominal minimum-violation point {frac=0.20,
+# mult=1.5, ratio=2.0} and the next runner-up {frac=0.25, mult=1.0,
+# ratio=2.5} were both passed over for this one instead): still MODELED,
+# anchorless, still rising with handicap the same direction every other
+# recovery-rate table in this file does.
+MISHIT_PCT = {0: 0.0625, 5: 0.10, 10: 0.15, 15: 0.225, 20: 0.3125}  # MODELED, anchorless; sensitivity range 0.5x-1.5x
 MISHIT_PCT_SENSITIVITY_MULT_RANGE = (0.5, 1.5)
 
-MISHIT_SHORT_FRAC = 0.15   # MODELED, anchorless; fraction of shot distance a mishit comes up short (23 yd at 155); sensitivity range (0.10, 0.20)
-MISHIT_SHORT_FRAC_RANGE = (0.10, 0.20)
+# Retuned 0.15 -> 0.25 (rev 7's chosen sweep point, see the GIR-anchored-core
+# block below); sensitivity range shifted to match, same +/-0.05 absolute
+# width the rev 6 range (0.10-0.20 around a 0.15 baseline) used.
+MISHIT_SHORT_FRAC = 0.25   # MODELED, anchorless; fraction of shot distance a mishit comes up short (38.75 yd at 155); sensitivity range (0.20, 0.30)
+MISHIT_SHORT_FRAC_RANGE = (0.20, 0.30)
 
 TOUR_MISHIT_PCT = 0.02     # MODELED, anchorless; a single scalar, far below the amateur tiers' own lowest figure
+
+# TOUR_MISHIT_SHORT_FRAC: rev 7 append (GIR-anchored core, dated addendum
+# below). Rev 6 shared MISHIT_SHORT_FRAC between the amateur tiers and the
+# Tour tier (only the mishit RATE was tour-specific) since both used the
+# same second-moment-preservation algebra. Rev 7 retunes the amateur
+# MISHIT_SHORT_FRAC (0.15 -> 0.25) as part of the GIR-anchored-core sweep
+# below, a change with no Tour-side justification -- the Tour mixture is
+# explicitly out of this pass's scope (the task's own instruction: rerun
+# the Tour gates, do not tune). Reusing the amateur value unchanged would
+# have silently moved tour.tour_mishit_mixture_params's own k_mis (23.25 ->
+# 38.75 yd at the tee shot) and, through it, the Tour season-mean gate
+# (ADR 0002, must-pass, no xfail) outside the modern-era band -- caught by
+# tests/test_montecarlo.py::test_tour_gate_season_mean_modern_era, which
+# regressed to 3.0537 (band [3.0586, 3.2051]) before this constant existed.
+# Freezing the Tour tier's own short-miss fraction at the rev 6 value (0.15)
+# keeps tour.tour_mishit_mixture_params byte-for-byte unchanged from rev 6
+# (TOUR_MISHIT_PCT and tour_oval are both already untouched by this pass),
+# restoring the season-mean gate exactly.
+TOUR_MISHIT_SHORT_FRAC = 0.15   # MODELED, anchorless; frozen at the rev 6 value, decoupled from the amateur MISHIT_SHORT_FRAC
 
 SOURCES["MISHIT_PCT"] = {
     "log": "docs/sources/003_Source_Log.md#anchor-3",
     "status": ("modeled, anchorless -- no source in the hunt publishes a mishit rate by "
-               "handicap for a ~155-yd approach; sensitivity range a 0.5x-1.5x multiplier per tier"),
+               "handicap for a ~155-yd approach; rev 6 table scaled 1.25x in rev 7's sweep "
+               "(GIR-anchored core); sensitivity range a 0.5x-1.5x multiplier per tier"),
 }
 SOURCES["MISHIT_SHORT_FRAC"] = {
     "log": "docs/sources/003_Source_Log.md#anchor-3",
-    "status": "modeled, anchorless -- fraction of shot distance a mishit comes up short; sensitivity range 0.10-0.20",
+    "status": ("modeled, anchorless -- fraction of shot distance a mishit comes up short; "
+               "retuned 0.15 -> 0.25 in rev 7's sweep (GIR-anchored core); "
+               "sensitivity range 0.20-0.30"),
 }
 SOURCES["TOUR_MISHIT_PCT"] = {
     "log": "docs/sources/003_Source_Log.md#anchor-3",
     "status": "modeled, anchorless -- a single scalar, far below the amateur tiers' own lowest figure",
+}
+SOURCES["TOUR_MISHIT_SHORT_FRAC"] = {
+    "log": "docs/sources/003_Source_Log.md#anchor-3",
+    "status": ("modeled, anchorless -- frozen at the rev 6 value (0.15), decoupled from the "
+               "amateur MISHIT_SHORT_FRAC (retuned to 0.25 in rev 7) so retuning the amateur "
+               "mixture cannot silently move the Tour season-mean gate"),
+}
+
+# ---------------------------------------------------------------------------
+# GIR-anchored solid-strike core (rev 7, append, dated addendum, 2026-09-10):
+# rev 6 solved the mixture's solid-strike sigma so the mixture's TOTAL
+# distance-axis second moment matched the OLD symmetric-Gaussian sigma_d
+# exactly (sigma_solid = sqrt(sigma_d^2 - p_mis*k_mis^2)). That kept the core
+# almost as wide as the old anchor -- only 4-12% narrower -- so it still
+# spread mass across the fixed-width creek band the same wrong way the
+# original bug did (water probability at the pin still fell with tier for
+# the center and sunday pins), and a 200-yd carry's own far tail was not
+# rare enough to stay under rev 6's 1% target.
+#
+# The anchor this release actually publishes is a green-hit RATE at each
+# tier's own anchor distance (data.GIR50_DISTANCE_YD: the yardage at which
+# each tier hits 50% of greens; tier 10's own matched proximity-and-GIR
+# pair at PROXIMITY_10_ANCHOR_BAND_MID_YD) -- not a variance. This block
+# re-derives the mixture's solid-strike core so the FULL TWO-COMPONENT
+# MIXTURE (not the old single Gaussian, and not rev 6's total-variance
+# match) reproduces that anchored RATE directly: P(landing within a
+# circular green of radius GREEN_RADIUS_FT of the aim point) equals 0.50 at
+# the tier's own GIR50 distance (tier 10: equals GIR_10_ANCHOR_PCT at its
+# own band midpoint), computed by 2D numeric integration over the mixture.
+#
+# _prob_within_radius_2d integrates one isotropic 2D Gaussian component
+# (mean (0, offset_y_ft), equal sigma on both axes) over a truncated
+# Gaussian product grid -- the same numeric method model.score_for_oval
+# uses elsewhere in this package for hole-geometry integration, applied
+# here to a circular target instead of Augusta 12's regions.
+# _mixture_prob_within_radius combines the core (offset 0) and the tail
+# (offset -k_mis_ft, same sigma, weight p_mis) into the mixture's own
+# P(within radius). _solve_sigma_for_mixture_gir bisects for the isotropic
+# sigma at which that combined probability hits the tier's target GIR%,
+# holding p_mis and k_mis_ft fixed at their own values AT THE ANCHOR
+# DISTANCE (k_mis_ft = MISHIT_SHORT_FRAC * anchor_yd * 3 ft/yd) -- a
+# different, typically smaller, k_mis than the one the mixture uses at the
+# 155-yd tee shot itself, since MISHIT_SHORT_FRAC is a fraction of shot
+# distance and four of the five tiers' own anchor distances are not 155 yd.
+#
+# The solved anchor sigma is converted to a per-yard rate (sigma_anchor_ft /
+# anchor_yd, mirroring data.sigma_isotropic_ft's own k_tier construction)
+# and scaled linearly to the 155-yd tee shot: solid_strike_sigma_iso_ft
+# below, called by model.mishit_mixture_params. The anisotropy split and
+# the tail's own k_mis AT THE ACTUAL SHOT DISTANCE (155 yd) are applied
+# downstream in model.py, unchanged in method from rev 6 -- only the
+# isotropic core magnitude feeding that split is new. Because the split now
+# starts from a smaller isotropic core than the old anchor's own sigma_iso,
+# BOTH the distance axis (sigma_d) and the line axis (sigma_l) come out
+# tighter than rev 6's mixture -- rev 6 kept sigma_l frozen at the old
+# anchor's own value; this pass does not, since the anchored quantity being
+# reproduced (a circular GIR rate) is inherently two-axis, not a
+# distance-only second moment.
+#
+# Tier 10 solves against its own matched pair (GIR_10_ANCHOR_PCT at
+# PROXIMITY_10_ANCHOR_BAND_MID_YD) rather than a 50%-GIR distance, the same
+# special case data.sigma_isotropic_ft already gives it. Because the
+# mixture's mean radial miss no longer matches the old single-Gaussian
+# inversion exactly (the tail skews the mean short), the solved core implies
+# a mixture mean radial miss that sits away from the published 62 ft
+# proximity figure -- MISHIT10_MEAN_RADIAL_FT_AT_ANCHOR and MISHIT10_MEAN_
+# RADIAL_DELTA_FT below report that gap numerically rather than silently
+# treating the mixture as still averaging 62 ft; see VALIDATION_NOTES.md's
+# rev 7 section for the number and what it means.
+#
+# ANISOTROPY["ratio"] (2.5, retuned from 3.0 by this same pass's sweep,
+# above), MISHIT_PCT (rev 6 table x1.25, above), and MISHIT_SHORT_FRAC (0.15
+# -> 0.25, above) are this release's three MODELED shape parameters, chosen
+# by a joint sweep over {0.15, 0.20, 0.25, 0.30} x {1.0x, 1.25x, 1.5x} x
+# {2.0, 2.5, 3.0} (36 combinations; VALIDATION_NOTES.md's rev 7 section
+# carries the full table). Selection ran in two passes:
+#
+#   1. Rank all 36 by total residual violation against both owner checks
+#      (water at the pin rising with tier at every pin, allowing 0.5-point
+#      ties; water at a 200-yd carry staying under 3%). The single smallest
+#      is {frac=0.20, mult=1.5, ratio=2.0}.
+#   2. Check each candidate, best-first, against two separate pre-existing
+#      invariants this package already tests, neither of which the task's
+#      owner checks mention: tests/test_optimizer.py::test_wind_pushes_
+#      optimal_aim_farther_from_sunday_pin (wind should push the optimal
+#      Sunday aim farther from the pin, not closer) and ::test_flip_set_
+#      baseline_labels_sunday_always_bail_left_and_center_are_the_tossup_
+#      pins (Sunday should always read "bail," the sucker-pin finding this
+#      whole release is built around). {frac=0.20, mult=1.5, ratio=2.0}
+#      reverses the wind invariant at tier 5 (11.72 yd windy vs 11.91 yd
+#      calm distance from the pin). The next-best, {frac=0.25, mult=1.0,
+#      ratio=2.5} (only 3.7% worse on the violation metric, and keeping
+#      MISHIT_PCT completely unchanged from rev 6), reverses the Sunday
+#      invariant instead, at tiers 10 and 20 under wind (delta 0.0463 and
+#      0.0487, just under optimizer.TOSSUP_THRESHOLD_STROKES). {frac=0.25,
+#      mult=1.25, ratio=2.5} is the smallest-violation combination that
+#      reverses NEITHER invariant -- the one actually shipped.
+#
+# Neither owner check fully passes at the chosen combination -- see
+# VALIDATION_NOTES.md and ADR 0003's dated addendum for the residual
+# violations, disclosed rather than further retuned past this pass's own
+# stated ranges.
+# ---------------------------------------------------------------------------
+
+MISHIT_ANCHOR_YD = {
+    0: GIR50_DISTANCE_YD[0], 5: GIR50_DISTANCE_YD[5],
+    10: PROXIMITY_10_ANCHOR_BAND_MID_YD,
+    15: GIR50_DISTANCE_YD[15], 20: GIR50_DISTANCE_YD[20],
+}  # the distance each tier's solid-strike core is calibrated at
+
+MISHIT_ANCHOR_TARGET_GIR = {0: 0.5, 5: 0.5, 10: GIR_10_ANCHOR_PCT, 15: 0.5, 20: 0.5}
+
+_MISHIT_YD_TO_FT = 3.0  # local yd->ft conversion; data.py does not import model.FT_PER_YD (no cross-module import)
+
+
+def _prob_within_radius_2d(sigma_ft, offset_y_ft, radius_ft, n_std=8.0, n_grid=501):
+    """P(X^2 + Y^2 <= radius_ft^2) for one isotropic 2D Gaussian component,
+    X ~ N(0, sigma_ft), Y ~ N(offset_y_ft, sigma_ft), via a truncated
+    Gaussian product grid (n_std standard deviations either side of the
+    component's OWN mean, n_grid points per axis, so this stays accurate
+    regardless of how far offset_y_ft sits from the origin) -- the same
+    numeric integration method model.score_for_oval uses for hole-geometry
+    regions, applied here to a circular target instead."""
+    sigma_ft = max(sigma_ft, 1e-9)
+    ys = np.linspace(offset_y_ft - n_std * sigma_ft, offset_y_ft + n_std * sigma_ft, n_grid)
+    xs = np.linspace(-n_std * sigma_ft, n_std * sigma_ft, n_grid)
+    wy = np.exp(-0.5 * ((ys - offset_y_ft) / sigma_ft) ** 2)
+    wx = np.exp(-0.5 * (xs / sigma_ft) ** 2)
+    wy = wy / wy.sum()
+    wx = wx / wx.sum()
+    inside = (xs[None, :] ** 2 + (ys[:, None]) ** 2) <= radius_ft ** 2
+    w = wy[:, None] * wx[None, :]
+    return float(w[inside].sum())
+
+
+def _mixture_prob_within_radius(sigma_ft, k_mis_ft, p_mis, radius_ft, **kw):
+    """P(within radius_ft of the aim point) for the two-component mixture:
+    (1 - p_mis) * core (mean 0) + p_mis * tail (mean -k_mis_ft, same sigma)."""
+    p_core = _prob_within_radius_2d(sigma_ft, 0.0, radius_ft, **kw)
+    p_tail = _prob_within_radius_2d(sigma_ft, -k_mis_ft, radius_ft, **kw)
+    return (1.0 - p_mis) * p_core + p_mis * p_tail
+
+
+def _mean_radial_2d(sigma_ft, offset_y_ft, n_std=8.0, n_grid=501):
+    """E[sqrt(X^2 + Y^2)] for one isotropic 2D Gaussian component, same grid
+    method as _prob_within_radius_2d -- used only to report how far the
+    tier-10 mixture's own mean radial miss sits from the published 62 ft
+    proximity figure (see the module comment above)."""
+    sigma_ft = max(sigma_ft, 1e-9)
+    ys = np.linspace(offset_y_ft - n_std * sigma_ft, offset_y_ft + n_std * sigma_ft, n_grid)
+    xs = np.linspace(-n_std * sigma_ft, n_std * sigma_ft, n_grid)
+    wy = np.exp(-0.5 * ((ys - offset_y_ft) / sigma_ft) ** 2)
+    wx = np.exp(-0.5 * (xs / sigma_ft) ** 2)
+    wy = wy / wy.sum()
+    wx = wx / wx.sum()
+    r = np.sqrt(xs[None, :] ** 2 + (ys[:, None]) ** 2)
+    w = wy[:, None] * wx[None, :]
+    return float((w * r).sum())
+
+
+def _mixture_mean_radial_ft(sigma_ft, k_mis_ft, p_mis, **kw):
+    m_core = _mean_radial_2d(sigma_ft, 0.0, **kw)
+    m_tail = _mean_radial_2d(sigma_ft, -k_mis_ft, **kw)
+    return (1.0 - p_mis) * m_core + p_mis * m_tail
+
+
+def _solve_sigma_for_mixture_gir(target_pct, p_mis, k_mis_ft, radius_ft, tol=1e-6, max_iter=80):
+    """Isotropic solid-strike sigma (ft) at which the two-component mixture's
+    P(within radius_ft) equals target_pct, via bisection.
+
+    P(within radius) is monotonically decreasing in sigma for fixed
+    p_mis/k_mis_ft: a wider spread always concentrates less mass near a
+    fixed target, for both components independently, so a bracket [lo, hi]
+    with f(lo) >= target >= f(hi) exists for a sigma range wide enough; hi
+    is doubled until this holds (or a defensive ValueError is raised if even
+    a near-zero sigma cannot reach the target -- p_mis too large relative to
+    the target, not something this release's own stated ranges produce)."""
+    lo, hi = 1e-3, 80.0
+    f_hi = _mixture_prob_within_radius(hi, k_mis_ft, p_mis, radius_ft)
+    tries = 0
+    while f_hi > target_pct and tries < 20:
+        hi *= 2.0
+        f_hi = _mixture_prob_within_radius(hi, k_mis_ft, p_mis, radius_ft)
+        tries += 1
+    f_lo = _mixture_prob_within_radius(lo, k_mis_ft, p_mis, radius_ft)
+    if f_lo < target_pct:
+        raise ValueError(
+            f"mishit-mixture GIR-anchor solve: even sigma={lo} ft cannot reach "
+            f"target {target_pct} at p_mis={p_mis}, k_mis={k_mis_ft:.3f} ft "
+            f"(f_lo={f_lo:.4f}) -- p_mis is too large relative to the anchor target"
+        )
+    for _ in range(max_iter):
+        mid = 0.5 * (lo + hi)
+        f_mid = _mixture_prob_within_radius(mid, k_mis_ft, p_mis, radius_ft)
+        if abs(f_mid - target_pct) < tol:
+            return mid
+        if f_mid > target_pct:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
+
+
+@lru_cache(maxsize=None)
+def _solid_strike_k_ft_per_yd(tier, p_mis, mishit_short_frac):
+    """Solid-strike core's ft-per-yard rate (sigma_anchor_ft / anchor_yd),
+    solved once per (tier, p_mis, mishit_short_frac) combination and cached.
+
+    model.mishit_mixture_params is called from every score_for_oval
+    evaluation and every Monte Carlo draw; re-running the bisection+grid
+    solve on every call would be far too slow for a package whose full test
+    suite already takes tens of minutes. The solved rate only changes when
+    one of these three inputs changes (data.MISHIT_PCT[tier] or data.
+    MISHIT_SHORT_FRAC, both swept by this file's own sensitivity tests), so
+    caching on the exact numeric inputs is safe and correct."""
+    if tier not in TIERS:
+        raise KeyError(f"unknown tier {tier!r}; expected one of {TIERS}")
+    anchor_yd = MISHIT_ANCHOR_YD[tier]
+    target = MISHIT_ANCHOR_TARGET_GIR[tier]
+    k_mis_anchor_ft = mishit_short_frac * anchor_yd * _MISHIT_YD_TO_FT
+    sigma_anchor_ft = _solve_sigma_for_mixture_gir(target, p_mis, k_mis_anchor_ft, GREEN_RADIUS_FT)
+    return sigma_anchor_ft / anchor_yd
+
+
+def solid_strike_sigma_iso_ft(tier, shot_yd=TEE_SHOT_YD, mishit_pct=None, mishit_short_frac=None):
+    """Isotropic solid-strike core sigma (ft), scaled to shot_yd, for the
+    rev 7 GIR-anchored mixture (see the module comment above this block).
+
+    mishit_pct/mishit_short_frac default to the LIVE data.MISHIT_PCT[tier]/
+    data.MISHIT_SHORT_FRAC globals (read at call time, not import time), so
+    a sensitivity-sweep test that monkeypatches those globals is picked up
+    automatically without needing to pass overrides explicitly; a sweep
+    that would rather not mutate module globals can pass mishit_pct/
+    mishit_short_frac directly instead."""
+    if tier not in TIERS:
+        raise KeyError(f"unknown tier {tier!r}; expected one of {TIERS}")
+    p = MISHIT_PCT[tier] if mishit_pct is None else mishit_pct
+    frac = MISHIT_SHORT_FRAC if mishit_short_frac is None else mishit_short_frac
+    k = _solid_strike_k_ft_per_yd(tier, p, frac)
+    return k * shot_yd
+
+
+# Tier 10's own mixture mean radial miss at its anchor distance (137 yd),
+# and its gap from the published 62 ft proximity figure -- computed once at
+# import time, at this release's own chosen MISHIT_PCT[10]/MISHIT_SHORT_FRAC
+# values (see the module comment above for why the mixture no longer
+# reproduces 62 ft exactly the way the old single-Gaussian inversion did).
+_TIER10_ANCHOR_SIGMA_FT = _solid_strike_k_ft_per_yd(10, MISHIT_PCT[10], MISHIT_SHORT_FRAC) * MISHIT_ANCHOR_YD[10]
+_TIER10_ANCHOR_KMIS_FT = MISHIT_SHORT_FRAC * MISHIT_ANCHOR_YD[10] * _MISHIT_YD_TO_FT
+MISHIT10_MEAN_RADIAL_FT_AT_ANCHOR = _mixture_mean_radial_ft(
+    _TIER10_ANCHOR_SIGMA_FT, _TIER10_ANCHOR_KMIS_FT, MISHIT_PCT[10]
+)
+MISHIT10_MEAN_RADIAL_DELTA_FT = MISHIT10_MEAN_RADIAL_FT_AT_ANCHOR - PROXIMITY_10_ANCHOR_FT
+
+SOURCES["MISHIT_GIR_ANCHORED_CORE"] = {
+    "log": "docs/sources/003_Source_Log.md#anchor-1",
+    "status": ("modeled construction (rev 7): the mixture's solid-strike core is solved "
+               "so the full two-component mixture reproduces each tier's own published "
+               "GIR50 distance (or, tier 10, its own matched proximity/GIR pair) via 2D "
+               "numeric integration over a circular green, replacing rev 6's total-"
+               "second-moment match; MISHIT_PCT/MISHIT_SHORT_FRAC/ANISOTROPY ratio chosen "
+               "by a joint sweep, see VALIDATION_NOTES.md's rev 7 section"),
 }

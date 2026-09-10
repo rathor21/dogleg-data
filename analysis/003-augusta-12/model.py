@@ -28,13 +28,21 @@ logic, not new numbers.
 
 Rev 6 (Sunny's finding): distance error is a two-component mixture, not one
 symmetric Gaussian. mishit_mixture_params() below re-splits Step 1's
-isotropic sigma into a tighter solid-strike core plus a short mishit tail,
-preserving Step 1+2's own anchored second moment; expected_score() becomes
-the mixture-weighted sum of two score_for_oval() calls instead of one. See
-mishit_mixture_params's docstring for why (a single symmetric Gaussian let
-a 20-handicap post a lower water rate than a scratch player at the same aim
-and still showed water risk at a 200-yd carry, both wrong on the real hole)
-and the algebra that keeps the anchored proximity reproduced.
+isotropic sigma into a tighter solid-strike core plus a short mishit tail;
+expected_score() becomes the mixture-weighted sum of two score_for_oval()
+calls instead of one. Rev 6 solved that core to preserve Step 1+2's own
+anchored second moment -- disclosed in ADR 0003 as not narrow enough to
+fully fix either of Sunny's findings (a single symmetric Gaussian let a
+20-handicap post a lower water rate than a scratch player at the same aim,
+and still showed water risk at a 200-yd carry).
+
+Rev 7 (GIR-anchored core): mishit_mixture_params() now solves the
+solid-strike core so the full mixture reproduces each tier's own published
+green-hit RATE at its own anchor distance (data.solid_strike_sigma_iso_ft),
+not a second moment. See that function's docstring and data.py's
+GIR-anchored-core append block for the construction, and VALIDATION_NOTES.md's
+rev 7 section for the sweep that chose this pass's MISHIT_PCT/MISHIT_SHORT_
+FRAC/ANISOTROPY ratio and the residual violations that remain.
 """
 
 from math import exp, pi, sqrt
@@ -61,13 +69,25 @@ REGION_NAMES = (
 # Step 2: anisotropy split (and its inverse, for the round-trip test).
 # ---------------------------------------------------------------------------
 
+def _anisotropy_split(sigma_iso_yd, ratio):
+    """(sigma_distance_yd, sigma_line_yd): split an isotropic radial sigma
+    into anisotropic distance/line axes at the given ratio, preserving total
+    variance (sigma_d**2 + sigma_l**2 == 2 * sigma_iso**2). Shared by
+    oval_for_tier (the plain, pre-mixture oval) and mishit_mixture_params
+    (rev 7's GIR-anchored solid-strike core) so the two never drift apart on
+    the split formula itself."""
+    sigma_l = sigma_iso_yd * sqrt(2.0 / (ratio ** 2 + 1.0))
+    sigma_d = ratio * sigma_l
+    return sigma_d, sigma_l
+
+
 def oval_for_tier(tier, anisotropy_ratio=None, shot_yd=data.TEE_SHOT_YD):
     """(sigma_distance_yd, sigma_line_yd): the dispersion oval for tier at
     shot_yd yards.
 
     Splits data.SIGMA_ISO_FT[tier] (Step 1, an isotropic radial sigma in
     feet) into anisotropic distance/line axes using anisotropy_ratio
-    (default data.ANISOTROPY["ratio"] = 3.0; sensitivity range
+    (default data.ANISOTROPY["ratio"] = 2.5; sensitivity range
     data.ANISOTROPY["range"], Anchor 2 -- a parameter, never a buried
     constant). Total variance is preserved: sigma_d**2 + sigma_l**2 ==
     2 * sigma_iso**2, so widening the ratio redistributes spread between axes
@@ -75,63 +95,59 @@ def oval_for_tier(tier, anisotropy_ratio=None, shot_yd=data.TEE_SHOT_YD):
     """
     ratio = data.ANISOTROPY["ratio"] if anisotropy_ratio is None else anisotropy_ratio
     sigma_iso_yd = data.sigma_isotropic_ft(tier, shot_yd) / FT_PER_YD
-    sigma_l = sigma_iso_yd * sqrt(2.0 / (ratio ** 2 + 1.0))
-    sigma_d = ratio * sigma_l
-    return sigma_d, sigma_l
+    return _anisotropy_split(sigma_iso_yd, ratio)
 
 
 def mishit_mixture_params(tier, anisotropy_ratio=None, shot_yd=data.TEE_SHOT_YD):
-    """(sigma_solid_d_yd, sigma_l_yd, p_mis, k_mis_yd): rev 6's two-component
-    distance-error mixture (Sunny's finding, data.py's mishit-mixture append
-    block). A single symmetric Gaussian per tier for distance error let a
-    20-handicap post a LOWER water rate than a scratch player at the same
-    aim, and still showed water risk at a 200-yd carry -- both wrong on the
-    real hole, since the 20-handicap's own distance sigma (33.6 yd) dwarfs
-    the 9-yd creek-plus-bank band and spreads mass past it symmetrically in
-    both directions.
+    """(sigma_solid_d_yd, sigma_l_yd, p_mis, k_mis_yd): rev 7's GIR-anchored
+    two-component distance-error mixture (data.py's GIR-anchored-core append
+    block). Rev 6 solved the mixture's solid-strike sigma so the mixture's
+    TOTAL second moment matched the OLD symmetric-Gaussian sigma_d exactly;
+    that kept the core almost as wide as the old anchor (4-12% narrower), not
+    tight enough to fix either of Sunny's two findings (water probability
+    falling with tier at some pins; nonzero water risk at an absurd 200-yd
+    carry). This release's own published anchor is a green-hit RATE at each
+    tier's own anchor distance (data.GIR50_DISTANCE_YD, or tier 10's matched
+    proximity/GIR pair), not a variance -- so rev 7 re-solves the solid-
+    strike core to reproduce that RATE directly, letting the mishit tail
+    (unchanged mechanism, MISHIT_PCT/MISHIT_SHORT_FRAC) carry the short-side
+    skew instead of the core absorbing it as extra symmetric width.
 
-    Distance error is now a mixture: with probability 1 - p_mis, N(0,
+    Distance error is a mixture: with probability 1 - p_mis, N(0,
     sigma_solid) (a solid strike); with probability p_mis (data.MISHIT_PCT
     [tier], MODELED, sensitivity range a 0.5x-1.5x multiplier), N(-k_mis,
     sigma_solid) (a mishit, same spread as the solid strike, its mean
     shifted short by k_mis = data.MISHIT_SHORT_FRAC * shot_yd, MODELED,
-    sensitivity range 0.10-0.20 of shot distance). Lateral error (sigma_l)
-    is untouched by the mixture -- it stays exactly oval_for_tier's own
-    line-axis sigma.
+    sensitivity range 0.20-0.30 of shot distance). Unlike rev 6, sigma_l is
+    NOT frozen at oval_for_tier's own plain-Gaussian value -- it comes from
+    the same anisotropy split applied to the new, tighter solid-strike
+    isotropic core, since the anchored quantity being reproduced (a circular
+    GIR rate) is inherently two-axis, not a distance-only second moment.
 
-    Anchor preservation: sigma_solid is solved so the mixture's TOTAL second
-    moment about zero equals the tier's already-anchored, anisotropy-split
-    distance sigma (oval_for_tier(tier, anisotropy_ratio, shot_yd)'s own
-    sigma_d), so the tier's anchored mean proximity is still reproduced to
-    first order. For X ~ the mixture:
+    data.solid_strike_sigma_iso_ft(tier, shot_yd) does the actual anchor
+    work: it solves, via 2D numeric integration and bisection (see that
+    module's docstring), the isotropic sigma at which the two-component
+    mixture reproduces the tier's target GIR% AT ITS OWN ANCHOR DISTANCE
+    (using k_mis evaluated at that anchor distance, not at shot_yd), then
+    scales that anchor sigma linearly to shot_yd the same way data.
+    sigma_isotropic_ft's own k_tier construction does. This function then
+    applies _anisotropy_split to that scaled isotropic core (the same split
+    oval_for_tier uses) and builds k_mis at the ACTUAL shot distance
+    (shot_yd, not the anchor distance) for use downstream in
+    score_for_oval's mean shift -- the anchor-distance k_mis is an internal
+    detail of data.solid_strike_sigma_iso_ft's own solve, never returned
+    here.
 
-        E[X^2] = (1 - p_mis) * sigma_solid^2 + p_mis * (sigma_solid^2 + k_mis^2)
-               = sigma_solid^2 + p_mis * k_mis^2
-
-    (the second component's own second moment about zero is its variance
-    plus its squared mean; the first component's mean is zero, so it
-    contributes no cross term). Setting E[X^2] == sigma_d^2 and solving:
-
-        sigma_solid = sqrt(sigma_d^2 - p_mis * k_mis^2)
-
-    Checked at every corner of both sensitivity ranges (data.
-    MISHIT_PCT_SENSITIVITY_MULT_RANGE x data.MISHIT_SHORT_FRAC_RANGE) for
-    every tier: sigma_solid stays real and positive throughout this
-    release's own stated ranges (worst case, tier 20 at the widest corner,
-    sigma_solid ~= 27.7 yd against sigma_d = 33.6 yd) -- see
-    tests/test_model.py::test_mixture_preserves_anchored_second_moment.
+    See tests/test_model.py::test_mixture_reproduces_anchored_gir_at_anchor_
+    distance for the round-trip check (rev 6's second-moment test is
+    retired -- rev 7 no longer targets a second moment at all).
     """
-    sigma_d, sigma_l = oval_for_tier(tier, anisotropy_ratio, shot_yd)
+    ratio = data.ANISOTROPY["ratio"] if anisotropy_ratio is None else anisotropy_ratio
+    sigma_solid_iso_yd = data.solid_strike_sigma_iso_ft(tier, shot_yd) / FT_PER_YD
+    sigma_solid_d, sigma_l = _anisotropy_split(sigma_solid_iso_yd, ratio)
     p_mis = data.MISHIT_PCT[tier]
     k_mis = data.MISHIT_SHORT_FRAC * shot_yd
-    sigma_solid_sq = sigma_d ** 2 - p_mis * k_mis ** 2
-    if sigma_solid_sq <= 0.0:
-        raise ValueError(
-            f"mishit mixture second-moment equation has no real solution for tier={tier}: "
-            f"sigma_d={sigma_d:.4f} yd, p_mis={p_mis}, k_mis={k_mis:.4f} yd"
-        )
-    sigma_solid = sqrt(sigma_solid_sq)
-    return sigma_solid, sigma_l, p_mis, k_mis
+    return sigma_solid_d, sigma_l, p_mis, k_mis
 
 
 def mean_radial_ft(sigma_d_yd, sigma_l_yd):

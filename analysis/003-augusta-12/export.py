@@ -1085,7 +1085,7 @@ def build_chapters(results=None, moves=None):
             pin_xy = (p["x"], p["y"])
             for wind in (False, True):
                 sigma_d, sigma_l, mean_shift_y = _oval_and_mean_shift(tier, wind)
-                sigma_solid, _sigma_l_solid, _mean_shift_y_solid, p_mis, k_mis = _mishit_oval_and_mean_shift(tier, wind)
+                sigma_solid, sigma_l_solid, mean_shift_y_solid, p_mis, k_mis = _mishit_oval_and_mean_shift(tier, wind)
                 mv = moves[(tier, pin, wind)]
 
                 aim_xy = (p["x"] + mv["aim_lateral_offset_yd"], p["y"] + mv["aim_carry_adjustment_yd"])
@@ -1097,10 +1097,27 @@ def build_chapters(results=None, moves=None):
                 # expected_score's own mixture exactly. sigma_d/sigma_l
                 # above (model.oval_for_tier, unmixed) still feed only the
                 # cosmetic sigma_d_yd/sigma_l_yd display fields below.
+                #
+                # Rev 7 (GIR-anchored core) fix: sigma_l_solid/mean_shift_y_
+                # solid (not the plain oval's sigma_l/mean_shift_y) must be
+                # used here. In rev 6, model.mishit_mixture_params kept
+                # sigma_l frozen at oval_for_tier's own value, so reusing
+                # the plain sigma_l was harmless; rev 7 explicitly stopped
+                # freezing it (both axes now come from the same anisotropy
+                # split applied to the new, tighter GIR-anchored isotropic
+                # core), so the two are no longer interchangeable. Reusing
+                # the plain sigma_l here silently understated p_water_at_
+                # pin/p_green_at_pin (caught by tests/test_export.py::
+                # test_chapters_cells_p_water_p_green_match_model_expected_
+                # score, which compares this cell against a fresh score_
+                # and_region_probs call using the correct mixture sigma_l).
+                # mean_shift_y_solid happens to equal mean_shift_y always
+                # (wind's carry penalty does not depend on sigma), but is
+                # used here too for clarity and to avoid relying on that.
                 _score_pin, p_water_pin, p_green_pin = score_and_region_probs(
-                    sigma_solid, sigma_l, tier, pin, pin_xy, mean_shift_y, p_mis=p_mis, k_mis_yd=k_mis)
+                    sigma_solid, sigma_l_solid, tier, pin, pin_xy, mean_shift_y_solid, p_mis=p_mis, k_mis_yd=k_mis)
                 _score_aim, p_water_aim, p_green_aim = score_and_region_probs(
-                    sigma_solid, sigma_l, tier, pin, aim_xy, mean_shift_y, p_mis=p_mis, k_mis_yd=k_mis)
+                    sigma_solid, sigma_l_solid, tier, pin, aim_xy, mean_shift_y_solid, p_mis=p_mis, k_mis_yd=k_mis)
 
                 key = f"{tier}|{pin}|{int(wind)}"
                 cells[key] = {

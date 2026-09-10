@@ -37,7 +37,10 @@ def test_sigma_isotropic_ft_rejects_unknown_tier():
 
 
 def test_anisotropy_default_and_range():
-    assert data.ANISOTROPY["ratio"] == 3.0
+    # Default ratio retuned 3.0 -> 2.5 in rev 7 (GIR-anchored core sweep,
+    # data.py's rev 7 append block); the sensitivity range itself is
+    # unchanged and still brackets the new default.
+    assert data.ANISOTROPY["ratio"] == 2.5
     lo, hi = data.ANISOTROPY["range"]
     assert lo == 2.0 and hi == 3.5
     assert lo <= data.ANISOTROPY["ratio"] <= hi
@@ -138,9 +141,11 @@ def test_mishit_pct_well_formed():
 
 
 def test_mishit_short_frac_well_formed():
+    # Retuned 0.15 -> 0.25 in rev 7's sweep; range shifted to (0.20, 0.30),
+    # the same +/-0.05 absolute width the rev 6 range used.
     assert 0.0 < data.MISHIT_SHORT_FRAC < 1.0
     lo, hi = data.MISHIT_SHORT_FRAC_RANGE
-    assert (lo, hi) == (0.10, 0.20)
+    assert (lo, hi) == (0.20, 0.30)
     assert lo <= data.MISHIT_SHORT_FRAC <= hi
 
 

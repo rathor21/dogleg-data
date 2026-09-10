@@ -53,16 +53,22 @@ def tour_oval(anisotropy_ratio=None, shot_yd=data.TEE_SHOT_YD):
 
 def tour_mishit_mixture_params(anisotropy_ratio=None, shot_yd=data.TEE_SHOT_YD):
     """(sigma_solid_d_yd, sigma_l_yd, p_mis, k_mis_yd): the Tour-tier
-    counterpart to model.mishit_mixture_params (rev 6, Sunny's finding),
-    identical algebra sourced from tour_oval's own sigma_d instead of the
-    amateur oval_for_tier, and data.TOUR_MISHIT_PCT (a single scalar, far
-    below the amateur tiers' own lowest figure) in place of the amateur
-    tier-keyed data.MISHIT_PCT dict. data.MISHIT_SHORT_FRAC (the short-miss
-    fraction of shot distance) is shared with the amateur tiers -- only the
-    mishit RATE, not the short-miss fraction, is tour-specific."""
+    counterpart to model.mishit_mixture_params, still using rev 6's
+    total-second-moment-preservation algebra (unlike the amateur tiers,
+    which rev 7 moved to a GIR-anchored construction -- the Tour mixture is
+    out of that pass's scope; see data.TOUR_MISHIT_SHORT_FRAC's own comment
+    for why), sourced from tour_oval's own sigma_d instead of the amateur
+    oval_for_tier, and data.TOUR_MISHIT_PCT (a single scalar, far below the
+    amateur tiers' own lowest figure) in place of the amateur tier-keyed
+    data.MISHIT_PCT dict. data.TOUR_MISHIT_SHORT_FRAC (frozen at the rev 6
+    value, 0.15) is used here instead of the amateur data.MISHIT_SHORT_FRAC
+    (retuned to 0.25 by rev 7) -- the two were shared through rev 6, when
+    both used the same algebra and value; decoupled in rev 7 so retuning
+    the amateur mixture's own shape cannot silently move the Tour season-
+    mean gate (ADR 0002, must-pass, no xfail) through a shared constant."""
     sigma_d, sigma_l = tour_oval(anisotropy_ratio, shot_yd)
     p_mis = data.TOUR_MISHIT_PCT
-    k_mis = data.MISHIT_SHORT_FRAC * shot_yd
+    k_mis = data.TOUR_MISHIT_SHORT_FRAC * shot_yd
     sigma_solid_sq = sigma_d ** 2 - p_mis * k_mis ** 2
     if sigma_solid_sq <= 0.0:
         raise ValueError(
