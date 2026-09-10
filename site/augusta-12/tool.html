@@ -203,6 +203,7 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
         <div class="kpi-row">
           <div class="kpi"><div class="l">Expected score at your aim</div><div class="v" id="kpi-score">&mdash;</div></div>
           <div class="kpi"><div class="l">Finds the water</div><div class="v" id="kpi-water">&mdash;</div></div>
+          <div class="kpi"><div class="l">Short of the creek</div><div class="v" id="kpi-short">&mdash;</div></div>
           <div class="kpi"><div class="l">Hits the green</div><div class="v" id="kpi-green">&mdash;</div></div>
           <div class="kpi"><div class="l" id="kpi-delta-label">Strokes vs. model's aim</div><div class="v" id="kpi-delta">&mdash;</div></div>
         </div>
@@ -231,6 +232,7 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
   <h2>What is modeled here</h2>
   <div class="sub">Every anchored number traces back to a published source. These do not: they are built assumptions with a stated sensitivity range, carried through this sandbox exactly as the analysis uses them.</div>
   <ul class="disclosure-list" id="disclosure-list"></ul>
+  <p class="note">"Finds the water" counts a ball in the creek itself or on the mown bank that feeds a short mishit into it; "Short of the creek" counts a ball that lands in the fairway short of that band entirely, a pitch back over the water rather than a ball already in it. Both numbers come from the same dispersion oval, so a wider miss pattern raises one or the other, or both, depending on how far short the miss lands.</p>
   <p class="note">Handicap tiers 15 and 20 sit well outside the published GIR-by-distance anchor band for a 155-yard shot, so their dispersion ovals come from an extrapolation of the same formula the anchored tiers use, not a direct anchor. See <code>analysis/003-augusta-12/data.py</code> for the full anchor-by-anchor breakdown.</p>
   <p class="note">This sandbox recomputes every number in your browser from the exported grids. No server, no tracking.</p>
   <p class="note">Read the full write-up on <a href="/augusta-12/">the 12th hole analysis</a>, or check the sourcing yourself in the <a href="https://github.com/rathor21/dogleg-data/blob/main/docs/sources/003_Source_Log.md">source log on GitHub</a>.</p>
@@ -257,16 +259,17 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
 // directory:
 //   ../002-tee-shot-distance/.venv/bin/python -c "import model; \
 //     print({t: model.oval_for_tier(t) for t in [0,5,10,15,20]})"
-// Output (2026-09-07, at the hole's 155-yd tee shot):
-//   {0: (18.715, 6.238), 5: (21.007, 7.002), 10: (25.030, 8.343),
-//    15: (28.073, 9.358), 20: (33.565, 11.188)}
+// Output (2026-09-10, at the hole's 155-yd tee shot, rev 7 -- GIR-anchored
+// core and ANISOTROPY["ratio"] retuned 3.0 -> 2.5, see 003.8/9):
+//   {0: (18.317, 7.327), 5: (20.559, 8.224), 10: (24.497, 9.799),
+//    15: (27.475, 10.990), 20: (32.850, 13.140)}
 // ---------------------------------------------------------------------
 const OVALS = {
-  0:  [18.71526035495927, 6.238420118319757],
-  5:  [21.006924888219586, 7.0023082960731955],
-  10: [25.029828841208953, 8.343276280402984],
-  15: [28.07289053243891, 9.357630177479637],
-  20: [33.56541259313348, 11.188470864377827]
+  0:  [18.31663215652335, 7.326652862609341],
+  5:  [20.559485073648656, 8.223794029459462],
+  10: [24.49670264425029, 9.798681057700117],
+  15: [27.47494823478503, 10.989979293914011],
+  20: [32.850481585069055, 13.140192634027622]
 };
 
 // Tiers whose dispersion ovals are interpolated beyond this shot length's
@@ -309,6 +312,7 @@ function sandboxLookup(grids, tier, pin, wind, lateral, carryAdj){
   const p_water = bilinear(cell.p_water, carryAxis, lateralAxis, carryAdj, lateral);
   const result = {score: score, p_water: p_water};
   if(cell.p_green) result.p_green = bilinear(cell.p_green, carryAxis, lateralAxis, carryAdj, lateral);
+  if(cell.p_short) result.p_short = bilinear(cell.p_short, carryAxis, lateralAxis, carryAdj, lateral);
   const delta = score - cell.optimum.score;
   result.delta_vs_optimum = delta;
   result.tossup = Math.abs(delta) <= grids.tossup_threshold_strokes;
@@ -358,6 +362,7 @@ const els = {
   lateral: document.getElementById("sb-lateral"),
   kpiScore: document.getElementById("kpi-score"),
   kpiWater: document.getElementById("kpi-water"),
+  kpiShort: document.getElementById("kpi-short"),
   kpiGreen: document.getElementById("kpi-green"),
   kpiDeltaLabel: document.getElementById("kpi-delta-label"),
   kpiDelta: document.getElementById("kpi-delta"),
@@ -630,6 +635,7 @@ function render(){
 
   els.kpiScore.textContent = lookup.score.toFixed(2);
   els.kpiWater.textContent = pct(lookup.p_water);
+  els.kpiShort.textContent = pct(lookup.p_short != null ? lookup.p_short : 0);
   els.kpiGreen.textContent = pct(lookup.p_green != null ? lookup.p_green : 0);
 
   const delta = lookup.delta_vs_optimum;

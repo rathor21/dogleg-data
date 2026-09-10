@@ -52,12 +52,17 @@ CHAPTERS_PATH = os.path.join(OUT, "003_chapters.json")
 # this already produces a ~1-2 MB file (see the size check build_grids
 # prints), matching the spec's stated fallback axes exactly, so there is no
 # finer default to coarsen from. If a future change grows the file past
-# the ~2 MB budget, drop "p_green" first (kept last in each cell dict for
-# that reason) before touching the axes. build_grid_for_combo also computes
-# a "p_short" (short_fairway probability) grid per combo, cheap to compute
-# but NOT cheap to store: adding a fourth full grid per cell pushed the file
-# to ~2.27 MB, past budget, so it is returned to callers but not written
-# into the JSON cells (region-geometry fix, this pass).
+# budget, drop "p_green" first (kept last in each cell dict for that
+# reason) before touching the axes.
+#
+# "p_short" (short_fairway probability, the fairway short of the creek
+# band -- a pitch over water, not a ball in the hazard) is a fourth full
+# grid per cell (003.8/9, the sandbox's "Short of the creek" KPI card):
+# adding it grows the file from ~2.08 MB to ~2.77 MB, since each grid costs
+# roughly a third of the file. That is past this module's own former ~2.1
+# MB / 2.6 MB test ceilings, so both were raised (see main()'s printed
+# warning threshold and tests/test_export.py::test_grids_schema_and_size)
+# rather than dropping a grid the sandbox's own KPI cards all need.
 # ---------------------------------------------------------------------------
 
 # CARRY_MAX_YD extended 45.0 -> 60.0 (rev 6, Sunny's sandbox finding): a
@@ -199,11 +204,15 @@ def _mishit_oval_and_mean_shift(tier, wind):
 def _oval_score_and_region_probs(sigma_d_yd, sigma_l_yd, tier, pin, aim_point, mean_shift_y=0.0, *,
                                   green_width_yd=None, front_third_depth_yd=None,
                                   n_std=GRID_N_STD, n_grid=GRID_N_GRID):
-    """(score, p_water, p_green) for a SINGLE oval (no mishit mixture) --
-    one pass over the truncated product-Gaussian grid model.score_for_oval
-    integrates for one component. score_and_region_probs below calls this
-    once per mixture component and combines them; this function is also
-    what a p_mis=0.0 call degenerates to."""
+    """(score, p_water, p_green, p_short) for a SINGLE oval (no mishit
+    mixture) -- one pass over the truncated product-Gaussian grid model.
+    score_for_oval integrates for one component. score_and_region_probs
+    below calls this once per mixture component and combines them; this
+    function is also what a p_mis=0.0 call degenerates to. p_short is the
+    "short_fairway" region's own probability mass -- the fairway short of
+    the creek band, a pitch over water rather than a ball in the hazard
+    itself (see build_grid_for_combo's m_short_fairway for the vectorized
+    twin of this same region test)."""
     sigma_d = max(sigma_d_yd, 1e-6)
     sigma_l = max(sigma_l_yd, 1e-6)
     mean_x, mean_y = aim_point[0], aim_point[1] + mean_shift_y
@@ -218,6 +227,7 @@ def _oval_score_and_region_probs(sigma_d_yd, sigma_l_yd, tier, pin, aim_point, m
     total = 0.0
     p_water = 0.0
     p_green = 0.0
+    p_short = 0.0
     for yi, wyi in zip(ys, wy):
         if wyi == 0.0:
             continue
@@ -235,14 +245,16 @@ def _oval_score_and_region_probs(sigma_d_yd, sigma_l_yd, tier, pin, aim_point, m
                 p_water += w
             elif region == "green":
                 p_green += w
-    return 1.0 + total, p_water, p_green
+            elif region == "short_fairway":
+                p_short += w
+    return 1.0 + total, p_water, p_green, p_short
 
 
 def score_and_region_probs(sigma_solid_yd, sigma_l_yd, tier, pin, aim_point, mean_shift_y=0.0, *,
                             p_mis=0.0, k_mis_yd=0.0,
                             green_width_yd=None, front_third_depth_yd=None,
                             n_std=GRID_N_STD, n_grid=GRID_N_GRID):
-    """(score, p_water, p_green): the mixture-weighted sum of two
+    """(score, p_water, p_green, p_short): the mixture-weighted sum of two
     _oval_score_and_region_probs calls (rev 6, Sunny's finding) -- one for
     the solid-strike component (mean_shift_y unshifted) and one for the
     mishit component (mean_shift_y - k_mis_yd), both sharing the SAME
@@ -276,20 +288,21 @@ def score_and_region_probs(sigma_solid_yd, sigma_l_yd, tier, pin, aim_point, mea
     handful of nodes, so an error in the vectorized reimplementation below
     cannot slip past uncaught.
     """
-    score_solid, pw_solid, pg_solid = _oval_score_and_region_probs(
+    score_solid, pw_solid, pg_solid, ps_solid = _oval_score_and_region_probs(
         sigma_solid_yd, sigma_l_yd, tier, pin, aim_point, mean_shift_y,
         green_width_yd=green_width_yd, front_third_depth_yd=front_third_depth_yd,
         n_std=n_std, n_grid=n_grid)
     if p_mis <= 0.0:
-        return score_solid, pw_solid, pg_solid
-    score_mis, pw_mis, pg_mis = _oval_score_and_region_probs(
+        return score_solid, pw_solid, pg_solid, ps_solid
+    score_mis, pw_mis, pg_mis, ps_mis = _oval_score_and_region_probs(
         sigma_solid_yd, sigma_l_yd, tier, pin, aim_point, mean_shift_y - k_mis_yd,
         green_width_yd=green_width_yd, front_third_depth_yd=front_third_depth_yd,
         n_std=n_std, n_grid=n_grid)
     score = (1.0 - p_mis) * score_solid + p_mis * score_mis
     p_water = (1.0 - p_mis) * pw_solid + p_mis * pw_mis
     p_green = (1.0 - p_mis) * pg_solid + p_mis * pg_mis
-    return score, p_water, p_green
+    p_short = (1.0 - p_mis) * ps_solid + p_mis * ps_mis
+    return score, p_water, p_green, p_short
 
 
 def _recovery_leg_constants(tier):
@@ -530,12 +543,11 @@ def build_sandbox_grids(results=None):
     for tier in data.TIERS:
         for pin in data.PINS:
             for wind in (False, True):
-                # p_short (short_fairway probability) is intentionally not
-                # stored below -- see the module-level budget comment above.
-                score, p_water, p_green, _p_short = build_grid_for_combo(tier, pin, wind)
+                score, p_water, p_green, p_short = build_grid_for_combo(tier, pin, wind)
                 score_grid = np.round(score, 4).tolist()
                 water_grid = np.round(p_water, 4).tolist()
                 green_grid = np.round(p_green, 4).tolist()
+                short_grid = np.round(p_short, 4).tolist()
 
                 row = results[(tier, pin, wind)]
                 verdict = optimizer.Verdict(
@@ -564,6 +576,7 @@ def build_sandbox_grids(results=None):
                     "score_center_aim": row["score_center_aim"],
                     "verdict_label": row["verdict_label"],
                     "p_green": green_grid,
+                    "p_short": short_grid,
                 }
 
     return {
@@ -614,8 +627,8 @@ def _bilinear(grid, row_axis, col_axis, row_val, col_val):
 
 
 def sandbox_lookup(grids, tier, pin, wind, lateral, carry):
-    """dict(score, p_water, p_green, delta_vs_optimum, tossup) for an
-    arbitrary aim point, bilinearly interpolated between the four grid
+    """dict(score, p_water, p_green, p_short, delta_vs_optimum, tossup) for
+    an arbitrary aim point, bilinearly interpolated between the four grid
     nodes surrounding (lateral, carry), clamped to the axes' range. The
     browser implements this identical formula (axis lookup + bilinear
     blend) directly against the same JSON so no server round-trip is
@@ -630,6 +643,8 @@ def sandbox_lookup(grids, tier, pin, wind, lateral, carry):
     result = {"score": score, "p_water": p_water}
     if "p_green" in cell:
         result["p_green"] = _bilinear(cell["p_green"], carry_axis, lateral_axis, carry, lateral)
+    if "p_short" in cell:
+        result["p_short"] = _bilinear(cell["p_short"], carry_axis, lateral_axis, carry, lateral)
     delta_vs_optimum = score - cell["optimum"]["score"]
     result["delta_vs_optimum"] = delta_vs_optimum
     result["tossup"] = abs(delta_vs_optimum) <= grids["tossup_threshold_strokes"]
@@ -1114,9 +1129,9 @@ def build_chapters(results=None, moves=None):
                 # mean_shift_y_solid happens to equal mean_shift_y always
                 # (wind's carry penalty does not depend on sigma), but is
                 # used here too for clarity and to avoid relying on that.
-                _score_pin, p_water_pin, p_green_pin = score_and_region_probs(
+                _score_pin, p_water_pin, p_green_pin, p_short_pin = score_and_region_probs(
                     sigma_solid, sigma_l_solid, tier, pin, pin_xy, mean_shift_y_solid, p_mis=p_mis, k_mis_yd=k_mis)
-                _score_aim, p_water_aim, p_green_aim = score_and_region_probs(
+                _score_aim, p_water_aim, p_green_aim, p_short_aim = score_and_region_probs(
                     sigma_solid, sigma_l_solid, tier, pin, aim_xy, mean_shift_y_solid, p_mis=p_mis, k_mis_yd=k_mis)
 
                 key = f"{tier}|{pin}|{int(wind)}"
@@ -1145,8 +1160,10 @@ def build_chapters(results=None, moves=None):
                     "layup_is_tossup": mv["layup_is_tossup"],
                     "p_water_at_pin": round(p_water_pin, 4),
                     "p_green_at_pin": round(p_green_pin, 4),
+                    "p_short_at_pin": round(p_short_pin, 4),
                     "p_water_at_aim": round(p_water_aim, 4),
                     "p_green_at_aim": round(p_green_aim, 4),
+                    "p_short_at_aim": round(p_short_aim, 4),
                 }
 
     return {
@@ -1179,8 +1196,8 @@ def main():
     _write_json(grids, GRIDS_PATH, compact=True)
     grids_size = os.path.getsize(GRIDS_PATH)
     print(f"wrote {GRIDS_PATH} ({grids_size / 1e6:.2f} MB)")
-    if grids_size > 2_100_000:
-        print("WARNING: 003_sandbox_grids.json exceeds the ~2 MB budget; "
+    if grids_size > 2_900_000:
+        print("WARNING: 003_sandbox_grids.json exceeds its budget; "
               "drop p_green before touching the axes (see export.py's module docstring).")
 
     manifest = build_manifest(results)

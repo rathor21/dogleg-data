@@ -101,7 +101,7 @@ def test_grid_builder_matches_expected_score_unrounded():
     rounding the JSON storage applies, so it is invisible in the published
     output either way."""
     for tier, pin, wind in ROUND_TRIP_COMBOS:
-        score, p_water, _p_green, _p_short = export.build_grid_for_combo(tier, pin, wind)
+        score, p_water, _p_green, p_short = export.build_grid_for_combo(tier, pin, wind)
         pin_x, pin_y = data.PINS[pin]["x"], data.PINS[pin]["y"]
         for ci in range(0, len(export.CARRY_AXIS), 5):
             for li in range(0, len(export.LATERAL_AXIS), 5):
@@ -112,15 +112,16 @@ def test_grid_builder_matches_expected_score_unrounded():
                 assert abs(float(score[ci, li]) - exact) < 2e-4, (tier, pin, wind, carry, lateral)
 
                 sigma_solid, sigma_l, mean_shift_y, p_mis, k_mis = export._mishit_oval_and_mean_shift(tier, wind)
-                _s, pw, _pg = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, aim, mean_shift_y,
-                                                              p_mis=p_mis, k_mis_yd=k_mis)
+                _s, pw, _pg, ps = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, aim, mean_shift_y,
+                                                                  p_mis=p_mis, k_mis_yd=k_mis)
                 assert abs(float(p_water[ci, li]) - pw) < 2e-4, (tier, pin, wind, carry, lateral)
+                assert abs(float(p_short[ci, li]) - ps) < 2e-4, (tier, pin, wind, carry, lateral)
 
 
 def test_sandbox_lookup_round_trip_against_stored_grid(exported):
     """sandbox_lookup at exact grid nodes (every 5th node per axis)
     reproduces model.expected_score within the file's own stated 4-decimal
-    rounding, and p_water matches the score_and_region_probs helper
+    rounding, and p_water/p_short match the score_and_region_probs helper
     integral at the same tolerance, for at least two (tier, pin, wind)
     combinations."""
     grids = exported["grids"]
@@ -137,9 +138,10 @@ def test_sandbox_lookup_round_trip_against_stored_grid(exported):
                 exact = model.expected_score(tier, pin, aim, wind=wind)
                 assert abs(looked_up["score"] - exact) < 5e-5
 
-                _s, pw, _pg = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, aim, mean_shift_y,
-                                                              p_mis=p_mis, k_mis_yd=k_mis)
+                _s, pw, _pg, ps = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, aim, mean_shift_y,
+                                                                  p_mis=p_mis, k_mis_yd=k_mis)
                 assert abs(looked_up["p_water"] - pw) < 5e-5
+                assert abs(looked_up["p_short"] - ps) < 5e-5
 
 
 def test_optimum_blocks_match_results_csv_exactly(exported):
@@ -193,8 +195,14 @@ def test_grids_schema_and_size(exported):
     # enough. See export.py's CARRY_MAX_YD comment.
     assert grids["axes"]["carry_adjustment_yd"][-1] == 60.0
     assert len(grids["cells"]) == len(data.TIERS) * len(data.PINS) * 2
+    for cell in grids["cells"].values():
+        assert "p_short" in cell
+    # Ceiling raised 2.6 MB -> 3.0 MB (003.8/9): storing "p_short" (the
+    # sandbox's "Short of the creek" KPI card) as a fourth full grid per
+    # cell grows the file roughly a third again -- see export.py's module
+    # docstring on the budget tradeoff.
     size = os.path.getsize(export.GRIDS_PATH)
-    assert size < 2_600_000, f"003_sandbox_grids.json grew to {size} bytes"
+    assert size < 3_000_000, f"003_sandbox_grids.json grew to {size} bytes"
 
 
 # ---------------------------------------------------------------------------
@@ -559,10 +567,11 @@ def test_chapters_cells_strict_aim_matches_results_csv_where_strict_optimum_agre
 
 
 def test_chapters_cells_p_water_p_green_match_model_expected_score(exported):
-    """p_water_at_pin/p_green_at_pin and their _at_aim counterparts match a
-    fresh export.score_and_region_probs call (the slow, obviously-correct
-    per-aim-point reference model.expected_score's own integration also
-    uses) at a sample of cells spanning every pin and both wind states."""
+    """p_water_at_pin/p_green_at_pin/p_short_at_pin and their _at_aim
+    counterparts match a fresh export.score_and_region_probs call (the
+    slow, obviously-correct per-aim-point reference model.expected_score's
+    own integration also uses) at a sample of cells spanning every pin and
+    both wind states."""
     chapters = exported["chapters"]
     sample = [(t, p, w) for t in (0, 10, 20) for p in data.PINS for w in (False, True)]
     for tier, pin, wind in sample:
@@ -570,16 +579,18 @@ def test_chapters_cells_p_water_p_green_match_model_expected_score(exported):
         sigma_solid, sigma_l, mean_shift_y, p_mis, k_mis = export._mishit_oval_and_mean_shift(tier, wind)
         pin_x, pin_y = data.PINS[pin]["x"], data.PINS[pin]["y"]
 
-        _s, pw_pin, pg_pin = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, (pin_x, pin_y),
-                                                             mean_shift_y, p_mis=p_mis, k_mis_yd=k_mis)
+        _s, pw_pin, pg_pin, ps_pin = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, (pin_x, pin_y),
+                                                                     mean_shift_y, p_mis=p_mis, k_mis_yd=k_mis)
         assert cell["p_water_at_pin"] == pytest.approx(pw_pin, abs=5e-4)
         assert cell["p_green_at_pin"] == pytest.approx(pg_pin, abs=5e-4)
+        assert cell["p_short_at_pin"] == pytest.approx(ps_pin, abs=5e-4)
 
         aim = (cell["aim"]["x"], cell["aim"]["y"])
-        _s, pw_aim, pg_aim = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, aim, mean_shift_y,
-                                                             p_mis=p_mis, k_mis_yd=k_mis)
+        _s, pw_aim, pg_aim, ps_aim = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, aim, mean_shift_y,
+                                                                     p_mis=p_mis, k_mis_yd=k_mis)
         assert cell["p_water_at_aim"] == pytest.approx(pw_aim, abs=5e-4)
         assert cell["p_green_at_aim"] == pytest.approx(pg_aim, abs=5e-4)
+        assert cell["p_short_at_aim"] == pytest.approx(ps_aim, abs=5e-4)
 
 
 def test_chapters_sigma_matches_oval_for_tier(exported):
@@ -658,8 +669,8 @@ def test_chapters_geometry_yd_matches_manifest(exported):
 def _water_at_pin(tier, pin, wind=False):
     p = data.PINS[pin]
     sigma_solid, sigma_l, mean_shift_y, p_mis, k_mis = export._mishit_oval_and_mean_shift(tier, wind)
-    _s, pw, _pg = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, (p["x"], p["y"]), mean_shift_y,
-                                                  p_mis=p_mis, k_mis_yd=k_mis)
+    _s, pw, _pg, _ps = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, (p["x"], p["y"]), mean_shift_y,
+                                                        p_mis=p_mis, k_mis_yd=k_mis)
     return pw
 
 
@@ -668,8 +679,8 @@ def _water_at_200yd_carry(tier, pin, wind=False):
     carry_adjustment_yd = 200.0 - p["y"]
     aim = (p["x"], p["y"] + carry_adjustment_yd)
     sigma_solid, sigma_l, mean_shift_y, p_mis, k_mis = export._mishit_oval_and_mean_shift(tier, wind)
-    _s, pw, _pg = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, aim, mean_shift_y,
-                                                  p_mis=p_mis, k_mis_yd=k_mis)
+    _s, pw, _pg, _ps = export.score_and_region_probs(sigma_solid, sigma_l, tier, pin, aim, mean_shift_y,
+                                                        p_mis=p_mis, k_mis_yd=k_mis)
     return pw
 
 
