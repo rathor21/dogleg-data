@@ -1,6 +1,6 @@
 # ADR 0002: Release 003's Tour validation gates target the modern era, and the putting curve is anchored
 
-Date: 2026-09-07 · Status: proposed, pending Sunny's confirmation · Decider: Claude (orchestrator), 2026-09-07
+Date: 2026-09-07 · Status: accepted, confirmed by Sunny's merge of PR #18 on 2026-09-11 · Decider: Claude (orchestrator), 2026-09-07
 
 ## Context
 

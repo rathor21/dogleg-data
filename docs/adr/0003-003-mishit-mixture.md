@@ -1,6 +1,6 @@
 # ADR 0003: Distance error becomes a mishit mixture; the bank widens to feed short mishits into the water
 
-Date: 2026-09-09 · Status: proposed, pending Sunny's confirmation · Decider: Claude (orchestrator), 2026-09-09
+Date: 2026-09-09 · Status: accepted, confirmed by Sunny's merge of PR #18 on 2026-09-11 · Decider: Claude (orchestrator), 2026-09-09
 
 ## Context
 
