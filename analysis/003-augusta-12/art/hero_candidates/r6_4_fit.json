@@ -1,0 +1,291 @@
+{
+  "candidate": "r6_4",
+  "homography_model_yd_to_image_px": [
+    [
+      106.90510510000932,
+      14.153661331381615,
+      830.0023340347748
+    ],
+    [
+      11.327274245282373,
+      4.812397988024665,
+      786.9982727883327
+    ],
+    [
+      -0.011888518763422605,
+      0.0168781827820106,
+      1.0
+    ]
+  ],
+  "correspondences": [
+    {
+      "label": "creek_far_bank:0",
+      "model_yd": [
+        -20.0,
+        124.5
+      ],
+      "image_px": [
+        170.0,
+        402.0
+      ],
+      "fitted_px": [
+        135.97391692307872,
+        347.27768038372614
+      ],
+      "error_px": 64.43839378618294,
+      "error_pct_width": 4.027399611636434
+    },
+    {
+      "label": "creek_far_bank:1",
+      "model_yd": [
+        -13.333333333333332,
+        131.16666666666666
+      ],
+      "image_px": [
+        395.0,
+        400.0
+      ],
+      "fitted_px": [
+        373.94771325309017,
+        375.7579073369158
+      ],
+      "error_px": 32.10728630637717,
+      "error_pct_width": 2.006705394148573
+    },
+    {
+      "label": "creek_far_bank:2",
+      "model_yd": [
+        -6.666666666666666,
+        137.83333333333334
+      ],
+      "image_px": [
+        620.0,
+        456.0
+      ],
+      "fitted_px": [
+        607.2727045236745,
+        403.6817746185977
+      ],
+      "error_px": 53.84404105563499,
+      "error_pct_width": 3.365252565977187
+    },
+    {
+      "label": "creek_far_bank:3",
+      "model_yd": [
+        0.0,
+        144.5
+      ],
+      "image_px": [
+        845.0,
+        459.0
+      ],
+      "fitted_px": [
+        836.0837942958019,
+        431.06542721654984
+      ],
+      "error_px": 29.323012818492053,
+      "error_pct_width": 1.8326883011557533
+    },
+    {
+      "label": "creek_far_bank:4",
+      "model_yd": [
+        6.666666666666668,
+        151.16666666666666
+      ],
+      "image_px": [
+        1070.0,
+        470.0
+      ],
+      "fitted_px": [
+        1060.5107164524884,
+        457.9243914218545
+      ],
+      "error_px": 15.357956399783633,
+      "error_pct_width": 0.9598722749864771
+    },
+    {
+      "label": "creek_far_bank:5",
+      "model_yd": [
+        13.333333333333336,
+        157.83333333333334
+      ],
+      "image_px": [
+        1295.0,
+        579.0
+      ],
+      "fitted_px": [
+        1280.6782804847614,
+        484.27360418423166
+      ],
+      "error_px": 95.80293165722425,
+      "error_pct_width": 5.987683228576516
+    },
+    {
+      "label": "creek_far_bank:6",
+      "model_yd": [
+        20.0,
+        164.5
+      ],
+      "image_px": [
+        1520.0,
+        606.0
+      ],
+      "fitted_px": [
+        1496.7066029431953,
+        510.12744081169365
+      ],
+      "error_px": 98.6616944500816,
+      "error_pct_width": 6.1663559031301
+    },
+    {
+      "label": "bunker_backL",
+      "model_yd": [
+        -11.5,
+        162.5
+      ],
+      "image_px": [
+        992.3368760064412,
+        359.6447665056361
+      ],
+      "fitted_px": [
+        489.90887419454714,
+        370.8668570565169
+      ],
+      "error_px": 502.5533129141871,
+      "error_pct_width": 31.40958205713669
+    },
+    {
+      "label": "bunker_backR",
+      "model_yd": [
+        9.5,
+        183.5
+      ],
+      "image_px": [
+        1020.5666405638215,
+        423.2538762725137
+      ],
+      "fitted_px": [
+        1115.1025120634752,
+        446.1823966757387
+      ],
+      "error_px": 97.27665726205923,
+      "error_pct_width": 6.079791078878702
+    },
+    {
+      "label": "green_front_left",
+      "model_yd": [
+        -12.75,
+        131.75
+      ],
+      "image_px": [
+        445.0,
+        390.0
+      ],
+      "fitted_px": [
+        394.5472499254785,
+        378.22321859642346
+      ],
+      "error_px": 51.80900086191349,
+      "error_pct_width": 3.238062553869593
+    },
+    {
+      "label": "green_front_right",
+      "model_yd": [
+        12.75,
+        157.25
+      ],
+      "image_px": [
+        1000.0,
+        355.0
+      ],
+      "fitted_px": [
+        1261.5805716313541,
+        481.98802866785536
+      ],
+      "error_px": 290.7754372018621,
+      "error_pct_width": 18.17346482511638
+    },
+    {
+      "label": "green_back_right",
+      "model_yd": [
+        12.75,
+        183.75
+      ],
+      "image_px": [
+        950.0,
+        335.0
+      ],
+      "fitted_px": [
+        1213.6799075220802,
+        459.6954045261174
+      ],
+      "error_px": 291.67796889855225,
+      "error_pct_width": 18.229873056159516
+    },
+    {
+      "label": "tee_marker:0",
+      "model_yd": [
+        -3.5,
+        -1.0
+      ],
+      "image_px": [
+        249.3405172413793,
+        708.1508620689655
+      ],
+      "fitted_px": [
+        431.0209528788758,
+        724.6193941019391
+      ],
+      "error_px": 182.42530866289243,
+      "error_pct_width": 11.401581791430777
+    },
+    {
+      "label": "tee_marker:1",
+      "model_yd": [
+        3.5,
+        -1.0
+      ],
+      "image_px": [
+        1200.0653266331658,
+        707.4874371859296
+      ],
+      "fitted_px": [
+        1263.9419769470367,
+        872.8846082782882
+      ],
+      "error_px": 177.30327312454068,
+      "error_pct_width": 11.081454570283793
+    }
+  ],
+  "residual_summary": {
+    "max_error_px": 502.5533129141871,
+    "mean_error_px": 141.66830538569886,
+    "max_error_pct_width": 31.40958205713669,
+    "mean_error_pct_width": 8.854269086606179,
+    "n_correspondences": 14
+  },
+  "horizon": {
+    "line_image_coords_au_bv_c=0": [
+      -0.00025036406602792487,
+      0.0019882586028312534,
+      -0.3569533271231259
+    ],
+    "y_at_u=0,W/2,W": [
+      179.5306337992599,
+      280.26765690939646,
+      381.0046800195331
+    ]
+  },
+  "orientation_check": {
+    "dx_du": 34.867873329308395,
+    "dx_dv": 4.921190056804903,
+    "dy_du": 0.012733428364640531,
+    "dy_dv": -0.7452561057966705,
+    "positive_x_moves_right": true,
+    "positive_y_moves_up_on_screen": true
+  },
+  "hand_corrections": [
+    "r6_4: no front-bunker box -- this candidate draws only two sand blobs, both back-right of the flag, none touching the creek. The fit uses only the two back-bunker correspondences.",
+    "r6_4: green corners are hand-picked from a fine gridded crop, not auto-segmented (segment_green's threshold found either a thin symmetric lens with no diagonal tilt, or azalea-band false positives -- see README). front_left is the average of the green's own leftmost and bottommost points, since those coincide at one model corner under this camera."
+  ]
+}

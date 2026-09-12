@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Dogleg Data repo tooling (build scripts, launch/social export).",
+  "scripts": {
+    "social-export": "node launch/003-social/export.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.10.0"
+  }
+}

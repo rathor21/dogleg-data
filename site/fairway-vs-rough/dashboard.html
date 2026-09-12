@@ -128,10 +128,11 @@ footer p{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;line-height:1.
     <a class="home-link" href="../index.html">&larr; Dogleg Data home</a>
   </div>
   <h1>Tools</h1>
-  <p>Built from the analyses, starting with "Fairway vs. Rough, by Handicap," and now including the newest, <a href="../tee-shot-distance/tool.html">the tee shot calculator</a> from Analysis N&ordm; 002. More tools land as new analyses publish.</p>
+  <p>Built from the analyses, starting with "Fairway vs. Rough, by Handicap," and now including the newest, <a href="../augusta-12/tool.html">the aim sandbox</a> from Analysis N&ordm; 003. More tools land as new analyses publish.</p>
 </header>
 
 <nav class="tabs">
+  <a class="tab-btn" href="../augusta-12/tool.html">Aim sandbox</a>
   <a class="tab-btn" href="../tee-shot-distance/tool.html">Tee shot calculator</a>
   <button class="tab-btn active" data-tab="scramble">Scramble decision tool</button>
   <button class="tab-btn" data-tab="breakeven">Break-even explorer</button>
@@ -330,7 +331,7 @@ function renderBreakeven(){
     data:{ labels: beDist,
       datasets:[
         { label:'No lie advantage (reference)', data: beDist.map(d=>d), borderColor:'#CBBFA9', borderDash:[5,4], borderWidth:1.5, pointRadius:0 },
-        { label: DATA.worth.tiers[tier] + ' — rough ties at', data: roughTieCurve, borderColor: TIER_COLORS[tier], backgroundColor: TIER_COLORS[tier]+'22', borderWidth:2.5, pointRadius:0, fill:true, tension:0.15 },
+        { label: DATA.worth.tiers[tier] + ', rough ties at', data: roughTieCurve, borderColor: TIER_COLORS[tier], backgroundColor: TIER_COLORS[tier]+'22', borderWidth:2.5, pointRadius:0, fill:true, tension:0.15 },
         { label:'Selected distance', data: beDist.map(d=> d===Math.round(D/2)*2 ? roughTieAtD : null),
           type:'scatter', backgroundColor: TIER_COLORS[tier], pointRadius:6, showLine:false }
       ]},

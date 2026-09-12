@@ -53,3 +53,25 @@ Then the finding, the attachment, the /cite link, the no-ask close. Coaching-con
 - A reply with interest: offer a custom chart for their next episode topic, same-week turnaround, findings publish as found
 - A citation happens: log it (that's the 90-day goal met), quote-post it once with thanks, add "as heard on" nowhere; the work stays the brand
 - Silence: one nudge at two weeks ("still yours if useful"), then stop
+
+---
+
+## Cordie Walker (GolfWell podcast, formerly Golf Science Lab; Hit Agency) — added 2026-07-24
+
+Why him: hosts the show whose "Is Zero Path Actually Bad?" episode (Jun 10) prompted Analysis 003; the 003 citation pitch runs through him. Connect now, pitch nothing until 003 is drafted. Send only after 002 is live and posted.
+
+**Connection note (238 chars, fits the 300 limit):**
+
+Hi Cordie, your zero path episode with Justin Kraft and Dr. Benoit has been rattling around my head since June. I build data analyses for mid-handicap golfers at Dogleg Data, and that debate is fueling the next one. Would love to connect.
+
+**Follow-up message (send after he accepts):**
+
+Thanks for connecting, Cordie.
+
+Quick background: I'm a data analyst by day, and I run Dogleg Data on the side, testing golf's received wisdom against published data for the 8-to-30 handicap crowd. This week I put out an analysis answering Hack It Out's "how far do you need to hit it" stat, and my model landed within a few yards of Lou's on-air numbers from a different dataset. Good week.
+
+The reason your show is on my list: the zero path episode with Justin Kraft and Dr. Benoit. I've been building an analysis of one shape versus two shapes versus straight, tour data plus labeled simulation for amateurs, and that debate framed the whole question. It ships in early August.
+
+One small ask: when it's ready, can I send it your way? If you and the two of them tore it apart on a future episode, I'd count that as a win.
+
+Sunny

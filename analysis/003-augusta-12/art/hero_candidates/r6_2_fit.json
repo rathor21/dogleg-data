@@ -1,0 +1,307 @@
+{
+  "candidate": "r6_2",
+  "homography_model_yd_to_image_px": [
+    [
+      -1.8912186590466864,
+      -0.8970536826184551,
+      770.219066436021
+    ],
+    [
+      -24.377603586411528,
+      -2.188930007396872,
+      846.8381885949873
+    ],
+    [
+      -0.08884576927313081,
+      0.002357792171297801,
+      1.0
+    ]
+  ],
+  "correspondences": [
+    {
+      "label": "creek_far_bank:0",
+      "model_yd": [
+        -20.0,
+        124.5
+      ],
+      "image_px": [
+        260.0,
+        460.0
+      ],
+      "fitted_px": [
+        226.79342518297798,
+        345.83362028954343
+      ],
+      "error_px": 118.89759824012691,
+      "error_pct_width": 7.431099890007932
+    },
+    {
+      "label": "creek_far_bank:1",
+      "model_yd": [
+        -13.333333333333332,
+        131.16666666666666
+      ],
+      "image_px": [
+        320.0,
+        385.0
+      ],
+      "fitted_px": [
+        271.7746665345269,
+        354.77263550084194
+      ],
+      "error_px": 56.91551943381561,
+      "error_pct_width": 3.5572199646134752
+    },
+    {
+      "label": "creek_far_bank:2",
+      "model_yd": [
+        -6.666666666666666,
+        137.83333333333334
+      ],
+      "image_px": [
+        380.0,
+        381.0
+      ],
+      "fitted_px": [
+        343.8103557766263,
+        369.0881168558117
+      ],
+      "error_px": 38.09964972352323,
+      "error_pct_width": 2.3812281077202018
+    },
+    {
+      "label": "creek_far_bank:3",
+      "model_yd": [
+        0.0,
+        144.5
+      ],
+      "image_px": [
+        440.0,
+        399.0
+      ],
+      "fitted_px": [
+        477.8058823166971,
+        395.7167294507016
+      ],
+      "error_px": 37.94818313495178,
+      "error_pct_width": 2.3717614459344865
+    },
+    {
+      "label": "creek_far_bank:4",
+      "model_yd": [
+        6.666666666666668,
+        151.16666666666666
+      ],
+      "image_px": [
+        500.0,
+        405.0
+      ],
+      "fitted_px": [
+        814.0224584958002,
+        462.53225073137855
+      ],
+      "error_px": 319.2492197546687,
+      "error_pct_width": 19.953076234666792
+    },
+    {
+      "label": "creek_far_bank:5",
+      "model_yd": [
+        13.333333333333336,
+        157.83333333333334
+      ],
+      "image_px": [
+        560.0,
+        410.0
+      ],
+      "fitted_px": [
+        3217.7490052911694,
+        940.219115744182
+      ],
+      "error_px": 2710.122153303563,
+      "error_pct_width": 169.3826345814727
+    },
+    {
+      "label": "creek_far_bank:6",
+      "model_yd": [
+        20.0,
+        164.5
+      ],
+      "image_px": [
+        620.0,
+        416.0
+      ],
+      "fitted_px": [
+        -1503.1910427462874,
+        2.037917692793434
+      ],
+      "error_px": 2163.170083369818,
+      "error_pct_width": 135.1981302106136
+    },
+    {
+      "label": "bunker_front",
+      "model_yd": [
+        -4.0,
+        137.5
+      ],
+      "image_px": [
+        524.0535972959923,
+        386.52438435538386
+      ],
+      "fitted_px": [
+        389.6445863148908,
+        383.0546435438879
+      ],
+      "error_px": 134.45378884292114,
+      "error_pct_width": 8.403361802682571
+    },
+    {
+      "label": "bunker_backL",
+      "model_yd": [
+        -11.5,
+        162.5
+      ],
+      "image_px": [
+        895.9625390218522,
+        333.31737773152963
+      ],
+      "fitted_px": [
+        268.7037175966409,
+        320.799162425623
+      ],
+      "error_px": 627.3837221112691,
+      "error_pct_width": 39.21148263195432
+    },
+    {
+      "label": "bunker_backR",
+      "model_yd": [
+        9.5,
+        183.5
+      ],
+      "image_px": [
+        972.1678972712681,
+        393.01027287319425
+      ],
+      "fitted_px": [
+        998.3403268119174,
+        362.85256716909026
+      ],
+      "error_px": 39.93098147298159,
+      "error_pct_width": 2.4956863420613495
+    },
+    {
+      "label": "green_front_left",
+      "model_yd": [
+        -12.75,
+        131.75
+      ],
+      "image_px": [
+        540.0,
+        385.0
+      ],
+      "fitted_px": [
+        276.7205559944875,
+        355.75552036100964
+      ],
+      "error_px": 264.8986697309126,
+      "error_pct_width": 16.55616685818204
+    },
+    {
+      "label": "green_front_right",
+      "model_yd": [
+        12.75,
+        157.25
+      ],
+      "image_px": [
+        1140.0,
+        365.0
+      ],
+      "fitted_px": [
+        2542.4246430178264,
+        806.0135099063622
+      ],
+      "error_px": 1470.1318972335805,
+      "error_pct_width": 91.88324357709878
+    },
+    {
+      "label": "green_back_right",
+      "model_yd": [
+        12.75,
+        183.75
+      ],
+      "image_px": [
+        1000.0,
+        370.0
+      ],
+      "fitted_px": [
+        1934.6034651016669,
+        445.3422038138892
+      ],
+      "error_px": 937.6353687098073,
+      "error_pct_width": 58.602210544362954
+    },
+    {
+      "label": "tee_marker:0",
+      "model_yd": [
+        -3.5,
+        -1.0
+      ],
+      "image_px": [
+        415.429203539823,
+        787.6039823008849
+      ],
+      "fitted_px": [
+        594.3252016472858,
+        714.0050568083749
+      ],
+      "error_px": 193.4439969927146,
+      "error_pct_width": 12.090249812044663
+    },
+    {
+      "label": "tee_marker:1",
+      "model_yd": [
+        3.5,
+        -1.0
+      ],
+      "image_px": [
+        1185.264192139738,
+        788.8318777292576
+      ],
+      "fitted_px": [
+        1113.3200487229772,
+        1112.1676248290696
+      ],
+      "error_px": 331.24306049269177,
+      "error_pct_width": 20.70269128079324
+    }
+  ],
+  "residual_summary": {
+    "max_error_px": 2710.122153303563,
+    "mean_error_px": 629.5682595031565,
+    "max_error_pct_width": 169.3826345814727,
+    "mean_error_pct_width": 39.34801621894728,
+    "n_correspondences": 15
+  },
+  "horizon": {
+    "line_image_coords_au_bv_c=0": [
+      0.0017930180461772536,
+      -0.0005989087640627014,
+      0.12616212726293796
+    ],
+    "y_at_u=0,W/2,W": [
+      210.65333291688097,
+      2605.6999961372408,
+      5000.7466593576
+    ]
+  },
+  "orientation_check": {
+    "dx_du": 33.166763175567155,
+    "dx_dv": 9.440976154136877,
+    "dy_du": -1.5308379017574225,
+    "dy_dv": -2.3617055093944828,
+    "positive_x_moves_right": true,
+    "positive_y_moves_up_on_screen": true
+  },
+  "hand_corrections": [
+    "r6_2: green corners are hand-picked from a fine gridded crop, not auto-segmented (segment_green's threshold found either a thin symmetric lens with no diagonal tilt, or azalea-band false positives -- see README). front_left is the average of the green's own leftmost and bottommost points, since those coincide at one model corner under this camera."
+  ]
+}
