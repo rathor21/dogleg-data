@@ -54,3 +54,15 @@ Perf caveats: the perf pass runs one page at a time (`--perf-conc 1`) so timings
 - `baseline/errors.jsonl`: failed attempts with a class (`timeout`, `app_error`, `action_failed`, `perf_failed`, `shots_failed`).
 - `traces/<id>_rep0.json`: user turn (scenario and focus, screenshot) and assistant turn (rendered shot label and key tiles as text).
 - `calibration/null_blank.png`, `calibration/bad_hidden_label.png`: images the judge must fail, to check the grader is not lenient.
+
+
+## Blind tournament (final decision), test ids only, 2 judge reps
+
+| variant | design | c1 | c2 | c3 | c4 | c5 | c6 | c7 | c8 |
+|---|---|---|---|---|---|---|---|---|---|
+| baseline | 0.547 | .67 | .79 | .46 | .58 | .17 | .50 | .38 | .83 |
+| v1 | 0.682 | .92 | .71 | .67 | .79 | .38 | .83 | .50 | .67 |
+| v3 | 0.693 | .92 | .88 | .67 | .79 | .33 | .75 | .54 | .67 |
+| v5 | 0.740 | .92 | .71 | .75 | .83 | .54 | .88 | .54 | .75 |
+
+Per-case scores: tournament/scores_by_variant.json. Judge drift control (v1 re-judged, identical screenshots): design 0.606 -> 0.558.

@@ -1,0 +1,58 @@
+{
+ "baseline": {
+  "phone-slice-driver": 0.625,
+  "phone-compare-slice-to-draw": 0.1875,
+  "phone-attack-up-driver": 0.25,
+  "phoneland-push-6i": 0.4375,
+  "phoneland-compare-face": 0.375,
+  "tabletl-face-start-7i": 0.75,
+  "tabletl-present": 0.75,
+  "laptop-straight-7i": 0.8125,
+  "laptop-flyall-nine": 0.3125,
+  "laptop-push-3wood": 0.9375,
+  "tv-present-flyall": 0.5625,
+  "tv-wedge-explore": 0.5625
+ },
+ "v1": {
+  "phone-slice-driver": 0.9375,
+  "phone-compare-slice-to-draw": 0.3125,
+  "phone-attack-up-driver": 0.5625,
+  "phoneland-push-6i": 0.875,
+  "phoneland-compare-face": 0.5,
+  "tabletl-face-start-7i": 0.8125,
+  "tabletl-present": 0.75,
+  "laptop-straight-7i": 0.9375,
+  "laptop-flyall-nine": 0.375,
+  "laptop-push-3wood": 0.9375,
+  "tv-present-flyall": 0.5625,
+  "tv-wedge-explore": 0.625
+ },
+ "v3": {
+  "phone-slice-driver": 1,
+  "phone-compare-slice-to-draw": 0.375,
+  "phone-attack-up-driver": 0.5625,
+  "phoneland-push-6i": 0.875,
+  "phoneland-compare-face": 0.4375,
+  "tabletl-face-start-7i": 0.8125,
+  "tabletl-present": 0.6875,
+  "laptop-straight-7i": 0.9375,
+  "laptop-flyall-nine": 0.375,
+  "laptop-push-3wood": 0.9375,
+  "tv-present-flyall": 0.6875,
+  "tv-wedge-explore": 0.625
+ },
+ "v5": {
+  "phone-slice-driver": 0.9375,
+  "phone-compare-slice-to-draw": 0.625,
+  "phone-attack-up-driver": 0.625,
+  "phoneland-push-6i": 0.875,
+  "phoneland-compare-face": 0.5,
+  "tabletl-face-start-7i": 0.8125,
+  "tabletl-present": 0.75,
+  "laptop-straight-7i": 0.9375,
+  "laptop-flyall-nine": 0.5625,
+  "laptop-push-3wood": 0.9375,
+  "tv-present-flyall": 0.5625,
+  "tv-wedge-explore": 0.75
+ }
+}

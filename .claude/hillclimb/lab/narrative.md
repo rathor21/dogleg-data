@@ -1,9 +1,16 @@
-| round | change | test | train | load ms | input p95 ms | kept |
-|---|---|---|---|---|---|---|
-| 0 | baseline | 0.469 | 0.448 | 234 | 15.9 | |
-| 1 | first-screen budget per mode | 0.609 | 0.604 | 207 | 15.7 | yes |
-| 2 | tracer sideways widened ~2x + disclosure note | 0.495 | 0.576 | 212 | 16.2 | reverted |
-| 3 | top-down shot map inset on the range | 0.599 | 0.677 | 243 | 17.4 | reverted |
-| 4 | shot map made smaller and quieter | 0.474 | 0.556 | 242 | 17.2 | reverted |
+| round | change | per-round test | blind tournament test | kept |
+|---|---|---|---|---|
+| 0 | baseline | 0.469 | 0.547 | |
+| 1 | first-screen budget per mode | 0.609 | 0.682 | yes |
+| 2 | tracer sideways widened ~2x + disclosure note | 0.495 | not re-judged | reverted |
+| 3 | top-down shot map inset | 0.599 | 0.693 | reverted (tie with v1) |
+| 4 | shot map made quieter | 0.474 | not re-judged | reverted |
+| 5 | tiles and key numbers fit to the fold, one-line notes | not per-round judged | 0.740 | yes |
 
-Best so far: v1 (test 0.609). Rounds 2-4 all attacked curve legibility (c2) from behind the ball; each raised c2 but lost more on hierarchy (c6) and defects (c5). Judge reasons for c6 cite whole-page clutter, and c6 swung between runs on unchanged elements, so c6 carries grader drift. Round 5 returns to v1 and fixes the concrete tile defects the judges cite in every variant (caption wrapping, bottom row cut off), with a no-change re-judge of v1 as a drift control.
+**Recommended change.** Ship v1 + v5 (commits 194c0df and 9ba178b on analysis-004-hillclimb): the first screen now holds what each teaching mode needs, and the tile row fits the fold with no cut or wrapped notes.
+
+**Versus baseline.** Blind tournament on the 12 held-out test scenarios, same two judges for every variant: baseline 0.547 -> v5 0.740 (+0.193, 95% CI +0.10 to +0.28); v5 beats v1 by +0.057 (CI +0.01 to +0.12). Guardrails held: 0 console errors, 0 overflow, 0 serious axe, input p95 16.4 ms (15.9 at baseline), median load 243 ms (252), JS 53 KB (52).
+
+**Why trust this.** Judge calibration passed (blank page 0/8; hidden label failed the right claims). A no-change control re-judge of v1 showed session-to-session judge drift of about 0.05 on the design mean (c6 hierarchy swung 0.70 -> 0.37 on identical images), larger than one-round effects; so the final call uses one blind, shuffled tournament where every variant meets the same judges. Tournament inter-rep agreement 0.857.
+
+**What else was tried.** Curve legibility from behind the ball (c2) was attacked three ways: widening the tracer (v2) read as debug text once disclosed; a shot map inset (v3) raised c2 (0.71 -> 0.88 in the tournament) but tied v1 overall because it cost hierarchy; a quieter map (v4) lost more. Next ideas: v5 plus a refined shot map (it is the only c2 lever that worked), tap targets on touch (small_targets rose 14.8 -> 17.5 with v1), and a tighter c6 rubric definition to cut judge drift.

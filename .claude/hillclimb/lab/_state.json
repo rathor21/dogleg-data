@@ -185,9 +185,10 @@
       "load_ms"
     ]
   },
-  "current_round": 4,
+  "current_round": 5,
   "best": {
-    "round": 1,
-    "test_score": 0.609
+    "round": 5,
+    "test_score": 0.74,
+    "basis": "blind tournament re-judge of test screenshots"
   }
 }
