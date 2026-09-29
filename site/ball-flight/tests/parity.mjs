@@ -241,6 +241,8 @@ for (const v of golden.optimal_loft_vectors) {
   const [speed, attack] = v.args;
   const r = model.optimalLoft(speed, attack);
   near("optimalLoft", `(${speed}, ${attack})`, r.dynLoft, v.result.dyn_loft_deg, 1e-6, true);
+  near("optimalLoft", `(${speed}, ${attack}) carry`, r.carryLoft, v.result.carry_loft_deg, 1e-6, true);
+  near("optimalLoft", `(${speed}, ${attack}) total`, r.totalLoft, v.result.total_loft_deg, 1e-6, true);
   exact("optimalLoft", `(${speed}, ${attack}) extrapolated`, r.extrapolated, v.result.extrapolated);
   exact("optimalLoft", `(${speed}, ${attack}) speedClamped`, r.speedClamped, v.result.speed_clamped);
 }

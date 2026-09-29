@@ -33,8 +33,8 @@ LPGA has no 3 iron. preset("3i", "lpga") returns the 4 iron and says so in
 Ideal delivery. preset()["ideal"] and ideal_delivery(club, player, club_speed)
 give the delivery the tool calls ideal. For every club but the driver it is the
 preset itself. For the driver it is data.DRIVER_IDEAL: the player's club speed,
-attack +4, dynamic loft chart.optimal_loft(speed, 4) from the TrackMan 2010
-carry chart, path 0, face 0, spin trim 1.0 (the chart's own strike, the basis
+attack +5, dynamic loft chart.optimal_loft(speed, 5), the mean of the TrackMan
+2010 carry chart and total chart lofts, path 0, face 0, spin trim 1.0 (the chart's own strike, the basis
 the flight model is calibrated to). preset()["ideal"] is at the preset club
 speed. scale_speed does not move it, so call ideal_delivery(club, player,
 speed) for the ideal at another club speed.
@@ -145,8 +145,8 @@ def _ideal(club, player, p, club_speed):
         return dict(
             club_speed=float(club_speed), attack=d["attack_deg"], dyn_loft=ol.dyn_loft_deg, path=0.0, face=0.0,
             spin_trim=d["spin_trim"], club="driver", label=d["label"],
-            source="TrackMan 2010 Driver Fitting Chart, CARRY Optimizer (model output): dynamic loft at this club "
-                   f"speed and attack +{d['attack_deg']:g}; spin trim 1.0, the chart's own strike",
+            source="TrackMan 2010 Driver Fitting Chart (model output): dynamic loft midway between the CARRY and "
+                   f"TOTAL optimizers at this club speed and attack +{d['attack_deg']:g}; spin trim 1.0, the chart's own strike",
             modeled=True, speed_clamped=ol.speed_clamped,
         )
     return dict(

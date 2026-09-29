@@ -132,7 +132,7 @@ Everything the port needs to recompute a shot.
 | `groups` | Ordered list of `{id, name}`: `driver`, `wood`, `long_iron`, `short_iron`, `wedge`. |
 | `players` | Ordered list of `{id, name}`. |
 | `presets` | `presets[player][club]`, see below. |
-| `driver_ideal` | `data.DRIVER_IDEAL`: `attack_deg` (4), `attack_lo_deg` (2), `attack_hi_deg` (5), `dyn_loft_half_deg` (1.5), `spin_trim` (1.0), `label`. MODELED design choice from the TrackMan 2010 chart. |
+| `driver_ideal` | `data.DRIVER_IDEAL`: `attack_deg` (5), `attack_lo_deg` (2), `attack_hi_deg` (5), `dyn_loft_half_deg` (1.5), `spin_trim` (1.0), `label`. MODELED design choice from the TrackMan 2010 charts. |
 | `published` | `published[player][club]`, the table row, see below. |
 | `published_note` | Text. |
 
@@ -148,8 +148,9 @@ club speed. `club_speed_mph`, `attack_deg`, `path_deg` (0), `face_deg` (0),
 (bool), `speed_clamped` (bool, the club speed is outside the chart's 75 to 120
 mph), `at_ideal` (`{launch, flight}` from the model at that delivery). For every
 club but the driver it repeats the preset. For the driver it is the player's club
-speed, attack `driver_ideal.attack_deg`, dynamic loft `optimal_loft(club speed,
-attack)`, path 0, face 0, spin trim `driver_ideal.spin_trim` (1.0, the chart's own
+speed, attack `driver_ideal.attack_deg` (+5, the chart's top row), dynamic loft
+`optimal_loft(club speed, attack).dyn_loft_deg` (midway between the carry and total
+optimizers), path 0, face 0, spin trim `driver_ideal.spin_trim` (1.0, the chart's own
 strike). For the ideal at another club speed, take the same rule at that speed:
 the driver's loft moves with speed (`optimal_loft`), every other club keeps its
 preset values.
@@ -192,9 +193,9 @@ Window: `player`, `club`, `height`, `shape`, `modeled`, `height_lever_deg` (h:
 | `tolerances` | The half-widths and fractions the bands use (`data.IDEAL_TOL`), for example `spin_frac`, `carry_frac`, `driver_launch_margin_deg`. |
 | `sources` | `source_id` to text. The id is the metric name, plus `attack_deg_driver`, `dyn_loft_deg_driver`, `launch_deg_driver` and `spin_rpm_driver`. |
 | `bands` | `bands[player][club][metric]`, see below. |
-| `known_exceptions` | List of `{club, player, metric, value, lo, hi, note}`: the model's ideal preset falls outside its own band (none today: every club's ideal delivery sits inside its own bands, the LPGA Tour-average driver launch that used to be recorded here is no longer the driver's ideal). |
+| `known_exceptions` | List of `{club, player, metric, value, lo, hi, note}`: the model's ideal preset falls outside its own band the three drivers' launch (`launch_deg`): the ideal driver launches 0.3 to 0.6 deg under its band, because the band spans the carry optimizer and PING and the ideal loft sits between the carry and total optimizers. |
 | `scaling` | Text rules for the bands that move with club speed. |
-| `driver` | `rule`, `attack_rule`, `default_attack_deg` (4), `launch_margin_deg`, `spin_margin_rpm`, `trackman_carry_2010`, `ping_2019` (the grids below). |
+| `driver` | `rule`, `attack_rule`, `default_attack_deg` (5), `launch_margin_deg`, `spin_margin_rpm`, `trackman_carry_2010`, `trackman_total_2010`, `ping_2019` (the grids below). |
 
 Band: `lo`, `hi` (either may be `null`, open), `target`, `modeled` (bool),
 `source_id`, `published` (only where a table value exists), `detail` (driver
@@ -221,19 +222,23 @@ attack angle `a`:
   `hi = max(sources) + margin`, `target` the mean of the two.
 - Every other band keeps its value at the preset club speed.
 
-`optimal_loft(club_speed, attack)`: the dynamic loft column of the
-`trackman_carry_2010` grid below (`dyn_loft_deg`). Clamp club speed to 75 to 120
-mph (`speed_clamped`). Interpolate linearly across the two nearest club speeds
-for the loft at attack -5, 0 and +5, then linearly in attack angle between those
-three. For an attack angle beyond -5 or +5, extend the nearest segment's slope
-(`extrapolated`). `golden.json` `optimal_loft_vectors` carries test vectors.
+`optimal_loft(club_speed, attack)`: the mean of two lofts, `carry_loft` from the
+`dyn_loft_deg` table of the `trackman_carry_2010` grid and `total_loft` from the
+same table of `trackman_total_2010` (both below). Each is computed the same way.
+Clamp club speed to 75 to 120 mph (`speed_clamped`). Interpolate linearly across
+the two nearest club speeds for the loft at attack -5, 0 and +5, then linearly in
+attack angle between those three. For an attack angle beyond -5 or +5, extend the
+nearest segment's slope (`extrapolated`). `dyn_loft` is `(carry_loft + total_loft) /
+2`. `golden.json` `optimal_loft_vectors` carries test vectors.
 
-Driver grids (`driver.trackman_carry_2010`, `driver.ping_2019`). Each has
+Driver grids (`driver.trackman_carry_2010`, `driver.trackman_total_2010`, `driver.ping_2019`). Each has
 `source`, `layout` (text), a row axis and `attack_deg` as the column axis, both
 ascending, and value tables indexed `[row index][attack index]`:
-- `trackman_carry_2010`: rows `club_speed_mph` (75 to 120, 10 entries), columns
+- `trackman_carry_2010` (the CARRY optimizer) and `trackman_total_2010` (the
+  TOTAL optimizer): rows `club_speed_mph` (75 to 120, 10 entries), columns
   `attack_deg` (-5, 0, 5). Tables `ball_speed_mph`, `launch_deg`, `spin_rpm`,
-  `carry_yd`, `dyn_loft_deg`, each 10 by 3.
+  `carry_yd`, `total_yd`, `dyn_loft_deg`, each 10 by 3. The total grid feeds
+  `optimal_loft` only, the launch and spin bands read the carry grid.
 - `ping_2019`: rows `ball_speed_mph` (80 to 180, 11 entries), columns
   `attack_deg` (-10 to 10 step 2, 11 entries). Tables `launch_deg` and
   `spin_rpm`, each 11 by 11.
@@ -263,7 +268,7 @@ The JS parity fixture. Rounded to 9 significant digits.
 | `dt` | Time step used for every case, 0.01. |
 | `cases` | 40 cases, see below. |
 | `classify_vectors` | 560 `{args: [launch_dir_deg, spin_axis_deg, curve_yd, side_yd, carry_yd], result: classification}` on a 200 yd carry. |
-| `optimal_loft_vectors` | 72 `{args: [club_speed_mph, attack_deg], result: {dyn_loft_deg, extrapolated, speed_clamped}}`: club speeds 60 to 135 and attack angles -8 to +10, inside, on and outside the chart. |
+| `optimal_loft_vectors` | 72 `{args: [club_speed_mph, attack_deg], result: {dyn_loft_deg, carry_loft_deg, total_loft_deg, extrapolated, speed_clamped}}`: club speeds 60 to 135 and attack angles -8 to +10, inside, on and outside the charts. |
 | `windows_pga_7i` | `windows_pga_7i["{height}_{shape}"]`, the PGA 7-iron windows in the `windows.json` window format. |
 
 Case: `id`, `delivery` (`club_speed_mph`, `attack_deg`, `path_deg`, `face_deg`,
@@ -526,8 +531,9 @@ def build_ideals():
         "bands": bands,
         "known_exceptions": [
             dict(e, metric=METRIC_NAMES.get(e["metric"], e["metric"]),
-                 note="Model ideal preset (path 0, face 0) falls outside its own band. The LPGA Tour average "
-                      "launches below both driver optimizers, and the model reproduces the published row.")
+                 note="Model ideal delivery (path 0, face 0) falls outside its own band. The driver's ideal loft "
+                      "sits between the carry and total optimizers, so it launches a little below a band built from "
+                      "the carry optimizer and PING.")
             for e in ideals.exceptions()
         ],
         "scaling": {
@@ -538,7 +544,8 @@ def build_ideals():
                         "every club but the driver) with its spin trim, half-width carry_frac of that carry",
             "total_yd": "same flight, carry plus roll (`roll` in model.json), half-width total_frac of that total",
             "driver_dyn_loft_deg": "target = optimal_loft(current club speed, current attack angle) from the TrackMan "
-                                   "2010 CARRY grid, half-width `driver_ideal.dyn_loft_half_deg` (presets.json)",
+                                   "2010 CARRY and TOTAL grids (the mean of the two lofts), half-width `driver_ideal.dyn_loft_half_deg` "
+                                   "(presets.json)",
             "side_yd_curve_yd": "half-width side_frac and curve_frac of the scaled carry",
             "fixed": "Every other band keeps its preset-speed value. Open sides are null.",
         },
@@ -617,7 +624,8 @@ def _optimal_loft_vectors():
         for attack in (-8.0, -5.0, -2.5, 0.0, 2.0, 4.0, 5.0, 7.5, 10.0):
             r = chart.optimal_loft(speed, attack)
             out.append({"args": [speed, attack], "result": {
-                "dyn_loft_deg": r.dyn_loft_deg, "extrapolated": r.extrapolated, "speed_clamped": r.speed_clamped}})
+                "dyn_loft_deg": r.dyn_loft_deg, "carry_loft_deg": r.carry_loft_deg, "total_loft_deg": r.total_loft_deg,
+                "extrapolated": r.extrapolated, "speed_clamped": r.speed_clamped}})
     return out
 
 

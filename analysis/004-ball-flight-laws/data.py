@@ -646,23 +646,28 @@ IDEAL_TOL = {
 # 266, 281, 295 yd on the carry rows and 261, 274, 285 on the total rows), and
 # total rises with it at every speed on the total rows and on the carry rows
 # except at 100 mph, where the log flags a likely printing error (0 and +5 both
-# 272). +5 is the chart's top row. The ideal attack is +4, inside the chart's
-# range and just under its top row, and the band is +2 to +5 (the top edge is the
-# chart's edge). Where +2 sits is a design choice: about two fifths of the way
-# from the chart's 0 row to its +5 row. Loft comes from the same chart:
-# presets.optimal_loft(club_speed, attack) reads the dynamic loft column. The
-# chart is the calibration basis of the flight model (chart carry within 3
-# percent on all 60 rows), so the ideal delivery takes spin trim 1.0, the chart's
-# own strike, instead of a player group's trim. This applies to the driver only.
-# Fairway woods, hybrids, irons and wedges keep their downward-attack presets and
-# bands (attack preset +-1.5, so a tour or amateur value from -0.8 to -4.7).
+# 272). +5 is the chart's top row and the owner wants hitting up to give the most
+# carry and total, so the ideal attack is +5 and the band is +2 to +5 (the top
+# edge is the chart's edge). Where +2 sits is a design choice: about two fifths of
+# the way from the chart's 0 row to its +5 row. Loft is balanced between the two
+# optimizers: chart.optimal_loft(club_speed, attack) is the mean of the CARRY
+# chart's and the TOTAL chart's dynamic loft (the total chart wants about 2
+# degrees less loft and 700 to 800 rpm less spin than the carry chart at the same
+# attack). Carry-only loft cost the LPGA driver total distance against its own
+# average (256.0 yd against 263.2), and the balanced loft at +5 beats the average
+# in carry and total for all three players (ADR 0004, addendum 2). The chart is the
+# calibration basis of the flight model (chart carry within 3 percent on all 60
+# rows), so the ideal delivery takes spin trim 1.0, the chart's own strike, instead
+# of a player group's trim. This applies to the driver only. Fairway woods,
+# hybrids, irons and wedges keep their downward-attack presets and bands (attack
+# preset +-1.5, so a tour or amateur value from -0.8 to -4.7).
 DRIVER_IDEAL = {
-    "attack_deg": 4.0,
+    "attack_deg": 5.0,
     "attack_lo_deg": 2.0,
     "attack_hi_deg": 5.0,
-    "dyn_loft_half_deg": 1.5,  # dynamic loft band half-width around optimal_loft
+    "dyn_loft_half_deg": 1.5,  # dynamic loft band half-width around the balanced loft
     "spin_trim": 1.0,
-    "label": "TrackMan 2010 carry optimizer at this club speed",
+    "label": "TrackMan 2010 charts: loft between the carry and total optimizers",
 }
 
 # Anchor 4 Source 1: TrackMan Driver Fitting Chart (2010), CARRY Optimizer.

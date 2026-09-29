@@ -152,7 +152,7 @@ def test_presets_json(built):
     assert p["driver_ideal"] == data.DRIVER_IDEAL
     for player in presets.PLAYERS:
         drv = p["presets"][player]["driver"]["ideal"]
-        assert drv["attack_deg"] == 4.0 and drv["spin_trim"] == 1.0
+        assert drv["attack_deg"] == 5.0 and drv["spin_trim"] == 1.0
         assert drv["at_ideal"]["flight"]["carry_yd"] > p["presets"][player]["driver"]["at_preset"]["flight"]["carry_yd"]
     assert "4-iron" in p["presets"]["lpga"]["3i"]["note"]
     assert set(p["published"]) == {"pga", "lpga", "amateur"}  # nested {player: {club: row}}, lowercase
@@ -195,9 +195,9 @@ def test_ideals_json(built):
     assert i["bands"]["amateur"]["driver"]["dyn_loft_deg"]["source_id"] == "dyn_loft_deg_driver"
     for player in ("pga", "lpga", "amateur"):
         a = i["bands"][player]["driver"]["attack_deg"]
-        assert (a["lo"], a["hi"], a["target"]) == (2.0, 5.0, 4.0)
+        assert (a["lo"], a["hi"], a["target"]) == (2.0, 5.0, 5.0)
         assert i["bands"][player]["7i"]["attack_deg"]["hi"] <= 1.0
-    assert i["driver"]["default_attack_deg"] == 4.0 and "attack_rule" in i["driver"]
+    assert i["driver"]["default_attack_deg"] == 5.0 and "attack_rule" in i["driver"]
     d = i["driver"]
     assert len(d["trackman_carry_2010"]["launch_deg"]) == 10 and len(d["trackman_carry_2010"]["launch_deg"][0]) == 3
     assert len(d["ping_2019"]["launch_deg"]) == 11 and len(d["ping_2019"]["launch_deg"][0]) == 11
@@ -206,7 +206,15 @@ def test_ideals_json(built):
     assert d["trackman_carry_2010"]["spin_rpm"][8][1] == 2919  # 115 mph, AoA 0
     assert "detail" in i["bands"]["pga"]["driver"]["launch_deg"]
     assert d["trackman_carry_2010"] == export.clean(ideals.optimizer_grids()["trackman_carry_2010"])
-    assert i["known_exceptions"] == []  # every ideal delivery sits inside its own bands
+    tot = d["trackman_total_2010"]
+    assert tot == export.clean(ideals.optimizer_grids()["trackman_total_2010"])
+    assert tot["club_speed_mph"] == d["trackman_carry_2010"]["club_speed_mph"] and tot["attack_deg"] == [-5, 0, 5]
+    assert tot["dyn_loft_deg"][8][1] == 9.5 and tot["total_yd"][8][1] == 325  # 115 mph, AoA 0
+    assert d["trackman_carry_2010"]["dyn_loft_deg"][8][1] == 11.6
+    ex = i["known_exceptions"]  # the three ideal drivers launch a little under their band
+    assert [(e["club"], e["player"], e["metric"]) for e in ex] == [
+        ("driver", "pga", "launch_deg"), ("driver", "lpga", "launch_deg"), ("driver", "amateur", "launch_deg")]
+    assert all(e["value"] < e["lo"] for e in ex)
 
 
 def test_camera_json_copies_the_art_files(built):
@@ -287,7 +295,8 @@ def test_golden_optimal_loft_vectors(golden):
     assert any(not v["result"]["extrapolated"] and not v["result"]["speed_clamped"] for v in vecs)
     for v in vecs:
         live = chart.optimal_loft(*v["args"])
-        assert v["result"]["dyn_loft_deg"] == pytest.approx(live.dyn_loft_deg, rel=REL, abs=REL), v["args"]
+        for k in ("dyn_loft_deg", "carry_loft_deg", "total_loft_deg"):
+            assert v["result"][k] == pytest.approx(getattr(live, k), rel=REL, abs=REL), (k, v["args"])
         assert v["result"]["extrapolated"] is live.extrapolated and v["result"]["speed_clamped"] is live.speed_clamped
 
 

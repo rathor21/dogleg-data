@@ -8,10 +8,11 @@ bilinear, trackmanCarry2010, ping2019 and optimalLoft.
     TrackMan Carry Optimizer (2010), club speed 75 to 120 by attack angle -5, 0, +5.
     PING Optimal Launch & Spin (2019), ball speed 80 to 180 by attack angle -10 to +10.
 
-optimal_loft is the dynamic loft column of the TrackMan carry chart. Club speed
-clamps to 75 to 120 mph. Attack angle outside -5 to +5 extrapolates with the
-edge slope (the loft change per degree between the two nearest chart rows), and
-the result says so.
+optimal_loft is the mean of the dynamic loft columns of the TrackMan 2010 carry
+chart and total chart (the carry-only loft cost the LPGA driver total distance,
+see ADR 0004 addendum 2). Club speed clamps to 75 to 120 mph. Attack angle outside
+-5 to +5 extrapolates with the edge slope (the loft change per degree between the
+two nearest chart rows), and the result says so.
 """
 
 from math import isfinite
@@ -22,6 +23,7 @@ import data
 _TRACKMAN_SPEEDS = sorted({int(r[0]) for r in data.TRACKMAN_CARRY_2010})
 _TRACKMAN_AOAS = sorted({int(r[1]) for r in data.TRACKMAN_CARRY_2010})
 _TRACKMAN = {(r[0], r[1]): r for r in data.TRACKMAN_CARRY_2010}
+_TRACKMAN_TOTAL = {(r[0], r[1]): r for r in data.TRACKMAN_TOTAL_2010}
 _PING_SPEEDS = sorted(data.PING_2019)
 _PING_AOAS = list(data.PING_2019_AOA_DEG)
 _LOFT_INDEX = 7  # dynamic loft column of TRACKMAN_CARRY_2010
@@ -65,36 +67,48 @@ def ping_2019(ball_speed_mph, attack_deg):
     return bilinear(_PING_SPEEDS, _PING_AOAS, cell, ball_speed_mph, attack_deg)
 
 
+def _loft_at(table, club_speed_mph, attack_deg):
+    """(loft, extrapolated) from one chart's dynamic loft column: linear across the
+    two nearest club speeds (clamped) at attack -5, 0 and +5, then linear in
+    attack angle, extended along the edge slope beyond -5 and +5."""
+    s0, s1, fs = bracket(_TRACKMAN_SPEEDS, club_speed_mph)
+    loft = []  # loft at attack -5, 0, +5 for this club speed
+    for a in _TRACKMAN_AOAS:
+        lo = table[(_TRACKMAN_SPEEDS[s0], a)][_LOFT_INDEX]
+        hi = table[(_TRACKMAN_SPEEDS[s1], a)][_LOFT_INDEX]
+        loft.append(lo * (1 - fs) + hi * fs)
+    a_lo, a_mid, a_hi = _TRACKMAN_AOAS
+    if attack_deg > a_hi:
+        slope = (loft[2] - loft[1]) / (a_hi - a_mid)
+        return loft[2] + slope * (attack_deg - a_hi), True
+    if attack_deg < a_lo:
+        slope = (loft[1] - loft[0]) / (a_mid - a_lo)
+        return loft[0] + slope * (attack_deg - a_lo), True
+    if attack_deg <= a_mid:
+        t = (attack_deg - a_lo) / (a_mid - a_lo)
+        return loft[0] * (1 - t) + loft[1] * t, False
+    t = (attack_deg - a_mid) / (a_hi - a_mid)
+    return loft[1] * (1 - t) + loft[2] * t, False
+
+
 class OptimalLoft(NamedTuple):
-    dyn_loft_deg: float
-    extrapolated: bool  # attack outside the chart's -5 to +5, edge slope used
+    dyn_loft_deg: float  # the mean of the two chart lofts below
+    carry_loft_deg: float  # TrackMan 2010 CARRY optimizer
+    total_loft_deg: float  # TrackMan 2010 TOTAL optimizer
+    extrapolated: bool  # attack outside the charts' -5 to +5, edge slope used
     speed_clamped: bool  # club speed outside 75 to 120 mph, edge row used
 
 
 def optimal_loft(club_speed_mph, attack_deg):
-    """Dynamic loft from the TrackMan 2010 CARRY chart, bilinear over club speed
-    (75 to 120, clamped) and attack angle (-5, 0, +5). Outside -5 to +5 the loft
-    extrapolates along the edge slope and `extrapolated` is True. Raises
-    ValueError for a non-finite input."""
+    """Balanced dynamic loft: the mean of the TrackMan 2010 CARRY chart's and TOTAL
+    chart's optimal dynamic loft, each bilinear over club speed (75 to 120,
+    clamped) and attack angle (-5, 0, +5). Outside -5 to +5 each loft extrapolates
+    along its edge slope and `extrapolated` is True. Both components come back
+    too. Raises ValueError for a non-finite input."""
     for name, v in (("club_speed_mph", club_speed_mph), ("attack_deg", attack_deg)):
         if not isfinite(v):
             raise ValueError(f"{name} must be finite, got {v!r}")
-    s0, s1, fs = bracket(_TRACKMAN_SPEEDS, club_speed_mph)
-    loft = []  # loft at attack -5, 0, +5 for this club speed
-    for a in _TRACKMAN_AOAS:
-        lo = _TRACKMAN[(_TRACKMAN_SPEEDS[s0], a)][_LOFT_INDEX]
-        hi = _TRACKMAN[(_TRACKMAN_SPEEDS[s1], a)][_LOFT_INDEX]
-        loft.append(lo * (1 - fs) + hi * fs)
-    a_lo, a_mid, a_hi = _TRACKMAN_AOAS
+    carry, extrapolated = _loft_at(_TRACKMAN, club_speed_mph, attack_deg)
+    total, _ = _loft_at(_TRACKMAN_TOTAL, club_speed_mph, attack_deg)
     speed_clamped = club_speed_mph < _TRACKMAN_SPEEDS[0] or club_speed_mph > _TRACKMAN_SPEEDS[-1]
-    if attack_deg > a_hi:
-        slope = (loft[2] - loft[1]) / (a_hi - a_mid)
-        return OptimalLoft(loft[2] + slope * (attack_deg - a_hi), True, speed_clamped)
-    if attack_deg < a_lo:
-        slope = (loft[1] - loft[0]) / (a_mid - a_lo)
-        return OptimalLoft(loft[0] + slope * (attack_deg - a_lo), True, speed_clamped)
-    if attack_deg <= a_mid:
-        t = (attack_deg - a_lo) / (a_mid - a_lo)
-        return OptimalLoft(loft[0] * (1 - t) + loft[1] * t, False, speed_clamped)
-    t = (attack_deg - a_mid) / (a_hi - a_mid)
-    return OptimalLoft(loft[1] * (1 - t) + loft[2] * t, False, speed_clamped)
+    return OptimalLoft(0.5 * (carry + total), carry, total, extrapolated, speed_clamped)

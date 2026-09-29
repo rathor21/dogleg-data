@@ -33,7 +33,8 @@
  *   presets.py   preset(), scale_speed()-> model.preset, model.scaleSpeed (values read from presets.json)
  *                ideal_delivery()       -> model.idealDelivery (the driver's ideal is computed here from
  *                                          presets.json driver_ideal and optimalLoft)
- *   chart.py     optimal_loft()         -> model.optimalLoft   (dynamic loft from the TrackMan 2010 CARRY grid)
+ *   chart.py     optimal_loft()         -> model.optimalLoft   (dynamic loft midway between the TrackMan 2010
+ *                                          CARRY and TOTAL optimizer grids)
  *   ideals.py    ideal_bands()          -> model.idealBands
  *                _bracket, _bilinear, trackman_carry_2010, ping_2019
  *                                       -> bracket, bilinear, trackmanCarry2010, ping2019
@@ -60,10 +61,11 @@
  * ideal: the ideal delivery at the preset club speed, {clubSpeed, attack, dynLoft,
  * path, face, spinTrim, club, label, source, modeled, speedClamped, atIdeal}. For
  * every club but the driver it repeats the preset. For the driver it is attack
- * +4 with the TrackMan 2010 chart's dynamic loft and spin trim 1.0.
+ * +5 with the balanced TrackMan 2010 chart loft and spin trim 1.0.
  * idealDelivery(club, player, clubSpeed) gives the ideal at another club speed
  * (the driver's loft moves with speed). optimalLoft(clubSpeed, attack) returns
- * {dynLoft, extrapolated, speedClamped}.
+ * {dynLoft, carryLoft, totalLoft, extrapolated, speedClamped}, dynLoft being the
+ * mean of the carry-chart and total-chart lofts.
  * shot() returns {delivery, launch, flight, total, classification}, where
  * total is total_yd (carry plus roll) and classification is null when the
  * carry is zero or less (classify() would throw).
@@ -213,7 +215,7 @@ const REQUIRED_KEYS = [
     "swing_plane_default_deg"].map((k) => "model." + k),
   "presets.clubs", "presets.players", "presets.presets", "presets.driver_ideal",
   "ideals.tolerances", "ideals.bands", "ideals.sources", "ideals.metrics", "ideals.driver.trackman_carry_2010",
-  "ideals.driver.ping_2019", "ideals.driver.default_attack_deg",
+  "ideals.driver.ping_2019", "ideals.driver.trackman_total_2010", "ideals.driver.default_attack_deg",
 ];
 
 function capitalize(s) {
@@ -912,6 +914,7 @@ export function createModel(json) {
 
   const TM = IDL.driver.trackman_carry_2010;
   const PG = IDL.driver.ping_2019;
+  const TT = IDL.driver.trackman_total_2010;
 
   /** (lower index, upper index, fraction) of x in a sorted grid, clamped to its range. */
   function bracket(grid, x) {
@@ -945,35 +948,41 @@ export function createModel(json) {
   }
 
   /**
-   * chart.optimal_loft: dynamic loft from the TrackMan 2010 CARRY grid, bilinear over club
-   * speed (clamped to 75 to 120 mph) and attack angle (-5, 0, +5). Beyond -5 or +5 the loft
-   * extends along the nearest segment's slope and `extrapolated` is true. Returns
-   * {dynLoft, extrapolated, speedClamped}. Throws ValueError for a non-finite input.
+   * chart._loft_at: [loft, extrapolated] from one chart's dynamic loft table: linear across the
+   * two nearest club speeds (clamped) at each chart attack angle, then linear in attack angle,
+   * extended along the edge slope beyond the first and last chart attack angles.
+   */
+  function loftAt(grid, clubSpeed, attack) {
+    const aoas = grid.attack_deg;
+    const [s0, s1, fs] = bracket(grid.club_speed_mph, clubSpeed);
+    const loft = aoas.map((_a, j) => grid.dyn_loft_deg[s0][j] * (1 - fs) + grid.dyn_loft_deg[s1][j] * fs);
+    const aLo = aoas[0], aMid = aoas[1], aHi = aoas[2];
+    if (attack > aHi) return [loft[2] + ((loft[2] - loft[1]) / (aHi - aMid)) * (attack - aHi), true];
+    if (attack < aLo) return [loft[0] + ((loft[1] - loft[0]) / (aMid - aLo)) * (attack - aLo), true];
+    if (attack <= aMid) {
+      const t = (attack - aLo) / (aMid - aLo);
+      return [loft[0] * (1 - t) + loft[1] * t, false];
+    }
+    const t = (attack - aMid) / (aHi - aMid);
+    return [loft[1] * (1 - t) + loft[2] * t, false];
+  }
+
+  /**
+   * chart.optimal_loft: balanced dynamic loft, the mean of the TrackMan 2010 CARRY chart's and
+   * TOTAL chart's optimal dynamic loft, each bilinear over club speed (clamped to 75 to 120 mph)
+   * and attack angle (-5, 0, +5). Beyond -5 or +5 each loft extends along its edge slope and
+   * `extrapolated` is true. Returns {dynLoft, carryLoft, totalLoft, extrapolated, speedClamped}.
+   * Throws ValueError for a non-finite input.
    */
   function optimalLoft(clubSpeed, attack) {
     for (const [name, v] of [["club_speed_mph", clubSpeed], ["attack_deg", attack]]) {
       if (!isFiniteNumber(v)) throw new ValueError(`${name} must be finite, got ${pyRepr(v)}`);
     }
+    const [carryLoft, extrapolated] = loftAt(TM, clubSpeed, attack);
+    const [totalLoft] = loftAt(TT, clubSpeed, attack);
     const speeds = TM.club_speed_mph;
-    const aoas = TM.attack_deg;
-    const [s0, s1, fs] = bracket(speeds, clubSpeed);
-    const loft = aoas.map((_a, j) => TM.dyn_loft_deg[s0][j] * (1 - fs) + TM.dyn_loft_deg[s1][j] * fs);
     const speedClamped = clubSpeed < speeds[0] || clubSpeed > speeds[speeds.length - 1];
-    const aLo = aoas[0], aMid = aoas[1], aHi = aoas[2];
-    if (attack > aHi) {
-      const slope = (loft[2] - loft[1]) / (aHi - aMid);
-      return { dynLoft: loft[2] + slope * (attack - aHi), extrapolated: true, speedClamped };
-    }
-    if (attack < aLo) {
-      const slope = (loft[1] - loft[0]) / (aMid - aLo);
-      return { dynLoft: loft[0] + slope * (attack - aLo), extrapolated: true, speedClamped };
-    }
-    if (attack <= aMid) {
-      const t = (attack - aLo) / (aMid - aLo);
-      return { dynLoft: loft[0] * (1 - t) + loft[1] * t, extrapolated: false, speedClamped };
-    }
-    const t = (attack - aMid) / (aHi - aMid);
-    return { dynLoft: loft[1] * (1 - t) + loft[2] * t, extrapolated: false, speedClamped };
+    return { dynLoft: 0.5 * (carryLoft + totalLoft), carryLoft, totalLoft, extrapolated, speedClamped };
   }
 
   function fly(p) {

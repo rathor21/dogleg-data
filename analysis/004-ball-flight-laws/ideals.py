@@ -23,15 +23,16 @@ the preset speed +-5 percent, an informational band: the tile says how the
 player's speed compares with the player group's.
 
 Driver (task 004-copy-pass): the ideal is data.DRIVER_IDEAL, not the Tour average.
-The attack band is +2 to +5 with target +4, from TrackMan's 2010 chart, where
+The attack band is +2 to +5 with target +5, from TrackMan's 2010 chart, where
 carry and total rise with attack angle (see data.DRIVER_IDEAL). Dynamic loft is
-chart.optimal_loft(current club speed, current attack) +-1.5 deg. Ball speed,
+chart.optimal_loft(current club speed, current attack) +-1.5 deg, the mean of the
+TrackMan 2010 carry chart and total chart lofts. Ball speed,
 carry and total come from the model at the ideal delivery at the current club
 speed, +-3 percent (spin trim 1.0, the chart's own strike). Spin loft, smash,
 peak height and landing angle are the ideal delivery's model outputs at the
 preset club speed. Launch and spin come from the two optimizer sources at the
 current club speed and attack angle. Bands default to the ideal attack angle
-(+4), not the Tour average, so the optimizer lookups match the ideal delivery.
+(+5), not the Tour average, so the optimizer lookups match the ideal delivery.
     TrackMan Carry Optimizer (2010), club speed 75 to 120 by attack angle -5, 0, +5.
     PING Optimal Launch & Spin (2019), ball speed 80 to 180 by attack angle -10 to +10.
 Bilinear interpolation, clamped to each table's range. PING is read at the
@@ -43,7 +44,12 @@ launch (Anchor 4), and `detail` carries both values.
 Known exceptions, kept on record (see exceptions()): the metrics where the
 model's ideal delivery falls outside its own band. exceptions() runs the ideal
 delivery of every club and player against its bands at the preset club speed.
-For clubs other than the driver that is the preset (a Tour or amateur average).
+For clubs other than the driver that is the preset (a Tour or amateur average)
+and nothing misses. The driver's ideal loft sits between the carry and total
+optimizers, and the total chart wants a lower launch, so the ideal driver
+launches 0.3 to 0.6 deg below the lower edge of a launch band that spans the
+carry optimizer and PING. The three misses stay on record, and the tile shows
+them. Spin sits inside its band for all three players.
 
 club_speed scales ball speed, carry and total (and moves the driver's optimizer
 lookups and dynamic loft band). attack moves only the driver's optimizer lookups
@@ -55,7 +61,7 @@ from math import isfinite
 import data
 import flight
 import presets
-from chart import _PING_AOAS, _PING_SPEEDS, _TRACKMAN, _TRACKMAN_AOAS, _TRACKMAN_SPEEDS, optimal_loft, ping_2019, trackman_carry_2010  # noqa: F401
+from chart import _PING_AOAS, _PING_SPEEDS, _TRACKMAN, _TRACKMAN_AOAS, _TRACKMAN_SPEEDS, _TRACKMAN_TOTAL, optimal_loft, ping_2019, trackman_carry_2010  # noqa: F401
 
 METRICS = (
     "club_speed", "attack_deg", "club_path_deg", "face_deg", "face_to_path_deg", "dyn_loft_deg", "spin_loft_deg",
@@ -68,11 +74,11 @@ _TOL = data.IDEAL_TOL
 DRIVER_ATTACK_SOURCE = (
     "MODELED design choice from TrackMan's 2010 Driver Fitting Chart (TrackMan model output): carry and total rise "
     "with attack angle from -5 to 0 to +5 at every club speed, and +5 is the chart's top row. Band +2 to +5, "
-    "target +4"
+    "target +5"
 )
 DRIVER_LOFT_SOURCE = (
-    "TrackMan Carry Optimizer 2010 dynamic loft at the current club speed and attack angle (TrackMan model "
-    "output), bilinear on the chart, +-1.5 deg (MODELED width)"
+    "TrackMan 2010 charts (TrackMan model output): dynamic loft midway between the CARRY and TOTAL optimizers at "
+    "the current club speed and attack angle, bilinear on each chart, +-1.5 deg (MODELED width)"
 )
 
 
@@ -216,26 +222,34 @@ def exceptions():
 
 
 def optimizer_grids():
-    """The two driver optimizer tables as plain lists, so a page can interpolate
+    """The driver optimizer tables as plain lists, so a page can interpolate
     live. Each grid is indexed [row][column] as its `layout` says, rows and
-    columns ascending."""
+    columns ascending. The two TrackMan 2010 grids (carry chart, total chart)
+    share their axes and columns."""
     speeds, aoas = _TRACKMAN_SPEEDS, _TRACKMAN_AOAS
 
-    def tm(idx):
-        return [[_TRACKMAN[(s, a)][idx] for a in aoas] for s in speeds]
+    def tm(table, idx):
+        return [[table[(s, a)][idx] for a in aoas] for s in speeds]
 
-    return {
-        "trackman_carry_2010": {
-            "source": "TrackMan Driver Fitting Chart (2010), CARRY Optimizer (Anchor 4, Source 1)",
+    def trackman(table, source):
+        return {
+            "source": source,
             "layout": "[club speed index][attack angle index]",
             "club_speed_mph": list(speeds),
             "attack_deg": list(aoas),
-            "ball_speed_mph": tm(2),
-            "launch_deg": tm(3),
-            "spin_rpm": tm(4),
-            "carry_yd": tm(5),
-            "dyn_loft_deg": tm(7),
-        },
+            "ball_speed_mph": tm(table, 2),
+            "launch_deg": tm(table, 3),
+            "spin_rpm": tm(table, 4),
+            "carry_yd": tm(table, 5),
+            "total_yd": tm(table, 6),
+            "dyn_loft_deg": tm(table, 7),
+        }
+
+    return {
+        "trackman_carry_2010": trackman(
+            _TRACKMAN, "TrackMan Driver Fitting Chart (2010), CARRY Optimizer (Anchor 4, Source 1)"),
+        "trackman_total_2010": trackman(
+            _TRACKMAN_TOTAL, "TrackMan Driver Fitting Chart (2010), TOTAL Optimizer (Anchor 4, Source 1)"),
         "ping_2019": {
             "source": "PING Optimal Launch & Spin Chart (2019) (Anchor 4, Source 2)",
             "layout": "[ball speed index][attack angle index]",
