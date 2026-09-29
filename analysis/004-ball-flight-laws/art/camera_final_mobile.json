@@ -1,0 +1,104 @@
+{
+  "image": "range_final_mobile.png",
+  "width": 768,
+  "height": 1376,
+  "f": 1302.36,
+  "cx": 384.0,
+  "cy": 688.0,
+  "cam_pos": [
+    -3.0,
+    0.0,
+    1.8
+  ],
+  "yaw_deg": -0.076,
+  "pitch_deg": 6.156,
+  "roll_deg": -0.031,
+  "residual_px_rms": 1.81,
+  "residual_by_kind": {
+    "center": 0.46,
+    "pole": 2.48
+  },
+  "residual_note": "residual_px_rms covers the centre line, pole rows and ball anchor. Stripe lines are advisory (see residual_by_kind.stripe).",
+  "horizon_row": 547.5,
+  "vanishing_point": [
+    385.7,
+    547.5
+  ],
+  "stripe_width_yd": null,
+  "stripe_offset_yd": null,
+  "stripe_indices": {},
+  "pole_row_lateral_yd": {
+    "left": -9.78,
+    "right": 10.65
+  },
+  "pole_height_yd": 2.77,
+  "assumptions": [
+    "camera height zc = 1.8 yd above the ground (standing viewer's eye)",
+    "camera 3 yd behind the ball (x = -3) and on the target line (y = 0)",
+    "principal point at the image centre, square pixels, no lens distortion",
+    "ball at the marked mat pixel (no ball is painted, mat centre used)",
+    "mowing stripes parallel to the target line with constant width",
+    "floodlight poles are vertical, equal height, in a straight row per side",
+    "ground is flat (z = 0)"
+  ],
+  "greens": [
+    {
+      "name": "H (left, mid)",
+      "pixel": [
+        258,
+        631
+      ],
+      "ground_yd": [
+        25.2,
+        -2.8
+      ],
+      "left_edge_yd": [
+        25.3,
+        -4.7
+      ],
+      "right_edge_yd": [
+        25.2,
+        -0.8
+      ]
+    },
+    {
+      "name": "J (right, near)",
+      "pixel": [
+        570,
+        657
+      ],
+      "ground_yd": [
+        18.5,
+        3.0
+      ],
+      "left_edge_yd": [
+        18.5,
+        0.8
+      ],
+      "right_edge_yd": [
+        18.4,
+        5.3
+      ]
+    },
+    {
+      "name": "E (centre, far)",
+      "pixel": [
+        385,
+        581
+      ],
+      "ground_yd": [
+        67.7,
+        -0.0
+      ],
+      "left_edge_yd": [
+        67.7,
+        -2.2
+      ],
+      "right_edge_yd": [
+        67.6,
+        1.9
+      ]
+    }
+  ],
+  "projection": "u = cx + f*Xc/Zc ; v = cy - f*Yc/Zc with Xc,Yc,Zc = (P-C).right, (P-C).up, (P-C).fwd; see fit_camera.py docstring"
+}

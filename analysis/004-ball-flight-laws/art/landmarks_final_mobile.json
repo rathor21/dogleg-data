@@ -1,0 +1,221 @@
+{
+ "image": "range_final_mobile.png",
+ "width": 768,
+ "height": 1376,
+ "notes": "Pixel coordinates (u right, v down) measured by eye from zoomed, gamma-brightened crops. Poles: base = where the pole meets the grass, top = centre of the lamp glow.",
+ "horizon_row_from_pole_rows": 550,
+ "ball": [
+  386,
+  1290
+ ],
+ "ball_note": "No ball is painted. Mat centre on the white centre line, about 125 px behind the mat front edge (row 1163).",
+ "mat_front_edge_row": 1163,
+ "center_line_far_end": [
+  386,
+  584
+ ],
+ "lines": [
+  {
+   "name": "center_line",
+   "kind": "center",
+   "points": [
+    [
+     386,
+     590
+    ],
+    [
+     386,
+     600
+    ],
+    [
+     386,
+     620
+    ],
+    [
+     386,
+     650
+    ],
+    [
+     386,
+     700
+    ],
+    [
+     386,
+     800
+    ],
+    [
+     386,
+     900
+    ],
+    [
+     386,
+     1000
+    ],
+    [
+     386,
+     1100
+    ],
+    [
+     386,
+     1200
+    ],
+    [
+     385,
+     1300
+    ],
+    [
+     385,
+     1370
+    ]
+   ]
+  },
+  {
+   "name": "pole_left_base",
+   "kind": "pole",
+   "side": "left",
+   "level": "base",
+   "points": [
+    [
+     38,
+     614
+    ],
+    [
+     104,
+     602
+    ],
+    [
+     145,
+     592
+    ],
+    [
+     178,
+     581
+    ]
+   ]
+  },
+  {
+   "name": "pole_left_top",
+   "kind": "pole",
+   "side": "left",
+   "level": "top",
+   "points": [
+    [
+     37,
+     510
+    ],
+    [
+     105,
+     520
+    ],
+    [
+     146,
+     526
+    ],
+    [
+     178,
+     530
+    ]
+   ]
+  },
+  {
+   "name": "pole_right_base",
+   "kind": "pole",
+   "side": "right",
+   "level": "base",
+   "points": [
+    [
+     703,
+     603
+    ],
+    [
+     659,
+     594
+    ],
+    [
+     626,
+     585
+    ]
+   ]
+  },
+  {
+   "name": "pole_right_top",
+   "kind": "pole",
+   "side": "right",
+   "level": "top",
+   "points": [
+    [
+     704,
+     515
+    ],
+    [
+     659,
+     522
+    ],
+    [
+     626,
+     528
+    ]
+   ]
+  }
+ ],
+ "greens": [
+  {
+   "name": "H (left, mid)",
+   "center": [
+    258,
+    631
+   ],
+   "left": [
+    168,
+    631
+   ],
+   "right": [
+    349,
+    631
+   ],
+   "flag_base": [
+    261,
+    635
+   ]
+  },
+  {
+   "name": "J (right, near)",
+   "center": [
+    570,
+    657
+   ],
+   "left": [
+    432,
+    657
+   ],
+   "right": [
+    707,
+    657
+   ],
+   "flag_base": [
+    571,
+    660
+   ]
+  },
+  {
+   "name": "E (centre, far)",
+   "center": [
+    385,
+    581
+   ],
+   "left": [
+    345,
+    581
+   ],
+   "right": [
+    420,
+    581
+   ],
+   "flag_base": [
+    385,
+    581
+   ]
+  }
+ ],
+ "stripes_note": "Stripes are low contrast and inconsistent with the pole rows in this image, so no stripe lines are used. Camera is fixed by the pole rows, the centre line, and the ball anchor."
+}

@@ -1,0 +1,2 @@
+/edit r1_5.png (model gemini-3-pro-image-preview)
+Change only the bottom strip of this image. Remove the two dark green mat corners at the far bottom left and bottom right, and fill that area with the same plain grey-green turf that lies beside the center mat, so only the single center hitting mat with its white painted lines remains. Keep everything else in the image pixel-for-pixel identical: the sky, the trees, the floodlights, the greens, the flags, the mowing stripes, the lighting and the colors. Same 16:9 framing. No text, no people.

@@ -1,0 +1,2 @@
+/edit r1_8.png (model gemini-3-pro-image-preview)
+upscale to the highest resolution you can, keep the composition, lighting, and every feature identical, sharpen detail, no text, no people
