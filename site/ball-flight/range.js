@@ -6,7 +6,7 @@
  *   row(x) = h + (r0 - h) / (1 + x/d0)^p          (x clamped to >= 0)
  *   s(x)   = (row(x) - h) / z_eff                 px per yard for y and z
  *   t(x)   = (r0 - row(x)) / (r0 - h)
- *   u      = u0 + (uh - u0) * t(x) + y * s(x)
+ *   u      = u0 + (uh - u0) * t(x) + lat(y) * s(x)
  *   v      = row(x) - z * s(x)
  * The view is a crop of the art (a rect in art pixels) scaled to the canvas.
  * The wide art uses the per-group zoom rects from camera.json. The mobile art has
@@ -101,13 +101,22 @@ export function createRange({ root, canvas, model, avoidEl }) {
     loadingEl.textContent = failed ? "The range picture did not load. The tracer still works." : "Loading the range…";
   }
 
+  // Display-only sideways stretch. Seen from behind the ball, a 7 yd curve over a
+  // 200 yd carry spans a few dozen art pixels, so every tracer reads as one
+  // vertical line. lat() widens the drawn side offset about 2x for ordinary shots
+  // and saturates for big misses so they stay in frame. It is monotonic and odd,
+  // so left, right and the ordering of shots are kept. Model numbers, labels and
+  // the carry and side text are untouched; only where the tracer is painted moves.
+  const LAT_GAIN = 2.4, LAT_KNEE = 35;
+  const lat = (y) => (LAT_GAIN * y) / (1 + Math.abs(y) / LAT_KNEE);
+
   function project(a, x, y, z) {
     const P = a.P;
     const xx = x < 0 ? 0 : x;
     const row = P.h + (P.r0 - P.h) / Math.pow(1 + xx / P.d0, P.p);
     const s = (row - P.h) / P.z_eff;
     const t = (P.r0 - row) / (P.r0 - P.h);
-    return [P.u0 + (P.uh - P.u0) * t + y * s, row - z * s, s];
+    return [P.u0 + (P.uh - P.u0) * t + lat(y) * s, row - z * s, s];
   }
 
   // ---- view (crop of the art) ------------------------------------------------------
