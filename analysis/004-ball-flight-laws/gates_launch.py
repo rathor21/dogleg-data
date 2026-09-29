@@ -294,7 +294,7 @@ def golden_entry(case_id, args, kwargs):
             "carry_yd": f.carry_yd, "side_yd": f.side_yd, "curve_yd": f.curve_yd,
             "max_height_yd": f.max_height_yd, "apex_x_yd": f.apex_x_yd,
             "land_angle_deg": f.land_angle_deg, "flight_time_s": f.flight_time_s,
-            "land_speed_mph": f.land_speed_mph,
+            "land_speed_mph": f.land_speed_mph, "land_spin_rpm": f.land_spin_rpm,
         },
     }
 

@@ -113,8 +113,9 @@ def test_model_json_carries_the_constants(built):
     assert m["classify"]["on_target_frac"] == 0.04 and m["classify"]["on_line_yd"] == 1.0
     assert m["spin_class"] == launch.SPIN_CLASS
     assert m["flight"] == {"dt": 0.01, "integrator": "rk4", "max_flight_s": flight.MAX_FLIGHT_S, "v_floor_ms": flight.V_FLOOR_MS}
-    assert {k: m["roll"][k] for k in ("cos_power", "k", "max_yd")} == {
-        "cos_power": data.ROLL_COS_POWER, "k": data.ROLL_K, "max_yd": data.ROLL_MAX_YD}
+    assert {k: m["roll"][k] for k in ("cos_power", "k", "max_yd", "spin_power", "spin_ref_rpm", "spin_floor_rpm")} == {
+        "cos_power": data.ROLL_COS_POWER, "k": data.ROLL_K, "max_yd": data.ROLL_MAX_YD, "spin_power": data.ROLL_SPIN_POWER,
+        "spin_ref_rpm": data.ROLL_SPIN_REF_RPM, "spin_floor_rpm": data.ROLL_SPIN_FLOOR_RPM}
     assert "total_yd" in m["roll"]["form"]
     assert m["swing_plane_default_deg"] == data.SWING_PLANE_DEG
 
@@ -236,7 +237,7 @@ def test_golden_round_trips_against_the_live_model(golden):
         for k, v in case["launch"].items():
             assert getattr(ln, k) == pytest.approx(v, rel=REL, abs=REL), (case["id"], k)
         assert set(case["flight"]) == {"carry_yd", "side_yd", "curve_yd", "max_height_yd", "apex_x_yd", "land_angle_deg",
-                                       "flight_time_s", "land_speed_mph", "total_yd"}
+                                       "flight_time_s", "land_speed_mph", "land_spin_rpm", "total_yd"}
         for k, v in case["flight"].items():
             live = flight.roll(f) if k == "total_yd" else getattr(f, k)
             assert live == pytest.approx(v, rel=REL, abs=REL), (case["id"], k)

@@ -22,6 +22,13 @@ TEACH_CARRY_FRAC = 0.05
 TEACH_HEIGHT_YD = 4.0
 TEACH_LAND_DEG = 3.0
 
+# Chart gate (task 004-copy-pass): model carry from the chart's own launch
+# conditions against the TrackMan 2010 chart (model output), 60 rows.
+CHART_CARRY_TOL_FRAC = 0.03
+# Total distance (carry plus roll) against the chart's total column: within 5
+# percent. Looser than carry because roll is a MODELED, three-parameter form.
+CHART_TOTAL_TOL_FRAC = 0.05
+
 MISSES_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "tests", "g2_known_misses.json"
 )
@@ -96,3 +103,64 @@ def load_record(path=MISSES_PATH):
     """The recorded {"g2": ..., "teaching": ...} misses. Read on call, never at import."""
     with open(path) as fh:
         return json.load(fh)
+
+
+# ---------------------------------------------------------------------------
+# TrackMan 2010 Driver Fitting Chart (data.TRACKMAN_CARRY_2010 and
+# TRACKMAN_TOTAL_2010, "TrackMan 2010 chart (TrackMan model output)")
+# ---------------------------------------------------------------------------
+
+CHART_NAMES = ("C", "T")  # C: carry optimizer rows, T: total optimizer rows
+
+
+def chart_rows():
+    """(chart, label, row dict) for the 60 chart rows. label is like "C115/+5"."""
+    for chart, table in (("C", data.TRACKMAN_CARRY_2010), ("T", data.TRACKMAN_TOTAL_2010)):
+        for vals in table:
+            r = dict(zip(data.TRACKMAN_CARRY_2010_FIELDS, vals))
+            yield chart, f"{chart}{r['club_speed_mph']}/{r['attack_deg']:+d}", r
+
+
+def n_chart_rows():
+    return sum(1 for _ in chart_rows())
+
+
+def run_chart_row(r, aero=None, dt=0.01):
+    """Fly a chart row from its published ball speed, launch and spin (no axis)."""
+    return flight.simulate(r["ball_speed_mph"], r["launch_deg"], 0.0, r["spin_rpm"], 0.0, dt=dt, aero=aero)
+
+
+def chart_normalized(f, r):
+    """Carry error in units of 3 percent of the chart carry: 1.0 sits on the gate."""
+    return (f.carry_yd - r["carry_yd"]) / (CHART_CARRY_TOL_FRAC * r["carry_yd"])
+
+
+def chart_rms(aero, dt=0.01):
+    v = np.array([chart_normalized(run_chart_row(r, aero, dt), r) for _c, _l, r in chart_rows()])
+    return float(np.sqrt(np.mean(v**2)))
+
+
+def chart_misses(aero=None, dt=0.01):
+    """{"C115/+5": {"carry_yd": error}} for chart rows whose carry is outside 3 percent."""
+    out = {}
+    for _c, label, r in chart_rows():
+        e = run_chart_row(r, aero, dt).carry_yd - r["carry_yd"]
+        if abs(e) > CHART_CARRY_TOL_FRAC * r["carry_yd"]:
+            out[label] = {"carry_yd": round(e, 1)}
+    return out
+
+
+def chart_total_error(f, r):
+    """Model total minus chart total, yd, with the model's own carry and roll."""
+    return flight.roll(f) - r["total_yd"]
+
+
+def chart_total_misses(aero=None, dt=0.01):
+    """{"C115/+5": {"total_yd": error}} for chart rows whose model total (own
+    carry plus roll) is outside 5 percent of the chart total."""
+    out = {}
+    for _c, label, r in chart_rows():
+        e = chart_total_error(run_chart_row(r, aero, dt), r)
+        if abs(e) > CHART_TOTAL_TOL_FRAC * r["total_yd"]:
+            out[label] = {"total_yd": round(e, 1)}
+    return out

@@ -284,44 +284,84 @@ CD_BAND = (0.15, 0.45)
 CL_MAX = 0.40
 RE_RANGE = (0.5, 2.3)  # units of 1e5, about 40 to 185 mph
 
-# MODELED, fitted by `calibrate.py --fit` (variant quad7) to all 23 PGA and
-# LPGA rows. rms of the G2-normalized residuals: carry 0.81, height 0.95, land
-# angle 1.24, overall 1.02 (1.0 sits on the gate). Constraints hold on S in
-# [0.05, 0.50] and Re in [0.5, 2.3]. CD at Re 1.5: 0.26 at S = 0.15, 0.31 at
-# S = 0.30. CL: 0.23 at S = 0.15, 0.34 at S = 0.30. Spin decay stays at the
-# published Anchor 7 value (SPIN_DECAY_COEF, 2.0e-5, Smits and Smith); no "k"
-# key means quad_model uses it.
+# MODELED, fitted by `calibrate.py --fit-chart` (variant quad7, published spin
+# decay) to BOTH the 23 tour rows (carry, height and land angle, each in units of
+# the G2 tolerance) and the 60 rows of the TrackMan 2010 Driver Fitting Chart
+# (TRACKMAN_CARRY_2010 and TRACKMAN_TOTAL_2010, "TrackMan 2010 chart (TrackMan
+# model output)": carry only, in units of 3 percent), each row flown from its
+# own ball speed, launch and spin with no axis. Weights: each set is divided by
+# the square root of its residual count (tour 69, chart 60) and the chart set is
+# then weighted 2.0 (CHART_WEIGHT in calibrate.py). Chart weight 2.0 is the
+# smallest step on the grid 1, 1.5, 2, 3, 4 that puts every chart row within 3
+# percent (worst 2.8); at 1.0 the worst chart row is 3.85 percent off and at 1.5
+# it is 3.4, and at 3 and 4 the tour teaching passes fall to 10 and 7. Constraints hold on S in
+# [0.05, 0.50] and Re in [0.5, 2.3]. Why refit: the fit to the tour rows alone
+# under-carried high-launch, low-spin drives and left the driver flat across
+# attack angle (chart carry error -1.6, -4.0 and -6.4 percent at attack -5, 0
+# and +5; 115 mph +5 gave 278 against 295).
 #
-# Evidence for the choice (`calibrate.py --compare`, reproducible). Each variant
-# fit on all rows, on PGA only and on LPGA only:
-#   variant                    params  G2  teach  all rms  PGA>LPGA  LPGA>PGA  held mean
-#   quad7 (shipped, k 2.0e-5)     7     6    12    1.016    0.989     1.298     1.143
-#   A: quad7 + fitted k           8     7    12    0.987    0.958     1.245     1.102
-#   B: logistic low-Re + k        8     8    14    1.040    1.521     1.236     1.378
-# A's held-out gain is within noise, and its fitted k pinned at the 6.0e-5 upper
-# bound of its range (3x the published value), so it is not shipped. B does not
-# transfer from PGA to LPGA. The spin axis curvature check (3w vs 6i at 10 deg)
-# reads 3w 12.1 yd and 6i 14.0 yd for quad7, the wrong order against TrackMan's
-# examples, and is no better in A or B.
+# Result (dt 0.01): tour rows G2 6 of 23, teaching 15 of 23 (was 6 and 12), rms
+# of the normalized residuals carry 1.06, height 0.74, land angle 1.61, overall
+# 1.19 (was 1.02). Chart: rms 0.42, all 60 rows within 3 percent (worst 2.8),
+# mean carry error +1.2, -0.1 and -1.4 percent at attack -5, 0 and +5. Carry gain
+# from attack -5 to +5 at 115 mph: 21.8 yd on the carry rows against the chart's
+# 29 (was 14.4), 16.4 against 24 on the total rows (was 8.5); the model still
+# gives about 70 percent of the chart's gain. The cost falls on the tour rows:
+# PGA PW carry -11.7 yd (was -8.5) and PGA 3 to 5 iron land angles 5.2 to 5.7
+# degrees shallow (were 3.7 to 4.2).
+#
+# Held-out comparison (`calibrate.py --compare-chart`, dt 0.05, chart weight 2).
+# Each variant fit on both sets, on the tour rows only (scored on the chart) and
+# on the chart rows only (scored on the tour rows). cub adds l3 S^3 to the lift,
+# exp adds l3 exp(-S / 0.05), logi swaps the drag speed term for a logistic rise
+# below a fitted Re (width 0.15 fixed):
+#   variant  params  tour rms  chart rms  G2  teach  worst chart %  tour>chart  chart>tour
+#   quad7      7      1.192     0.419      6    15        2.8          1.523       2.245
+#   cub        8      1.187     0.428      6    15        2.8          1.597       2.338
+#   exp        8      1.233     0.431      6    12        2.7          1.904       2.461
+#   logi       8      1.048     0.386      7    16        3.3          1.298       2.250
+# quad7 already puts every chart row inside 3 percent, and the extra term buys
+# nothing in cub and exp. logi fits both sets a little better in sample but
+# leaves one chart row outside the gate (3.3 percent) and has an extra fitted
+# parameter, and the held-out scores move with the start point (the fits have a
+# flat d2 / l2 valley), so quad7 ships. The chart only spans S 0.05 to 0.14, so
+# chart-only fits are unconstrained above that and score 2.2 to 2.5 on the tour
+# rows for every variant.
 QUAD = {
-    "d0": 0.19877,
-    "d1": 0.52450,
-    "d2": -0.50182,
-    "d3": -0.09224,  # per unit of Re/1e5 above the pivot: drag falls as the ball speeds up
-    "l0": 0.05635,
-    "l1": 1.36147,
-    "l2": -1.34813,
+    "d0": 0.16554,
+    "d1": 0.72226,
+    "d2": -0.57345,
+    "d3": -0.02957,  # per unit of Re/1e5 above the pivot: drag falls slightly as the ball speeds up
+    "l0": 0.05793,
+    "l1": 1.28987,
+    "l2": -1.21142,
 }
 
 # ---------------------------------------------------------------------------
-# Bounce and roll. Gaps section, item 8: no source read covers it; the Tour
-# table gives landing angle but no roll-out. Everything below is MODELED, with
-# no fitting claim. See flight.roll for the form.
+# Bounce and roll. Gaps section, item 8: no source read covers roll. The Tour
+# table gives landing angle but no roll-out. MODELED, but anchored since task
+# 004-copy-pass to TrackMan's own model output: `calibrate.py --fit-roll` fits
+# total minus carry on the 60 rows of the TrackMan 2010 chart (carry optimizer
+# and total optimizer rows, "TrackMan 2010 chart (TrackMan model output)"),
+# each row flown from its own launch conditions with the shipped aero. Soft-L1
+# with a 5 yd scale, since the log flags two totals at 100 mph as likely printing
+# errors. Form, in flight.roll:
+#   roll = k v cos(land angle)^p (ref / max(land spin, floor))^q
+# Fit: k 1.296, p 4.34, q 0.559; rms 6.2 yd on rolls of 16 to 58 yd, largest 18.5
+# yd. The two charts sit at different landing angles and spins, and TrackMan's
+# roll is about 24 yd on the carry optimizer rows and 42 to 58 yd on the total
+# optimizer rows. Landing angle alone could not separate them (rms 8.3 yd with
+# q = 0). Landing spin is what stops a wedge rolling like a driver: a Tour PW
+# lands with about 8,000 rpm and rolls about 6 yd. The chart holds drivers only,
+# so irons and wedges are extrapolation, checked by eye, not fitted.
 # ---------------------------------------------------------------------------
 
-ROLL_K = 8.5  # MODELED, yd per (mph of landing speed) at zero landing angle
-ROLL_COS_POWER = 10  # MODELED; retuned at 004.2 for the quadratic fit's landing speeds and angles
-ROLL_MAX_YD = 40.0  # MODELED bound
+ROLL_K = 1.2962  # MODELED, fitted to the chart
+ROLL_COS_POWER = 4.3428  # MODELED, fitted to the chart
+ROLL_SPIN_POWER = 0.5594  # MODELED, fitted to the chart
+ROLL_SPIN_REF_RPM = 2500.0  # MODELED reference (about the chart's median landing spin), not fitted
+ROLL_SPIN_FLOOR_RPM = 500.0  # MODELED, keeps a zero-spin shot finite
+ROLL_MAX_YD = 80.0  # MODELED safety bound, not fitted (the chart rolls reach 58 yd)
 
 # ---------------------------------------------------------------------------
 # Delivery-to-launch model (task 004.3, gate G3). Every number is MODELED: a
