@@ -219,28 +219,33 @@ CD_BAND = (0.15, 0.45)
 CL_MAX = 0.40
 RE_RANGE = (0.5, 2.3)  # units of 1e5, about 40 to 185 mph
 
-# MODELED, fitted by `calibrate.py --compare` (variant A) to all 23 PGA and LPGA
-# rows: the 7 quadratic parameters plus the spin decay coefficient k. rms of
-# the G2-normalized residuals: overall 0.99 (1.0 sits on the gate). Constraints
-# hold on S in [0.05, 0.50] and Re in [0.5, 2.3]. CD at Re 1.5: 0.26 at
-# S = 0.15, 0.31 at S = 0.30. CL: 0.23 at S = 0.15, 0.34 at S = 0.30.
-# k is the coefficient in tau = R / (k v), SI. Anchor 7 logs 2.0e-5 (Smits and
-# Smith) and 2.5e-5 (Tavares); k was free in [1.0e-5, 6.0e-5] and the fit sits
-# on the UPPER BOUND, 3x the Smits and Smith value (spin time constant 8 s at
-# 100 mph instead of 24 s). Read it as "the Tour tables want spin to fall
-# faster than the logged laws", not as a measured decay rate. The comparison
-# against the 7-parameter model and the logistic variant is in the 004.2
-# report; the 7-parameter model at k = 2.0e-5 had held-out rms 1.14, this has
-# 1.10.
+# MODELED, fitted by `calibrate.py --fit` (variant quad7) to all 23 PGA and
+# LPGA rows. rms of the G2-normalized residuals: carry 0.81, height 0.95, land
+# angle 1.24, overall 1.02 (1.0 sits on the gate). Constraints hold on S in
+# [0.05, 0.50] and Re in [0.5, 2.3]. CD at Re 1.5: 0.26 at S = 0.15, 0.31 at
+# S = 0.30. CL: 0.23 at S = 0.15, 0.34 at S = 0.30. Spin decay stays at the
+# published Anchor 7 value (SPIN_DECAY_COEF, 2.0e-5, Smits and Smith); no "k"
+# key means quad_model uses it.
+#
+# Evidence for the choice (`calibrate.py --compare`, reproducible). Each variant
+# fit on all rows, on PGA only and on LPGA only:
+#   variant                    params  G2  teach  all rms  PGA>LPGA  LPGA>PGA  held mean
+#   quad7 (shipped, k 2.0e-5)     7     6    12    1.016    0.989     1.298     1.143
+#   A: quad7 + fitted k           8     7    12    0.987    0.958     1.245     1.102
+#   B: logistic low-Re + k        8     8    14    1.040    1.521     1.236     1.378
+# A's held-out gain is within noise, and its fitted k pinned at the 6.0e-5 upper
+# bound of its range (3x the published value), so it is not shipped. B does not
+# transfer from PGA to LPGA. The spin axis curvature check (3w vs 6i at 10 deg)
+# reads 3w 12.1 yd and 6i 14.0 yd for quad7, the wrong order against TrackMan's
+# examples, and is no better in A or B.
 QUAD = {
-    "d0": 0.19710,
-    "d1": 0.54852,
-    "d2": -0.52694,
-    "d3": -0.09160,  # per unit of Re/1e5 above the pivot: drag falls as the ball speeds up
-    "l0": 0.06628,
-    "l1": 1.37548,
-    "l2": -1.41620,
-    "k": 6.0e-5,  # MODELED, fitted, at the upper bound of its [1.0e-5, 6.0e-5] range
+    "d0": 0.19877,
+    "d1": 0.52450,
+    "d2": -0.50182,
+    "d3": -0.09224,  # per unit of Re/1e5 above the pivot: drag falls as the ball speeds up
+    "l0": 0.05635,
+    "l1": 1.36147,
+    "l2": -1.34813,
 }
 
 # ---------------------------------------------------------------------------
