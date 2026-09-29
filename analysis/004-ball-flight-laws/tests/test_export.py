@@ -95,7 +95,9 @@ def test_disk_copy_matches_a_fresh_build(built):
 def test_images_are_copied():
     for src, dst in export.IMAGE_COPIES:
         with open(os.path.join(export.HERE, "art", src), "rb") as a, open(os.path.join(export.IMG_DIR, dst), "rb") as b:
-            assert a.read() == b.read(), dst
+            data = b.read()
+            assert a.read() == data, dst
+        assert dst.endswith(".jpg") and data[:3] == b"\xff\xd8\xff", f"{dst} must hold JPEG data"
 
 
 def test_model_json_carries_the_constants(built):

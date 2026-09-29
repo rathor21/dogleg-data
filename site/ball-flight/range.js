@@ -24,8 +24,8 @@
 
 const GROUP_VIEW_KEY = { driver: "driver", wood: "woods", long_iron: "long_iron", short_iron: "short_iron", wedge: "wedge" };
 const ART_URL = {
-  wide: new URL("../assets/img/004_range.png", import.meta.url).href,
-  mobile: new URL("../assets/img/004_range_mobile.png", import.meta.url).href,
+  wide: new URL("../assets/img/004_range.jpg", import.meta.url).href,
+  mobile: new URL("../assets/img/004_range_mobile.jpg", import.meta.url).href,
 };
 const ZOOM_MS = 650;
 const START_DELAY_MS = 250;

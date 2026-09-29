@@ -140,7 +140,7 @@ Prose goes through `sepia`/`humanizer`, following the global writing rules. Just
 New:
 - `analysis/004-ball-flight-laws/` with `data.py`, `launch.py`, `flight.py`, `classify.py`, `windows.py`, `calibrate.py`, `export.py`, `tests/`, `requirements.txt`, and `art/` (prompts, candidates, fit script, camera JSON). The venv pattern comes from 002.
 - `site/ball-flight/`: `index.html`, `tool.html`, `flight.js` (launch + flight + classify, one ES module shared by the article and the tool), `range.js`, `views.js`, `tool.css`, `data/presets.json`, `data/windows.json`, `data/camera.json`, `data/golden.json`.
-- `site/assets/img/004_range.png` and `004_range_mobile.png`, copied in by `export_site_assets.py`, same pattern as 003.
+- `site/assets/img/004_range.jpg` and `004_range_mobile.jpg`, copied in by `export_site_assets.py`, same pattern as 003.
 - Docs:
   - `docs/plans/2026-09-28-004-ball-flight-laws-design.md` and `-plan.md`.
   - `docs/sources/004_Source_Log.md`, `004_Caption.md`, `Peer_Review_004_Ball_Flight.md`.

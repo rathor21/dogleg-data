@@ -4,8 +4,8 @@
 
 Writes site/ball-flight/data/{model,presets,windows,ideals,camera,golden}.json
 and SCHEMA.md (the SCHEMA block below: every file's keys, nested structures,
-units, frame, sign, null and grid index conventions), and copies the range art to site/assets/img/004_range.png and
-004_range_mobile.png (same pattern as analysis/003-augusta-12/export_site_assets.py).
+units, frame, sign, null and grid index conventions), and copies the range art to site/assets/img/004_range.jpg and
+004_range_mobile.jpg (same pattern as analysis/003-augusta-12/export_site_assets.py).
 Idempotent and deterministic: sorted keys, floats rounded to 6 significant
 digits (model.json keeps 12 because 2 pi / 60 and the air viscosity are derived
 constants, golden.json keeps 9 so the JS parity test can hold 1e-6, and
@@ -254,8 +254,8 @@ GOLDEN_SIG = 9  # golden.json: tight enough that the JS parity test can hold 1e-
 TRAJECTORY_STRIDE = 10
 
 IMAGE_COPIES = [
-    ("range_final.png", "004_range.png"),
-    ("range_final_mobile.png", "004_range_mobile.png"),
+    ("range_final.png", "004_range.jpg"),
+    ("range_final_mobile.png", "004_range_mobile.jpg"),
 ]
 
 CLUB_NAMES = {
