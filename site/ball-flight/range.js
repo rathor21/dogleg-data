@@ -48,6 +48,10 @@ export function createRange({ root, canvas, model, avoidEl }) {
     glowOuter: token("--tracer-glow-outer", "rgba(255,138,61,.20)"),
     glowInner: token("--tracer-glow-inner", "rgba(255,170,90,.38)"),
     core: token("--tracer-core", "#FFF1DC"),
+    pinHalo: token("--pin-halo", "rgba(10,18,34,.34)"),
+    pinGlowOuter: token("--pin-glow-outer", "rgba(91,127,166,.30)"),
+    pinGlowInner: token("--pin-glow-inner", "rgba(140,180,230,.45)"),
+    pinCore: token("--pin-core", "#DCEBFF"),
     ghostHalo: token("--tracer-ghost-halo", "rgba(20,10,24,.22)"),
     ghost: token("--tracer-ghost", "rgba(255,238,215,.42)"),
     guide: token("--guide-line", "rgba(255,255,255,.62)"),
@@ -61,6 +65,11 @@ export function createRange({ root, canvas, model, avoidEl }) {
     skyTop: token("--fallback-sky-top", "#2B2450"),
     skyLow: token("--fallback-sky-low", "#B4573A"),
     ground: token("--fallback-ground", "#26351F"),
+  };
+
+  const PAL = {
+    warm: { halo: COL.halo, outer: COL.glowOuter, inner: COL.glowInner, core: COL.core },
+    cool: { halo: COL.pinHalo, outer: COL.pinGlowOuter, inner: COL.pinGlowInner, core: COL.pinCore },
   };
 
   // ---- art (loaded on demand, one at a time) -------------------------------------
@@ -103,6 +112,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
 
   // ---- view (crop of the art) ------------------------------------------------------
   let W = 300, H = 200, dpr = 1, k = 1;
+  let uiScale = 1; // the page's root font size over 16px, so the canvas text grows on a TV
   let view = { l: 0, t: 0, w: 1376, h: 768 };
   let viewAnim = null;
   let group = "short_iron";
@@ -180,6 +190,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
     if (w < 2 || h < 2) return;
     W = w; H = h;
     dpr = Math.min(window.devicePixelRatio || 1, 3);
+    uiScale = (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) / 16;
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     art = W / H < 1 ? arts.mobile : arts.wide;
@@ -222,6 +233,10 @@ export function createRange({ root, canvas, model, avoidEl }) {
   let ghostOn = true;
   let mode = "settled";  // "playing" | "settled"
   let t0 = 0, speed = 1, landedAt = null;
+  let pinned = null;     // Compare mode: shot A, drawn in the cool palette
+  let liveTag = "";      // Compare mode: "B", shown on the live shot's carry plate
+  let collection = [];   // shots that stay drawn after they have flown (Fly all nine)
+  let seq = null;        // a running sequence: {items, i, speed, onStep, onEnd}
 
   function prep(s) {
     const n = s.x.length;
@@ -256,8 +271,17 @@ export function createRange({ root, canvas, model, avoidEl }) {
 
   function clearGhost() { committed = null; ghostShot = null; }
 
+  /** Stop a running sequence and clear the shots it left on the range. */
+  function cancelSequence() {
+    const was = seq;
+    seq = null;
+    collection = [];
+    if (was && was.onEnd) was.onEnd(true);
+  }
+
   /** Draw a shot in full without animation and without touching the ghost. */
   function preview(shot) {
+    cancelSequence();
     cur = prep(shot);
     ghostShot = committed;
     mode = "settled";
@@ -267,6 +291,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
 
   /** Make a shot the current one and fly it. The previous committed shot becomes the ghost. */
   function commit(shot, opts = {}) {
+    cancelSequence();
     cur = prep(shot);
     ghostShot = committed;
     committed = cur;
@@ -275,8 +300,59 @@ export function createRange({ root, canvas, model, avoidEl }) {
 
   function settle() { mode = "settled"; landedAt = null; request(); }
 
+  /**
+   * Fly a list of {shot, label} one after another. Each shot stays on the range
+   * when it lands, so all of them show at once. The ghost is off while they show.
+   * opts: speed (playback multiplier), onStep(i, item), onEnd(cancelled).
+   */
+  function playSequence(items, opts = {}) {
+    cancelSequence();
+    committed = null;
+    ghostShot = null;
+    seq = { items, i: -1, speed: opts.speed || 2.5, onStep: opts.onStep, onEnd: opts.onEnd };
+    if (reduce.matches) {
+      // Reduced motion: everything settled at once.
+      collection = items.slice(0, -1).map((it) => Object.assign(prep(it.shot), { label: it.label }));
+      const last = items[items.length - 1];
+      cur = Object.assign(prep(last.shot), { label: last.label });
+      mode = "settled";
+      const done = seq;
+      seq = null;
+      if (done.onStep) done.onStep(items.length - 1, last);
+      if (done.onEnd) done.onEnd(false);
+      request();
+      return;
+    }
+    seqNext();
+  }
+
+  function seqNext() {
+    if (!seq) return;
+    if (cur && seq.i >= 0) collection.push(cur);
+    seq.i += 1;
+    if (seq.i >= seq.items.length) {
+      const done = seq;
+      seq = null;
+      // The last shot stays as the current one. Take it back off the collection.
+      collection.pop();
+      if (done.onEnd) done.onEnd(false);
+      request();
+      return;
+    }
+    const it = seq.items[seq.i];
+    cur = Object.assign(prep(it.shot), { label: it.label });
+    mode = "playing";
+    t0 = performance.now() + 150;
+    landedAt = null;
+    if (seq.onStep) seq.onStep(seq.i, it);
+    request();
+  }
+
+  const pulseMs = () => (seq ? 350 : PULSE_MS);
+
   function play() {
     if (!cur) return;
+    if (seq) return;
     if (reduce.matches) { settle(); return; }
     mode = "playing";
     t0 = performance.now() + START_DELAY_MS;
@@ -386,10 +462,12 @@ export function createRange({ root, canvas, model, avoidEl }) {
     ctx.fillText(text, r.x + r.w / 2, r.y + r.h / 2 + fs * 0.05);
   }
 
+  const ghostVisible = () => ghostOn && !!ghostShot && !seq && collection.length === 0;
+
   /** Screen points along the shots, so plates stay off the tracer. */
   function collectLinePts() {
     const out = [];
-    for (const s of [cur, ghostOn ? ghostShot : null]) {
+    for (const s of [cur, ghostVisible() ? ghostShot : null, pinned, ...collection]) {
       if (!s) continue;
       ensureProj(s);
       for (let i = 0; i < s.n; i += 3) out.push([sx(s.pj[2 * i]), sy(s.pj[2 * i + 1])]);
@@ -397,14 +475,27 @@ export function createRange({ root, canvas, model, avoidEl }) {
     return out;
   }
 
-  function strokeTracer(lw) {
+  function strokeTracer(lw, pal = PAL.warm) {
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.setLineDash([]);
-    ctx.strokeStyle = COL.halo; ctx.lineWidth = lw * 2.6; ctx.stroke();
-    ctx.strokeStyle = COL.glowOuter; ctx.lineWidth = lw * 3.6; ctx.stroke();
-    ctx.strokeStyle = COL.glowInner; ctx.lineWidth = lw * 2.1; ctx.stroke();
-    ctx.strokeStyle = COL.core; ctx.lineWidth = lw; ctx.stroke();
+    ctx.strokeStyle = pal.halo; ctx.lineWidth = lw * 2.6; ctx.stroke();
+    ctx.strokeStyle = pal.outer; ctx.lineWidth = lw * 3.6; ctx.stroke();
+    ctx.strokeStyle = pal.inner; ctx.lineWidth = lw * 2.1; ctx.stroke();
+    ctx.strokeStyle = pal.core; ctx.lineWidth = lw; ctx.stroke();
+  }
+
+  /** A shot drawn whole and at rest: the pinned shot A, and every shot of a sequence that has landed. */
+  function drawResting(s, lw, pal) {
+    ensureProj(s);
+    trace(s, s.pj, s.flightTime);
+    strokeTracer(lw * 0.85, pal);
+    const lx = sx(s.pj[2 * (s.n - 1)]), ly = sy(s.pj[2 * (s.n - 1) + 1]);
+    const br = clamp(W / 150, 4, 9 * uiScale);
+    ctx.beginPath(); ctx.ellipse(lx, ly, br * 2.1, br * 0.8, 0, 0, Math.PI * 2);
+    ctx.lineWidth = 2; ctx.strokeStyle = pal.core; ctx.stroke();
+    ballDot(lx, ly, br * 0.6, false);
+    return [lx, ly];
   }
 
   function ballDot(x, y, r, glow) {
@@ -478,7 +569,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
     ensureProj(s);
     let tt = s.flightTime;
     if (mode === "playing") {
-      const p = ((now - t0) / 1000) * speed;
+      const p = ((now - t0) / 1000) * (seq ? seq.speed : speed);
       tt = clamp(p, 0, s.flightTime);
       if (p >= s.flightTime && landedAt === null) landedAt = now;
     }
@@ -526,13 +617,13 @@ export function createRange({ root, canvas, model, avoidEl }) {
     // landing marker
     const li = s.n - 1;
     const lx = sx(s.pj[2 * li]), ly = sy(s.pj[2 * li + 1]);
-    const br = clamp(W / 150, 4, 9);
+    const br = clamp(W / 150, 4, 9 * uiScale);
     if (landed) {
       const rx = br * 2.4, ry = rx * 0.38;
       ctx.beginPath(); ctx.ellipse(lx, ly, rx, ry, 0, 0, Math.PI * 2);
       ctx.lineWidth = 2; ctx.strokeStyle = COL.ring; ctx.stroke();
       if (landedAt !== null && !reduce.matches) {
-        const pp = clamp((now - landedAt) / PULSE_MS, 0, 1);
+        const pp = clamp((now - landedAt) / pulseMs(), 0, 1);
         if (pp < 1) {
           const grow = 1 + easeOutQuart(pp) * 1.8;
           ctx.beginPath(); ctx.ellipse(lx, ly, rx * grow, ry * grow, 0, 0, Math.PI * 2);
@@ -560,7 +651,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
 
     // plates: placed as if everything were shown so nothing jumps when it appears
     const heightPlate = placePlate(`${Math.round(s.maxHeight)} yd high`, tu, tv, ["above", "right", "left", "right2", "left2", "below"], fs, true);
-    const carryPlate = placePlate(`${Math.round(s.carry)} yd carry`, lx, ly, ["below", "right", "left", "right2", "left2", "above"], fs, true);
+    const carryPlate = placePlate(`${liveTag ? liveTag + " \u00B7 " : ""}${Math.round(s.carry)} yd carry`, lx, ly, ["below", "right", "left", "right2", "left2", "above"], fs, true);
     return { settled, landed, topShown, heightPlate, carryPlate };
   }
 
@@ -585,18 +676,32 @@ export function createRange({ root, canvas, model, avoidEl }) {
     ctx.imageSmoothingQuality = "high";
     drawArtLayer();
 
-    const lw = clamp(W / 240, 2.4, 6);
-    const fs = clamp(W / 80, MIN_FONT_PX, 17);
+    const lw = clamp(W / 240, 2.4, 6 * uiScale);
+    const fs = clamp(W / 80, MIN_FONT_PX, 17 * uiScale);
     taken = avoidRect ? [avoidRect] : [];
     linePts = collectLinePts();
 
-    if (ghostOn && ghostShot && ghostShot !== cur) drawGhost(lw);
+    if (ghostVisible() && ghostShot !== cur) drawGhost(lw);
+    const restingPlates = [];
+    for (const s of collection) {
+      const [lx, ly] = drawResting(s, lw, PAL.warm);
+      if (s.label) restingPlates.push({ text: s.label, x: lx, y: ly, dirs: ["below", "right", "left", "above"] });
+    }
+    if (pinned) {
+      const [lx, ly] = drawResting(pinned, lw, PAL.cool);
+      restingPlates.push({ text: `${pinned.tag || "A"} \u00B7 ${Math.round(pinned.carry)} yd carry`, x: lx, y: ly, dirs: ["left", "above", "right", "below"], cool: true, required: true });
+    }
     let shotState = null;
     if (cur) {
       shotState = drawShot(now, lw, fs);
-      if (!shotState.settled || (landedAt !== null && now - landedAt <= PULSE_MS)) busy = true;
-      if (mode === "playing" && landedAt !== null && now - landedAt > PULSE_MS) mode = "settled";
+      if (!shotState.settled || (landedAt !== null && now - landedAt <= pulseMs())) busy = true;
+      if (mode === "playing" && landedAt !== null && now - landedAt > pulseMs()) {
+        mode = "settled";
+        if (seq) { seqNext(); busy = true; }
+      }
     }
+    // Resting plates place after the live shot's, before the greens.
+    const placedResting = restingPlates.map((p) => ({ p: placePlate(p.text, p.x, p.y, p.dirs, fs, !!p.required), cool: p.cool })).filter((x) => x.p);
 
     // Plates go on top of the tracer. Shot plates were placed first, so the
     // green plates take what is left and skip a spot when none is free.
@@ -608,6 +713,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
         if (p) drawPlate(p, true);
       }
     }
+    for (const x of placedResting) drawPlate(x.p, false);
     if (shotState) {
       if (shotState.topShown && shotState.heightPlate) drawPlate(shotState.heightPlate, false);
       if (shotState.landed && shotState.carryPlate) drawPlate(shotState.carryPlate, false);
@@ -629,7 +735,15 @@ export function createRange({ root, canvas, model, avoidEl }) {
     clearGhost,
     setSpeed(n) { speed = n; },
     setGhost(on) { ghostOn = on; request(); },
-    redraw: request,
+    playSequence,
+    cancelSequence,
+    /** Compare mode: freeze a shot as A (or pass null to clear). */
+    setPinned(shot, tag) { pinned = shot ? Object.assign(prep(shot), { tag }) : null; request(); },
+    setLiveTag(text) { liveTag = text || ""; request(); },
+    /** The dimmed shot, or null when none shows. Views draw it too. */
+    get ghost() { return ghostVisible() ? ghostShot : null; },
+    get sequencing() { return !!seq; },
+    redraw() { uiScale = (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) / 16; request(); },
     get artKey() { return art.key; },
     get artStatus() { return art.status; },
   };

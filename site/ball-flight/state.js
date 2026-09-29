@@ -16,11 +16,16 @@ export const snap = (v, step) => round3(Math.round(v / step) * step);
 const GROUP_DEFAULT_CLUB = { driver: "driver", wood: "3w", long_iron: "5i", short_iron: "7i", wedge: "pw" };
 // URL key to state key. Short keys keep shared links readable.
 const NUM_KEYS = { s: "clubSpeed", a: "attack", pa: "path", f: "face", l: "dynLoft" };
+const MODES = ["e", "w", "c"]; // explore, 9 windows, compare
+export const WINDOW_HEIGHTS = ["high", "mid", "low"];
+export const WINDOW_SHAPES = ["draw", "straight", "fade"];
+/** Window keys as windows.json spells them, in chart order: rows high to low, columns draw, straight, fade. */
+export const WINDOW_KEYS = WINDOW_HEIGHTS.flatMap((h) => WINDOW_SHAPES.map((s) => `${h}_${s}`));
 
 export function createStore(model) {
   const clubById = Object.fromEntries(model.clubs.map((c) => [c.id, c]));
   const playerIds = model.players.map((p) => p.id);
-  const state = { club: "7i", player: "pga", hand: "r", clubSpeed: 0, attack: 0, path: 0, face: 0, dynLoft: 0, spinTrim: 1 };
+  const state = { club: "7i", player: "pga", hand: "r", clubSpeed: 0, attack: 0, path: 0, face: 0, dynLoft: 0, spinTrim: 1, mode: "e", window: null };
   const lastClubInGroup = { ...GROUP_DEFAULT_CLUB };
 
   const groupOf = (club = state.club) => clubById[club].group;
@@ -57,6 +62,10 @@ export function createStore(model) {
     const hand = (get("h") || "").toLowerCase();
     if (hand === "l" || hand === "left") out.hand = "l";
     else if (hand === "r" || hand === "right") out.hand = "r";
+    const mode = (get("m") || "").toLowerCase();
+    if (MODES.includes(mode)) out.mode = mode;
+    const win = (get("w") || "").toLowerCase().replace(/-/g, "_");
+    if (WINDOW_KEYS.includes(win)) out.window = win;
     for (const [k, key] of Object.entries(NUM_KEYS)) {
       const raw = get(k);
       if (raw === null) continue;
@@ -66,13 +75,22 @@ export function createStore(model) {
     return out;
   }
 
-  /** Load state from a query string. Anything missing falls back to the preset for the club and player. */
-  function loadFromSearch(search) {
+  /**
+   * Load state from a query string. Anything missing falls back to the preset
+   * for the club and player. In 9 Windows mode the club is the 7-iron and a
+   * selected window is applied (afterPreset) before the numbers in the URL, so
+   * a recipe you had adjusted comes back adjusted.
+   */
+  function loadFromSearch(search, afterPreset) {
     const p = parseQuery(search);
     if (p.club) state.club = p.club;
     if (p.player) state.player = p.player;
     if (p.hand) state.hand = p.hand;
+    state.mode = p.mode || "e";
+    if (state.mode === "w") state.club = "7i";
     applyPreset(false);
+    state.window = state.mode === "w" && p.window ? p.window : null;
+    if (state.window && afterPreset) afterPreset(state.window);
     Object.assign(state, p.nums);
     lastClubInGroup[groupOf()] = state.club;
   }
@@ -81,9 +99,10 @@ export function createStore(model) {
   function buildUrl(st = state) {
     const r2 = (v) => String(Math.round(v * 100) / 100 + 0);
     const q = new URLSearchParams({
-      c: st.club, p: st.player, h: st.hand,
+      c: st.club, p: st.player, h: st.hand, m: st.mode,
       s: r2(st.clubSpeed), a: r2(st.attack), pa: r2(st.path), f: r2(st.face), l: r2(st.dynLoft),
     });
+    if (st.mode === "w" && st.window) q.set("w", st.window.replace(/_/g, "-"));
     return location.pathname + "?" + q.toString();
   }
 

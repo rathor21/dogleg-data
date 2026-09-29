@@ -70,6 +70,19 @@
 
 <main id="app" class="lab" hidden>
 
+  <div class="modebar">
+    <div class="seg" role="radiogroup" aria-label="Mode" id="mode-seg">
+      <button type="button" role="radio" aria-checked="true" data-mode="e">Explore</button>
+      <button type="button" role="radio" aria-checked="false" data-mode="w">9 Windows</button>
+      <button type="button" role="radio" aria-checked="false" data-mode="c">Compare</button>
+    </div>
+    <p class="mode-hint" id="mode-hint"></p>
+    <button type="button" class="btn btn-ghost" id="present-btn">
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      Present
+    </button>
+  </div>
+
   <section class="stage" aria-label="Range view">
     <div class="range-wrap">
       <div class="range" id="range">
@@ -98,7 +111,55 @@
         <span class="copy-status" id="copy-status" role="status" aria-live="polite"></span>
       </div>
     </div>
+    <section class="card windows" id="windows" aria-labelledby="win-h" hidden>
+      <h2 id="win-h">9 Windows</h2>
+      <p class="win-club" id="win-club-note"></p>
+      <div class="win-layout">
+        <div class="win-grid" id="win-grid" role="group" aria-label="Nine windows: height by shape"></div>
+        <div class="win-recipe" id="win-recipe"></div>
+      </div>
+      <div class="win-actions">
+        <button type="button" class="btn btn-primary" id="fly-all" aria-pressed="false">Fly all nine</button>
+      </div>
+      <p class="win-note"><span class="badge-modeled">modeled</span> Recipes are Dogleg Data model output. The nine-window drill is Tiger Woods's; these numbers are not his.</p>
+    </section>
+
+    <section class="card compare" id="compare" aria-labelledby="cmp-h" hidden>
+      <h2 id="cmp-h">Compare two shots</h2>
+      <div class="cmp-actions">
+        <button type="button" class="btn btn-primary" id="pin-btn">Pin this shot</button>
+        <button type="button" class="btn btn-outline" id="clear-pin-btn" disabled>Clear</button>
+      </div>
+      <p class="cmp-status" id="pin-status" role="status"></p>
+      <table class="cmp-table" hidden>
+        <thead><tr><th scope="col"><span class="sr-only">Measure</span></th><th scope="col">A (pinned)</th><th scope="col">B (now)</th><th scope="col">B minus A</th></tr></thead>
+        <tbody id="cmp-body"></tbody>
+      </table>
+    </section>
+
     <div class="key-tiles" id="key-tiles" aria-label="Key numbers"></div>
+
+    <section class="views" id="views" aria-label="More views of this shot">
+      <div class="view-tabs" role="tablist" aria-label="Choose a view">
+        <button type="button" role="tab" class="view-tab" id="tab-top" data-view="top" aria-selected="true" aria-controls="panel-top">Top</button>
+        <button type="button" role="tab" class="view-tab" id="tab-side" data-view="side" aria-selected="false" aria-controls="panel-side">Side</button>
+        <button type="button" role="tab" class="view-tab" id="tab-impact" data-view="impact" aria-selected="false" aria-controls="panel-impact">Impact</button>
+      </div>
+      <div class="view-panels">
+        <figure class="vpanel" data-view="top" data-active="true" role="tabpanel" id="panel-top" aria-labelledby="tab-top">
+          <figcaption><h3>Top view</h3><span>Carry up the page. Curve and start line.</span></figcaption>
+          <div class="vbody"></div>
+        </figure>
+        <figure class="vpanel" data-view="side" data-active="false" role="tabpanel" id="panel-side" aria-labelledby="tab-side">
+          <figcaption><h3>Side profile</h3><span>Height against distance, angles to scale.</span></figcaption>
+          <div class="vbody"></div>
+        </figure>
+        <figure class="vpanel" data-view="impact" data-active="false" role="tabpanel" id="panel-impact" aria-labelledby="tab-impact">
+          <figcaption><h3>Impact</h3><span>Face, path, attack and loft at impact.</span></figcaption>
+          <div class="vbody"></div>
+        </figure>
+      </div>
+    </section>
   </section>
 
   <aside class="side" aria-label="Shot setup">
@@ -111,6 +172,7 @@
         </button>
         <button type="button" class="btn btn-outline btn-mini" id="reset-btn">Reset to ideal</button>
         <button type="button" class="btn btn-primary btn-mini" id="hit-btn-2">Hit</button>
+        <button type="button" class="btn btn-outline btn-mini" id="exit-present">Exit</button>
       </div>
       <div class="swing-body" id="swing-body">
         <div class="swing-inner">

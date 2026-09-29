@@ -8,7 +8,11 @@ import * as F from "./flight.js";
 import { createRange } from "./range.js";
 import { createStore, round3 } from "./state.js";
 import { createSliders } from "./sliders.js";
-import { createControls } from "./controls.js";
+import { createControls, radioGroup } from "./controls.js";
+import { createViews } from "./views.js";
+import { createWindows } from "./windows.js";
+import { createCompare } from "./compare.js";
+import { createPresenter } from "./present.js";
 import { TILE_GROUPS, KEY_TILES, DEG, fmt, createTile } from "./tiles.js";
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -65,6 +69,29 @@ async function main() {
     sec.appendChild(grid);
     groupHost.appendChild(sec);
   }
+
+  // ---- secondary views --------------------------------------------------------------
+  const views = createViews({ root: $("#views") });
+  // On a phone the three panels are tabs. Wider, all three show and the tabs are hidden.
+  const viewTabs = [...document.querySelectorAll("#views .view-tab")];
+  function selectView(name, focus) {
+    for (const t of viewTabs) {
+      const on = t.dataset.view === name;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      if (on && focus) t.focus();
+    }
+    for (const p of document.querySelectorAll("#views .vpanel")) p.dataset.active = String(p.dataset.view === name);
+  }
+  $(".view-tabs").addEventListener("click", (e) => { const t = e.target.closest(".view-tab"); if (t) selectView(t.dataset.view); });
+  $(".view-tabs").addEventListener("keydown", (e) => {
+    const i = viewTabs.findIndex((t) => t.getAttribute("aria-selected") === "true");
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+    if (step === undefined) return;
+    e.preventDefault();
+    selectView(viewTabs[(i + step + viewTabs.length) % viewTabs.length].dataset.view, true);
+  });
+  selectView("top");
 
   // ---- announcements ---------------------------------------------------------------
   // The visible shot label changes on every drag step, so it is not a live region.
@@ -130,9 +157,52 @@ async function main() {
     sliders.render(current, state.hand);
     for (const t of tiles) t.update(current.values[t.metric], current.bands[t.metric], state.hand);
     renderLabel(current);
+    renderMode();
+    windows.render();
+    compare.render(current);
+    syncViews();
     writeUrl();
     announceSoon();
   }
+
+  function syncViews() {
+    if (!current) return;
+    views.update({
+      shot: current.rangeShot,
+      ghost: range.ghost,
+      pinned: compare.pinned ? compare.pinned.rangeShot : null,
+      values: current.values,
+      classification: current.s.classification,
+      hand: state.hand,
+    });
+  }
+
+  // ---- modes: explore, 9 windows, compare ----------------------------------------------
+  const MODE_HINT = {
+    e: "Move the sliders and watch the ball flight.",
+    w: "Nine 7-iron recipes. Tap one to load it and fly it.",
+    c: "Pin a shot as A, change the swing, and read the difference.",
+  };
+  function renderMode() {
+    modeRadio.set((b) => b.dataset.mode === state.mode);
+    $("#windows").hidden = state.mode !== "w";
+    $("#compare").hidden = state.mode !== "c";
+    $("#mode-hint").textContent = MODE_HINT[state.mode];
+  }
+  function setMode(m) {
+    if (m === state.mode) return;
+    if (state.mode === "w") { windows.stop(); state.window = null; }
+    if (state.mode === "c") compare.reset();
+    state.mode = m;
+    if (m === "w" && state.club !== "7i") {
+      // The windows are 7-iron recipes, so the club follows.
+      state.club = "7i";
+      store.lastClubInGroup[store.groupOf("7i")] = "7i";
+      store.applyPreset(true);
+    }
+    commitChange();
+  }
+  const modeRadio = radioGroup($("#mode-seg"), (b) => setMode(b.dataset.mode));
 
   let commitTimer = 0;
   function commitNow() {
@@ -140,6 +210,7 @@ async function main() {
     commitTimer = 0;
     if (!current) return;
     range.commit(current.rangeShot);
+    syncViews();
     announceNow();
   }
   function commitSoon(ms) {
@@ -149,6 +220,7 @@ async function main() {
   function liveChange() {
     render();
     range.preview(current.rangeShot);
+    syncViews();
   }
   function commitChange() {
     clearTimeout(commitTimer);
@@ -156,8 +228,23 @@ async function main() {
     render();
     range.setGroup(current.group);
     range.commit(current.rangeShot);
+    syncViews();
     announceNow();
   }
+
+  const windows = createWindows({
+    model, store, range,
+    hooks: {
+      select(key) { windows.applyWindow(key); commitChange(); },
+      startSequence() { clearTimeout(commitTimer); commitTimer = 0; },
+      step() { render(); },
+      endSequence() { render(); },
+    },
+  });
+  const compare = createCompare({
+    model, store, range,
+    hooks: { pinRequest() { compare.pin(current); }, changed() { render(); } },
+  });
 
   const sliders = createSliders({
     model, store,
@@ -167,6 +254,7 @@ async function main() {
 
   const changeClub = (id) => {
     state.club = id;
+    state.window = null; // a window is a 7-iron recipe
     store.lastClubInGroup[store.groupOf(id)] = id;
     store.applyPreset(true);
     commitChange();
@@ -179,7 +267,8 @@ async function main() {
       onPlayer(id) {
         if (id === state.player) return;
         state.player = id;
-        store.applyPreset(true);
+        if (state.mode === "w" && state.window) windows.applyWindow(state.window); // the same window, this player's recipe
+        else store.applyPreset(true);
         commitChange();
       },
       onHand(h) {
@@ -189,6 +278,7 @@ async function main() {
         state.path = round3(-state.path);
         state.face = round3(-state.face);
         range.clearGhost();
+        compare.reset(); // a pinned shot belongs to the hand it was pinned with
         commitChange();
       },
       onSpeed(n) { range.setSpeed(n); hit(); },
@@ -202,6 +292,7 @@ async function main() {
   }
   for (const id of ["#reset-btn", "#reset-btn-2"]) {
     $(id).addEventListener("click", () => {
+      state.window = null;
       store.applyPreset(false);
       commitChange();
     });
@@ -233,6 +324,15 @@ async function main() {
     copyTimer = setTimeout(() => { copyStatus.textContent = ""; }, 2500);
   });
 
+  // ---- presentation mode -----------------------------------------------------------------
+  const presenter = createPresenter({
+    onChange() {
+      applyDrawer();
+      range.redraw();
+      views.redraw();
+    },
+  });
+
   // ---- drawer ------------------------------------------------------------------------
   // Below 901px the swing controls sit in a bottom drawer, except on a short
   // landscape screen, where they stay a side panel so the range keeps its height.
@@ -245,7 +345,7 @@ async function main() {
   const isDrawer = () => narrow.matches && !shortLandscape.matches;
   let drawerOpen = false;
   function applyDrawer() {
-    const open = !isDrawer() || drawerOpen;
+    const open = !isDrawer() || drawerOpen || presenter.on;
     swing.dataset.open = String(open);
     toggle.setAttribute("aria-expanded", String(open));
     body.inert = !open;
@@ -273,7 +373,7 @@ async function main() {
   applyDrawer();
 
   // ---- go ------------------------------------------------------------------------
-  store.loadFromSearch(location.search);
+  store.loadFromSearch(location.search, (key) => windows.applyWindow(key));
   render();
   range.setGroup(current.group);
   range.commit(current.rangeShot);

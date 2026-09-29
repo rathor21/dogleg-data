@@ -5,6 +5,7 @@
 :root{
   --bg:#F4EDE0; --card:#FBF7EE; --line:#E2D8C6;
   --ink:#1C1B18; --ink-soft:#4A4437; --muted:#665A4B;
+  --blue:#5B7FA6; --blue-text:#46628A;
   --clay:#C05A36; --clay-text:#A34A2C; --clay-deep:#8C3F25; --maroon:#7D362E;
   --clay-tint:#F6E7DC; --clay-line:#E3C7B5;
   --green:#5E8A4A; --green-text:#2F5F2A; --green-tint:#E7EEDB; --green-line:#BDD0A9; --green-band:#A9C68F;
@@ -25,6 +26,7 @@
   --tracer-halo:rgba(20,10,24,.30); --tracer-glow-outer:rgba(255,138,61,.20); --tracer-glow-inner:rgba(255,170,90,.38);
   --tracer-core:#FFF1DC; --tracer-ring:rgba(255,241,220,.95); --ball:#FFFDF6;
   --tracer-ghost:rgba(255,238,215,.42); --tracer-ghost-halo:rgba(20,10,24,.22);
+  --pin-halo:rgba(10,18,34,.34); --pin-glow-outer:rgba(91,127,166,.30); --pin-glow-inner:rgba(140,180,230,.45); --pin-core:#DCEBFF;
   --guide-line:rgba(255,255,255,.62); --ground-shadow:rgba(10,8,14,.32);
   --plate-bg:rgba(251,247,238,.96); --plate-ink:#1C1B18;
   --plate-dark-bg:rgba(28,27,24,.74); --plate-dark-ink:#F4EDE0;
@@ -131,7 +133,7 @@ nav.tabs .tab-btn.active{background:var(--clay-text);color:var(--card);border-co
 .swing-head{display:flex;align-items:center;gap:.6rem;padding-bottom:.5rem;border-bottom:3px double var(--line);margin-bottom:.4rem;}
 .card .swing-title{flex:1;font-family:var(--serif);font-weight:600;font-size:1.1rem;line-height:1.3;padding:0;border:0;margin:0;}
 .swing-toggle{display:none;} /* the drawer handle exists only in drawer layouts */
-#hit-btn-2,#reset-btn-2{display:none;}
+#hit-btn-2,#reset-btn-2,#exit-present{display:none;}
 .swing-body{display:grid;grid-template-rows:1fr;}
 .swing-inner{overflow:hidden;min-height:0;}
 .sliders{display:flex;flex-direction:column;}
@@ -301,6 +303,8 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
   .swing[data-open="true"] .swing-inner,.swing[data-open="false"] .swing-inner{max-height:none;overflow:visible;padding-bottom:0;}
   .slider{padding:.2rem 0 .1rem;}
   .slider-hint{display:none;}
+  .win-layout{grid-template-columns:minmax(0,1fr);}
+  .win-btn .wb-peak{display:none;}
 }
 
 /* ---------- touch: 44px targets ---------- */
@@ -310,6 +314,137 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
   .check input{width:1.4rem;height:1.4rem;}
   .tile-info::after{inset:-.75rem;}
 }
+
+/* ---------- mode bar ---------- */
+.modebar{grid-column:1 / -1;display:flex;align-items:center;flex-wrap:wrap;gap:.6rem 1rem;}
+.mode-hint{flex:1 1 14rem;font-size:.85rem;color:var(--ink-soft);}
+
+/* ---------- 9 Windows and Compare ---------- */
+.windows,.compare{margin:1.1rem 0 0;}
+.win-club{font-size:.85rem;color:var(--ink-soft);margin:-.2rem 0 .9rem;}
+.win-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1rem 1.6rem;align-items:start;}
+.win-grid{display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));gap:.4rem;align-items:stretch;}
+.win-colhead,.win-rowhead{font-family:var(--mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);align-self:center;}
+.win-colhead{text-align:center;white-space:nowrap;letter-spacing:.04em;}
+.win-rowhead{grid-column:1;padding-right:.4rem;}
+.win-btn{min-height:3.6rem;border:1px solid var(--line);background:var(--bg);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.1rem;padding:.35rem .3rem;cursor:pointer;transition:border-color .15s,background .15s,color .15s;}
+.win-btn .wb-name{font-weight:600;font-size:.85rem;line-height:1.2;}
+.win-btn .wb-peak{font-family:var(--mono);font-size:.75rem;color:var(--muted);}
+.win-btn:hover{border-color:var(--clay);}
+.win-btn[aria-pressed="true"]{background:var(--clay-text);border-color:var(--clay-text);color:var(--card);}
+.win-btn[aria-pressed="true"] .wb-peak{color:var(--card);opacity:.9;}
+.win-recipe h3{font-family:var(--serif);font-weight:600;font-size:1.05rem;line-height:1.3;margin-bottom:.5rem;}
+.win-adj{display:block;font-family:var(--mono);font-size:.75rem;font-weight:400;color:var(--muted);}
+.win-empty{font-size:.85rem;color:var(--ink-soft);}
+.win-dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem .9rem;}
+.win-dl dt{font-family:var(--mono);font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
+.win-dl dd{font-family:var(--mono);font-size:1rem;}
+.win-dl dd small{display:block;font-size:.75rem;color:var(--muted);}
+.win-actions{margin-top:1rem;}
+.win-note{margin-top:.9rem;font-size:.8rem;color:var(--ink-soft);}
+.cmp-actions{display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:.7rem;}
+.cmp-status{font-size:.85rem;color:var(--ink-soft);margin-bottom:.6rem;}
+.cmp-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.875rem;}
+.cmp-table th,.cmp-table td{padding:.4rem .5rem;text-align:right;border-bottom:1px solid var(--line);}
+.cmp-table th[scope="row"]{text-align:left;color:var(--ink-soft);font-weight:500;}
+.cmp-table thead th{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;}
+.cmp-table thead th:nth-child(2){color:var(--blue-text);}
+.cmp-table thead th:nth-child(3){color:var(--clay-text);}
+.cmp-d{font-weight:600;color:var(--clay-text);}
+.cmp-d.zero{color:var(--muted);font-weight:400;}
+
+/* ---------- secondary views ---------- */
+.views{margin-top:1.1rem;}
+.view-tabs{display:none;}
+.view-panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:.8rem;}
+.vpanel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:.6rem .7rem .5rem;min-width:0;}
+.vpanel figcaption{display:flex;flex-direction:column;margin-bottom:.4rem;}
+.vpanel h3{font-family:var(--serif);font-weight:600;font-size:1rem;line-height:1.3;}
+.vpanel figcaption span{font-size:.75rem;color:var(--muted);}
+.vbody{width:100%;min-width:0;}
+svg.pv{display:block;max-width:100%;}
+.pv-plot{fill:var(--bg);stroke:var(--line);}
+.pv-grid{stroke:var(--line);stroke-width:1;}
+.pv-target{stroke:var(--ink-soft);stroke-width:1.5;}
+.pv-start{stroke:var(--ink-soft);stroke-width:1.25;stroke-dasharray:4 4;fill:none;}
+.pv-path{fill:none;stroke:var(--clay-text);stroke-width:2.75;stroke-linecap:round;stroke-linejoin:round;}
+.pv-path.ghost{stroke:var(--muted);stroke-width:2;stroke-dasharray:5 4;opacity:.75;}
+.pv-path.pin{stroke:var(--blue-text);}
+.pv-dot{fill:var(--clay);stroke:var(--card);stroke-width:2;}
+.pv-dot.pin{fill:var(--blue-text);}
+.pv-ball{fill:var(--card);stroke:var(--ink);stroke-width:1.5;}
+.pv-wedge{fill:var(--clay);fill-opacity:.28;stroke:none;}
+.pv-arrow{fill:none;stroke-width:2.5;stroke-linecap:round;}
+.pv-arrow.path{stroke:var(--ink);}
+.pv-arrow.face{stroke:var(--clay-text);}
+.pv-head.path{fill:var(--ink);}
+.pv-head.face{fill:var(--clay-text);}
+.pv-head.target{fill:var(--ink-soft);}
+.pv-face{stroke:var(--clay-text);stroke-width:6;stroke-linecap:round;}
+.pv-shaft{stroke:var(--muted);stroke-width:2.5;stroke-dasharray:2 5;stroke-linecap:round;}
+.pv-text{font-family:var(--mono);font-size:12px;fill:var(--ink-soft);paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round;}
+.pv-text.muted{fill:var(--muted);}
+.pv-text.ink{fill:var(--ink);}
+.pv-text.clay{fill:var(--clay-text);}
+.pv-text.strong{font-weight:600;}
+
+@media (max-width:700px){.win-layout{grid-template-columns:minmax(0,1fr);}}
+@media (max-width:559px){
+  .modebar .seg{width:100%;}
+  .modebar .seg button{flex:1;padding-left:.4rem;padding-right:.4rem;}
+  .view-tabs{display:flex;gap:.4rem;margin-bottom:.6rem;}
+  .view-tab{flex:1;border:1px solid var(--line);background:transparent;border-radius:999px;font-size:.85rem;font-weight:500;min-height:2.6rem;cursor:pointer;color:var(--ink-soft);}
+  .view-tab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--card);font-weight:600;}
+  .vpanel[data-active="false"]{display:none;}
+  .win-btn .wb-name{font-size:.8rem;}
+}
+@media (pointer:coarse){.view-tab,.win-btn{min-height:2.75rem;}}
+
+/* ---------- presentation mode (TV) ---------- */
+/* The range fills the screen. Shot label and the six key tiles are large. The
+   controls collapse to one slim bar at the bottom. */
+html.presenting{font-size:20px;}
+@media (min-width:2600px){html.presenting{font-size:40px;}}
+body.presenting{overflow:hidden;padding:0;background:var(--dusk);}
+body.presenting .wrap{max-width:none;padding:0;}
+body.presenting .skip-link,body.presenting .page-head,body.presenting nav.tabs,body.presenting footer,body.presenting .modebar,
+body.presenting .range-bar,body.presenting .windows,body.presenting .compare,body.presenting .views,body.presenting .all-tiles,
+body.presenting .swing-title,body.presenting .swing-toggle,body.presenting .advanced,body.presenting #reset-btn-2,body.presenting .preset-note,
+body.presenting .setup .field-label,body.presenting .slider-hint{display:none;}
+body.presenting .lab{display:flex;flex-direction:column;align-items:stretch;height:100vh;height:100dvh;gap:0;}
+body.presenting .stage{flex:1 1 auto;min-height:0;position:relative;}
+body.presenting .range-wrap{position:absolute;inset:0;}
+body.presenting .range{height:100%;aspect-ratio:auto;border:0;box-shadow:none;}
+body.presenting .shot-label{top:1.2rem;left:1.2rem;max-width:min(42cqi,44rem);padding:.8rem 1.4rem 1rem;}
+body.presenting .sl-kicker{font-size:.85rem;}
+body.presenting .sl-name{font-size:clamp(2.4rem,6.5cqi,8rem);}
+body.presenting .sl-finish{font-size:clamp(1.2rem,2.4cqi,3rem);}
+body.presenting .sl-line{font-size:clamp(.9rem,1.5cqi,1.8rem);}
+body.presenting .key-tiles{position:absolute;z-index:3;right:1rem;top:1rem;bottom:1rem;width:min(21vw,19rem);display:flex;flex-direction:column;gap:.5rem;margin:0;}
+body.presenting .key-tiles .tile{flex:1 1 0;min-height:0;overflow:hidden;padding:.3rem .8rem;display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:.6rem;row-gap:0;}
+body.presenting .key-extra{display:grid;}
+body.presenting .key-tiles .tile-top{grid-column:1;grid-row:1;min-height:0;}
+body.presenting .key-tiles .tile-val{grid-column:2;grid-row:1 / 3;margin:0;}
+body.presenting .key-tiles .tile-word{grid-column:1;grid-row:2;min-height:0;font-size:.8rem;}
+body.presenting .key-tiles .bar{grid-column:1 / -1;grid-row:3;margin:.35rem 0;flex:none;}
+body.presenting .key-tiles .tile-cap{grid-column:1 / -1;grid-row:4;font-size:.8rem;}
+body.presenting .key-tiles .tile-cap .ideal{display:none;}
+body.presenting .key-tiles .tile-label{font-size:.8rem;}
+body.presenting .key-tiles .tile-val .v{font-size:2.2rem;}
+body.presenting .key-tiles .tile-val .u{font-size:.9rem;}
+body.presenting .side{display:flex;flex:0 0 auto;flex-direction:column;align-items:stretch;gap:.5rem;position:relative;z-index:5;background:var(--card);border-top:3px double var(--line);padding:.5rem 1rem;max-height:none;overflow:visible;top:auto;}
+body.presenting .setup{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem 1.2rem;padding:0;border:0;background:transparent;min-width:0;}
+body.presenting .setup .field{flex-direction:row;flex-wrap:wrap;gap:.3rem;align-items:center;}
+body.presenting .setup .chips + .chips{margin-top:0;}
+body.presenting .field-row{display:flex;flex-wrap:nowrap;margin:0;gap:.4rem 1rem;}
+body.presenting .swing{position:static;flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:1rem;max-width:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;}
+body.presenting .swing-head{order:2;flex:none;border:0;margin:0;padding:0;min-height:0;gap:.5rem;flex-direction:row;align-items:center;}
+body.presenting .swing-body{order:1;flex:1 1 auto;min-width:0;display:block;}
+body.presenting .swing-inner{max-height:none;overflow:visible;padding:0;}
+body.presenting .sliders{flex-direction:row;gap:1rem;}
+body.presenting .slider{flex:1 1 0;min-width:0;border:0;padding:0;}
+body.presenting #hit-btn-2,body.presenting #exit-present,body.presenting #reset-btn{display:inline-flex;}
+body.presenting .range-loading{font-size:1.1rem;}
 
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important;}
