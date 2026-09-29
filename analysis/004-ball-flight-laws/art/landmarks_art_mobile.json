@@ -1,0 +1,94 @@
+{
+ "image": "range_final_mobile.png",
+ "width": 768,
+ "height": 1376,
+ "ball": [
+  386,
+  1290
+ ],
+ "vp_col": 386,
+ "tree_base_row": 572,
+ "land_margin_px": 2,
+ "h_min": 480,
+ "h_max": 577,
+ "greens": [
+  {
+   "name": "K",
+   "label": "left near (clipped by frame)",
+   "center": [
+    110,
+    730
+   ],
+   "left": null,
+   "right": [
+    276,
+    730
+   ],
+   "yard_range": [
+    50,
+    70
+   ]
+  },
+  {
+   "name": "J",
+   "label": "right near",
+   "center": [
+    570,
+    657
+   ],
+   "left": [
+    432,
+    657
+   ],
+   "right": [
+    707,
+    657
+   ],
+   "yard_range": [
+    50,
+    80
+   ]
+  },
+  {
+   "name": "H",
+   "label": "left mid",
+   "center": [
+    258,
+    631
+   ],
+   "left": [
+    168,
+    631
+   ],
+   "right": [
+    349,
+    631
+   ],
+   "yard_range": [
+    100,
+    150
+   ]
+  },
+  {
+   "name": "E",
+   "label": "center far",
+   "center": [
+    385,
+    581
+   ],
+   "left": [
+    345,
+    581
+   ],
+   "right": [
+    420,
+    581
+   ],
+   "yard_range": [
+    200,
+    250
+   ]
+  }
+ ],
+ "notes": "K is the big green at the left frame edge (about rows 705 to 755). Its left edge is outside the frame, so its width is a lower bound. Tree base row 572: dark trees end near 566 and a hazy band runs to about 578 where the light fairway stripes begin."
+}

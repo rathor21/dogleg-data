@@ -1,0 +1,117 @@
+{
+ "image": "range_final.png",
+ "width": 1376,
+ "height": 768,
+ "ball": [
+  689,
+  712
+ ],
+ "vp_col": 689,
+ "tree_base_row": 309,
+ "land_margin_px": 2,
+ "h_min": 270,
+ "h_max": 311,
+ "greens": [
+  {
+   "name": "B",
+   "label": "right near",
+   "center": [
+    999,
+    422
+   ],
+   "left": [
+    784,
+    422
+   ],
+   "right": [
+    1213,
+    422
+   ],
+   "yard_range": [
+    50,
+    70
+   ]
+  },
+  {
+   "name": "A",
+   "label": "left near",
+   "center": [
+    479,
+    399
+   ],
+   "left": [
+    333,
+    399
+   ],
+   "right": [
+    625,
+    399
+   ],
+   "yard_range": [
+    50,
+    70
+   ]
+  },
+  {
+   "name": "D",
+   "label": "right mid",
+   "center": [
+    797,
+    357
+   ],
+   "left": [
+    715,
+    357
+   ],
+   "right": [
+    880,
+    357
+   ],
+   "yard_range": [
+    100,
+    150
+   ]
+  },
+  {
+   "name": "C",
+   "label": "left mid",
+   "center": [
+    618,
+    341
+   ],
+   "left": [
+    562,
+    341
+   ],
+   "right": [
+    680,
+    341
+   ],
+   "yard_range": [
+    100,
+    150
+   ]
+  },
+  {
+   "name": "E",
+   "label": "center far",
+   "center": [
+    690,
+    313
+   ],
+   "left": [
+    664,
+    313
+   ],
+   "right": [
+    718,
+    313
+   ],
+   "yard_range": [
+    200,
+    250
+   ]
+  }
+ ],
+ "notes": "Same pixel measurements as landmarks_final.json. Tree base row 309 is the bottom of the dark tree band at the center line; fairway light stripes start at about 311."
+}

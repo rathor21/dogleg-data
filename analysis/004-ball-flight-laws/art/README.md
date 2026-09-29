@@ -180,3 +180,107 @@ With a 1.8 yd eye height the painting reads as a short, narrow field: greens lan
 - `fit_camera.py`: numpy-only Levenberg-Marquardt fit and the projection functions. Usage: `python fit_camera.py landmarks.json camera.json [z_c]`.
 - `overlay_fit.py`: overlay renderer.
 - `camera_final.json`, `camera_final_mobile.json`: fitted cameras, with `greens`, `assumptions` and the fit residuals.
+
+## Round 3: art camera
+
+The pinhole camera above stays as the documented baseline (`fit_camera.py`, `camera_final*.json`, `range_final*_fit_overlay.png`). It squeezes 50 to 300 yd into about 20 px because the painting is not perspective-consistent. Round 3 fits a 2.5D mapping to the painting's own ground instead, the way Release 003 fitted its model to the art.
+
+### Mapping
+
+World yards: x downrange, y right, z up. `art_camera.py` holds the fit and `ArtCamera.project(x, y, z)` (numpy only, scalars or arrays).
+
+```
+x     = max(x, 0)
+row(x)   = h + (r0 - h) / (1 + x/d0)^p          ground row of the target line
+s(x)     = (row(x) - h) / z_eff                 px per yd, used for y and z
+t(x)     = (r0 - row(x)) / (r0 - h)
+u_vp(x)  = u0 + (uh - u0) * t(x)                straight line from the ball pixel (u0, r0) to the vanishing point (uh, h)
+u = u_vp(x) + y * s(x)
+v = row(x) - z * s(x)
+```
+
+`r0` is the ball pixel row (mat center), `h` the ground's own vanishing row, `d0` and `p` shape the depth compression, `z_eff` is the vertical scale in yards (larger z_eff shrinks heights on screen). `ArtCamera.ground_from_pixel(u, v)` inverts the mapping for a ground pixel.
+
+### How it was fitted
+
+1. Each painted green gets an assigned target yardage (this is a fictional range, so we choose them), on a 5 yd grid inside a range per green (near 50 to 70, mid 100 to 150, far 200 to 250), ordered by ground row. `h`, `d0`, `p` are fitted to the green rows with the ball at row `r0`, by a grid over `h` and `d0` with `p` from log-space least squares. A hard floor keeps `row(300)` on painted fairway, 2 px under the tree base.
+2. `z_eff` is swept from 4 to 30 yd. For each candidate the real flights from `flight.py` are simulated: PGA driver, 7-iron and PW straight, a 7-iron that lands 12 yd left (draw) and 12 yd right (fade), plus the other clubs used for the group views and a driver tuned to carry 300 yd (182.3 mph ball speed, carry 300.0, apex 43 yd).
+3. Candidates that pass checks 1, 3 and 4 are ranked by how close the painted green widths land to 10 to 25 yd. The best one ships.
+
+Landmarks are in `landmarks_art.json` and `landmarks_art_mobile.json` (same pixel measurements as the pinhole fit, plus a tree base row and the yardage ranges; the portrait adds the clipped green K at the left edge). Run with the 002 venv, which has Pillow (the release venv has numpy only), from the release folder:
+
+```
+python art/art_overlay.py art/landmarks_art.json art/art_camera_final.json art/range_final_art_overlay.png
+python art/art_overlay.py art/landmarks_art_mobile.json art/art_camera_final_mobile.json art/range_final_mobile_art_overlay.png
+```
+
+`h` comes from the green rows, not from the center-line taper. The taper and the stripes point to a vanishing row of about 340 to 390 in the wide image, but the far green sits at row 313, so a ground `h` that low is impossible on screen. The fit lands at h = 303 (wide) and 563 (portrait).
+
+### Results
+
+| | Wide (`range_final.png`) | Portrait (`range_final_mobile.png`) |
+|---|---|---|
+| r0 (ball row), u0 | 712, 689 | 1290, 386 |
+| h (vanishing row) | 303 | 563 |
+| d0 | 74.75 | 47.54 |
+| p | 2.440 | 2.052 |
+| z_eff | 7.5 yd | 6.0 yd |
+| green row RMS | 2.74 px | 1.29 px |
+| tree base row | 309 | 572 |
+| ground row at 50 / 100 / 200 / 300 yd | 420 / 355 / 320 / 311 | 729 / 634 / 588 / 575 |
+| px per yd at 50 / 100 / 250 yd | 15.6 / 6.9 / 1.5 | 27.7 / 11.9 / 2.8 |
+
+Assigned yardages, fitted row error and green width at that distance:
+
+| Wide | Painted pixel | Yardage | Lateral (yd) | Width (yd) | Row error (px) |
+|---|---|---|---|---|---|
+| B, right near | (999, 422) | 50 | +19.8 | 27.4 | -1.8 |
+| A, left near | (479, 399) | 60 | -16.2 | 22.5 | +1.1 |
+| D, right mid | (797, 357) | 100 | +15.7 | 24.0 | -2.5 |
+| C, left mid | (618, 341) | 135 | -16.1 | 26.8 | -5.0 |
+| E, center far | (690, 313) | 250 | +0.7 | 35.7 | +1.4 |
+
+| Portrait | Painted pixel | Yardage | Lateral (yd) | Width (yd) | Row error (px) |
+|---|---|---|---|---|---|
+| K, left near (clipped) | (110, 730) | 50 | -10.0 | at least 10 (left edge off frame) | -0.7 |
+| J, right near | (570, 657) | 80 | +11.5 | 17.2 | +1.9 |
+| H, left mid | (258, 631) | 105 | -11.6 | 16.3 | -1.5 |
+| E, center far | (385, 581) | 240 | -0.3 | 24.9 | +0.1 |
+
+Deviations from the aim: the wide widths run 22 to 27 yd for the four near and mid greens (slightly over 25 for B and C), and the far green E reads 36 yd wide because its painted band is 54 px wide at a ground scale of 1.5 px per yd. In the portrait, J sits at 80 yd instead of 50 to 70: with K at 50 and rows 730 and 657, J at 70 or less raised the row error to 6.7 px or more.
+
+### The four checks
+
+Tree base is row 309 (wide) and 572 (portrait). Landing margin required: 2 px below it. Flights are the PGA averages from `data.PGA`; the driver lands at 274 yd, the 7-iron at 170, the PW at 134.
+
+| Check | Wide | Portrait |
+|---|---|---|
+| 1. Every apex inside the frame with at least 30 px margin | Pass. Highest pixel of any flight is the PW at row 31.3. Driver 200.5, 7-iron 95.6, draw and fade 97.1, long driver 193.0. | Pass. Highest is the PW at row 49.1. Driver 369.9, 7-iron 179.0, draw and fade 181.5. |
+| 2. Driver arc at least 120 px tall (apex pixel to landing pixel) | **Fail at one z_eff.** Highest driver pixel row 200.5, landing row 312.5, so 112.0 px. The ball-to-top extent is 511.5 px, which passes but says little. | Pass. Top 369.9, landing 577.3, 207.4 px. |
+| 3. Landings on painted fairway, below the tree line | Pass. Landing rows: driver 312.5, 3w 314.1, 4i 318.9, 7-iron 325.5, PW 336.6. | Pass. Driver 577.3, 4i 586.0, 7-iron 594.9, PW 609.8. |
+| 4. 300 yd carry lands below the tree band | Pass, narrowly. `row(300)` is 311.0 and the 300 yd driver lands at row 311.0 (tree base 309). | Pass. `row(300)` is 575.3 (tree base 572). |
+
+The highest driver pixel is not at the physical apex. The ball climbs steeply near the camera, where the height scale is largest, so the highest pixel occurs early in the flight (the 185 yd physical apex draws at row 229.4 in the wide image). The arcs read as tall, narrow spikes along the center line, as they do in a view from behind.
+
+### Per-group views
+
+**Wide: needed.** Lowering z_eff to lift the driver arc past 120 px pushes the wedge out of the top of the frame (PW top is 31.3 at 7.5 and falls off quickly below that), so one z_eff cannot meet checks 1 and 2 together. The JSON carries a zoom rectangle per club group, in full-image pixels, with the same aspect as the image. The page draws that rectangle scaled to the canvas. The mapping itself stays in full-image pixels.
+
+| Group | Clubs | Zoom | Rectangle [left, top, right, bottom] |
+|---|---|---|---|
+| wedge | PW | 1.04 | 27.5, 2.5, 1350.5, 741.0 |
+| short iron | 9i, 8i, 7i, draw, fade | 1.09 | 57.8, 30.8, 1320.2, 735.4 |
+| long iron | 4i, 5i | 1.28 | 151.5, 135.2, 1226.5, 735.2 |
+| woods | 3w, 5w | 1.33 | 171.7, 157.3, 1206.3, 734.8 |
+| driver | driver, 300 yd driver | 1.37 | 186.8, 171.1, 1191.2, 731.7 |
+
+In the driver view the driver arc is 153.5 px tall on screen (112.0 px times 1.37) and its top sits 40.2 px below the top edge. Each rectangle keeps 30 screen px of margin around its group and 25 px below the ball.
+
+**Portrait: not needed.** The tall frame leaves 550 rows of sky above the horizon, so one z_eff of 6.0 meets all four checks and the JSON has `views: null`.
+
+### Files
+
+- `art_camera.py`: mapping, `ArtCamera.project`, row-curve fit.
+- `art_overlay.py`: yardage assignment, z_eff selection against `flight.py`, checks, views, JSON and overlay.
+- `art_camera_final.json`, `art_camera_final_mobile.json`: params, formula text, greens with assigned yardages and pixels, checks, per-flight rows, views.
+- `range_final_art_overlay.png`, `range_final_mobile_art_overlay.png`: yardage ground lines at 50 to 300 yd (yellow), y = +-10 and +-20 (cyan), the driver (white), 7-iron (orange), PW (blue), 7-iron draw (green) and fade (magenta), the 300 yd driver (white dots), the tree base, the 30 px margin and (wide) the five view rectangles.
