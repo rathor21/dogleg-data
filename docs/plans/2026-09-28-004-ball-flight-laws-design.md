@@ -65,7 +65,7 @@ sliders ─► launch.js (delivery → launch) ─► flight.js (3D RK4 ODE) ─
 ### Gate (runs before any UI work)
 
 - **G1 sources:** every anchor above verified at its primary page and logged. Numbers stay provisional until the log exists (standing rule from 002).
-- **G2 flight:** given each table's published launch conditions, the model reproduces carry within ±3%, max height within ±3 yd, and land angle within ±2°. It must pass for PGA and LPGA, driver through PW.
+- **G2 flight:** given each table's published launch conditions, the model reproduces carry within ±3%, max height within ±3 yd, and land angle within ±2°. It must pass for PGA and LPGA, driver through PW (retargeted by ADR 0004 to the teaching tolerance).
 - **G3 launch:** given each table's delivery, the model reproduces launch angle within ±1°, spin within ±10%, and ball speed within ±2%.
 - **G4 physics sanity:**
   - Face = path gives zero curve.

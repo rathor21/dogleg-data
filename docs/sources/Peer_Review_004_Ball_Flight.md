@@ -136,7 +136,7 @@ Prose went through the house rules (no em dashes, no -ly adverbs, no "not X, it'
 ## Open items for Sunny
 
 1. **Accept ADR 0004.** Status is proposed. It retargets G2 to the teaching tolerance and ships the misses above as documented xfails. Merging the PR is the acceptance.
-2. **Preset launch trim.** Decide whether the amateur driver and 6-iron launch and the amateur driver and LPGA 8-iron ball speed misses need a launch trim like the spin trim.
+2. **Preset launch trim.** Decide whether the three current misses need a trim like the spin trim: the amateur 6-iron launch miss (-1.28 degrees) and the two ball-speed misses (amateur driver +2.78 percent, LPGA 8-iron -2.3 percent).
 3. **Tuxen paper unread.** "TRACKMAN Ball Flight Laws" (Anchor 5a) has not been read by a human. It may change the start direction shares and the D-plane equations. The article states shares from the model, and a table in the paper could move them.
 4. **TaylorMade video unwatched.** The nine-windows concept rests on the Tiger and TaylorMade 2021 material, which was cited from text and never watched. The window recipes are model output and carry no Tiger attribution.
 5. **Justin Kraft credit.** The article holds a comment where the credit goes. It stays out until Justin consents. Issue #29 (his private preview) stays open.

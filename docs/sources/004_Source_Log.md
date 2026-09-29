@@ -1,4 +1,4 @@
-# Release 004 — Verification Gate Source Log
+# Release 004: Verification Gate Source Log
 
 **Release:** Ball flight laws instructor tool. Sliders for club path, face angle, attack angle, club speed and dynamic loft drive a physics model; a tracer flies over a driving range; TrackMan-style tiles show each number against an ideal band for the club and player type (PGA Tour, LPGA Tour, average amateur); a nine-windows mode shows low, mid and high against draw, straight and fade.
 **Purpose:** Standing rule, same as 002 and 003. No number enters the 004 codebase unless it traces to a row in this log. The physics model will be calibrated against these rows, so provenance outranks coverage.
@@ -28,7 +28,7 @@ Pages that refused a fetch (HTTP 403, Cloudflare or bot challenge, empty body) w
 
 ---
 
-## Anchor 1 — TrackMan PGA Tour averages per club
+## Anchor 1: TrackMan PGA Tour averages per club
 
 **Status: PUBLISHED as a full table, but only as an image on TrackMan's own page. The table below is a transcription. The version we use is the 2023 dataset, published on the TrackMan blog on 2024-05-02, and it is still the current one on TrackMan's pages as of the hunt date.**
 
@@ -89,7 +89,7 @@ Club path and face angle are not published as Tour averages. The [Club Path](htt
 
 ---
 
-## Anchor 2 — TrackMan LPGA Tour averages per club
+## Anchor 2: TrackMan LPGA Tour averages per club
 
 **Status: PUBLISHED as a full table in the same image set as Anchor 1. Same page, same date, same "use the 2023 set" decision.**
 
@@ -143,7 +143,7 @@ Smash factor differs from ball speed over club speed by up to 0.03 on some rows 
 
 ---
 
-## Anchor 3 — Average amateur by club
+## Anchor 3: Average amateur by club
 
 **Status: TrackMan publishes amateur numbers by handicap band, for the DRIVER only, on its own blog. TrackMan gives 6-iron and pitching wedge "average male golfer" values only as Optimizer default assumptions, and those are model outputs, not measurements. No primary source found publishes a full per-club amateur table. Secondary sources give a few irons, with definitions that stay unclear.**
 
@@ -209,7 +209,7 @@ These are what TrackMan's optimizer says a golfer at that club speed should prod
 
 ---
 
-## Anchor 4 — Driver optimization: optimal launch and spin by club speed and attack angle
+## Anchor 4: Driver optimization: optimal launch and spin by club speed and attack angle
 
 **Status: TWO complete numeric charts exist. TrackMan's Driver Fitting Chart (2010) gives optimal ball speed, launch, spin and dynamic loft by club speed and attack angle. PING's Optimal Launch & Spin Chart (2019) gives optimal launch and spin by ball speed and attack angle. The two disagree by a few degrees of launch and a few hundred rpm. No numeric optimum for irons was found.**
 
@@ -327,7 +327,7 @@ PING's launch angle runs 0.7 to 1.2 degrees above TrackMan's carry optimum and 3
 
 ---
 
-## Anchor 5 — Ball flight law relationships
+## Anchor 5: Ball flight law relationships
 
 **Status: Definitions are PUBLISHED by TrackMan in plain text. The face-versus-path start direction shares (about 85 percent driver, 75 percent irons) are NOT confirmed in any primary text read this session and two secondary versions disagree. Curvature is PUBLISHED as worked examples, not as a per-degree formula. The attack-angle to path coupling is PUBLISHED in words by TrackMan and as a formula only on a forum.**
 
@@ -390,7 +390,7 @@ TrackMan's ["What is Apex Height?"](https://www.trackman.com/blog/apex-height) (
 
 ---
 
-## Anchor 6 — Tiger Woods nine windows
+## Anchor 6: Tiger Woods nine windows
 
 **Status: The concept is PUBLISHED by TaylorMade with Tiger Woods himself. No launch monitor numbers for any window were found.**
 
@@ -408,7 +408,7 @@ TrackMan's ["What is Apex Height?"](https://www.trackman.com/blog/apex-height) (
 
 ---
 
-## Anchor 7 — Aerodynamic coefficients for a golf ball
+## Anchor 7: Aerodynamic coefficients for a golf ball
 
 **Status: One complete, current, published working model exists (lift and drag as functions of spin factor and Reynolds number, plus a spin decay law). It is a spreadsheet by Alan Nathan (University of Illinois) that uses Washington State University measurements and a fit to seven clubs. The classic papers (Bearman and Harvey 1976, Smits and Smith 1994) are reached only through secondary summaries. The three available characterizations disagree with each other on lift and drag at the same spin factor.**
 
