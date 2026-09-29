@@ -1,0 +1,883 @@
+/*
+ * Ball flight model for release 004, browser port of the Python package in
+ * analysis/004-ball-flight-laws. One ES module, no dependencies, no build step.
+ *
+ * Every constant comes from the JSON that export.py writes to
+ * site/ball-flight/data (model.json, presets.json, ideals.json, windows.json,
+ * camera.json), so a Python refit plus `python export.py` flows through with
+ * no edit here. Nothing in this file is a fitted number.
+ *
+ * Right-handed frame only. A lefty display is a mirror done by the page.
+ *
+ * Python source of each function
+ * ------------------------------
+ *   flight.py    simulate()             -> model.simulate      (deriv and rk4 inlined, MAX_FLIGHT_S, V_FLOOR_MS)
+ *                _lift_dir_launch()     -> liftDirLaunch
+ *                roll()                 -> model.roll
+ *   launch.py    deliver()              -> model.deliver
+ *                check_delivery()       -> checkDelivery
+ *                _check_range()         -> checkRange
+ *                check_club()           -> checkClub
+ *                club_direction()       -> clubDirection
+ *                face_normal()          -> faceNormal
+ *                blend()                -> blend
+ *                _angle_between()       -> angleBetween
+ *                dplane_tilt_deg()      -> dplaneTiltDeg
+ *                launch_vector()        -> model.launchVector
+ *                k_of, smash_of, spin_class_factor, spin_of, axis_scale
+ *                                       -> kOf, smashOf, spinClassFactor, spinOf, axisC
+ *                swing_path()           -> model.swingPath
+ *                _no_negative_zero()    -> noNegZero
+ *   classify.py  classify()             -> model.classify (with startOf, shapeOf, nameOf, finishText)
+ *   presets.py   preset(), scale_speed()-> model.preset, model.scaleSpeed (values read from presets.json)
+ *   ideals.py    ideal_bands()          -> model.idealBands
+ *                _bracket, _bilinear, trackman_carry_2010, ping_2019
+ *                                       -> bracket, bilinear, trackmanCarry2010, ping2019
+ *   (new)        clampToDomain, shot, loadModel, createModel
+ *
+ * Field name mapping (Python snake_case -> JS camelCase)
+ * ------------------------------------------------------
+ * deliver() returns a Launch object:
+ *   ball_speed_mph ballSpeedMph, smash smash, launch_deg launchDeg,
+ *   launch_dir_deg launchDirDeg, spin_rpm spinRpm, spin_axis_deg spinAxisDeg,
+ *   spin_loft_deg spinLoftDeg, face_to_path_deg faceToPathDeg.
+ * simulate() returns a Flight object:
+ *   t, x, y, z (Float64Array, x/y/z in yards, y positive right),
+ *   carry_yd carry, side_yd side, curve_yd curve, max_height_yd maxHeight,
+ *   apex_x_yd apexX, land_angle_deg landAngle, flight_time_s flightTime,
+ *   land_speed_mph landSpeed, launch_dir_deg launchDir.
+ * classify() returns:
+ *   start, shape, name, worked_back workedBack, finish_yd finishYd,
+ *   finish_text finishText.
+ * A delivery object (input to shot and clampToDomain, output of preset) is:
+ *   clubSpeed, attack, path, face, dynLoft, club, spinTrim.
+ * preset() also returns source, modeled, note and atPreset (the launch and
+ * flight summaries exactly as export.py wrote them, in Python snake_case).
+ * shot() returns {delivery, launch, flight, total, classification}, where
+ * total is total_yd (carry plus roll) and classification is null when the
+ * carry is zero or less (classify() would throw).
+ * idealBands() returns {metric: band} with the JSON metric keys (club_speed_mph,
+ * attack_deg, path_deg, ...) and band fields lo, hi, target, source_id, source,
+ * modeled, published, detail, the shape of ideals.json plus the resolved source
+ * text. source_id, source, modeled and published are static and are read from
+ * ideals.json, lo, hi and target are recomputed for the current club speed and
+ * attack angle.
+ *
+ * Deliberate deviations from Python
+ * ---------------------------------
+ * - Only the shipped quadratic aero model exists here. Python's pluggable Aero
+ *   (baselines and fit variants) is calibration tooling and is not ported.
+ * - `params` overrides are not ported. The model comes from model.json.
+ * - The lateral series y and the landing side are normalized to +0 where Python
+ *   would leave -0.0 (a UI would print "-0").
+ * - Errors are ValueError and RuntimeError, both subclasses of Error, carrying
+ *   the same argument names and wording as Python.
+ *
+ * JSON key names are read in the SCHEMA section of createModel and nowhere
+ * else, so a schema rename touches one block.
+ */
+
+// ---------------------------------------------------------------------------
+// Errors and small helpers
+// ---------------------------------------------------------------------------
+
+export class ValueError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ValueError";
+  }
+}
+
+export class RuntimeError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "RuntimeError";
+  }
+}
+
+const RAD = Math.PI / 180.0; // math.radians(x) is x * (pi / 180)
+const DEG = 180.0 / Math.PI; // math.degrees(x) is x * (180 / pi)
+
+const isFiniteNumber = (v) => typeof v === "number" && Number.isFinite(v);
+
+/** Python repr of a number, string or None, for error messages. */
+function pyRepr(v) {
+  if (v === null || v === undefined) return "None";
+  if (typeof v === "string") return `'${v}'`;
+  if (typeof v === "number") {
+    if (Number.isNaN(v)) return "nan";
+    if (v === Infinity) return "inf";
+    if (v === -Infinity) return "-inf";
+    return Number.isInteger(v) ? `${v}.0` : String(v);
+  }
+  return String(v);
+}
+
+/** Python format spec :g for the short values used in messages. */
+function pyG(v) {
+  return String(Number(v.toPrecision(6)));
+}
+
+const noNegZero = (x) => x + 0.0; // -0 + 0 is +0
+
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
+// ---------------------------------------------------------------------------
+// Vector helpers (launch.py, plain arrays: these run once per delivery)
+// ---------------------------------------------------------------------------
+
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [
+  a[1] * b[2] - a[2] * b[1],
+  a[2] * b[0] - a[0] * b[2],
+  a[0] * b[1] - a[1] * b[0],
+];
+const norm = (a) => Math.sqrt(dot(a, a));
+const unit = (a) => {
+  const n = norm(a);
+  return [a[0] / n, a[1] / n, a[2] / n];
+};
+
+/** Angle between two vectors in degrees, from atan2 of |a x b| and a . b. */
+function angleBetween(a, b) {
+  return Math.atan2(norm(cross(a, b)), dot(a, b)) * DEG;
+}
+
+function clubDirection(pathDeg, attackDeg) {
+  const p = pathDeg * RAD;
+  const a = attackDeg * RAD;
+  return [Math.cos(a) * Math.cos(p), Math.cos(a) * Math.sin(p), Math.sin(a)];
+}
+
+function faceNormal(faceDeg, dynLoftDeg) {
+  const f = faceDeg * RAD;
+  const l = dynLoftDeg * RAD;
+  return [Math.cos(l) * Math.cos(f), Math.cos(l) * Math.sin(f), Math.sin(l)];
+}
+
+/** Unit vector along (1 - k) d + k n. */
+function blend(d, n, k) {
+  return unit([
+    (1.0 - k) * d[0] + k * n[0],
+    (1.0 - k) * d[1] + k * n[1],
+    (1.0 - k) * d[2] + k * n[2],
+  ]);
+}
+
+/**
+ * Tilt of the D-plane normal about the launch direction, degrees, positive
+ * curves right. d is the club direction and n the face normal.
+ */
+function dplaneTiltDeg(d, n) {
+  const m = cross(d, n);
+  if (norm(m) < 1e-9) return 0.0;
+  const u = unit([d[0] + n[0], d[1] + n[1], d[2] + n[2]]);
+  const right = unit(cross([0.0, 0.0, 1.0], u));
+  const up = cross(u, right);
+  let mRight = dot(m, right);
+  let mUp = dot(m, up);
+  // Orient the normal to the backspin side, breaking an exact tie toward +90.
+  if (mRight < 0.0 || (mRight === 0.0 && mUp > 0.0)) {
+    mRight = -mRight;
+    mUp = -mUp;
+  }
+  return Math.atan2(-mUp, mRight) * DEG;
+}
+
+/** flight.py _lift_dir_launch: lift direction for a spin axis tilted about the velocity vector. */
+function liftDirLaunch(vhat, spinAxisDeg) {
+  const n = cross(vhat, [0.0, 0.0, 1.0]);
+  let a0;
+  if (Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) < 1e-12) {
+    a0 = [0.0, -1.0, 0.0]; // vertical launch: pick "right" continuously (y is left)
+  } else {
+    a0 = unit(n);
+  }
+  const l0 = cross(a0, vhat);
+  const th = spinAxisDeg * RAD;
+  const c = Math.cos(th);
+  const s = Math.sin(th);
+  return [c * l0[0] + s * a0[0], c * l0[1] + s * a0[1], c * l0[2] + s * a0[2]];
+}
+
+// ---------------------------------------------------------------------------
+// Scratch storage for trajectories, reused across simulate() calls. The
+// result arrays are copies (slice), so callers own what they get.
+// ---------------------------------------------------------------------------
+
+let scratchCap = 2048;
+let sT = new Float64Array(scratchCap);
+let sX = new Float64Array(scratchCap);
+let sY = new Float64Array(scratchCap);
+let sZ = new Float64Array(scratchCap);
+
+function growScratch() {
+  const cap = scratchCap * 2;
+  const grow = (old) => {
+    const bigger = new Float64Array(cap);
+    bigger.set(old);
+    return bigger;
+  };
+  sT = grow(sT);
+  sX = grow(sX);
+  sY = grow(sY);
+  sZ = grow(sZ);
+  scratchCap = cap;
+}
+
+// ---------------------------------------------------------------------------
+// Model
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a Model from the parsed JSON objects
+ * {model, presets, ideals, windows, camera}. windows and camera are only
+ * carried through for the page, the maths never reads them.
+ */
+export function createModel(json) {
+  // ===== SCHEMA: every JSON key the maths reads is named here =====
+  const M = json.model;
+  const PRE = json.presets;
+  const IDL = json.ideals;
+
+  const U = M.units;
+  const BALL = M.ball;
+  const AIR = M.air;
+  const Q = M.aero.quad;
+  const RE_PIVOT = M.aero.re_pivot;
+  const RE_UNIT = M.aero.re_unit;
+  const SPIN_DECAY = M.aero.spin_decay_coef;
+  const FLIGHT = M.flight;
+  const LM = M.launch_model;
+  const SPIN_CLASS = M.spin_class;
+  const DOMAIN = M.domain;
+  const CLS = M.classify;
+  const ROLL = M.roll;
+  const TOL = IDL.tolerances;
+  const CLUBS = PRE.clubs.map((c) => c.id);
+  const PLAYERS = PRE.players.map((p) => p.id);
+  const SWING_PLANE_DEFAULT = M.swing_plane_default_deg;
+
+  const MAX_FLIGHT_S = FLIGHT.max_flight_s;
+  const V_FLOOR_MS = FLIGHT.v_floor_ms;
+  const DEFAULT_DT = FLIGHT.dt;
+  const AIR_DENSITY = AIR.density_kg_m3;
+  const AIR_VISCOSITY = AIR.viscosity_pa_s;
+  const BALL_MASS = BALL.mass_kg;
+  const BALL_DIAMETER = BALL.diameter_m;
+  const BALL_RADIUS = BALL.radius_m;
+
+  /** One preset row as a delivery object. The single place that maps presets.json keys. */
+  function presetFromRow(e) {
+    return {
+      clubSpeed: e.club_speed_mph,
+      attack: e.attack_deg,
+      dynLoft: e.dyn_loft_deg,
+      path: e.path_deg,
+      face: e.face_deg,
+      spinTrim: e.spin_trim,
+      club: e.club,
+      source: e.source,
+      modeled: e.modeled,
+      note: e.note,
+      atPreset: e.at_preset,
+    };
+  }
+  const presetRow = (player, club) => PRE.presets[player][club];
+  const bandMeta = (player, club, metric) => IDL.bands[player][club][metric]; // {source_id, modeled, published?}
+  const bandSource = (sourceId) => IDL.sources[sourceId];
+  // ===== end SCHEMA =====
+
+  // flight.py _make_deriv constants
+  const area = Math.PI * BALL_RADIUS * BALL_RADIUS;
+  const kf = (0.5 * AIR_DENSITY * area) / BALL_MASS;
+  const rePerV = (AIR_DENSITY * BALL_DIAMETER) / AIR_VISCOSITY / RE_UNIT;
+  const G = U.g;
+  const d0 = Q.d0, d1 = Q.d1, d2 = Q.d2, d3 = Q.d3;
+  const l0 = Q.l0, l1 = Q.l1, l2 = Q.l2;
+
+  // Preallocated RK4 state. Index 0..6 is x, y, z, vx, vy, vz, omega. Internal frame: y LEFT.
+  const s = new Float64Array(7);
+  const sn = new Float64Array(7);
+  const tmp = new Float64Array(7);
+  const k1 = new Float64Array(7);
+  const k2 = new Float64Array(7);
+  const k3 = new Float64Array(7);
+  const k4 = new Float64Array(7);
+  const oh = new Float64Array(3); // omega_hat, fixed in space at launch
+
+  /** flight.py deriv: write d(state)/dt of `st` into `out`. */
+  function deriv(st, out) {
+    const vx = st[3], vy = st[4], vz = st[5], w = st[6];
+    const v = Math.max(Math.sqrt(vx * vx + vy * vy + vz * vz), V_FLOOR_MS);
+    const spin = (BALL_RADIUS * w) / v;
+    const re = rePerV * v;
+    const cd = d0 + d1 * spin + d2 * spin * spin + d3 * (re - RE_PIVOT);
+    const cl = l0 + l1 * spin + l2 * spin * spin;
+    const vhx = vx / v, vhy = vy / v, vhz = vz / v;
+    // lift direction = unit(omega_hat x v_hat)
+    let lx = oh[1] * vhz - oh[2] * vhy;
+    let ly = oh[2] * vhx - oh[0] * vhz;
+    let lz = oh[0] * vhy - oh[1] * vhx;
+    const ln = Math.sqrt(lx * lx + ly * ly + lz * lz);
+    lx /= ln;
+    ly /= ln;
+    lz /= ln;
+    const ad = kf * cd * v; // drag: -ad * v_vec
+    const al = kf * cl * v * v; // lift: al * L_hat
+    out[0] = vx;
+    out[1] = vy;
+    out[2] = vz;
+    out[3] = -ad * vx + al * lx;
+    out[4] = -ad * vy + al * ly;
+    out[5] = -ad * vz + al * lz - G;
+    out[6] = (-SPIN_DECAY * v * w) / BALL_RADIUS;
+  }
+
+  /** flight.py _rk4: advance `s` by dt into `sn`. */
+  function rk4(dt) {
+    deriv(s, k1);
+    for (let i = 0; i < 7; i++) tmp[i] = s[i] + 0.5 * dt * k1[i];
+    deriv(tmp, k2);
+    for (let i = 0; i < 7; i++) tmp[i] = s[i] + 0.5 * dt * k2[i];
+    deriv(tmp, k3);
+    for (let i = 0; i < 7; i++) tmp[i] = s[i] + dt * k3[i];
+    deriv(tmp, k4);
+    for (let i = 0; i < 7; i++) {
+      sn[i] = s[i] + (dt / 6.0) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]);
+    }
+  }
+
+  const M2YD = 1.0 / U.yd_to_m;
+
+  /**
+   * flight.py simulate. Angles in degrees, spin in rpm, output in yards.
+   * launchDeg is the vertical launch angle, launchDir the horizontal start
+   * direction (positive right), spinAxis positive curves the ball right.
+   * Throws ValueError on a bad input and RuntimeError if the ball has not
+   * landed after MAX_FLIGHT_S.
+   */
+  function simulate(ballSpeed, launchDeg, launchDir, spin, spinAxis, opts) {
+    const dt = opts && opts.dt !== undefined ? opts.dt : DEFAULT_DT;
+    const checks = [
+      ["ball_speed_mph", ballSpeed],
+      ["launch_deg", launchDeg],
+      ["launch_dir_deg", launchDir],
+      ["spin_rpm", spin],
+      ["spin_axis_deg", spinAxis],
+      ["dt", dt],
+    ];
+    for (let i = 0; i < checks.length; i++) {
+      if (!isFiniteNumber(checks[i][1])) {
+        throw new ValueError(`${checks[i][0]} must be finite, got ${pyRepr(checks[i][1])}`);
+      }
+    }
+    if (ballSpeed <= 0.0) throw new ValueError(`ball_speed_mph must be > 0, got ${pyRepr(ballSpeed)}`);
+    if (dt <= 0.0) throw new ValueError(`dt must be > 0, got ${pyRepr(dt)}`);
+
+    const v0 = ballSpeed * U.mph_to_ms;
+    const gam = launchDeg * RAD;
+    const psi = launchDir * RAD;
+    const vhat = [Math.cos(gam) * Math.cos(psi), -Math.cos(gam) * Math.sin(psi), Math.sin(gam)]; // y is left
+    const lhat = liftDirLaunch(vhat, spinAxis);
+    const omegaHat = cross(vhat, lhat); // for omega perp v: v x (omega x v) = omega
+    oh[0] = omegaHat[0];
+    oh[1] = omegaHat[1];
+    oh[2] = omegaHat[2];
+    const w0 = spin * U.rpm_to_rads;
+
+    s[0] = 0.0;
+    s[1] = 0.0;
+    s[2] = 0.0;
+    s[3] = v0 * vhat[0];
+    s[4] = v0 * vhat[1];
+    s[5] = v0 * vhat[2];
+    s[6] = w0;
+
+    let n = 1; // samples recorded, sample 0 is the launch point
+    sT[0] = 0.0;
+    sX[0] = 0.0;
+    sY[0] = 0.0;
+    sZ[0] = 0.0;
+    let t = 0.0;
+    const maxSteps = Math.trunc(MAX_FLIGHT_S / dt);
+    let landed = false;
+    let lvx = 0.0, lvy = 0.0, lvz = 0.0;
+    for (let step = 0; step < maxSteps; step++) {
+      rk4(dt);
+      const tNew = t + dt;
+      if (n >= scratchCap) growScratch();
+      if (sn[2] < 0.0) {
+        const f = s[2] / (s[2] - sn[2]); // linear interpolation to z = 0
+        sT[n] = t + f * dt;
+        sX[n] = (s[0] + f * (sn[0] - s[0])) * M2YD;
+        sY[n] = -(s[1] + f * (sn[1] - s[1])) * M2YD + 0.0; // flip to positive right
+        sZ[n] = 0.0;
+        lvx = s[3] + f * (sn[3] - s[3]);
+        lvy = s[4] + f * (sn[4] - s[4]);
+        lvz = s[5] + f * (sn[5] - s[5]);
+        n++;
+        landed = true;
+        break;
+      }
+      sT[n] = tNew;
+      sX[n] = sn[0] * M2YD;
+      sY[n] = -sn[1] * M2YD + 0.0;
+      sZ[n] = sn[2] * M2YD;
+      n++;
+      for (let i = 0; i < 7; i++) s[i] = sn[i];
+      t = tNew;
+    }
+    if (!landed) throw new RuntimeError(`ball did not land within ${pyRepr(MAX_FLIGHT_S)} s`);
+
+    const vh = Math.hypot(lvx, lvy);
+    const landAngle = Math.atan2(-lvz, vh) * DEG;
+    const landSpeed = Math.sqrt(lvx * lvx + lvy * lvy + lvz * lvz) / U.mph_to_ms;
+    let iApex = 0; // first maximum, like np.argmax
+    let zMax = sZ[0];
+    for (let i = 1; i < n; i++) {
+      if (sZ[i] > zMax) {
+        zMax = sZ[i];
+        iApex = i;
+      }
+    }
+    const carry = sX[n - 1];
+    const side = sY[n - 1];
+    return {
+      t: sT.slice(0, n),
+      x: sX.slice(0, n),
+      y: sY.slice(0, n),
+      z: sZ.slice(0, n),
+      carry,
+      side,
+      maxHeight: zMax,
+      apexX: sX[iApex],
+      landAngle,
+      flightTime: sT[n - 1],
+      curve: side - carry * Math.tan(psi),
+      landSpeed,
+      launchDir,
+    };
+  }
+
+  /** flight.py roll: total distance in yards, carry plus a modeled bounce and roll. */
+  function roll(shotResult) {
+    const c = Math.cos(shotResult.landAngle * RAD);
+    let r = ROLL.k * shotResult.landSpeed * Math.pow(c, ROLL.cos_power);
+    r = Math.min(Math.max(r, 0.0), ROLL.max_yd);
+    return shotResult.carry + r;
+  }
+
+  // -------------------------------------------------------------------------
+  // launch.py
+  // -------------------------------------------------------------------------
+
+  function kOf(sl) {
+    const sc = Math.min(Math.max(sl, LM.k_sl_lo), LM.k_sl_hi);
+    return LM.k0 + LM.k1 * sc;
+  }
+
+  function smashOf(sl) {
+    const sc = Math.max(sl, 0.0);
+    const raw = LM.smash_a + LM.smash_b * sc + LM.smash_c * sc * sc;
+    return Math.max(Math.min(raw, LM.smash_cap), LM.smash_floor);
+  }
+
+  function spinClassFactor(club) {
+    const cls = club === null || club === undefined ? undefined : SPIN_CLASS[club];
+    return cls === undefined ? 1.0 : LM["spin_f_" + cls];
+  }
+
+  function spinOf(ballSpeed, sl, club) {
+    return spinClassFactor(club) * LM.spin_a * ballSpeed * Math.pow(Math.max(sl, 0.0), LM.spin_b);
+  }
+
+  const axisC = () => LM.axis_c;
+
+  function checkRange(name, value, key) {
+    if (!isFiniteNumber(value)) throw new ValueError(`${name} must be finite, got ${pyRepr(value)}`);
+    const lo = DOMAIN[key][0];
+    const hi = DOMAIN[key][1];
+    if (!(lo <= value && value <= hi)) {
+      throw new ValueError(`${name} must be within ${pyG(lo)} to ${pyG(hi)}, got ${pyRepr(value)}`);
+    }
+  }
+
+  function checkClub(club) {
+    if (club !== null && club !== undefined && !CLUBS.includes(club)) {
+      const tuple = "(" + CLUBS.map((c) => `'${c}'`).join(", ") + ")";
+      throw new ValueError(`club must be None or one of ${tuple}, got ${pyRepr(club)}`);
+    }
+  }
+
+  function checkDelivery(clubSpeed, attack, path, face, dynLoft, club, spinTrim) {
+    checkRange("club_speed_mph", clubSpeed, "club_speed_mph");
+    checkRange("attack_deg", attack, "attack_deg");
+    checkRange("path_deg", path, "path_deg");
+    checkRange("face_deg", face, "face_deg");
+    checkRange("dyn_loft_deg", dynLoft, "dyn_loft_deg");
+    const floor = DOMAIN.min_spin_loft_deg;
+    if (dynLoft - attack < floor) {
+      throw new ValueError(
+        `dyn_loft_deg - attack_deg must be at least ${pyG(floor)} deg, got ${pyG(dynLoft - attack)}`
+      );
+    }
+    if (!isFiniteNumber(spinTrim) || spinTrim <= 0.0) {
+      throw new ValueError(`spin_trim must be finite and positive, got ${pyRepr(spinTrim)}`);
+    }
+    checkClub(club);
+  }
+
+  /** launch.py launch_vector: launch angle, launch direction and spin loft in degrees. No input checks, like Python. */
+  function launchVector(path, attack, face, dynLoft) {
+    const d = clubDirection(path, attack);
+    const n = faceNormal(face, dynLoft);
+    const sl = angleBetween(d, n);
+    const u = blend(d, n, kOf(sl));
+    return {
+      launchDeg: Math.atan2(u[2], Math.sqrt(u[0] * u[0] + u[1] * u[1])) * DEG,
+      launchDirDeg: Math.atan2(u[1], u[0]) * DEG,
+      spinLoftDeg: sl,
+    };
+  }
+
+  /**
+   * launch.py deliver. Club delivery to launch conditions. `club` picks the
+   * spin class factor. opts.spinTrim multiplies spin_rpm and nothing else.
+   */
+  function deliver(clubSpeed, attack, path, face, dynLoft, club, opts) {
+    const spinTrim = opts && opts.spinTrim !== undefined ? opts.spinTrim : 1.0;
+    checkDelivery(clubSpeed, attack, path, face, dynLoft, club, spinTrim);
+    const d = clubDirection(path, attack);
+    const n = faceNormal(face, dynLoft);
+    const sl = angleBetween(d, n);
+    const u = blend(d, n, kOf(sl));
+    const launchDeg = Math.atan2(u[2], Math.sqrt(u[0] * u[0] + u[1] * u[1])) * DEG;
+    const launchDir = Math.atan2(u[1], u[0]) * DEG;
+    const smash = smashOf(sl);
+    const ball = smash * clubSpeed;
+    const spin = spinOf(ball, sl, club) * spinTrim;
+    const axis = axisC() * dplaneTiltDeg(d, n);
+    return {
+      ballSpeedMph: noNegZero(ball),
+      smash: noNegZero(smash),
+      launchDeg: noNegZero(launchDeg),
+      launchDirDeg: noNegZero(launchDir),
+      spinRpm: noNegZero(spin),
+      spinAxisDeg: noNegZero(axis),
+      spinLoftDeg: noNegZero(sl),
+      faceToPathDeg: noNegZero(face - path),
+    };
+  }
+
+  /** launch.py swing_path: club path with the swing direction held (forum formula). */
+  function swingPath(swingDir, attack, plane) {
+    const pl = plane === undefined || plane === null ? SWING_PLANE_DEFAULT : plane;
+    const items = [["swing_dir_deg", swingDir], ["attack_deg", attack], ["plane_deg", pl]];
+    for (const [name, value] of items) {
+      if (!isFiniteNumber(value)) throw new ValueError(`${name} must be finite, got ${pyRepr(value)}`);
+    }
+    const lo = DOMAIN.swing_plane_deg[0];
+    const hi = DOMAIN.swing_plane_deg[1];
+    if (!(lo < pl && pl < hi)) {
+      throw new ValueError(`plane_deg must be between ${pyG(lo)} and ${pyG(hi)} (exclusive), got ${pyRepr(pl)}`);
+    }
+    return noNegZero(swingDir - attack * Math.tan((90.0 - pl) * RAD));
+  }
+
+  /**
+   * Clamp a delivery to the input domain so a slider can never trip deliver().
+   * Returns a copy. Dynamic loft minus attack is held at or above the spin loft
+   * floor by raising dynamic loft first, and lowering attack if loft tops out.
+   */
+  function clampToDomain(delivery) {
+    const keys = [
+      ["clubSpeed", "club_speed_mph"],
+      ["attack", "attack_deg"],
+      ["path", "path_deg"],
+      ["face", "face_deg"],
+      ["dynLoft", "dyn_loft_deg"],
+    ];
+    const out = { ...delivery };
+    for (const [key, dom] of keys) {
+      const v = out[key];
+      if (!isFiniteNumber(v)) throw new ValueError(`${key} must be finite, got ${pyRepr(v)}`);
+      out[key] = Math.min(Math.max(v, DOMAIN[dom][0]), DOMAIN[dom][1]);
+    }
+    const floor = DOMAIN.min_spin_loft_deg;
+    if (out.dynLoft - out.attack < floor) {
+      out.dynLoft = Math.min(out.attack + floor, DOMAIN.dyn_loft_deg[1]);
+      if (out.dynLoft - out.attack < floor) out.attack = out.dynLoft - floor;
+    }
+    return out;
+  }
+
+  // -------------------------------------------------------------------------
+  // classify.py
+  // -------------------------------------------------------------------------
+
+  const START_STRAIGHT_DEG = CLS.start_straight_deg;
+  const AXIS_STRAIGHT_DEG = CLS.axis_straight_deg;
+  const CURVE_HOOK_FRAC = CLS.curve_hook_frac;
+  const ON_TARGET_FRAC = CLS.on_target_frac;
+  const ON_LINE_YD = CLS.on_line_yd;
+
+  const SHAPE_SIDE = { draw: "left", hook: "left", fade: "right", slice: "right" };
+  const START_SIDE = { pull: "left", push: "right" };
+
+  function startOf(launchDir) {
+    if (launchDir < -START_STRAIGHT_DEG) return "pull";
+    if (launchDir > START_STRAIGHT_DEG) return "push";
+    return "straight";
+  }
+
+  function shapeOf(spinAxis, curve, carry) {
+    if (Math.abs(spinAxis) <= AXIS_STRAIGHT_DEG) return "straight";
+    // A curve of exactly zero takes the side of the spin axis.
+    const left = curve < 0.0 || (curve === 0.0 && spinAxis < 0.0);
+    const sharp = Math.abs(curve) > CURVE_HOOK_FRAC * carry;
+    if (left) return sharp ? "hook" : "draw";
+    return sharp ? "slice" : "fade";
+  }
+
+  function nameOf(start, shape, onTarget) {
+    if (start === "straight") return [capitalize(shape), false];
+    if (shape === "straight") return [capitalize(start), false];
+    if (START_SIDE[start] !== SHAPE_SIDE[shape] && onTarget) return [capitalize(shape), true];
+    return [`${capitalize(start)} ${shape}`, false];
+  }
+
+  function finishText(side) {
+    if (Math.abs(side) < ON_LINE_YD) return "finishes on line";
+    const dir = side > 0.0 ? "right" : "left";
+    return `finishes ${Math.round(Math.abs(side))} yd ${dir}`;
+  }
+
+  /** classify.py classify: ball flight name from launch and flight numbers. Right-handed, positive is right. */
+  function classify(launchDir, spinAxis, curve, side, carry) {
+    for (const [name, v] of [["launch_dir_deg", launchDir], ["spin_axis_deg", spinAxis], ["curve_yd", curve],
+      ["side_yd", side], ["carry_yd", carry]]) {
+      if (!isFiniteNumber(v)) throw new ValueError(`${name} must be finite, got ${pyRepr(v)}`);
+    }
+    if (carry <= 0.0) throw new ValueError(`carry_yd must be > 0, got ${pyRepr(carry)}`);
+    const start = startOf(launchDir);
+    const shape = shapeOf(spinAxis, curve, carry);
+    const onTarget = Math.abs(side) <= ON_TARGET_FRAC * carry;
+    const [name, workedBack] = nameOf(start, shape, onTarget);
+    return { start, shape, name, workedBack, finishYd: side, finishText: finishText(side) };
+  }
+
+  // -------------------------------------------------------------------------
+  // presets.py (values come from presets.json)
+  // -------------------------------------------------------------------------
+
+  /** presets.preset: a club delivery per club and player. */
+  function preset(club, player) {
+    if (!PLAYERS.includes(player)) {
+      throw new ValueError(`player must be one of (${PLAYERS.map((p) => `'${p}'`).join(", ")}), got ${pyRepr(player)}`);
+    }
+    if (!CLUBS.includes(club)) {
+      throw new ValueError(`club must be one of (${CLUBS.map((c) => `'${c}'`).join(", ")}), got ${pyRepr(club)}`);
+    }
+    return presetFromRow(presetRow(player, club));
+  }
+
+  /** presets.scale_speed: copy of a preset with only the club speed changed. The spin trim stays. */
+  function scaleSpeed(presetObj, clubSpeed) {
+    const lo = DOMAIN.club_speed_mph[0];
+    const hi = DOMAIN.club_speed_mph[1];
+    if (!(isFiniteNumber(clubSpeed) && lo <= clubSpeed && clubSpeed <= hi)) {
+      throw new ValueError(`club_speed must be within ${pyG(lo)} to ${pyG(hi)} mph, got ${pyRepr(clubSpeed)}`);
+    }
+    return { ...presetObj, clubSpeed };
+  }
+
+  // -------------------------------------------------------------------------
+  // Convenience: deliver + simulate + roll + classify
+  // -------------------------------------------------------------------------
+
+  /**
+   * One full shot from a delivery object {clubSpeed, attack, path, face,
+   * dynLoft, club, spinTrim}. opts.dt overrides the step size. Returns
+   * {delivery, launch, flight, total, classification}, classification null
+   * when the carry is zero or less.
+   */
+  function shot(delivery, opts) {
+    const launch = deliver(
+      delivery.clubSpeed, delivery.attack, delivery.path, delivery.face, delivery.dynLoft, delivery.club,
+      { spinTrim: delivery.spinTrim === undefined ? 1.0 : delivery.spinTrim }
+    );
+    const flight = simulate(launch.ballSpeedMph, launch.launchDeg, launch.launchDirDeg, launch.spinRpm, launch.spinAxisDeg, opts);
+    const total = roll(flight);
+    // classify() rejects a carry of zero or less (a ball driven into the ground), so the shot has no name.
+    const classification = flight.carry > 0.0
+      ? classify(launch.launchDirDeg, launch.spinAxisDeg, flight.curve, flight.side, flight.carry)
+      : null;
+    return { delivery, launch, flight, total, classification };
+  }
+
+  // -------------------------------------------------------------------------
+  // ideals.py
+  // -------------------------------------------------------------------------
+
+  const TM = IDL.driver.trackman_carry_2010;
+  const PG = IDL.driver.ping_2019;
+
+  /** (lower index, upper index, fraction) of x in a sorted grid, clamped to its range. */
+  function bracket(grid, x) {
+    if (x <= grid[0]) return [0, 0, 0.0];
+    if (x >= grid[grid.length - 1]) return [grid.length - 1, grid.length - 1, 0.0];
+    let hi = 0;
+    while (!(grid[hi] >= x)) hi++; // first grid value >= x, like Python's next(...)
+    const lo = hi - 1;
+    return [lo, hi, (x - grid[lo]) / (grid[hi] - grid[lo])];
+  }
+
+  /** Bilinear in both axes, clamped. Each table is [row][col]. Returns the interpolated value of each table. */
+  function bilinear(rowGrid, colGrid, tables, row, col) {
+    const [r0, r1, fr] = bracket(rowGrid, row);
+    const [c0, c1, fc] = bracket(colGrid, col);
+    return tables.map((tb) => {
+      const top = tb[r0][c0] * (1 - fc) + tb[r0][c1] * fc;
+      const bot = tb[r1][c0] * (1 - fc) + tb[r1][c1] * fc;
+      return top * (1 - fr) + bot * fr;
+    });
+  }
+
+  /** ideals.trackman_carry_2010: [launch deg, spin rpm] from the TrackMan 2010 CARRY Optimizer. */
+  function trackmanCarry2010(clubSpeed, attack) {
+    return bilinear(TM.club_speed_mph, TM.attack_deg, [TM.launch_deg, TM.spin_rpm], clubSpeed, attack);
+  }
+
+  /** ideals.ping_2019: [launch deg, spin rpm] from the PING 2019 Optimal Launch & Spin chart. */
+  function ping2019(ballSpeed, attack) {
+    return bilinear(PG.ball_speed_mph, PG.attack_deg, [PG.launch_deg, PG.spin_rpm], ballSpeed, attack);
+  }
+
+  function fly(p) {
+    const ln = deliver(p.clubSpeed, p.attack, p.path, p.face, p.dynLoft, p.club, { spinTrim: p.spinTrim });
+    const f = simulate(ln.ballSpeedMph, ln.launchDeg, ln.launchDirDeg, ln.spinRpm, ln.spinAxisDeg);
+    return [ln, f];
+  }
+
+  /**
+   * ideals.ideal_bands: bands for the TrackMan-style tiles. clubSpeed scales
+   * ball speed and carry (and moves the driver's optimizer lookups), attack
+   * moves only the driver's optimizer lookups. lo, hi and target are computed
+   * here. source_id, source, modeled and published are static per club and
+   * player and are read from ideals.json (source text from its `sources`).
+   */
+  function idealBands(club, player, clubSpeed, attack) {
+    const p = preset(club, player);
+    const [ln0, f0] = fly(p);
+    const speed = clubSpeed === undefined || clubSpeed === null ? p.clubSpeed : clubSpeed;
+    const ps = scaleSpeed(p, speed); // throws ValueError outside the domain
+    const [lnS, fS] = speed === p.clubSpeed ? [ln0, f0] : fly(ps);
+    const aoa = attack === undefined || attack === null ? p.attack : attack;
+    const loA = DOMAIN.attack_deg[0];
+    const hiA = DOMAIN.attack_deg[1];
+    if (!(isFiniteNumber(aoa) && loA <= aoa && aoa <= hiA)) {
+      throw new ValueError(`attack must be within ${pyG(loA)} to ${pyG(hiA)} deg, got ${pyRepr(aoa)}`);
+    }
+    const carry = fS.carry;
+
+    const b = {};
+    const put = (metric, lo, hi, target, sourceId) => {
+      const meta = bandMeta(player, club, metric);
+      const id = sourceId === undefined ? meta.source_id : sourceId;
+      const out = { lo, hi, target, source_id: id, source: bandSource(id), modeled: meta.modeled };
+      if (meta.published !== undefined) out.published = meta.published;
+      b[metric] = out;
+      return out;
+    };
+    const around = (metric, center, half) => put(metric, center - half, center + half, center);
+
+    around("club_speed_mph", p.clubSpeed, TOL.club_speed_frac * p.clubSpeed);
+    around("attack_deg", p.attack, TOL.attack_deg);
+    around("path_deg", 0.0, TOL.path_deg);
+    around("face_deg", 0.0, TOL.face_deg);
+    around("face_to_path_deg", 0.0, TOL.face_to_path_deg);
+    around("dyn_loft_deg", p.dynLoft, TOL.dyn_loft_deg);
+    around("spin_loft_deg", ln0.spinLoftDeg, TOL.spin_loft_deg);
+    around("ball_speed_mph", lnS.ballSpeedMph, TOL.ball_speed_frac * lnS.ballSpeedMph);
+    put("smash", ln0.smash - TOL.smash_below, null, ln0.smash);
+    around("launch_deg", ln0.launchDeg, TOL.launch_deg);
+    around("launch_dir_deg", 0.0, TOL.launch_dir_deg);
+    around("spin_rpm", ln0.spinRpm, TOL.spin_frac * ln0.spinRpm);
+    around("spin_axis_deg", 0.0, TOL.spin_axis_deg);
+    around("max_height_yd", f0.maxHeight, TOL.max_height_yd);
+    put("land_angle_deg", f0.landAngle - TOL.land_angle_below_deg, null, f0.landAngle);
+    around("carry_yd", carry, TOL.carry_frac * carry);
+    around("side_yd", 0.0, TOL.side_frac * carry);
+    around("curve_yd", 0.0, TOL.curve_frac * carry);
+
+    if (club === "driver") {
+      const [tmLaunch, tmSpin] = trackmanCarry2010(speed, aoa);
+      const [pgLaunch, pgSpin] = ping2019(lnS.ballSpeedMph, aoa);
+      const ml = TOL.driver_launch_margin_deg;
+      const mr = TOL.driver_spin_margin_rpm;
+      const detail = {
+        trackman_carry_2010: { launch_deg: tmLaunch, spin_rpm: tmSpin },
+        ping_2019: { launch_deg: pgLaunch, spin_rpm: pgSpin },
+        inputs: { club_speed_mph: speed, ball_speed_mph: lnS.ballSpeedMph, attack_deg: aoa },
+      };
+      put("launch_deg", Math.min(tmLaunch, pgLaunch) - ml, Math.max(tmLaunch, pgLaunch) + ml,
+        0.5 * (tmLaunch + pgLaunch), "launch_deg_driver").detail = detail;
+      put("spin_rpm", Math.min(tmSpin, pgSpin) - mr, Math.max(tmSpin, pgSpin) + mr,
+        0.5 * (tmSpin + pgSpin), "spin_rpm_driver").detail = detail;
+    }
+    return b;
+  }
+
+  // -------------------------------------------------------------------------
+
+  return {
+    // Python-mirrored API
+    deliver,
+    simulate,
+    roll,
+    classify,
+    launchVector,
+    swingPath,
+    preset,
+    scaleSpeed,
+    idealBands,
+    trackmanCarry2010,
+    ping2019,
+    // Convenience
+    shot,
+    clampToDomain,
+    // Data for the page
+    domain: DOMAIN,
+    clubs: PRE.clubs,
+    groups: PRE.groups,
+    players: PRE.players,
+    metrics: IDL.metrics,
+    windows: json.windows,
+    camera: json.camera,
+    data: json,
+  };
+}
+
+/**
+ * Fetch model.json, presets.json, ideals.json, windows.json and camera.json
+ * from baseUrl (a directory URL such as "data/") and build a Model.
+ */
+export async function loadModel(baseUrl = "data/") {
+  const base = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+  const names = ["model", "presets", "ideals", "windows", "camera"];
+  const parts = await Promise.all(
+    names.map(async (n) => {
+      const res = await fetch(base + n + ".json");
+      if (!res.ok) throw new Error(`could not load ${base}${n}.json: HTTP ${res.status}`);
+      return res.json();
+    })
+  );
+  const json = {};
+  names.forEach((n, i) => {
+    json[n] = parts[i];
+  });
+  return createModel(json);
+}
