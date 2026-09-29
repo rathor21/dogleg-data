@@ -1,6 +1,6 @@
 # ADR 0004: Release 004 ball flight model, its calibration, and the gate tolerances it ships with
 
-Date: 2026-09-29 · Status: proposed · Decider: Sunny
+Date: 2026-09-29 · Status: accepted (by merge of PR #32, 2026-09-29) · Decider: Sunny
 
 ## Context
 
