@@ -32,8 +32,6 @@
   --guide-line:rgba(255,255,255,.62); --ground-shadow:rgba(10,8,14,.32);
   --plate-bg:rgba(251,247,238,.96); --plate-ink:#1C1B18;
   --plate-dark-bg:rgba(28,27,24,.74); --plate-dark-ink:#F4EDE0;
-  --map-bg:rgba(28,27,24,.78); --map-edge:rgba(244,237,224,.26); --map-grid:rgba(244,237,224,.13);
-  --map-ink:#F4EDE0; --map-muted:rgba(244,237,224,.72); --map-target:rgba(244,237,224,.6);
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 html{-webkit-text-size-adjust:100%;font-size:16px;}
