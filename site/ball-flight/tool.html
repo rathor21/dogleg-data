@@ -51,18 +51,8 @@
   </div>
   <div class="head-copy">
     <h1>Ball flight lab: face, path and attack angle</h1>
-    <p>Pick a club and a player, then move the sliders. <span class="more">The tracer flies over the range, the shot gets its name, and each number shows where it sits against the ideal band for that club. Watch what the face does to the start line and what face-to-path does to the curve.</span></p>
   </div>
 </header>
-
-<nav class="tabs" aria-label="Dogleg Data tools">
-  <span class="tab-btn active" aria-current="page">Ball flight lab</span>
-  <a class="tab-btn" href="/augusta-12/tool.html">Aim sandbox</a>
-  <a class="tab-btn" href="/tee-shot-distance/tool.html">Tee shot calculator</a>
-  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#scramble">Scramble decision</a>
-  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#breakeven">Break-even explorer</a>
-  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#gir">Monte Carlo GIR%</a>
-</nav>
 
 <div id="app-loading" class="state-msg" role="status">Loading the ball flight lab&hellip;</div>
 <div id="app-error" class="state-msg state-error" role="alert" hidden>Could not load the ball flight data. Try refreshing the page.</div>
@@ -121,7 +111,7 @@
       <div class="win-actions">
         <button type="button" class="btn btn-primary" id="fly-all" aria-pressed="false">Fly all nine</button>
       </div>
-      <p class="win-note"><span class="badge-modeled">modeled</span> Recipes are Dogleg Data model output. The nine-window drill is Tiger Woods's. Dogleg Data computed these numbers, and Woods has not published any.</p>
+      <p class="win-note"><span class="badge-modeled">modeled</span> <span class="wn-more">Recipes are Dogleg Data model output. </span>The nine-window drill is Tiger Woods's. Dogleg Data computed these numbers, and Woods has not published any.</p>
     </section>
 
     <section class="card compare" id="compare" aria-labelledby="cmp-h" hidden>
@@ -218,6 +208,15 @@
   </section>
 
 </main>
+
+<nav class="tabs" aria-label="Dogleg Data tools">
+  <span class="tab-btn active" aria-current="page">Ball flight lab</span>
+  <a class="tab-btn" href="/augusta-12/tool.html">Aim sandbox</a>
+  <a class="tab-btn" href="/tee-shot-distance/tool.html">Tee shot calculator</a>
+  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#scramble">Scramble decision</a>
+  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#breakeven">Break-even explorer</a>
+  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#gir">Monte Carlo GIR%</a>
+</nav>
 
 <footer>
   <p class="signoff">Dogleg Data &middot; Play the percentages.</p>

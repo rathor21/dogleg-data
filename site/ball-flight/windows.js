@@ -157,10 +157,10 @@ export function createWindows({ model, store, range, hooks }) {
       ["Path", `${fmt(d.path, 1, true)}${DEG}`, words("path_deg", w.delivery.path_deg)],
       ["Face", `${fmt(d.face, 1, true)}${DEG}`, words("face_deg", w.delivery.face_deg)],
       ["Attack", `${fmt(d.attack, 1, true)}${DEG}`, words("attack_deg", w.delivery.attack_deg)],
+      ["Peak height", `${fmt(w.flight.max_height_yd, 1)} yd`, ""], // peak defines high, mid and low, so it stays in the first four rows a small screen keeps
       ["Dynamic loft", `${fmt(d.dynLoft, 1)}${DEG}`, ""],
       ["Launch", `${fmt(w.launch.launch_deg, 1)}${DEG}`, ""],
       ["Spin", `${fmt(w.launch.spin_rpm, 0, false, true)} rpm`, ""],
-      ["Peak height", `${fmt(w.flight.max_height_yd, 1)} yd`, ""],
       ["Shot", w.classification.name, w.classification.finish_text.replace(/left|right/, (m) => (state.hand === "l" ? (m === "left" ? "right" : "left") : m))],
     ];
     const off = Math.abs(state.path - d.path) > 0.06 || Math.abs(state.face - d.face) > 0.06 || Math.abs(state.attack - d.attack) > 0.06

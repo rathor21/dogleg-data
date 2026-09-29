@@ -56,8 +56,6 @@ button{font:inherit;color:inherit;}
 .home-link{font-family:var(--mono);font-size:.75rem;color:var(--ink-soft);text-decoration:none;margin-left:auto;padding:.5rem .15rem;border-bottom:1px solid transparent;}
 .home-link:hover{color:var(--clay-text);border-bottom-color:var(--clay);}
 .head-copy h1{font-family:var(--serif);font-weight:600;font-size:1.15rem;line-height:1.25;}
-/* The intro paragraph is gone from the tool page. The mode hint says what to do next, and the article explains the rest. */
-.head-copy p{display:none;}
 
 nav.tabs{display:flex;gap:.5rem;margin-bottom:.7rem;flex-wrap:wrap;}
 nav.tabs .tab-btn{border:1px solid var(--line);color:var(--ink-soft);padding:.4rem 1rem;border-radius:999px;font-size:.85rem;font-weight:500;text-decoration:none;display:inline-block;}
@@ -240,7 +238,7 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
   .setup{order:3;}
   .all-tiles{order:4;}
   .swing{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0 auto;max-width:52rem;border-radius:14px 14px 0 0;border-width:1px 0 0;border-top:3px double var(--line);padding:0 max(1rem,var(--safe-r)) var(--safe-b) max(1rem,var(--safe-l));box-shadow:0 -8px 24px var(--shadow-ink);}
-  .swing-head{border-bottom:0;margin:0;padding:.35rem 0;min-height:calc(var(--drawer-h) - 3px);} /* the 3px is the drawer's top rule, so the closed drawer is exactly --drawer-h */
+  .swing-head{border-bottom:0;margin:0;padding:.35rem 0;min-height:calc(var(--drawer-h) - 3px);} /* the 3px is the drawer's top rule, so the closed drawer is --drawer-h tall */
   .swing-title,#reset-btn{display:none;}
   .swing-toggle{flex:1;display:flex;align-items:center;gap:.6rem;background:none;border:0;text-align:left;cursor:pointer;min-width:0;min-height:2.75rem;padding:0;}
   .swing-chev{flex:none;width:.65rem;height:.65rem;border-left:2px solid var(--ink);border-top:2px solid var(--ink);transform:rotate(45deg) translate(2px,2px);transition:transform .25s var(--ease);margin-right:.2rem;}
@@ -262,8 +260,7 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
   .brand .wordmark{font-size:1.7rem;}
   .brand .tagline{display:none;}
   .head-copy h1{font-size:1.2rem;}
-  .head-copy p{font-size:.85rem;}
-  .head-copy .more,.home-link .long{display:none;}
+  .home-link .long{display:none;}
   nav.tabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:.25rem;margin-right:-1rem;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
   nav.tabs::-webkit-scrollbar{display:none;}
   nav.tabs .tab-btn{flex:none;}
@@ -293,7 +290,7 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
   .brand .mark{width:1.6rem;height:1.6rem;}
   .head-copy{flex:1;min-width:0;}
   .head-copy h1{font-size:1rem;margin:0;}
-  .head-copy p,.home-link{display:none;}
+  .home-link{display:none;}
   nav.tabs{flex-wrap:nowrap;overflow-x:auto;margin-bottom:.5rem;scrollbar-width:none;}
   nav.tabs::-webkit-scrollbar{display:none;}
   nav.tabs .tab-btn{flex:none;padding:.35rem .9rem;}
@@ -431,9 +428,7 @@ body[data-mode="w"]{--reserve:32rem;}
 body[data-mode="c"]{--reserve:32rem;}
 /* The tool switcher sits under the lab at every width, so the lab starts higher on the screen. */
 .wrap{display:flex;flex-direction:column;}
-.wrap > main{order:1;}
-.wrap > footer{order:3;}
-.wrap > nav.tabs{order:2;margin:var(--gap) 0 0;}
+.wrap > nav.tabs{margin:var(--gap) 0 0;}
 @media (max-width:900px){
   body[data-mode="w"] .key-tiles,body[data-mode="c"] .key-tiles{display:none;}
   .windows,.compare{margin-top:.8rem;}
@@ -462,16 +457,19 @@ body[data-mode="c"]{--reserve:32rem;}
   .range-bar{margin-top:.5rem;gap:.4rem .6rem;flex-wrap:nowrap;}
   .range-bar #hit-btn{display:none;} /* the drawer bar has Hit */
   .range-bar .check span{white-space:nowrap;}
-  .copy-status{display:none;}
+  .copy-status{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;} /* the button label says Copied, this line is announced */
   .key-tiles{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:.6rem;gap:.4rem;}
   .key-extra{display:flex;}
   .key-tiles .tile{padding:.4rem .5rem .35rem;}
   .key-tiles .tile-top{min-height:2.2rem;align-items:flex-start;}
   .key-tiles .tile-val .v{font-size:1.25rem;}
+  .key-tiles .tile-word{min-height:2.6em;} /* two lines, so a word that wraps does not move the tiles during a drag */
   .key-tiles .bar,.key-tiles .tile-cap{display:none;}
   .key-tiles .tile-val{margin-top:0;}
   .windows,.compare{padding:.7rem .8rem;}
-  .windows h2,.compare h2,.win-club,.win-note{display:none;}
+  .windows h2,.compare h2,.win-club{display:none;}
+  .win-note{margin-top:.5rem;font-size:.75rem;}
+  .win-note .wn-more{display:none;}
   .win-layout{display:flex;flex-direction:column-reverse;gap:.6rem;}
   .win-grid{gap:.3rem;}
   .win-btn{min-height:2.6rem;padding:.2rem .2rem;}
@@ -480,7 +478,7 @@ body[data-mode="c"]{--reserve:32rem;}
   .win-btn .wb-n{width:1.05rem;height:1.05rem;line-height:1.05rem;}
   .win-recipe h3{font-size:.95rem;margin-bottom:.3rem;}
   .win-dl{grid-template-columns:repeat(4,minmax(0,1fr));gap:.3rem .5rem;}
-  .win-dl > div:nth-child(n+5){display:none;} /* launch, spin, peak and shot name show elsewhere on the screen */
+  .win-dl > div:nth-child(n+5){display:none;} /* dynamic loft, launch, spin and the shot name show elsewhere or wait for a bigger screen */
   .win-dl dd{font-size:.95rem;}
   .win-actions{margin-top:.6rem;}
   .cmp-actions{margin-bottom:.4rem;}
@@ -490,7 +488,6 @@ body[data-mode="c"]{--reserve:32rem;}
   :root{--thumb:2.25rem;--reserve:0px;--range-min:0px;}
   .modebar{grid-column:1;}
   .side{grid-column:2;grid-row:1 / 3;}
-  .range{max-height:none;}
   .wrap > nav.tabs{margin-top:.6rem;flex-wrap:wrap;overflow:visible;}
   .modebar .mode-hint{display:none;}
   .slider{padding:.1rem 0;}
@@ -518,9 +515,10 @@ body[data-fit="1"] .win-btn{min-height:2.75rem;}
 body[data-fit="1"] .win-btn .wb-peak,body[data-fit="1"] .windows h2,body[data-fit="1"] .compare h2{display:none;}
 body[data-fit="1"] .win-layout{gap:.5rem 1.2rem;}
 body[data-fit="1"] .win-actions{margin-top:.6rem;}
-body[data-fit="1"] .win-note{display:none;}
+body[data-fit="1"] .win-note{margin-top:.5rem;font-size:.75rem;}
+body[data-fit="1"] .win-note .wn-more{display:none;}
 body[data-fit="1"] .win-dl{grid-template-columns:repeat(4,minmax(0,1fr));gap:.3rem .5rem;}
-body[data-fit="1"] .win-dl > div:nth-child(n+5){display:none;} /* launch, spin, peak height and shot name show elsewhere on the screen */
+body[data-fit="1"] .win-dl > div:nth-child(n+5){display:none;} /* dynamic loft, launch, spin and the shot name show elsewhere or wait for a bigger screen */
 body[data-fit="1"] .win-recipe h3{margin-bottom:.3rem;}
 @media (max-width:559px){
   /* A phone that is too short for six tiles keeps the four that are not extra, as a 2 by 2 without the direction words. */
@@ -533,12 +531,37 @@ body[data-fit="1"] .win-recipe h3{margin-bottom:.3rem;}
   body[data-fit="1"] .win-btn{min-height:2.4rem;}
   body[data-fit="1"] .windows,body[data-fit="1"] .compare{padding-top:.5rem;padding-bottom:.5rem;}
 }
+/* The smallest phones (data-tight): the range bar steps aside and the page title is read aloud only. */
+body[data-tight="1"] .range-bar{display:none;}
+body[data-tight="1"][data-mode="c"] .shot-label{display:none;} /* the table's Shot row names both shots */
+body[data-tight="1"][data-mode="w"] .shot-label{flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:0 .7rem;padding:.3rem .8rem .35rem;}
+body[data-tight="1"][data-mode="w"] .sl-name{font-size:1.3rem;min-height:0;}
+body[data-tight="1"] .win-colhead,body[data-tight="1"] .win-recipe h3{display:none;}
+body[data-tight="1"] .win-layout{gap:.4rem;}
+body[data-tight="1"] .win-btn{min-height:2.25rem;padding-top:.1rem;padding-bottom:.1rem;}
+body[data-tight="1"] .win-actions{margin-top:.4rem;}
+body[data-tight="1"] .page-head{padding-bottom:.25rem;margin-bottom:.35rem;}
+body[data-tight="1"] .brand{margin-bottom:0;}
+body[data-tight="1"] .brand .mark{width:1.4rem;height:1.4rem;}
+body[data-tight="1"] .brand .wordmark{font-size:1.25rem;}
+body[data-tight="1"] .wrap{padding-top:.5rem;}
+body[data-tight="1"] .cmp-status{display:none;}
+body[data-tight="1"] .head-copy{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 /* With the drawer open, what sits behind it is hidden, so no strip of a card or tile peeks out above it. */
 @media (max-width:900px){
   body[data-drawer="open"] .stage > :not(.range-wrap),body[data-drawer="open"] .range-bar{visibility:hidden;}
 }
 @media (max-width:559px){
   body[data-drawer="open"] .shot-label{visibility:hidden;}
+}
+
+/* A short landscape screen (any width) gives the range its natural height and scrolls. */
+@media (max-height:500px) and (min-width:560px){
+  .range{max-height:none;}
+}
+/* Narrow phones: the note under a tile may wrap inside its range when it has to. */
+@media (max-width:340px){
+  .tile-cap .nw{white-space:normal;}
 }
 
 /* ---------- presentation mode (TV) ---------- */
@@ -591,5 +614,5 @@ body.presenting #hit-btn-2,body.presenting #exit-present,body.presenting #reset-
 body.presenting .range-loading{font-size:1.1rem;}
 
 @media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important;}
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition:none !important;scroll-behavior:auto !important;}
 }

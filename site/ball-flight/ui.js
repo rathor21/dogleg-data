@@ -337,7 +337,8 @@ async function main() {
 
   const copyStatus = $("#copy-status");
   let copyTimer = 0;
-  $("#copy-btn").addEventListener("click", async () => {
+  const copyBtn = $("#copy-btn");
+  copyBtn.addEventListener("click", async () => {
     const url = new URL(store.buildUrl(), location.href).href;
     let ok = false;
     try {
@@ -353,9 +354,11 @@ async function main() {
       try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
       ta.remove();
     }
+    // The status line is read aloud (and shown where there is room). On a phone the button itself says it.
     copyStatus.textContent = ok ? "Link copied" : "Copy failed";
+    copyBtn.textContent = ok ? "Copied" : "Copy failed";
     clearTimeout(copyTimer);
-    copyTimer = setTimeout(() => { copyStatus.textContent = ""; }, 2500);
+    copyTimer = setTimeout(() => { copyStatus.textContent = ""; copyBtn.textContent = "Copy link"; }, 2500);
   });
 
   // ---- presentation mode -----------------------------------------------------------------
@@ -424,25 +427,36 @@ async function main() {
       rootStyle.removeProperty("--reserve");
       rootStyle.removeProperty("--range-min");
       $("#views").style.marginTop = "";
+      $(".win-note").style.marginTop = "";
       delete bs.fit;
+      delete bs.tight;
       return;
     }
-    const target = state.mode === "w" ? $("#windows") : state.mode === "c" ? $("#compare") : $("#key-tiles");
+    // In 9 Windows the attribution note is a footnote: the block that must fit ends at the Fly all nine button.
+    const target = state.mode === "w" ? $(".win-actions") : state.mode === "c" ? $("#compare") : $("#key-tiles");
+    const cardPad = state.mode === "w" ? parseFloat(getComputedStyle($("#windows")).paddingBottom) || 0 : 0;
     const cs = getComputedStyle(document.documentElement);
     const rem = parseFloat(cs.fontSize) || 16;
     const drawerH = parseFloat(cs.getPropertyValue("--drawer-h")) || 0;
     const barH = parseFloat(getComputedStyle(document.body).paddingBottom) || 0; // drawer and the safe area
+    const phone = window.innerWidth < 560;
     // The range never gets flatter than about 2.4 to 1: the picture's crop stops working past that.
-    const minRange = Math.max((window.innerWidth < 560 ? 14 : 16) * rem, rangeRoot.getBoundingClientRect().width / MAX_RANGE_ASPECT);
+    const aspectFloor = rangeRoot.getBoundingClientRect().width / MAX_RANGE_ASPECT;
+    // Full detail keeps a 14 rem range on a phone (16 rem wider). Trimmed, a phone may go down to 11 rem.
+    const floors = { 0: Math.max((phone ? 14 : 16) * rem, aspectFloor), 1: Math.max((phone ? 11 : 16) * rem, aspectFloor), 2: Math.max(9 * rem, aspectFloor) };
     const pad = 16;
     let reserve = null;
-    for (const level of ["0", "1"]) {
-      bs.fit = level;
+    let minRange = floors[0];
+    // Levels: full, trimmed, and (phones only) trimmed with the range bar and page title out of the way.
+    for (const level of phone ? ["0", "1", "2"] : ["0", "1"]) {
+      bs.fit = level === "0" ? "0" : "1";
+      if (level === "2") bs.tight = "1"; else delete bs.tight;
+      minRange = floors[level];
       const tr = target.getBoundingClientRect(); // forces layout
       if (!tr.height) { reserve = null; break; }
       const rr = rangeRoot.getBoundingClientRect();
       const top = document.documentElement.getBoundingClientRect().top; // -scrollY, read in the same layout
-      const fixed = tr.bottom - top - rr.height; // everything above the range plus everything under it
+      const fixed = tr.bottom + cardPad - top - rr.height; // everything above the range plus everything under it
       reserve = fixed + pad + (barH - drawerH);
       if (window.innerHeight - drawerH - reserve >= minRange) break;
     }
@@ -452,12 +466,18 @@ async function main() {
     };
     setVar("--reserve", reserve);
     setVar("--range-min", reserve === null ? null : minRange);
-    // The layout ends cleanly at the fold: if the next section would show only its top edge above
+    // The layout ends at the fold: if the next section would show only its top edge above
     // the fixed bar, it starts below the fold instead. A section that shows more than a sliver stays put.
     const next = $("#views");
     next.style.marginTop = "0px";
     const visible = window.innerHeight - barH - (next.getBoundingClientRect().top);
     next.style.marginTop = visible > 0 && visible < 110 ? Math.ceil(visible + 8) + "px" : "";
+    // The 9 Windows footnote never shows half a line above the bar: if it would be cut, it starts below the fold.
+    const note = $(".win-note");
+    note.style.marginTop = "";
+    const nr = note.getBoundingClientRect();
+    const fold = window.innerHeight - barH;
+    if (state.mode === "w" && nr.height && nr.top < fold && nr.bottom > fold) note.style.marginTop = Math.ceil((parseFloat(getComputedStyle(note).marginTop) || 0) + fold - nr.top + 8) + "px";
   }
   // Debounced: a slider drag can change a tile's wrapping on every step, and the fit only needs to settle when it stops.
   let fitTimer = 0;
