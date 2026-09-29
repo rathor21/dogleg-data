@@ -211,10 +211,7 @@ def test_ideals_json(built):
     assert tot["club_speed_mph"] == d["trackman_carry_2010"]["club_speed_mph"] and tot["attack_deg"] == [-5, 0, 5]
     assert tot["dyn_loft_deg"][8][1] == 9.5 and tot["total_yd"][8][1] == 325  # 115 mph, AoA 0
     assert d["trackman_carry_2010"]["dyn_loft_deg"][8][1] == 11.6
-    ex = i["known_exceptions"]  # the three ideal drivers launch a little under their band
-    assert [(e["club"], e["player"], e["metric"]) for e in ex] == [
-        ("driver", "pga", "launch_deg"), ("driver", "lpga", "launch_deg"), ("driver", "amateur", "launch_deg")]
-    assert all(e["value"] < e["lo"] for e in ex)
+    assert i["known_exceptions"] == []  # every ideal delivery sits inside every band
 
 
 def test_camera_json_copies_the_art_files(built):

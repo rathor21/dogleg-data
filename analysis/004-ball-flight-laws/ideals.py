@@ -34,22 +34,22 @@ preset club speed. Launch and spin come from the two optimizer sources at the
 current club speed and attack angle. Bands default to the ideal attack angle
 (+5), not the Tour average, so the optimizer lookups match the ideal delivery.
     TrackMan Carry Optimizer (2010), club speed 75 to 120 by attack angle -5, 0, +5.
+    TrackMan Total Optimizer (2010), same axes.
     PING Optimal Launch & Spin (2019), ball speed 80 to 180 by attack angle -10 to +10.
 Bilinear interpolation, clamped to each table's range. PING is read at the
 ideal delivery's ball speed at the current club speed. The band runs from the
-lower of the two sources minus a margin to the higher plus a margin (1 deg
-launch, 200 rpm spin, MODELED). The sources disagree by 0.7 to 3.3 deg of
-launch (Anchor 4), and `detail` carries both values.
+lowest of the three sources minus a margin to the highest plus a margin (1 deg
+launch, 200 rpm spin, MODELED), and the target is their mean. The ideal driver's
+loft sits between the carry and total optimizers, so the total chart is a source
+too: without it the ideal launched 0.3 to 0.6 deg under the band. `detail`
+carries all three values.
 
 Known exceptions, kept on record (see exceptions()): the metrics where the
 model's ideal delivery falls outside its own band. exceptions() runs the ideal
 delivery of every club and player against its bands at the preset club speed.
-For clubs other than the driver that is the preset (a Tour or amateur average)
-and nothing misses. The driver's ideal loft sits between the carry and total
-optimizers, and the total chart wants a lower launch, so the ideal driver
-launches 0.3 to 0.6 deg below the lower edge of a launch band that spans the
-carry optimizer and PING. The three misses stay on record, and the tile shows
-them. Spin sits inside its band for all three players.
+None today: for clubs other than the driver the ideal is the preset, and the
+driver's ideal (balanced loft between the carry and total optimizers) sits
+inside a launch and spin band that spans both TrackMan charts and PING.
 
 club_speed scales ball speed, carry and total (and moves the driver's optimizer
 lookups and dynamic loft band). attack moves only the driver's optimizer lookups
@@ -61,7 +61,7 @@ from math import isfinite
 import data
 import flight
 import presets
-from chart import _PING_AOAS, _PING_SPEEDS, _TRACKMAN, _TRACKMAN_AOAS, _TRACKMAN_SPEEDS, _TRACKMAN_TOTAL, optimal_loft, ping_2019, trackman_carry_2010  # noqa: F401
+from chart import _PING_AOAS, _PING_SPEEDS, _TRACKMAN, _TRACKMAN_AOAS, _TRACKMAN_SPEEDS, _TRACKMAN_TOTAL, optimal_loft, ping_2019, trackman_carry_2010, trackman_total_2010  # noqa: F401
 
 METRICS = (
     "club_speed", "attack_deg", "club_path_deg", "face_deg", "face_to_path_deg", "dyn_loft_deg", "spin_loft_deg",
@@ -170,24 +170,27 @@ def ideal_bands(club, player, club_speed=None, attack=None):
 
     if driver:
         tm_launch, tm_spin = trackman_carry_2010(speed, aoa)
+        tt_launch, tt_spin = trackman_total_2010(speed, aoa)
         pg_launch, pg_spin = ping_2019(ln_s.ball_speed_mph, aoa)
         ml, mr = _TOL["driver_launch_margin_deg"], _TOL["driver_spin_margin_rpm"]
-        lo_l, hi_l = min(tm_launch, pg_launch) - ml, max(tm_launch, pg_launch) + ml
-        lo_s, hi_s = min(tm_spin, pg_spin) - mr, max(tm_spin, pg_spin) + mr
+        launches, spins = (tm_launch, tt_launch, pg_launch), (tm_spin, tt_spin, pg_spin)
         detail = {
             "trackman_carry_2010": {"launch_deg": tm_launch, "spin_rpm": tm_spin},
+            "trackman_total_2010": {"launch_deg": tt_launch, "spin_rpm": tt_spin},
             "ping_2019": {"launch_deg": pg_launch, "spin_rpm": pg_spin},
             "inputs": {"club_speed_mph": speed, "ball_speed_mph": ln_s.ball_speed_mph, "attack_deg": aoa},
         }
         b["launch_deg"] = _band(
-            lo_l, hi_l, 0.5 * (tm_launch + pg_launch),
-            f"TrackMan Carry Optimizer 2010 {tm_launch:.1f} deg, PING 2019 {pg_launch:.1f} deg; "
-            f"band is the lower minus {ml:g} to the higher plus {ml:g} deg (MODELED margin)")
+            min(launches) - ml, max(launches) + ml, sum(launches) / 3.0,
+            f"TrackMan Carry Optimizer 2010 {tm_launch:.1f} deg, TrackMan Total Optimizer 2010 {tt_launch:.1f} deg, "
+            f"PING 2019 {pg_launch:.1f} deg; band is the lowest minus {ml:g} to the highest plus {ml:g} deg "
+            f"(MODELED margin)")
         b["launch_deg"]["detail"] = detail
         b["spin_rpm"] = _band(
-            lo_s, hi_s, 0.5 * (tm_spin + pg_spin),
-            f"TrackMan Carry Optimizer 2010 {tm_spin:.0f} rpm, PING 2019 {pg_spin:.0f} rpm; "
-            f"band is the lower minus {mr:g} to the higher plus {mr:g} rpm (MODELED margin)")
+            min(spins) - mr, max(spins) + mr, sum(spins) / 3.0,
+            f"TrackMan Carry Optimizer 2010 {tm_spin:.0f} rpm, TrackMan Total Optimizer 2010 {tt_spin:.0f} rpm, "
+            f"PING 2019 {pg_spin:.0f} rpm; band is the lowest minus {mr:g} to the highest plus {mr:g} rpm "
+            f"(MODELED margin)")
         b["spin_rpm"]["detail"] = detail
     for metric, value in pub.items():
         b[metric]["published"] = value

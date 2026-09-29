@@ -36,8 +36,8 @@
  *   chart.py     optimal_loft()         -> model.optimalLoft   (dynamic loft midway between the TrackMan 2010
  *                                          CARRY and TOTAL optimizer grids)
  *   ideals.py    ideal_bands()          -> model.idealBands
- *                _bracket, _bilinear, trackman_carry_2010, ping_2019
- *                                       -> bracket, bilinear, trackmanCarry2010, ping2019
+ *                _bracket, _bilinear, trackman_carry_2010, trackman_total_2010, ping_2019
+ *                                       -> bracket, bilinear, trackmanCarry2010, trackmanTotal2010, ping2019
  *   (new)        clampToDomain, shot, metricValue, METRIC_FIELDS, loadModel, createModel
  *
  * Field name mapping (Python snake_case -> JS camelCase)
@@ -942,6 +942,11 @@ export function createModel(json) {
     return bilinear(TM.club_speed_mph, TM.attack_deg, [TM.launch_deg, TM.spin_rpm], clubSpeed, attack);
   }
 
+  /** ideals.trackman_total_2010: [launch deg, spin rpm] from the TrackMan 2010 TOTAL Optimizer. */
+  function trackmanTotal2010(clubSpeed, attack) {
+    return bilinear(TT.club_speed_mph, TT.attack_deg, [TT.launch_deg, TT.spin_rpm], clubSpeed, attack);
+  }
+
   /** ideals.ping_2019: [launch deg, spin rpm] from the PING 2019 Optimal Launch & Spin chart. */
   function ping2019(ballSpeed, attack) {
     return bilinear(PG.ball_speed_mph, PG.attack_deg, [PG.launch_deg, PG.spin_rpm], ballSpeed, attack);
@@ -1049,19 +1054,23 @@ export function createModel(json) {
 
     if (driver) {
       const [tmLaunch, tmSpin] = trackmanCarry2010(speed, aoa);
+      const [ttLaunch, ttSpin] = trackmanTotal2010(speed, aoa);
       const [pgLaunch, pgSpin] = ping2019(lnS.ballSpeedMph, aoa);
       const ml = TOL.driver_launch_margin_deg;
       const mr = TOL.driver_spin_margin_rpm;
+      const launches = [tmLaunch, ttLaunch, pgLaunch];
+      const spins = [tmSpin, ttSpin, pgSpin];
       // Each band gets its own detail object.
       const detail = () => ({
         trackman_carry_2010: { launch_deg: tmLaunch, spin_rpm: tmSpin },
+        trackman_total_2010: { launch_deg: ttLaunch, spin_rpm: ttSpin },
         ping_2019: { launch_deg: pgLaunch, spin_rpm: pgSpin },
         inputs: { club_speed_mph: speed, ball_speed_mph: lnS.ballSpeedMph, attack_deg: aoa },
       });
-      put("launch_deg", Math.min(tmLaunch, pgLaunch) - ml, Math.max(tmLaunch, pgLaunch) + ml,
-        0.5 * (tmLaunch + pgLaunch)).detail = detail();
-      put("spin_rpm", Math.min(tmSpin, pgSpin) - mr, Math.max(tmSpin, pgSpin) + mr,
-        0.5 * (tmSpin + pgSpin)).detail = detail();
+      put("launch_deg", Math.min(...launches) - ml, Math.max(...launches) + ml,
+        (launches[0] + launches[1] + launches[2]) / 3.0).detail = detail();
+      put("spin_rpm", Math.min(...spins) - mr, Math.max(...spins) + mr,
+        (spins[0] + spins[1] + spins[2]) / 3.0).detail = detail();
     }
     return b;
   }
@@ -1082,6 +1091,7 @@ export function createModel(json) {
     optimalLoft,
     idealBands,
     trackmanCarry2010,
+    trackmanTotal2010,
     ping2019,
     // Convenience
     shot,

@@ -147,13 +147,13 @@ Window: `player`, `club`, `height`, `shape`, `modeled`, `height_lever_deg` (h:
 | `tolerances` | The half-widths and fractions the bands use (`data.IDEAL_TOL`), for example `spin_frac`, `carry_frac`, `driver_launch_margin_deg`. |
 | `sources` | `source_id` to text. The id is the metric name, plus `attack_deg_driver`, `dyn_loft_deg_driver`, `launch_deg_driver` and `spin_rpm_driver`. |
 | `bands` | `bands[player][club][metric]`, see below. |
-| `known_exceptions` | List of `{club, player, metric, value, lo, hi, note}`: the model's ideal preset falls outside its own band the three drivers' launch (`launch_deg`): the ideal driver launches 0.3 to 0.6 deg under its band, because the band spans the carry optimizer and PING and the ideal loft sits between the carry and total optimizers. |
+| `known_exceptions` | List of `{club, player, metric, value, lo, hi, note}`: the model's ideal delivery falls outside its own band. Empty today: every club's ideal delivery sits inside all of its bands. |
 | `scaling` | Text rules for the bands that move with club speed. |
 | `driver` | `rule`, `attack_rule`, `default_attack_deg` (5), `launch_margin_deg`, `spin_margin_rpm`, `trackman_carry_2010`, `trackman_total_2010`, `ping_2019` (the grids below). |
 
 Band: `lo`, `hi` (either may be `null`, open), `target`, `modeled` (bool),
 `source_id`, `published` (only where a table value exists), `detail` (driver
-`launch_deg` and `spin_rpm` only: `trackman_carry_2010` and `ping_2019`, each
+`launch_deg` and `spin_rpm` only: `trackman_carry_2010`, `trackman_total_2010` and `ping_2019`, each
 `{launch_deg, spin_rpm}`, and `inputs` `{club_speed_mph, ball_speed_mph,
 attack_deg}`).
 
@@ -171,9 +171,10 @@ attack angle `a`:
 - Driver `attack_deg`: `lo` `driver_ideal.attack_lo_deg`, `hi` `attack_hi_deg`,
   `target` `attack_deg`, fixed. Driver `dyn_loft_deg`: target `optimal_loft(v,
   a).dyn_loft_deg`, half-width `dyn_loft_half_deg`.
-- Driver `launch_deg` and `spin_rpm`: read both grids (below) at the current
-  club speed, ball speed and attack angle, then `lo = min(sources) - margin`,
-  `hi = max(sources) + margin`, `target` the mean of the two.
+- Driver `launch_deg` and `spin_rpm`: read the three grids (below) at the current
+  club speed, ball speed and attack angle (`trackman_carry_2010` and
+  `trackman_total_2010` at club speed, `ping_2019` at ball speed), then `lo =
+  min(sources) - margin`, `hi = max(sources) + margin`, `target` the mean of the three.
 - Every other band keeps its value at the preset club speed.
 
 `optimal_loft(club_speed, attack)`: the mean of two lofts, `carry_loft` from the
@@ -191,8 +192,8 @@ ascending, and value tables indexed `[row index][attack index]`:
 - `trackman_carry_2010` (the CARRY optimizer) and `trackman_total_2010` (the
   TOTAL optimizer): rows `club_speed_mph` (75 to 120, 10 entries), columns
   `attack_deg` (-5, 0, 5). Tables `ball_speed_mph`, `launch_deg`, `spin_rpm`,
-  `carry_yd`, `total_yd`, `dyn_loft_deg`, each 10 by 3. The total grid feeds
-  `optimal_loft` only, the launch and spin bands read the carry grid.
+  `carry_yd`, `total_yd`, `dyn_loft_deg`, each 10 by 3. Both TrackMan grids feed
+  `optimal_loft` and the launch and spin bands.
 - `ping_2019`: rows `ball_speed_mph` (80 to 180, 11 entries), columns
   `attack_deg` (-10 to 10 step 2, 11 entries). Tables `launch_deg` and
   `spin_rpm`, each 11 by 11.

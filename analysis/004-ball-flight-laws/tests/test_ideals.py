@@ -15,15 +15,10 @@ import presets
 CASES = [(c, p) for p in presets.PLAYERS for c in presets.CLUBS]
 
 # Metrics where the model's own ideal delivery falls outside its band. Recorded,
-# not fudged. Strict: an entry that starts passing, or a new miss, fails. The
-# driver's ideal loft sits between the carry and total optimizers, and the total
-# chart wants a lower launch, so the ideal driver launches 0.3 to 0.6 deg under a
-# band built from the carry optimizer and PING.
-KNOWN_EXCEPTIONS = {
-    ("driver", "pga", "launch_deg"),  # 11.67 against 12.00 to 15.53
-    ("driver", "lpga", "launch_deg"),  # 14.00 against 14.54 to 17.27
-    ("driver", "amateur", "launch_deg"),  # 14.28 against 14.84 to 17.50
-}
+# not fudged. Strict: an entry that starts passing, or a new miss, fails. Empty:
+# the driver's launch and spin bands span the TrackMan carry chart, the TrackMan
+# total chart and PING, so the balanced-loft ideal driver sits inside them.
+KNOWN_EXCEPTIONS = set()
 
 
 def _metrics(club, player):
@@ -58,8 +53,6 @@ def test_every_metric_has_a_band():
 def test_exceptions_helper_matches_the_record():
     found = {(e["club"], e["player"], e["metric"]) for e in ideals.exceptions()}
     assert found == KNOWN_EXCEPTIONS
-    for e in ideals.exceptions():
-        assert 0.2 < e["lo"] - e["value"] < 0.7 and e["hi"] > e["lo"]  # under the band by 0.3 to 0.6 deg
 
 
 def test_ideal_preset_sits_inside_its_own_bands():
@@ -147,6 +140,9 @@ def test_explicit_preset_speed_and_attack_match_the_defaults():
 def test_trackman_grid_points_read_back_exactly():
     for row in data.TRACKMAN_CARRY_2010:
         assert ideals.trackman_carry_2010(row[0], row[1]) == pytest.approx((row[3], row[4]))
+    for row in data.TRACKMAN_TOTAL_2010:
+        assert ideals.trackman_total_2010(row[0], row[1]) == pytest.approx((row[3], row[4]))
+    assert ideals.trackman_total_2010(115, 5) == pytest.approx((10.7, 1681))
     assert ideals.trackman_carry_2010(115, 0) == pytest.approx((9.8, 2919))
 
 
@@ -167,15 +163,16 @@ def test_optimizer_lookups_interpolate_and_clamp():
     assert ideals.ping_2019(10, -50) == ideals.ping_2019(80, -10)
 
 
-def test_driver_bands_span_both_sources_with_the_margin():
+def test_driver_bands_span_all_three_sources_with_the_margin():
     for player in presets.PLAYERS:
         b = ideals.ideal_bands("driver", player)
         d = b["launch_deg"]["detail"]
-        tm, pg = d["trackman_carry_2010"], d["ping_2019"]
-        assert b["launch_deg"]["lo"] == pytest.approx(min(tm["launch_deg"], pg["launch_deg"]) - 1.0)
-        assert b["launch_deg"]["hi"] == pytest.approx(max(tm["launch_deg"], pg["launch_deg"]) + 1.0)
-        assert b["spin_rpm"]["lo"] == pytest.approx(min(tm["spin_rpm"], pg["spin_rpm"]) - 200.0)
-        assert b["spin_rpm"]["hi"] == pytest.approx(max(tm["spin_rpm"], pg["spin_rpm"]) + 200.0)
+        srcs = [d["trackman_carry_2010"], d["trackman_total_2010"], d["ping_2019"]]
+        assert b["launch_deg"]["lo"] == pytest.approx(min(s["launch_deg"] for s in srcs) - 1.0)
+        assert b["launch_deg"]["hi"] == pytest.approx(max(s["launch_deg"] for s in srcs) + 1.0)
+        assert b["launch_deg"]["target"] == pytest.approx(sum(s["launch_deg"] for s in srcs) / 3.0)
+        assert b["spin_rpm"]["lo"] == pytest.approx(min(s["spin_rpm"] for s in srcs) - 200.0)
+        assert b["spin_rpm"]["hi"] == pytest.approx(max(s["spin_rpm"] for s in srcs) + 200.0)
         assert "TrackMan" in b["launch_deg"]["source"] and "PING" in b["launch_deg"]["source"]
 
 
@@ -191,15 +188,25 @@ def test_driver_bands_follow_speed_and_attack():
     assert slow["launch_deg"]["target"] > base["launch_deg"]["target"]  # slower swings want more launch
 
 
-def test_driver_ideal_against_the_optimizer_bands():
-    """The ideal driver (balanced chart loft, trim 1) spins inside both optimizer
-    bands and launches 0.3 to 0.6 deg under the launch band, the known exceptions."""
+def test_driver_ideal_sits_inside_the_launch_and_spin_bands():
+    """The ideal driver (balanced chart loft, trim 1) launches and spins inside the
+    three-source bands for every player."""
     for player in presets.PLAYERS:
         b = ideals.ideal_bands("driver", player)
         m = _metrics("driver", player)
         assert _inside(b["spin_rpm"], m["spin_rpm"]), player
-        assert not _inside(b["launch_deg"], m["launch_deg"]), player
-        assert 0.2 < b["launch_deg"]["lo"] - m["launch_deg"] < 0.7, player
+        assert _inside(b["launch_deg"], m["launch_deg"]), player
+
+
+def test_driver_bands_list_all_three_sources():
+    b = ideals.ideal_bands("driver", "pga")
+    for metric in ("launch_deg", "spin_rpm"):
+        assert set(b[metric]["detail"]) == {"trackman_carry_2010", "trackman_total_2010", "ping_2019", "inputs"}
+        assert "Total Optimizer" in b[metric]["source"] and "Carry Optimizer" in b[metric]["source"]
+        assert "PING" in b[metric]["source"]
+    d = b["launch_deg"]["detail"]
+    assert d["trackman_total_2010"]["launch_deg"] < d["trackman_carry_2010"]["launch_deg"]  # the total chart launches lower
+    assert d["trackman_total_2010"]["spin_rpm"] < d["trackman_carry_2010"]["spin_rpm"]
 
 
 def test_nan_and_out_of_range_attack_raise():

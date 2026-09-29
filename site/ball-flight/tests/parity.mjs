@@ -378,7 +378,7 @@ fixture.points.forEach((pt, i) => {
     exact("ideal bands (fixture)", `${label}.${metric}.modeled`, g.modeled, w.modeled);
     exact("ideal bands (fixture)", `${label}.${metric}.published`, g.published, w.published);
     if (w.detail) {
-      for (const src of ["trackman_carry_2010", "ping_2019"]) {
+      for (const src of ["trackman_carry_2010", "trackman_total_2010", "ping_2019"]) {
         for (const k of ["launch_deg", "spin_rpm"]) {
           near("ideal bands (fixture)", `${label}.${metric}.detail.${src}.${k}`, g.detail[src][k], w.detail[src][k], 1e-4, true);
         }

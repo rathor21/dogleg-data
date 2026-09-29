@@ -5,7 +5,7 @@ to each table's range. Shared by ideals.py (driver launch and spin bands) and
 presets.py (the driver's ideal delivery). Ported to flight.js as bracket,
 bilinear, trackmanCarry2010, ping2019 and optimalLoft.
 
-    TrackMan Carry Optimizer (2010), club speed 75 to 120 by attack angle -5, 0, +5.
+    TrackMan Carry Optimizer and Total Optimizer (2010), club speed 75 to 120 by attack angle -5, 0, +5.
     PING Optimal Launch & Spin (2019), ball speed 80 to 180 by attack angle -10 to +10.
 
 optimal_loft is the mean of the dynamic loft columns of the TrackMan 2010 carry
@@ -52,12 +52,21 @@ def bilinear(row_grid, col_grid, cell, row, col):
     return out[0], out[1]
 
 
-def trackman_carry_2010(club_speed_mph, attack_deg):
-    """(launch deg, spin rpm) from the TrackMan 2010 CARRY Optimizer."""
+def _trackman_lookup(table, club_speed_mph, attack_deg):
     def cell(i, j):
-        r = _TRACKMAN[(_TRACKMAN_SPEEDS[i], _TRACKMAN_AOAS[j])]
+        r = table[(_TRACKMAN_SPEEDS[i], _TRACKMAN_AOAS[j])]
         return r[3], r[4]
     return bilinear(_TRACKMAN_SPEEDS, _TRACKMAN_AOAS, cell, club_speed_mph, attack_deg)
+
+
+def trackman_carry_2010(club_speed_mph, attack_deg):
+    """(launch deg, spin rpm) from the TrackMan 2010 CARRY Optimizer."""
+    return _trackman_lookup(_TRACKMAN, club_speed_mph, attack_deg)
+
+
+def trackman_total_2010(club_speed_mph, attack_deg):
+    """(launch deg, spin rpm) from the TrackMan 2010 TOTAL Optimizer."""
+    return _trackman_lookup(_TRACKMAN_TOTAL, club_speed_mph, attack_deg)
 
 
 def ping_2019(ball_speed_mph, attack_deg):
