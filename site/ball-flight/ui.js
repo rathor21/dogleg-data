@@ -175,12 +175,18 @@ async function main() {
     }, 150);
   }
 
+  // The ideals.json known_exceptions entry for this club, player and metric, if any.
+  const exceptions = (model.data.ideals && model.data.ideals.known_exceptions) || [];
+  function exceptionFor(metric) {
+    return exceptions.find((e) => e.club === state.club && e.player === state.player && e.metric === metric) || null;
+  }
+
   function render() {
     current = store.compute();
     Object.assign(state, current.norm); // keep what clampToDomain settled on
     controls.render();
     sliders.render(current, state.hand);
-    for (const t of tiles) t.update(current.values[t.metric], current.bands[t.metric], state.hand);
+    for (const t of tiles) t.update(current.values[t.metric], current.bands[t.metric], state.hand, exceptionFor(t.metric));
     renderLabel(current);
     renderMode();
     if (state.mode === "w") windows.render();

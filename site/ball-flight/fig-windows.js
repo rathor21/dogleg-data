@@ -15,7 +15,7 @@ export function drawWindows(fig, model) {
       const d = n.delivery, s = n.shot;
       return [n.label, sgn(d.path, 1), sgn(d.face, 1), sgn(d.face - d.path, 1), sgn(d.attack, 1), d.dynLoft.toFixed(1), s.launch.launchDeg.toFixed(1), grp(s.launch.spinRpm), s.flight.carry.toFixed(0), s.flight.maxHeight.toFixed(0), sgn(s.flight.curve, 1), s.classification.name];
     }),
-    "Tour 7-iron at 92 mph, PGA Tour preset. Dogleg Data model output, not measured numbers and not Tiger Woods's.");
+    "Tour 7-iron at 92 mph, PGA Tour preset. Dogleg Data model output. Tiger Woods did not publish these numbers.");
 
   // Geometry in yards, drawn in a fixed 200 by 216 box and scaled by CSS.
   const XMAX = 200, SIDE_H = 100, VS = 2, LS = 5, LAT = 8;

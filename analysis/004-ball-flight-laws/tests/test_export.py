@@ -193,7 +193,10 @@ def test_camera_json_copies_the_art_files(built):
     c = json.loads(built["camera.json"])
     for key, name in (("wide", "art_camera_final.json"), ("mobile", "art_camera_final_mobile.json")):
         with open(os.path.join(export.HERE, "art", name), encoding="utf-8") as fh:
-            assert c[key] == json.load(fh)
+            src = json.load(fh)
+        published = c[key].pop("published_image")
+        assert c[key] == src
+        assert published == dict(export.IMAGE_COPIES)[src["image"]]
 
 
 # ---------------------------------------------------------------------------

@@ -170,7 +170,9 @@ axis range first, so values off the grid read the edge.
 ## camera.json
 
 `wide` and `mobile`, each a verbatim copy of `art/art_camera_final.json` and
-`art/art_camera_final_mobile.json`: `image`, `width`, `height`, `params`,
+`art/art_camera_final_mobile.json` plus one added field, `published_image` (the
+file name under `assets/img/`: `004_range.jpg`, `004_range_mobile.jpg`). The
+copied fields are `image` (the source art name), `width`, `height`, `params`,
 `formula`, `fit`, `tree_base_row`, `ground_row_by_yd`, `px_per_yd_by_yd`,
 `greens`, `flights`, `checks`, `per_group_views_needed`, `views`, `view_note`,
 `assumptions`. The art files use their own field names (`apex_yd`, `lateral_yd`)

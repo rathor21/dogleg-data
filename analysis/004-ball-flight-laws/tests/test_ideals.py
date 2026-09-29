@@ -90,8 +90,8 @@ def test_non_driver_bands_follow_the_stated_widths():
 
 def test_sourced_and_modeled_flags():
     b = ideals.ideal_bands("7i", "pga")
-    assert b["launch_dir_deg"]["modeled"] is False and "Anchor 5a" in b["launch_dir_deg"]["source"]
-    assert b["spin_axis_deg"]["modeled"] is False and "Anchor 5b" in b["spin_axis_deg"]["source"]
+    assert b["launch_dir_deg"]["modeled"] is False and "What is Launch Direction?" in b["launch_dir_deg"]["source"]
+    assert b["spin_axis_deg"]["modeled"] is False and "What is Spin Axis?" in b["spin_axis_deg"]["source"]
     assert all(band["modeled"] for m, band in b.items() if m not in ("launch_dir_deg", "spin_axis_deg"))
 
 

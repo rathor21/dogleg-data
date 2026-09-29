@@ -164,10 +164,10 @@ def ideal_bands(club, player, club_speed=None, attack=None):
     b["smash"] = _band(ln0.smash - _TOL["smash_below"], None, ln0.smash, tour_src + ", at least preset minus 0.03")
     b["launch_deg"] = _around(ln0.launch_deg, _TOL["launch_deg"], tour_src + " +-1.5 deg")
     b["launch_dir_deg"] = _around(0.0, _TOL["launch_dir_deg"],
-                                  "TrackMan: keep launch direction within +-2 deg (Anchor 5a)", modeled=False)
+                                  "TrackMan, What is Launch Direction? (keep within ±2 degrees)", modeled=False)
     b["spin_rpm"] = _around(ln0.spin_rpm, _TOL["spin_frac"] * ln0.spin_rpm, tour_src + " +-10 percent")
     b["spin_axis_deg"] = _around(0.0, _TOL["spin_axis_deg"],
-                                 "TrackMan: spin axis between -2 and 2 counts as straight (Anchor 5b)", modeled=False)
+                                 "TrackMan, What is Spin Axis? (-2 to 2 counts as straight)", modeled=False)
     b["max_height_yd"] = _around(f0.max_height_yd, _TOL["max_height_yd"], tour_src + " +-3 yd")
     b["land_angle_deg"] = _band(f0.land_angle_deg - _TOL["land_angle_below_deg"], None, f0.land_angle_deg,
                                 tour_src + ", at least preset minus 3 deg")

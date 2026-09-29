@@ -163,7 +163,7 @@ export function humanize(text, hasDetail) {
 }
 
 /** The text behind a tile's i button: band, source, and for driver launch and spin the live source values. */
-export function sourceText(metric, band) {
+export function sourceText(metric, band, exception) {
   const m = METRICS[metric];
   let text = `Ideal band, ${idealText(m, band).replace(/^ideal /, "")}. ${humanize(band.source, !!band.detail)}`;
   if (band.detail && band.detail.trackman_carry_2010 && band.detail.ping_2019) {
@@ -174,12 +174,13 @@ export function sourceText(metric, band) {
       + ` (${Math.round(i.club_speed_mph)} mph club speed, ${i.ball_speed_mph.toFixed(1)} mph ball speed, ${fmt(i.attack_deg, 1, true)}${DEG} attack).`;
   }
   if (band.modeled && !/modeled/i.test(text)) text += " This band is modeled.";
+  if (exception && exception.note) text += " " + exception.note;
   return text;
 }
 
 /**
  * Build one tile. prefix keeps element ids unique when the same metric shows
- * twice on the page. Returns {el, metric, update(entry, band, hand)}.
+ * twice on the page. Returns {el, metric, update(entry, band, hand, exception)}.
  */
 export function createTile(metric, prefix, extraClass) {
   const m = METRICS[metric];
@@ -221,7 +222,7 @@ export function createTile(metric, prefix, extraClass) {
   return {
     el,
     metric,
-    update(entry, rawBand, hand) {
+    update(entry, rawBand, hand, exception) {
       const value = entry.disp;
       vEl.textContent = fmt(value, m.dec, m.signed, m.grouped);
       wordEl.textContent = m.words ? m.words(entry.rh, entry.disp) : "";
@@ -232,7 +233,7 @@ export function createTile(metric, prefix, extraClass) {
         capEl.hidden = true;
         badge.hidden = false;
         el.setAttribute("aria-label", `${m.label} ${vEl.textContent} ${m.unit}, modeled`);
-        srcEl.textContent = "Total is the carry plus a roll that the Dogleg Data model estimates from the landing angle and speed. It is modeled, not a published number.";
+        srcEl.textContent = "Total is the carry plus a roll that the Dogleg Data model estimates from the landing angle and speed. It is a modeled number.";
         info.title = srcEl.textContent;
         return;
       }
@@ -248,7 +249,7 @@ export function createTile(metric, prefix, extraClass) {
       statusEl.textContent = (st === "in" ? "✓ " : st === "above" ? "▲ " : "▼ ") + statusText;
       idealEl.textContent = idealText(m, band);
       badge.hidden = !band.modeled;
-      srcEl.textContent = sourceText(metric, band);
+      srcEl.textContent = sourceText(metric, band, exception);
       info.title = srcEl.textContent;
       // Screen readers get the value and the status together.
       el.setAttribute("aria-label", `${m.label} ${vEl.textContent} ${m.unit}, ${statusText.toLowerCase()}`);
