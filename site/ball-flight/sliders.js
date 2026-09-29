@@ -165,8 +165,15 @@ export function createSliders({ model, store, containers, hooks }) {
     const chart = store.chartLoft();
     if (state.loftFollows) {
       const off = state.loftOffset;
-      followNote.textContent = `Loft ${fmt(state.dynLoft, 1)}${DEG} now. Chart loft is ${fmt(chart.dynLoft, 1)}${DEG}`
-        + (Math.abs(off) >= 0.05 ? `, and you added ${fmt(off, 1, true)}${DEG}.` : ".");
+      const chartTxt = `Chart loft is ${fmt(chart.dynLoft, 1)}${DEG}`;
+      let tail = ".";
+      if (Math.abs(off) >= 0.05) {
+        // Words the golfer's own change differently from a delivery that simply sits off the chart.
+        tail = state.loftOffsetIsMine
+          ? `, and you added ${fmt(off, 1, true)}${DEG}.`
+          : `; this delivery sits ${fmt(Math.abs(off), 1)}${DEG} ${off > 0 ? "above" : "below"} it.`;
+      }
+      followNote.textContent = `Loft ${fmt(state.dynLoft, 1)}${DEG} now. ${chartTxt}${tail}`;
     } else {
       followNote.textContent = `Loft is fixed at ${fmt(state.dynLoft, 1)}${DEG}.`;
     }

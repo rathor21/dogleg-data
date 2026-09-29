@@ -27,7 +27,7 @@ export function createStore(model) {
   const playerIds = model.players.map((p) => p.id);
   // loftFollows and loftOffset are the driver's "loft follows attack angle" switch and the
   // manual loft the golfer added on top of the chart loft. Other clubs ignore both.
-  const state = { club: "7i", player: "pga", hand: "r", clubSpeed: 0, attack: 0, path: 0, face: 0, dynLoft: 0, spinTrim: 1, mode: "e", window: null, loftFollows: true, loftOffset: 0 };
+  const state = { club: "7i", player: "pga", hand: "r", clubSpeed: 0, attack: 0, path: 0, face: 0, dynLoft: 0, spinTrim: 1, mode: "e", window: null, loftFollows: true, loftOffset: 0, loftOffsetIsMine: false };
   const lastClubInGroup = { ...GROUP_DEFAULT_CLUB };
 
   const groupOf = (club = state.club) => clubById[club].group;
@@ -37,8 +37,11 @@ export function createStore(model) {
   const chartLoft = (st = state) => model.optimalLoft(st.clubSpeed, st.attack);
 
   /** Driver: remember how far the loft sits from the chart loft, so following keeps that offset. */
-  function syncLoftOffset() {
+  function syncLoftOffset(fromSlider = false) {
     state.loftOffset = isDriver() ? round3(state.dynLoft - chartLoft().dynLoft) : 0;
+    // Only an offset the golfer set on the loft slider is "theirs". One that comes from a loaded
+    // average or a link is just how that delivery sits against the chart, and the note says so.
+    state.loftOffsetIsMine = fromSlider && Math.abs(state.loftOffset) >= 0.05;
   }
 
   /** Driver with the switch on: loft is the chart loft for this speed and attack, plus the golfer's own offset. */
@@ -50,7 +53,7 @@ export function createStore(model) {
   /** Call after a slider moves. The loft slider sets the offset. Attack and club speed pull the loft along. */
   function afterSliderChange(key) {
     if (!isDriver()) return;
-    if (key === "dynLoft") syncLoftOffset();
+    if (key === "dynLoft") syncLoftOffset(true);
     else if (key === "attack" || key === "clubSpeed") followLoft();
   }
 
@@ -59,24 +62,20 @@ export function createStore(model) {
     state.loftFollows = !!on;
     if (on) {
       state.loftOffset = 0;
+      state.loftOffsetIsMine = false;
       followLoft();
     }
   }
 
   /**
-   * Load the ideal delivery (model.idealDelivery) at the current club speed. The
-   * driver's ideal hits up, with loft from the chart. Every other club is its
-   * preset. Path and face go to the ideal too, and the loft switch goes back on.
+   * Load the ideal delivery (model.idealDelivery) at the preset club speed, as
+   * "Reset to ideal" always has. The driver's ideal hits up, with loft from the chart.
+   * Every other club is its preset. Path and face go to the ideal too, and the loft
+   * switch goes back on.
    */
   function loadIdeal() {
-    const d = model.idealDelivery(state.club, state.player, state.clubSpeed);
-    state.attack = d.attack;
-    state.dynLoft = d.dynLoft;
-    state.spinTrim = d.spinTrim;
-    state.path = d.path + 0;
-    state.face = d.face + 0;
+    const d = applyBase(false); // idealDelivery(club, player) at the preset club speed, path and face included
     state.loftFollows = true;
-    state.loftOffset = 0;
     return d;
   }
 
@@ -91,6 +90,7 @@ export function createStore(model) {
     state.dynLoft = d.dynLoft;
     state.spinTrim = d.spinTrim;
     state.loftOffset = 0;
+    state.loftOffsetIsMine = false;
     if (!keepLateral) {
       state.path = d.path + 0;
       state.face = d.face + 0;
