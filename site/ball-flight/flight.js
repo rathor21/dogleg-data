@@ -24,8 +24,8 @@
  *                _angle_between()       -> angleBetween
  *                dplane_tilt_deg()      -> dplaneTiltDeg
  *                launch_vector()        -> model.launchVector
- *                k_of, smash_of, spin_class_factor, spin_of, axis_scale
- *                                       -> kOf, smashOf, spinClassFactor, spinOf, axisC
+ *                k_of, smash_of, spin_class_factor, spin_of
+ *                                       -> kOf, smashOf, spinClassFactor, spinOf (axis_scale is LM.axis_c)
  *                swing_path()           -> model.swingPath
  *                _no_negative_zero()    -> noNegZero
  *   classify.py  classify()             -> model.classify (with startOf, shapeOf, nameOf, finishText)
@@ -33,7 +33,7 @@
  *   ideals.py    ideal_bands()          -> model.idealBands
  *                _bracket, _bilinear, trackman_carry_2010, ping_2019
  *                                       -> bracket, bilinear, trackmanCarry2010, ping2019
- *   (new)        clampToDomain, shot, loadModel, createModel
+ *   (new)        clampToDomain, shot, metricValue, METRIC_FIELDS, loadModel, createModel
  *
  * Field name mapping (Python snake_case -> JS camelCase)
  * ------------------------------------------------------
@@ -73,8 +73,21 @@
  * - Errors are ValueError and RuntimeError, both subclasses of Error, carrying
  *   the same argument names and wording as Python.
  *
- * JSON key names are read in the SCHEMA section of createModel and nowhere
- * else, so a schema rename touches one block.
+ * - Band source text is static (ideals.json `sources`, looked up by source_id).
+ *   Python's ideal_bands() embeds the driver's optimizer numbers in the source
+ *   string, here they live in band.detail only.
+ *
+ * Where the JSON keys are read
+ * ----------------------------
+ * The preset row, band metadata and source lookups are mapped in the SCHEMA
+ * block at the top of createModel. model.json constants are read into named
+ * constants right below it. createModel checks every key it needs up front and
+ * throws a ValueError naming the first one that is missing, so a schema rename
+ * fails at load and not in the middle of a shot.
+ *
+ * Copies: shot() copies the delivery, preset() deep-copies atPreset, every
+ * driver band gets its own detail object and model.domain is a frozen deep
+ * copy, so a caller that edits a result cannot change the model.
  */
 
 // ---------------------------------------------------------------------------
@@ -119,6 +132,76 @@ function pyG(v) {
 }
 
 const noNegZero = (x) => x + 0.0; // -0 + 0 is +0
+
+const clone = (o) => JSON.parse(JSON.stringify(o)); // the model data is plain JSON
+
+function deepFreeze(o) {
+  if (o !== null && typeof o === "object" && !Object.isFrozen(o)) {
+    Object.freeze(o);
+    for (const v of Object.values(o)) deepFreeze(v);
+  }
+  return o;
+}
+
+/**
+ * Metric name to the path of its value in a shot() result. Covers every name in
+ * ideals.json `metrics` plus the other flight fields and spin_trim. Frozen.
+ */
+export const METRIC_FIELDS = deepFreeze({
+  club_speed_mph: ["delivery", "clubSpeed"],
+  attack_deg: ["delivery", "attack"],
+  path_deg: ["delivery", "path"],
+  face_deg: ["delivery", "face"],
+  dyn_loft_deg: ["delivery", "dynLoft"],
+  spin_trim: ["delivery", "spinTrim"],
+  face_to_path_deg: ["launch", "faceToPathDeg"],
+  spin_loft_deg: ["launch", "spinLoftDeg"],
+  ball_speed_mph: ["launch", "ballSpeedMph"],
+  smash: ["launch", "smash"],
+  launch_deg: ["launch", "launchDeg"],
+  launch_dir_deg: ["launch", "launchDirDeg"],
+  spin_rpm: ["launch", "spinRpm"],
+  spin_axis_deg: ["launch", "spinAxisDeg"],
+  max_height_yd: ["flight", "maxHeight"],
+  apex_x_yd: ["flight", "apexX"],
+  land_angle_deg: ["flight", "landAngle"],
+  flight_time_s: ["flight", "flightTime"],
+  land_speed_mph: ["flight", "landSpeed"],
+  carry_yd: ["flight", "carry"],
+  side_yd: ["flight", "side"],
+  curve_yd: ["flight", "curve"],
+  total_yd: ["total"],
+});
+
+/** Throw a ValueError naming the first dotted path that is missing from obj. */
+function requireKeys(obj, paths) {
+  for (const path of paths) {
+    let cur = obj;
+    for (const part of path.split(".")) {
+      if (cur === null || typeof cur !== "object" || cur[part] === undefined) {
+        throw new ValueError(`model data is missing ${path}`);
+      }
+      cur = cur[part];
+    }
+  }
+}
+
+const REQUIRED_KEYS = [
+  ...["units.mph_to_ms", "units.yd_to_m", "units.rpm_to_rads", "units.g", "ball.mass_kg", "ball.diameter_m",
+    "ball.radius_m", "air.density_kg_m3", "air.viscosity_pa_s", "aero.re_pivot", "aero.re_unit",
+    "aero.spin_decay_coef", ...["d0", "d1", "d2", "d3", "l0", "l1", "l2"].map((k) => "aero.quad." + k),
+    "flight.dt", "flight.max_flight_s", "flight.v_floor_ms", "roll.k", "roll.cos_power", "roll.max_yd",
+    ...["k0", "k1", "k_sl_lo", "k_sl_hi", "smash_a", "smash_b", "smash_c", "smash_cap", "smash_floor", "spin_a",
+      "spin_b", "spin_f_driver", "spin_f_wood", "axis_c"].map((k) => "launch_model." + k),
+    "spin_class", ...["club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg", "swing_plane_deg",
+      "min_spin_loft_deg"].map((k) => "domain." + k),
+    ...["start_straight_deg", "axis_straight_deg", "curve_hook_frac", "on_target_frac", "on_line_yd"].map(
+      (k) => "classify." + k),
+    "swing_plane_default_deg"].map((k) => "model." + k),
+  "presets.clubs", "presets.players", "presets.presets",
+  "ideals.tolerances", "ideals.bands", "ideals.sources", "ideals.metrics", "ideals.driver.trackman_carry_2010",
+  "ideals.driver.ping_2019",
+];
 
 function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
@@ -237,6 +320,8 @@ function growScratch() {
  * carried through for the page, the maths never reads them.
  */
 export function createModel(json) {
+  if (json === null || typeof json !== "object") throw new ValueError(`model data must be an object, got ${pyRepr(json)}`);
+  requireKeys(json, REQUIRED_KEYS);
   // ===== SCHEMA: every JSON key the maths reads is named here =====
   const M = json.model;
   const PRE = json.presets;
@@ -256,6 +341,12 @@ export function createModel(json) {
   const CLS = M.classify;
   const ROLL = M.roll;
   const TOL = IDL.tolerances;
+  const FROZEN_DOMAIN = deepFreeze(clone(DOMAIN)); // what model.domain exposes
+  for (const metric of IDL.metrics) {
+    if (!Object.prototype.hasOwnProperty.call(METRIC_FIELDS, metric)) {
+      throw new ValueError(`metric ${pyRepr(metric)} in ideals.json has no entry in METRIC_FIELDS`);
+    }
+  }
   const CLUBS = PRE.clubs.map((c) => c.id);
   const PLAYERS = PRE.players.map((p) => p.id);
   const SWING_PLANE_DEFAULT = M.swing_plane_default_deg;
@@ -282,7 +373,7 @@ export function createModel(json) {
       source: e.source,
       modeled: e.modeled,
       note: e.note,
-      atPreset: e.at_preset,
+      atPreset: clone(e.at_preset),
     };
   }
   const presetRow = (player, club) => PRE.presets[player][club];
@@ -494,8 +585,6 @@ export function createModel(json) {
     return spinClassFactor(club) * LM.spin_a * ballSpeed * Math.pow(Math.max(sl, 0.0), LM.spin_b);
   }
 
-  const axisC = () => LM.axis_c;
-
   function checkRange(name, value, key) {
     if (!isFiniteNumber(value)) throw new ValueError(`${name} must be finite, got ${pyRepr(value)}`);
     const lo = DOMAIN[key][0];
@@ -559,7 +648,7 @@ export function createModel(json) {
     const smash = smashOf(sl);
     const ball = smash * clubSpeed;
     const spin = spinOf(ball, sl, club) * spinTrim;
-    const axis = axisC() * dplaneTiltDeg(d, n);
+    const axis = LM.axis_c * dplaneTiltDeg(d, n);
     return {
       ballSpeedMph: noNegZero(ball),
       smash: noNegZero(smash),
@@ -603,12 +692,14 @@ export function createModel(json) {
     const out = { ...delivery };
     for (const [key, dom] of keys) {
       const v = out[key];
-      if (!isFiniteNumber(v)) throw new ValueError(`${key} must be finite, got ${pyRepr(v)}`);
+      if (!isFiniteNumber(v)) throw new ValueError(`${dom} must be finite, got ${pyRepr(v)}`);
       out[key] = Math.min(Math.max(v, DOMAIN[dom][0]), DOMAIN[dom][1]);
     }
     const floor = DOMAIN.min_spin_loft_deg;
     if (out.dynLoft - out.attack < floor) {
       out.dynLoft = Math.min(out.attack + floor, DOMAIN.dyn_loft_deg[1]);
+      // Unreachable with the shipped domain (attack tops out at 10 and dynamic loft at 65, so
+      // attack + floor always fits). Kept so a refit domain with a tighter loft range stays deliverable.
       if (out.dynLoft - out.attack < floor) out.attack = out.dynLoft - floor;
     }
     return out;
@@ -705,6 +796,9 @@ export function createModel(json) {
    * when the carry is zero or less.
    */
   function shot(delivery, opts) {
+    if (delivery === null || typeof delivery !== "object") {
+      throw new ValueError(`delivery must be an object, got ${pyRepr(delivery)}`);
+    }
     const launch = deliver(
       delivery.clubSpeed, delivery.attack, delivery.path, delivery.face, delivery.dynLoft, delivery.club,
       { spinTrim: delivery.spinTrim === undefined ? 1.0 : delivery.spinTrim }
@@ -715,7 +809,24 @@ export function createModel(json) {
     const classification = flight.carry > 0.0
       ? classify(launch.launchDirDeg, launch.spinAxisDeg, flight.curve, flight.side, flight.carry)
       : null;
-    return { delivery, launch, flight, total, classification };
+    return { delivery: { ...delivery }, launch, flight, total, classification };
+  }
+
+  /**
+   * Value of one metric (any key of METRIC_FIELDS, which covers model.metrics)
+   * in a shot() result, for example metricValue("carry_yd", s) is s.flight.carry.
+   */
+  function metricValue(metric, shotResult) {
+    const path = Object.prototype.hasOwnProperty.call(METRIC_FIELDS, metric) ? METRIC_FIELDS[metric] : undefined;
+    if (path === undefined) {
+      throw new ValueError(`metric must be one of (${Object.keys(METRIC_FIELDS).map((m) => `'${m}'`).join(", ")}), got ${pyRepr(metric)}`);
+    }
+    let cur = shotResult;
+    for (const part of path) {
+      if (cur === null || typeof cur !== "object") throw new ValueError(`shot result has no ${path.join(".")} for metric ${pyRepr(metric)}`);
+      cur = cur[part];
+    }
+    return cur;
   }
 
   // -------------------------------------------------------------------------
@@ -784,10 +895,9 @@ export function createModel(json) {
     const carry = fS.carry;
 
     const b = {};
-    const put = (metric, lo, hi, target, sourceId) => {
+    const put = (metric, lo, hi, target) => {
       const meta = bandMeta(player, club, metric);
-      const id = sourceId === undefined ? meta.source_id : sourceId;
-      const out = { lo, hi, target, source_id: id, source: bandSource(id), modeled: meta.modeled };
+      const out = { lo, hi, target, source_id: meta.source_id, source: bandSource(meta.source_id), modeled: meta.modeled };
       if (meta.published !== undefined) out.published = meta.published;
       b[metric] = out;
       return out;
@@ -818,15 +928,16 @@ export function createModel(json) {
       const [pgLaunch, pgSpin] = ping2019(lnS.ballSpeedMph, aoa);
       const ml = TOL.driver_launch_margin_deg;
       const mr = TOL.driver_spin_margin_rpm;
-      const detail = {
+      // Each band gets its own detail object.
+      const detail = () => ({
         trackman_carry_2010: { launch_deg: tmLaunch, spin_rpm: tmSpin },
         ping_2019: { launch_deg: pgLaunch, spin_rpm: pgSpin },
         inputs: { club_speed_mph: speed, ball_speed_mph: lnS.ballSpeedMph, attack_deg: aoa },
-      };
+      });
       put("launch_deg", Math.min(tmLaunch, pgLaunch) - ml, Math.max(tmLaunch, pgLaunch) + ml,
-        0.5 * (tmLaunch + pgLaunch), "launch_deg_driver").detail = detail;
+        0.5 * (tmLaunch + pgLaunch)).detail = detail();
       put("spin_rpm", Math.min(tmSpin, pgSpin) - mr, Math.max(tmSpin, pgSpin) + mr,
-        0.5 * (tmSpin + pgSpin), "spin_rpm_driver").detail = detail;
+        0.5 * (tmSpin + pgSpin)).detail = detail();
     }
     return b;
   }
@@ -849,8 +960,9 @@ export function createModel(json) {
     // Convenience
     shot,
     clampToDomain,
+    metricValue,
     // Data for the page
-    domain: DOMAIN,
+    domain: FROZEN_DOMAIN,
     clubs: PRE.clubs,
     groups: PRE.groups,
     players: PRE.players,
@@ -863,16 +975,30 @@ export function createModel(json) {
 
 /**
  * Fetch model.json, presets.json, ideals.json, windows.json and camera.json
- * from baseUrl (a directory URL such as "data/") and build a Model.
+ * from a data directory and build a Model. baseUrl is a URL or a string ending
+ * in a slash (one without is given a slash). The default is the data folder next
+ * to this module, so it works from any page that imports it. Throws RuntimeError
+ * when a file cannot be fetched or parsed.
  */
-export async function loadModel(baseUrl = "data/") {
-  const base = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+export async function loadModel(baseUrl = new URL("data/", import.meta.url)) {
+  const dir = baseUrl instanceof URL ? baseUrl.href : String(baseUrl);
+  const base = dir.endsWith("/") ? dir : dir + "/";
   const names = ["model", "presets", "ideals", "windows", "camera"];
   const parts = await Promise.all(
     names.map(async (n) => {
-      const res = await fetch(base + n + ".json");
-      if (!res.ok) throw new Error(`could not load ${base}${n}.json: HTTP ${res.status}`);
-      return res.json();
+      const url = base + n + ".json";
+      let res;
+      try {
+        res = await fetch(url);
+      } catch (e) {
+        throw new RuntimeError(`could not load ${url}: ${e && e.message}`);
+      }
+      if (!res.ok) throw new RuntimeError(`could not load ${url}: HTTP ${res.status}`);
+      try {
+        return await res.json();
+      } catch (e) {
+        throw new RuntimeError(`could not parse ${url}: ${e && e.message}`);
+      }
     })
   );
   const json = {};
