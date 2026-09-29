@@ -33,7 +33,12 @@ Rules (thresholds live in data.CLASSIFY):
                                     "Pull slice", "Push draw", "Pull fade".
             start and curve agree   start plus shape: "Push slice", "Pull hook".
           The first word is capitalized.
-  finish  where the ball ends, side_yd, and a sentence for it.
+  finish  where the ball ends, side_yd, and a sentence for it: "finishes on
+          line" inside ON_LINE_YD (data.CLASSIFY on_line_yd), else the distance
+          rounded half up ("finishes 3 yd left" for 2.5).
+  input   ValueError on a non-finite value or a carry of zero or less. A curve
+          equal to 0 with |spin axis| past the straight band takes the side
+          of the spin axis (negative left, positive right).
 
 The boundaries are inclusive on the straight side and on the on-target side: a
 start of 2.0 deg and a spin axis of 2.0 deg both read as straight, matching
@@ -41,16 +46,15 @@ start of 2.0 deg and a spin axis of 2.0 deg both read as straight, matching
 target.
 """
 
+from math import isfinite
+
 import data
 
 START_STRAIGHT_DEG = data.CLASSIFY["start_straight_deg"]
 AXIS_STRAIGHT_DEG = data.CLASSIFY["axis_straight_deg"]
 CURVE_HOOK_FRAC = data.CLASSIFY["curve_hook_frac"]
 ON_TARGET_FRAC = data.CLASSIFY["on_target_frac"]
-ON_LINE_YD = 1.0  # finish inside this many yards of the target line reads "on line"
-
-STARTS = ("pull", "straight", "push")
-SHAPES = ("straight", "draw", "fade", "hook", "slice")
+ON_LINE_YD = data.CLASSIFY["on_line_yd"]  # finish inside this many yards of the line reads "on line"
 
 
 def _start(launch_dir_deg):
@@ -64,7 +68,10 @@ def _start(launch_dir_deg):
 def _shape(spin_axis_deg, curve_yd, carry_yd):
     if abs(spin_axis_deg) <= AXIS_STRAIGHT_DEG:
         return "straight"
-    left = curve_yd < 0.0
+    # Curve sign decides the side. A curve equal to 0 with an axis past the
+    # straight band (rare, the axis and the curve come from the same shot) takes
+    # the side of the axis: negative axis is left, positive is right.
+    left = curve_yd < 0.0 or (curve_yd == 0.0 and spin_axis_deg < 0.0)
     sharp = abs(curve_yd) > CURVE_HOOK_FRAC * carry_yd
     if left:
         return "hook" if sharp else "draw"
@@ -90,10 +97,22 @@ def _finish_text(side_yd):
     if abs(side_yd) < ON_LINE_YD:
         return "finishes on line"
     side = "right" if side_yd > 0.0 else "left"
-    return f"finishes {abs(side_yd):.0f} yd {side}"
+    return f"finishes {int(abs(side_yd) + 0.5)} yd {side}"  # round half up, same as JS Math.round(Math.abs(x))
+
+
+def _check(**values):
+    for name, v in values.items():
+        if not isfinite(v):
+            raise ValueError(f"{name} must be finite, got {v!r}")
 
 
 def classify(launch_dir_deg, spin_axis_deg, curve_yd, side_yd, carry_yd):
+    """Name a shot. Raises ValueError on a non-finite input or a carry of zero
+    or less."""
+    _check(launch_dir_deg=launch_dir_deg, spin_axis_deg=spin_axis_deg, curve_yd=curve_yd, side_yd=side_yd,
+           carry_yd=carry_yd)
+    if carry_yd <= 0.0:
+        raise ValueError(f"carry_yd must be > 0, got {carry_yd!r}")
     start = _start(launch_dir_deg)
     shape = _shape(spin_axis_deg, curve_yd, carry_yd)
     on_target = abs(side_yd) <= ON_TARGET_FRAC * carry_yd

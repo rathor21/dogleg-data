@@ -32,14 +32,22 @@ lower of the two sources minus a margin to the higher plus a margin (1 deg
 launch, 200 rpm spin, MODELED). The sources disagree by 0.7 to 3.3 deg of
 launch (Anchor 4), and `detail` carries both values.
 
+Known exception, kept on record (see exceptions()): the model's LPGA driver
+launches at 12.6 deg, below the driver launch band of 13.24 to 15.79 deg
+(TrackMan Carry Optimizer 14.24 deg at 96 mph and +2.8 AoA, PING 14.79 deg at
+143 mph ball speed). The LPGA Tour average launches below both optimizers, and
+the model reproduces the published row, so the band stays as computed and the
+tile shows the miss. The PGA and amateur drivers sit inside both bands. Every
+other (club, player, metric) at the preset delivery sits inside its band.
+
 club_speed scales ball speed and carry (and moves the driver's optimizer
 lookups). attack moves only the driver's optimizer lookups. Neither moves the
 other bands.
 """
 
+from math import isfinite
+
 import data
-import flight
-import launch
 import presets
 
 METRICS = (
@@ -128,19 +136,16 @@ def _published(club, player, p):
     return out
 
 
-def _fly(p):
-    ln = launch.deliver(p["club_speed"], p["attack"], p["path"], p["face"], p["dyn_loft"], p["club"], spin_trim=p["spin_trim"])
-    f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg)
-    return ln, f
-
-
 def ideal_bands(club, player, club_speed=None, attack=None):
     p = presets.preset(club, player)
-    ln0, f0 = _fly(p)
+    ln0, f0 = presets.fly(p)
     speed = p["club_speed"] if club_speed is None else club_speed
     ps = presets.scale_speed(p, speed)  # raises ValueError outside data.DOMAIN
-    ln_s, f_s = (ln0, f0) if speed == p["club_speed"] else _fly(ps)
+    ln_s, f_s = (ln0, f0) if speed == p["club_speed"] else presets.fly(ps)
     aoa = p["attack"] if attack is None else attack
+    lo_a, hi_a = data.DOMAIN["attack_deg"]
+    if not (isfinite(aoa) and lo_a <= aoa <= hi_a):
+        raise ValueError(f"attack must be within {lo_a:g} to {hi_a:g} deg, got {aoa!r}")
     tour_src = "MODELED: model preset output for this club and player"
     pub = _published(club, player, p)
     carry = f_s.carry_yd
@@ -195,3 +200,62 @@ def ideal_bands(club, player, club_speed=None, attack=None):
     for metric, value in pub.items():
         b[metric]["published"] = value
     return b
+
+
+def exceptions():
+    """(club, player, metric) for every metric where the model's ideal preset
+    (path 0, face 0) falls outside its own band. One entry today, the LPGA
+    driver launch, described in the module docstring. Each item is a dict with
+    club, player, metric, value, lo, hi."""
+    out = []
+    for player in presets.PLAYERS:
+        for club in presets.CLUBS:
+            p = presets.preset(club, player)
+            ln, f = presets.fly(p)
+            values = {
+                "club_speed": p["club_speed"], "attack_deg": p["attack"], "club_path_deg": p["path"],
+                "face_deg": p["face"], "face_to_path_deg": ln.face_to_path_deg, "dyn_loft_deg": p["dyn_loft"],
+                "spin_loft_deg": ln.spin_loft_deg, "ball_speed_mph": ln.ball_speed_mph, "smash": ln.smash,
+                "launch_deg": ln.launch_deg, "launch_dir_deg": ln.launch_dir_deg, "spin_rpm": ln.spin_rpm,
+                "spin_axis_deg": ln.spin_axis_deg, "max_height_yd": f.max_height_yd,
+                "land_angle_deg": f.land_angle_deg, "carry_yd": f.carry_yd, "side_yd": f.side_yd,
+                "curve_yd": f.curve_yd,
+            }
+            bands = ideal_bands(club, player)
+            for metric in METRICS:
+                v, b = values[metric], bands[metric]
+                if (b["lo"] is not None and v < b["lo"] - 1e-9) or (b["hi"] is not None and v > b["hi"] + 1e-9):
+                    out.append({"club": club, "player": player, "metric": metric, "value": v, "lo": b["lo"], "hi": b["hi"]})
+    return out
+
+
+def optimizer_grids():
+    """The two driver optimizer tables as plain lists, so a page can interpolate
+    live. Each grid is indexed [row][column] as its `layout` says, rows and
+    columns ascending."""
+    speeds, aoas = _TRACKMAN_SPEEDS, _TRACKMAN_AOAS
+
+    def tm(idx):
+        return [[_TRACKMAN[(s, a)][idx] for a in aoas] for s in speeds]
+
+    return {
+        "trackman_carry_2010": {
+            "source": "TrackMan Driver Fitting Chart (2010), CARRY Optimizer (Anchor 4, Source 1)",
+            "layout": "[club speed index][attack angle index]",
+            "club_speed_mph": list(speeds),
+            "attack_deg": list(aoas),
+            "ball_speed_mph": tm(2),
+            "launch_deg": tm(3),
+            "spin_rpm": tm(4),
+            "carry_yd": tm(5),
+            "dyn_loft_deg": tm(7),
+        },
+        "ping_2019": {
+            "source": "PING Optimal Launch & Spin Chart (2019) (Anchor 4, Source 2)",
+            "layout": "[ball speed index][attack angle index]",
+            "ball_speed_mph": list(_PING_SPEEDS),
+            "attack_deg": list(_PING_AOAS),
+            "launch_deg": [[c[0] for c in data.PING_2019[s]] for s in _PING_SPEEDS],
+            "spin_rpm": [[c[1] for c in data.PING_2019[s]] for s in _PING_SPEEDS],
+        },
+    }

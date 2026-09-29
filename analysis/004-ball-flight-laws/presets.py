@@ -32,6 +32,7 @@ LPGA has no 3 iron. preset("3i", "lpga") returns the 4 iron and says so in
 """
 
 import data
+import flight
 import launch
 
 # Explicit ladder, longest club first. LPGA has no 3i.
@@ -127,3 +128,22 @@ def scale_speed(preset_dict, club_speed):
     out = dict(preset_dict)
     out["club_speed"] = float(club_speed)
     return out
+
+
+_FLY_KEYS = ("club_speed", "attack", "path", "face", "dyn_loft", "spin_trim")
+
+
+def fly(preset_dict, **overrides):
+    """(Launch, Flight) for a preset delivery: launch.deliver then flight.simulate.
+
+    overrides replace preset keys (club_speed, attack, path, face, dyn_loft,
+    spin_trim) for this call only, for example fly(p, path=5.0, face=2.0). An
+    unknown key raises ValueError. deliver's input contract applies."""
+    unknown = sorted(set(overrides) - set(_FLY_KEYS))
+    if unknown:
+        raise ValueError(f"unknown override {unknown}, expected some of {_FLY_KEYS}")
+    q = dict(preset_dict, **overrides)
+    ln = launch.deliver(q["club_speed"], q["attack"], q["path"], q["face"], q["dyn_loft"], q["club"],
+                        spin_trim=q["spin_trim"])
+    f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg)
+    return ln, f

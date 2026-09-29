@@ -6,8 +6,6 @@ import pytest
 
 import classify
 import data
-import flight
-import launch
 import presets
 
 CARRY = 200.0
@@ -37,6 +35,7 @@ def test_thresholds_come_from_data():
     assert classify.AXIS_STRAIGHT_DEG == data.CLASSIFY["axis_straight_deg"] == 2.0  # TrackMan, Anchor 5(b)
     assert classify.CURVE_HOOK_FRAC == data.CLASSIFY["curve_hook_frac"] == 0.08  # MODELED
     assert classify.ON_TARGET_FRAC == data.CLASSIFY["on_target_frac"] == 0.04  # MODELED
+    assert classify.ON_LINE_YD == data.CLASSIFY["on_line_yd"] == 1.0  # MODELED
 
 
 # Off-target finish for the "missed" names: 40 yd is 20 percent of the carry.
@@ -165,6 +164,12 @@ def test_anchor_5b_examples_read_as_the_text_says():
     (0.0, "finishes on line"), (0.99, "finishes on line"), (-0.99, "finishes on line"),
     (1.0, "finishes 1 yd right"), (-1.0, "finishes 1 yd left"), (-3.7, "finishes 4 yd left"),
     (33.3, "finishes 33 yd right"),
+    # round half up on the absolute value, like JS Math.round(Math.abs(x))
+    (0.5, "finishes on line"), (-0.5, "finishes on line"),
+    (1.5, "finishes 2 yd right"), (-1.5, "finishes 2 yd left"),
+    (2.5, "finishes 3 yd right"), (-2.5, "finishes 3 yd left"),
+    (8.5, "finishes 9 yd right"), (-8.5, "finishes 9 yd left"),
+    (8.49, "finishes 8 yd right"), (1.0, "finishes 1 yd right"),
 ])
 def test_finish_text(side, text):
     out = classify.classify(0.0, 0.0, 0.0, side, CARRY)
@@ -184,8 +189,7 @@ P7 = presets.preset("7i", "pga")
 
 
 def _golfer(path, face):
-    ln = launch.deliver(P7["club_speed"], P7["attack"], path, face, P7["dyn_loft"], "7i", spin_trim=P7["spin_trim"])
-    f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg)
+    ln, f = presets.fly(P7, path=path, face=face)
     return ln, f, classify.classify(ln.launch_dir_deg, ln.spin_axis_deg, f.curve_yd, f.side_yd, f.carry_yd)
 
 
@@ -217,3 +221,41 @@ def test_golfer_push_draw_starts_right_curves_left_and_is_worked_back():
     assert out["start"] == "push" and out["shape"] == "draw"
     assert out["worked_back"] is True
     assert abs(out["finish_yd"]) < classify.ON_TARGET_FRAC * f.carry_yd
+
+
+# ---------------------------------------------------------------------------
+# Input validation and the axis tiebreak
+# ---------------------------------------------------------------------------
+
+BAD = [float("nan"), float("inf"), float("-inf")]
+
+
+@pytest.mark.parametrize("index", range(5))
+@pytest.mark.parametrize("bad", BAD)
+def test_non_finite_input_raises(index, bad):
+    args = [0.0, 0.0, 0.0, 0.0, CARRY]
+    args[index] = bad
+    with pytest.raises(ValueError, match="finite"):
+        classify.classify(*args)
+
+
+@pytest.mark.parametrize("carry", [0.0, -1.0, -200.0])
+def test_carry_of_zero_or_less_raises(carry):
+    with pytest.raises(ValueError, match="carry_yd"):
+        classify.classify(0.0, 0.0, 0.0, 0.0, carry)
+
+
+def test_tiny_positive_carry_is_accepted():
+    assert classify.classify(0.0, 0.0, 0.0, 0.0, 1e-9)["name"] == "Straight"
+
+
+@pytest.mark.parametrize("axis,shape", [(-5.0, "draw"), (5.0, "fade"), (-2.5, "draw"), (2.5, "fade")])
+def test_zero_curve_takes_the_side_of_the_axis(axis, shape):
+    """Curve equal to 0 with the axis past the straight band: the axis sign is the tiebreak."""
+    assert classify.classify(0.0, axis, 0.0, 0.0, CARRY)["shape"] == shape
+    assert classify.classify(0.0, axis, -0.0, 0.0, CARRY)["shape"] == shape  # negative zero is still zero
+
+
+def test_axis_tiebreak_never_overrides_a_nonzero_curve():
+    assert classify.classify(0.0, 5.0, -0.001, 0.0, CARRY)["shape"] == "draw"
+    assert classify.classify(0.0, -5.0, 0.001, 0.0, CARRY)["shape"] == "fade"

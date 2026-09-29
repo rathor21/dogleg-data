@@ -23,9 +23,10 @@ CASES = [(p, h, s) for p in presets.PLAYERS for h in windows.HEIGHTS for s in wi
 def test_window_hits_its_targets(all_windows, player, height, shape):
     w = all_windows[player][(height, shape)]
     f = w["flight"]
-    assert abs(f["max_height_yd"] - w["target"]["max_height_yd"]) <= 1.0
-    assert abs(f["curve_yd"] - TOL["curve_frac"][shape] * f["carry_yd"]) <= 1.5
-    assert abs(f["side_yd"]) <= TOL["side_tol_yd"]
+    tol = TOL["solver_tol_yd"]  # the solver's own tolerance, far tighter than the teaching tolerances
+    assert abs(f["max_height_yd"] - w["target"]["max_height_yd"]) <= tol
+    assert abs(f["curve_yd"] - TOL["curve_frac"][shape] * f["carry_yd"]) <= tol
+    assert abs(f["side_yd"]) <= tol <= TOL["side_tol_yd"]
 
 
 def test_targets_come_from_the_preset(all_windows):
@@ -41,6 +42,12 @@ def test_window_shape_classifies(all_windows, player, height, shape):
     c = all_windows[player][(height, shape)]["classification"]
     assert c["name"] == shape.capitalize()  # Draw, Straight or Fade
     assert c["shape"] == shape
+
+
+def test_windows_report_total_distance(all_windows):
+    for player in presets.PLAYERS:
+        for w in all_windows[player].values():
+            assert w["flight"]["total_yd"] > w["flight"]["carry_yd"]
 
 
 def test_windows_are_labeled_modeled(all_windows):

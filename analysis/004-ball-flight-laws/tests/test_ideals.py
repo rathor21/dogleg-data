@@ -2,8 +2,10 @@
 
 import pytest
 
+import os
+import re
+
 import data
-import flight
 import ideals
 import launch
 import presets
@@ -19,8 +21,7 @@ KNOWN_EXCEPTIONS = {
 
 def _metrics(club, player):
     p = presets.preset(club, player)
-    ln = launch.deliver(p["club_speed"], p["attack"], 0.0, 0.0, p["dyn_loft"], p["club"], spin_trim=p["spin_trim"])
-    f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg)
+    ln, f = presets.fly(p)
     return {
         "club_speed": p["club_speed"], "attack_deg": p["attack"], "club_path_deg": p["path"], "face_deg": p["face"],
         "face_to_path_deg": ln.face_to_path_deg, "dyn_loft_deg": p["dyn_loft"], "spin_loft_deg": ln.spin_loft_deg,
@@ -44,6 +45,13 @@ def test_every_metric_has_a_band():
         assert band["source"], m
         if band["lo"] is not None and band["hi"] is not None:
             assert band["lo"] <= band["target"] <= band["hi"], m
+
+
+def test_exceptions_helper_matches_the_record():
+    found = {(e["club"], e["player"], e["metric"]) for e in ideals.exceptions()}
+    assert found == KNOWN_EXCEPTIONS
+    e = ideals.exceptions()[0]
+    assert e["value"] == pytest.approx(12.6, abs=0.01) and e["lo"] > e["value"]
 
 
 def test_ideal_preset_sits_inside_its_own_bands():
@@ -177,3 +185,79 @@ def test_driver_models_against_the_optimizer_bands():
         m = _metrics("driver", player)
         assert _inside(b["spin_rpm"], m["spin_rpm"]), player
         assert _inside(b["launch_deg"], m["launch_deg"]) is in_launch, player
+
+
+def test_nan_and_out_of_range_attack_raise():
+    for bad in (float("nan"), float("inf"), 11.0, -11.0):
+        with pytest.raises(ValueError, match="attack"):
+            ideals.ideal_bands("driver", "pga", attack=bad)
+    for bad in (float("nan"), float("inf")):
+        with pytest.raises(ValueError):
+            ideals.ideal_bands("driver", "pga", club_speed=bad)
+
+
+def test_optimizer_grids_are_public_and_shaped():
+    g = ideals.optimizer_grids()
+    tm, pg = g["trackman_carry_2010"], g["ping_2019"]
+    assert (len(tm["club_speed_mph"]), len(tm["attack_deg"])) == (10, 3)
+    assert (len(pg["ball_speed_mph"]), len(pg["attack_deg"])) == (11, 11)
+    assert tm["club_speed_mph"] == sorted(tm["club_speed_mph"]) and pg["ball_speed_mph"] == sorted(pg["ball_speed_mph"])
+    for key in ("ball_speed_mph", "launch_deg", "spin_rpm", "carry_yd", "dyn_loft_deg"):
+        assert len(tm[key]) == 10 and all(len(row) == 3 for row in tm[key]), key
+    assert tm["launch_deg"][8][1] == 9.8 and tm["spin_rpm"][8][1] == 2919  # 115 mph, AoA 0
+    assert pg["launch_deg"][-1][5] == 10.4 and pg["spin_rpm"][-1][5] == 2550  # 180 mph, AoA 0
+    for i, s in enumerate(tm["club_speed_mph"]):  # the grid reads back through the interpolator
+        for j, a in enumerate(tm["attack_deg"]):
+            assert ideals.trackman_carry_2010(s, a) == pytest.approx((tm["launch_deg"][i][j], tm["spin_rpm"][i][j]))
+
+
+def test_presets_fly_matches_deliver_and_simulate_and_takes_overrides():
+    import flight
+    p = presets.preset("7i", "pga")
+    ln, f = presets.fly(p)
+    ref = launch.deliver(p["club_speed"], p["attack"], 0.0, 0.0, p["dyn_loft"], "7i", spin_trim=p["spin_trim"])
+    assert ln == ref
+    assert f.carry_yd == flight.simulate(ref.ball_speed_mph, ref.launch_deg, ref.launch_dir_deg, ref.spin_rpm,
+                                         ref.spin_axis_deg).carry_yd
+    ln2, f2 = presets.fly(p, path=5.0, face=2.0)
+    assert ln2.launch_dir_deg > 2.0 and f2.curve_yd < 0.0
+    assert p["path"] == 0.0  # the preset dict is not changed
+    assert presets.fly(p, club_speed=80.0)[0].ball_speed_mph < ln.ball_speed_mph
+    with pytest.raises(ValueError, match="unknown override"):
+        presets.fly(p, loft=20.0)
+    with pytest.raises(ValueError):
+        presets.fly(p, path=99.0)  # deliver's domain check
+
+
+# ---------------------------------------------------------------------------
+# data.py against the source log
+# ---------------------------------------------------------------------------
+
+LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "docs", "sources", "004_Source_Log.md")
+
+
+def _log_section(lines, start, end):
+    i = next(k for k, l in enumerate(lines) if l.startswith(start))
+    j = next(k for k, l in enumerate(lines) if k > i and l.startswith(end))
+    return lines[i:j]
+
+
+@pytest.mark.skipif(not os.path.exists(LOG), reason="source log not in this checkout")
+def test_optimizer_tables_match_the_source_log():
+    with open(LOG, encoding="utf-8") as fh:
+        lines = fh.read().split("\n")
+    rows = []
+    for l in _log_section(lines, "### TrackMan CARRY Optimizer", "In the CARRY table"):
+        m = re.match(r"\| (\d+) \| (-?\d+) \| (\d+) \| ([\d.]+) \| (\d+) \| (\d+) \| (\d+) \| ([\d.]+) \|", l)
+        if m:
+            rows.append(tuple(float(x) if "." in x else int(x) for x in m.groups()))
+    assert len(rows) == 30
+    assert rows == list(data.TRACKMAN_CARRY_2010)
+    ping = {}
+    for l in _log_section(lines, "### PING Optimal", "An AI-generated"):
+        m = re.match(r"\| (\d+) \|(.*)\|$", l)
+        if m:
+            cells = [c.strip() for c in m.group(2).split("|")]
+            ping[int(m.group(1))] = tuple((float(c.split("/")[0]), int(c.split("/")[1])) for c in cells)
+    assert len(ping) == 11 and all(len(v) == 11 for v in ping.values())
+    assert ping == data.PING_2019

@@ -36,7 +36,6 @@ from scipy.optimize import least_squares
 import classify
 import data
 import flight
-import launch
 import presets
 
 HEIGHTS = tuple(data.WINDOWS["heights"])  # low, mid, high
@@ -52,8 +51,7 @@ _PATH_FACE_START = {"draw": (4.0, 1.5), "straight": (0.0, 0.0), "fade": (-4.0, -
 def _fly(p, path, face, h):
     attack = p["attack"] + data.WINDOWS["attack_per_loft"] * h
     dyn_loft = p["dyn_loft"] + h
-    ln = launch.deliver(p["club_speed"], attack, path, face, dyn_loft, p["club"], spin_trim=p["spin_trim"])
-    f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg)
+    ln, f = presets.fly(p, attack=attack, dyn_loft=dyn_loft, path=path, face=face)
     return attack, dyn_loft, ln, f
 
 
@@ -91,7 +89,7 @@ def solve_window(club, player, height, shape):
     path, face, h = (float(v) for v in sol.x)
     attack, dyn_loft, ln, f = _fly(p, path, face, h)
     err = residual(sol.x)
-    if abs(err[0]) > 0.05 or abs(err[1]) > 0.05 or abs(err[2]) > 0.05:
+    if max(abs(e) for e in err) > data.WINDOWS["solver_tol_yd"]:
         raise RuntimeError(f"window {player} {club} {height} {shape} did not converge, residuals {err}")
     cls = classify.classify(ln.launch_dir_deg, ln.spin_axis_deg, f.curve_yd, f.side_yd, f.carry_yd)
     return {
@@ -133,6 +131,7 @@ def solve_window(club, player, height, shape):
             "land_angle_deg": f.land_angle_deg,
             "flight_time_s": f.flight_time_s,
             "land_speed_mph": f.land_speed_mph,
+            "total_yd": flight.roll(f),
         },
         "classification": cls,
     }

@@ -483,6 +483,8 @@ DOMAIN = {
 #       side and curves back the other way was "worked back" (a Draw that
 #       starts right, a Fade that starts left) or missed (Push draw, Pull
 #       fade, Push hook, Pull slice). 4 percent of a 170 yd carry is 6.8 yd.
+#   on_line_yd: a finish inside this many yards of the target line reads
+#       "finishes on line" in the finish text. MODELED design choice.
 # ---------------------------------------------------------------------------
 
 CLASSIFY = {
@@ -490,6 +492,7 @@ CLASSIFY = {
     "axis_straight_deg": 2.0,
     "curve_hook_frac": 0.08,
     "on_target_frac": 0.04,
+    "on_line_yd": 1.0,
 }
 
 # ---------------------------------------------------------------------------
@@ -503,6 +506,8 @@ CLASSIFY = {
 #   curve_frac: draw and fade curvature as a fraction of the window's own
 #       carry, draw negative. MODELED.
 #   side_tol_yd: every window must finish this close to the target line. MODELED.
+#   solver_tol_yd: windows.solve_window raises unless peak height, curve and
+#       side all land within this many yards of their targets. MODELED.
 #   attack_per_loft: attack angle change per degree of the height lever h,
 #       with dynamic loft = preset dynamic loft + h. MODELED: a lower shot
 #       comes from a ball played further back, which delofts and steepens the
@@ -515,6 +520,7 @@ WINDOWS = {
     "heights": {"low": 0.70, "mid": 1.00, "high": 1.25},
     "curve_frac": {"draw": -0.05, "straight": 0.0, "fade": 0.05},
     "side_tol_yd": 1.5,
+    "solver_tol_yd": 0.05,
     "attack_per_loft": 0.4,
 }
 
