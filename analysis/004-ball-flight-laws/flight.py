@@ -12,21 +12,38 @@ Forces on the ball (Anchor 7, see data.py):
     S  = R * omega / |v|                 spin factor, omega is the decayed spin
     CD = cd(S, Re), CL = cl(S, Re)       pluggable Aero model
         shipped: quadratic family (data.QUAD), CD = d0 + d1 S + d2 S^2 + d3 (Re - pivot)
-        baseline: Nathan's workbook forms (nathan_model)
-    d(omega)/dt = -SPIN_DECAY_COEF * v * omega / R   (tau = R / (2.0e-5 v))
+        baselines and fit variants live in baselines.py and calibrate.py
+    d(omega)/dt = -k * v * omega / R     (tau = R / (k v)), k = aero.spin_decay
+                                         (Anchor 7 Smits and Smith, 2.0e-5 SI)
 
 The spin axis is fixed in space at launch (drag torque only shrinks omega).
 POSITIVE spin_axis_deg tilts the lift vector to the right, so the ball curves
 right (fade or slice for a right-hander).
+
+Lift approximation. The lift direction is normalize(omega_hat x v_hat), and the
+lift magnitude uses CL(S) with S from the full spin rate. The |omega x v|
+factor (only the spin component perpendicular to the velocity makes lift) is
+ignored. As the ball curves, the fixed axis drifts off perpendicular to v and
+the model overstates lift by 1 / sin(angle between axis and velocity). For
+axes within +-45 degrees that error is second order on the shots tested, and
+it grows quickly beyond. UI recommendation: clamp spin axis to +-45 degrees.
+
+Input contract. simulate() raises ValueError unless ball_speed_mph > 0,
+dt > 0 and every numeric input is finite, and raises RuntimeError if the ball
+has not landed after MAX_FLIGHT_S. The JS port must throw in those cases, not
+return NaN.
 """
 
 from dataclasses import dataclass
+from math import atan2, cos, degrees, hypot, isfinite, pi, radians, sin, sqrt, tan
 from typing import Callable
-from math import atan, atan2, cos, exp, hypot, pi, radians, sin, sqrt, tan, degrees
 
 import numpy as np
 
 import data
+
+MAX_FLIGHT_S = 60.0  # flight-time cap: simulate raises if the ball has not landed
+V_FLOOR_MS = 1e-6  # floor on |v| inside deriv, avoids division by zero
 
 
 @dataclass(frozen=True)
@@ -75,7 +92,11 @@ def _lift_dir_launch(vhat, spin_axis_deg):
     axis). L0 = a0 x vhat is the lift direction of pure backspin. Tilting by
     theta about vhat swings the lift toward the right: L = cos L0 + sin a0.
     """
-    a0 = _unit(_cross(vhat, (0.0, 0.0, 1.0)))
+    n = _cross(vhat, (0.0, 0.0, 1.0))
+    if sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) < 1e-12:
+        a0 = (0.0, -1.0, 0.0)  # vertical launch: pick "right" continuously (y is left)
+    else:
+        a0 = _unit(n)
     l0 = _cross(a0, vhat)
     th = radians(spin_axis_deg)
     return (
@@ -96,58 +117,25 @@ class Aero:
     spin_decay: float = data.SPIN_DECAY_COEF  # k in tau = R / (k v), SI
 
 
-def nathan_model(p=None, name="nathan"):
-    """Nathan's workbook forms (Anchor 7 Source 1) with optional multipliers."""
-    p = data.NATHAN if p is None else p
-    lo, hi = p["re_low"], p["re_high"]
-    cdl, cdh, cds = p["cd_low_re"], p["cd_high_re"], p["cd_spin"]
-    amp, ex = p["cl_amp"], p["cl_exp"]
-    branch, lm, dm = p["re_branch"], p["lift_mult"], p["drag_mult"]
-
-    def cd(spin, re):
-        if not branch or re >= hi:
-            cd0 = cdh
-        elif re <= lo:
-            cd0 = cdl
-        else:
-            cd0 = cdl + (cdh - cdl) * (re - lo) / (hi - lo)
-        return (cd0 + cds * spin) * dm
-
-    def cl(spin, re):
-        return amp * spin**ex * lm
-
-    return Aero(name, cd, cl)
-
-
 def quad_model(p=None, name="quad"):
     """Quadratic family (Anchor 7 Source 4 form), parameters from data.QUAD.
 
-    CL = l0 + l1 S + l2 S^2. CD = d0 + d1 S + d2 S^2 + speed term, where the
-    speed term is d3 (Re - pivot) for form "linear" or the logistic rise
-    d3 / (1 + exp((Re - re0) / w)) for form "logistic". p["k"] optionally sets
-    the spin decay coefficient (default: the Anchor 7 value).
+    CL = l0 + l1 S + l2 S^2
+    CD = d0 + d1 S + d2 S^2 + d3 (Re - data.RE_PIVOT)
+    Spin decay is the Aero default, data.SPIN_DECAY_COEF.
     """
     p = data.QUAD if p is None else p
     d0, d1, d2, d3 = p["d0"], p["d1"], p["d2"], p["d3"]
     l0, l1, l2 = p["l0"], p["l1"], p["l2"]
     piv = data.RE_PIVOT
-    k = p.get("k", data.SPIN_DECAY_COEF)
 
-    if p.get("form", "linear") == "logistic":
-        re0, w = p["re0"], p["w"]
-
-        def cd(spin, re):
-            return d0 + d1 * spin + d2 * spin * spin + d3 / (1.0 + exp((re - re0) / w))
-
-    else:
-
-        def cd(spin, re):
-            return d0 + d1 * spin + d2 * spin * spin + d3 * (re - piv)
+    def cd(spin, re):
+        return d0 + d1 * spin + d2 * spin * spin + d3 * (re - piv)
 
     def cl(spin, re):
         return l0 + l1 * spin + l2 * spin * spin
 
-    return Aero(name, cd, cl, k)
+    return Aero(name, cd, cl)
 
 
 DEFAULT_AERO = quad_model()
@@ -166,7 +154,7 @@ def _make_deriv(air, omega_hat, aero):
 
     def deriv(s):
         vx, vy, vz, w = s[3], s[4], s[5], s[6]
-        v = sqrt(vx * vx + vy * vy + vz * vz)
+        v = max(sqrt(vx * vx + vy * vy + vz * vz), V_FLOOR_MS)
         spin = r * w / v
         re = re_per_v * v
         cd = cd_fn(spin, re)
@@ -211,8 +199,23 @@ def simulate(
     launch_deg: vertical launch angle. launch_dir_deg: horizontal start
     direction, positive right of the target line. spin_axis_deg: positive
     curves the ball right. aero: an Aero coefficient model (default
-    DEFAULT_AERO, the shipped quadratic fit).
+    DEFAULT_AERO, the shipped quadratic fit). Raises ValueError on a bad input
+    (see the module docstring for the contract).
     """
+    for name, val in (
+        ("ball_speed_mph", ball_speed_mph),
+        ("launch_deg", launch_deg),
+        ("launch_dir_deg", launch_dir_deg),
+        ("spin_rpm", spin_rpm),
+        ("spin_axis_deg", spin_axis_deg),
+        ("dt", dt),
+    ):
+        if not isfinite(val):
+            raise ValueError(f"{name} must be finite, got {val!r}")
+    if ball_speed_mph <= 0.0:
+        raise ValueError(f"ball_speed_mph must be > 0, got {ball_speed_mph!r}")
+    if dt <= 0.0:
+        raise ValueError(f"dt must be > 0, got {dt!r}")
     aero = DEFAULT_AERO if aero is None else aero
     v0 = ball_speed_mph * data.MPH_TO_MS
     gam = radians(launch_deg)
@@ -227,7 +230,7 @@ def simulate(
     ts = [0.0]
     states = [s]
     t = 0.0
-    max_steps = int(60.0 / dt)
+    max_steps = int(MAX_FLIGHT_S / dt)
     for _ in range(max_steps):
         s_new = _rk4(deriv, s, dt)
         t_new = t + dt
@@ -241,7 +244,7 @@ def simulate(
         states.append(s_new)
         s, t = s_new, t_new
     else:
-        raise RuntimeError("ball did not land within 60 s")
+        raise RuntimeError(f"ball did not land within {MAX_FLIGHT_S} s")
 
     m2yd = 1.0 / data.YD_TO_M
     arr = np.array(states)
@@ -275,7 +278,7 @@ def simulate(
     )
 
 
-def roll(flight):
+def roll(shot):
     """Total distance in yards: carry plus a simple bounce and roll estimate.
 
     MODELED. No source covers bounce and roll (log, Gaps item 8). Roll grows
@@ -284,7 +287,7 @@ def roll(flight):
     bounded to [0, ROLL_MAX_YD]. Constants are chosen for a plausible spread
     (driver about 20 to 30 yd, wedge a few yd) and are not fitted to data.
     """
-    c = cos(radians(flight.land_angle_deg))
-    r = data.ROLL_K * flight.land_speed_mph * c**data.ROLL_COS_POWER
+    c = cos(radians(shot.land_angle_deg))
+    r = data.ROLL_K * shot.land_speed_mph * c**data.ROLL_COS_POWER
     r = min(max(r, 0.0), data.ROLL_MAX_YD)
-    return flight.carry_yd + r
+    return shot.carry_yd + r

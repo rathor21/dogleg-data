@@ -8,24 +8,25 @@ the same way.
 
 Rows the shipped quadratic model still misses are recorded in
 tests/g2_known_misses.json (written by `calibrate.py --write-misses`, which
-runs the model). Each recorded row is xfail(strict=False). The record never
-hides a regression: rows not in the file must pass, and a separate test fails
-if the model now misses a row that is not in the record or misses a recorded
-component by more than the recorded size.
+runs the model). Each recorded row is xfail(strict=True): a recorded row that
+starts passing fails the suite until the record is regenerated. Rows not in
+the file must pass. test_record_matches_model also fails on a new miss, a
+worse miss, or a stale entry (a recorded miss that now passes).
 """
 
-import json
+import dataclasses
+import math
 
 import pytest
 
+import baselines
 import calibrate
 import data
 import flight
+import gates
 
-with open(calibrate.MISSES_PATH) as _fh:
-    _RECORD = json.load(_fh)
-G2_MISSES = _RECORD["g2"]
-TEACHING_MISSES = _RECORD["teaching"]
+G2_MISSES = gates.load_record()["g2"]
+TEACHING_MISSES = gates.load_record()["teaching"]
 
 
 def _describe(miss):
@@ -35,12 +36,12 @@ def _describe(miss):
 
 def _params(record, label):
     out = []
-    for tour, club, _row in calibrate.rows():
+    for tour, club, _row in gates.rows():
         key = f"{tour}/{club}"
         marks = []
         if key in record:
             marks.append(
-                pytest.mark.xfail(strict=False, reason=f"{label} miss: " + _describe(record[key]))
+                pytest.mark.xfail(strict=True, reason=f"{label} miss: " + _describe(record[key]))
             )
         out.append(pytest.param(tour, club, marks=marks, id=f"{tour}-{club}"))
     return out
@@ -54,32 +55,53 @@ def _sim(tour, club):
 @pytest.mark.parametrize("tour,club", _params(G2_MISSES, "G2"))
 def test_g2_tour_row(tour, club):
     r, f = _sim(tour, club)
-    assert f.carry_yd == pytest.approx(r["carry_yd"], rel=calibrate.CARRY_TOL_FRAC)
-    assert abs(f.max_height_yd - r["max_height_yd"]) <= calibrate.HEIGHT_TOL_YD
-    assert abs(f.land_angle_deg - r["land_angle_deg"]) <= calibrate.LAND_TOL_DEG
+    assert f.carry_yd == pytest.approx(r["carry_yd"], rel=gates.CARRY_TOL_FRAC)
+    assert abs(f.max_height_yd - r["max_height_yd"]) <= gates.HEIGHT_TOL_YD
+    assert abs(f.land_angle_deg - r["land_angle_deg"]) <= gates.LAND_TOL_DEG
 
 
 @pytest.mark.parametrize("tour,club", _params(TEACHING_MISSES, "teaching"))
 def test_teaching_tolerance_row(tour, club):
     r, f = _sim(tour, club)
-    assert f.carry_yd == pytest.approx(r["carry_yd"], rel=calibrate.TEACH_CARRY_FRAC)
-    assert abs(f.max_height_yd - r["max_height_yd"]) <= calibrate.TEACH_HEIGHT_YD
-    assert abs(f.land_angle_deg - r["land_angle_deg"]) <= calibrate.TEACH_LAND_DEG
+    assert f.carry_yd == pytest.approx(r["carry_yd"], rel=gates.TEACH_CARRY_FRAC)
+    assert abs(f.max_height_yd - r["max_height_yd"]) <= gates.TEACH_HEIGHT_YD
+    assert abs(f.land_angle_deg - r["land_angle_deg"]) <= gates.TEACH_LAND_DEG
 
 
 @pytest.mark.parametrize("label,now,record", [
-    ("G2", calibrate.g2_misses, G2_MISSES),
-    ("teaching", calibrate.teaching_misses, TEACHING_MISSES),
+    ("G2", gates.g2_misses, G2_MISSES),
+    ("teaching", gates.teaching_misses, TEACHING_MISSES),
 ])
-def test_no_new_or_worse_misses(label, now, record):
-    """The xfail record documents misses; it must not absorb regressions."""
-    for key, miss in now().items():
+def test_record_matches_model(label, now, record):
+    """The xfail record documents misses; it must not absorb regressions and
+    must not go stale."""
+    current = now()
+    for key, miss in current.items():
         assert key in record, f"new {label} miss on {key}: {_describe(miss)}"
         for comp, err in miss.items():
             assert comp in record[key], f"{key}: new {label} component {comp} ({err:+.1f})"
             assert abs(err) <= abs(record[key][comp]) + 0.15, (
                 f"{key}: {comp} worsened from {record[key][comp]:+.1f} to {err:+.1f}"
             )
+    for key, miss in record.items():
+        assert key in current, f"stale {label} entry: {key} now passes; rerun --write-misses"
+        for comp in miss:
+            assert comp in current[key], f"stale {label} entry: {key} {comp} now passes"
+
+
+# Ratchet floor. Change these numbers only together with the evidence comment
+# above data.QUAD in data.py, and only when a refit is shipped on purpose.
+FLOOR_G2_PASSES = 6
+FLOOR_TEACHING_PASSES = 12
+CEILING_OVERALL_RMS = 1.05
+
+
+def test_quality_floor():
+    n = gates.n_rows()
+    assert n - len(gates.g2_misses()) >= FLOOR_G2_PASSES
+    assert n - len(gates.teaching_misses()) >= FLOOR_TEACHING_PASSES
+    _, overall = gates.rms(flight.DEFAULT_AERO)
+    assert overall <= CEILING_OVERALL_RMS
 
 
 def test_tables_are_complete():
@@ -88,6 +110,9 @@ def test_tables_are_complete():
     for table in data.TOURS.values():
         for row in table.values():
             assert set(row) == set(data.FIELDS)
+    drv = data.PGA["driver"]
+    assert (drv["ball_speed_mph"], drv["launch_deg"], drv["spin_rpm"], drv["carry_yd"]) == (171, 10.4, 2545, 282)
+    assert data.LPGA["6i"]["carry_yd"] == 155
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +125,7 @@ def test_matches_nathan_workbook():
     level) reads 259.3 yd and 4.99 s hang time with the published parameter
     set (Re branch on, multipliers 1.0). Values read from the workbook's own
     cells. Runs the Nathan model through the pluggable coefficient hook."""
-    f = flight.simulate(160.0, 11.0, 0.0, 3000.0, 0.0, aero=flight.nathan_model(data.NATHAN))
+    f = flight.simulate(160.0, 11.0, 0.0, 3000.0, 0.0, aero=baselines.nathan_model(data.NATHAN))
     assert f.carry_yd == pytest.approx(259.3, abs=1.0)
     assert f.flight_time_s == pytest.approx(4.99, abs=0.05)
     assert f.max_height_yd == pytest.approx(19.7, abs=0.3)
@@ -186,8 +211,6 @@ def test_flight_arrays_consistent():
 def test_spin_decay_lowers_the_apex():
     """Spin lost in flight removes lift, so the decayed shot peaks lower than
     the same shot with decay switched off. Uses the published k."""
-    import dataclasses
-
     with_decay = flight.simulate(150.0, 12.0, 0.0, 3000.0, 0.0)
     no_decay_model = dataclasses.replace(flight.DEFAULT_AERO, spin_decay=0.0)
     no_decay = flight.simulate(150.0, 12.0, 0.0, 3000.0, 0.0, aero=no_decay_model)
@@ -295,8 +318,44 @@ def test_coefficient_hook_is_pluggable():
     vac = flight.Aero("vacuum", lambda s, re: 0.0, lambda s, re: 0.0)
     f = flight.simulate(100.0, 20.0, 0.0, 3000.0, 0.0, aero=vac)
     v = 100.0 * data.MPH_TO_MS
-    from math import radians, sin, cos
-
-    t_flight = 2 * v * sin(radians(20.0)) / data.G
+    t_flight = 2 * v * math.sin(math.radians(20.0)) / data.G
     assert f.flight_time_s == pytest.approx(t_flight, rel=1e-3)
-    assert f.carry_yd == pytest.approx(v * cos(radians(20.0)) * t_flight / data.YD_TO_M, rel=1e-3)
+    assert f.carry_yd == pytest.approx(v * math.cos(math.radians(20.0)) * t_flight / data.YD_TO_M, rel=1e-3)
+
+
+# ---------------------------------------------------------------------------
+# Input contract (the JS port throws rather than returning NaN).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("speed", [0.0, -5.0, float("nan"), float("inf")])
+def test_bad_ball_speed_raises(speed):
+    with pytest.raises(ValueError):
+        flight.simulate(speed, 14.0, 0.0, 6000.0, 0.0)
+
+
+@pytest.mark.parametrize("dt", [0.0, -0.01, float("nan")])
+def test_bad_dt_raises(dt):
+    with pytest.raises(ValueError):
+        flight.simulate(130.0, 14.0, 0.0, 6000.0, 0.0, dt=dt)
+
+
+@pytest.mark.parametrize("field", ["launch_deg", "launch_dir_deg", "spin_rpm", "spin_axis_deg"])
+def test_nonfinite_input_raises(field):
+    args = dict(ball_speed_mph=130.0, launch_deg=14.0, launch_dir_deg=0.0, spin_rpm=6000.0, spin_axis_deg=0.0)
+    args[field] = float("nan")
+    with pytest.raises(ValueError):
+        flight.simulate(**args)
+
+
+def test_flight_that_never_lands_raises():
+    """A vertical launch in a vacuum stays up longer than MAX_FLIGHT_S."""
+    vac = flight.Aero("vacuum", lambda s, re: 0.0, lambda s, re: 0.0)
+    with pytest.raises(RuntimeError):
+        flight.simulate(700.0, 90.0, 0.0, 0.0, 0.0, aero=vac)
+    assert flight.MAX_FLIGHT_S == 60.0
+
+
+def test_vertical_launch_in_air_does_not_produce_nan():
+    f = flight.simulate(60.0, 90.0, 0.0, 3000.0, 0.0)
+    assert math.isfinite(f.carry_yd) and math.isfinite(f.max_height_yd)

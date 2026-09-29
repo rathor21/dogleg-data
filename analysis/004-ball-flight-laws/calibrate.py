@@ -1,39 +1,54 @@
 """Fit the aero coefficient model to the TrackMan tour tables (gate G2).
 
-Run:
+Run (one mode per call):
   .venv/bin/python calibrate.py                 table for the shipped model (data.QUAD)
-  .venv/bin/python calibrate.py --fit           quadratic fit: PGA-only, LPGA-only, all rows
+  .venv/bin/python calibrate.py --fit [--variant quad7|A|B]
+                                                fit on PGA only, LPGA only and all rows
+  .venv/bin/python calibrate.py --compare       fit every variant, print the comparison table
   .venv/bin/python calibrate.py --nathan        baseline: Nathan's forms, Cd0 flat, two multipliers
   .venv/bin/python calibrate.py --nathan-re     baseline: Nathan's forms with the Re branch on
-  .venv/bin/python calibrate.py --write-misses  regenerate tests/g2_known_misses.json
+  .venv/bin/python calibrate.py --write-misses [--force]
+                                                regenerate tests/g2_known_misses.json
 
-None of these edit data.py. Paste the printed parameters into data.QUAD by hand.
+None of these edit data.py. Paste printed parameters into data.QUAD by hand.
+--write-misses prints a diff against the existing file and refuses a worse
+result unless --force is given.
 
-Errors are normalized by the G2 tolerances, so a residual of 1.0 sits on the
-gate: carry error / (3% of published carry), height error / 3 yd, land angle
-error / 2 deg. Every parameter is shared by all clubs and both tours. scipy is
-used here and never in flight.py.
+Errors are normalized by the G2 tolerances (see gates.py), so a residual of 1.0
+sits on the gate. Every parameter is shared by all clubs and both tours. scipy
+is used here and never in flight.py. Variant plumbing (the logistic drag form
+and the fitted spin decay k) lives here, not in flight.py, which is ported to JS.
 """
 
+import argparse
+import dataclasses
 import json
-import os
 import sys
+import warnings
+from math import exp
 
 import numpy as np
 
+import baselines
 import data
 import flight
-
-# G2 tolerances (task 004.2). Shared with tests/test_flight.py.
-CARRY_TOL_FRAC = 0.03
-HEIGHT_TOL_YD = 3.0
-LAND_TOL_DEG = 2.0
-# Teaching tolerance: a looser bar every row must clear (coordinator, task 004.2).
-TEACH_CARRY_FRAC = 0.05
-TEACH_HEIGHT_YD = 4.0
-TEACH_LAND_DEG = 3.0
-
-MISSES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tests", "g2_known_misses.json")
+import gates
+from gates import (  # noqa: F401  (re-exported for the reports below)
+    HEIGHT_TOL_YD,
+    LAND_TOL_DEG,
+    CARRY_TOL_FRAC,
+    TEACH_CARRY_FRAC,
+    TEACH_HEIGHT_YD,
+    TEACH_LAND_DEG,
+    errors,
+    g2_misses,
+    n_rows,
+    normalized,
+    rms,
+    rows,
+    run_row,
+    teaching_misses,
+)
 
 QUAD_KEYS = ("d0", "d1", "d2", "d3", "l0", "l1", "l2")
 # Bounds are wide sanity boxes; the real constraints are the penalties below.
@@ -43,9 +58,34 @@ K_UNIT = 1.0e-5  # the vector holds k in units of 1e-5 (SI)
 K_BOUNDS = (1.0, 6.0)  # k in [1.0e-5, 6.0e-5] SI (task 004.2, round 3)
 LOGISTIC_W = 0.15  # MODELED fixed width of the logistic drag rise, units of 1e5 in Re
 
+
+def logistic_model(p, name="logistic"):
+    """Variant B: CD = d0 + d1 S + d2 S^2 + d3 / (1 + exp((Re - re0) / w)); lift
+    as in flight.quad_model. Built directly as an Aero, not through flight.py."""
+    d0, d1, d2, d3, re0, w = p["d0"], p["d1"], p["d2"], p["d3"], p["re0"], p["w"]
+    l0, l1, l2 = p["l0"], p["l1"], p["l2"]
+
+    def cd(spin, re):
+        return d0 + d1 * spin + d2 * spin * spin + d3 / (1.0 + exp((re - re0) / w))
+
+    def cl(spin, re):
+        return l0 + l1 * spin + l2 * spin * spin
+
+    return flight.Aero(name, cd, cl)
+
+
+def build_aero(p):
+    """Aero for a parameter dict: logistic form if p["form"] says so, else the
+    linear quad_model; a "k5" entry (spin decay in units of 1e-5) sets spin_decay."""
+    aero = logistic_model(p) if p.get("form") == "logistic" else flight.quad_model(p)
+    if "k5" in p:
+        aero = dataclasses.replace(aero, spin_decay=p["k5"] * K_UNIT)
+    return aero
+
+
 # Variants. "keys" order is the parameter vector order.
 VARIANTS = {
-    # 7-parameter quadratic shipped in round 2 (k fixed at the Anchor 7 value)
+    # 7-parameter quadratic (k fixed at the Anchor 7 value)
     "quad7": dict(
         keys=QUAD_KEYS, lo=QUAD_LO, hi=QUAD_HI, fixed={},
         starts=[(0.22, 0.30, 0.0, 0.0, 0.05, 0.9, -0.8), (0.25, 0.2, 0.3, 0.02, 0.1, 0.5, 0.0)],
@@ -72,66 +112,6 @@ VARIANTS = {
 }
 
 
-def rows(tours=("PGA", "LPGA")):
-    for tour in tours:
-        for club, r in data.TOURS[tour].items():
-            yield tour, club, r
-
-
-def run_row(r, aero=None, dt=0.01):
-    return flight.simulate(
-        r["ball_speed_mph"], r["launch_deg"], 0.0, r["spin_rpm"], 0.0, dt=dt, aero=aero
-    )
-
-
-def errors(f, r):
-    """(carry error yd, height error yd, land angle error deg), model minus published."""
-    return (
-        f.carry_yd - r["carry_yd"],
-        f.max_height_yd - r["max_height_yd"],
-        f.land_angle_deg - r["land_angle_deg"],
-    )
-
-
-def normalized(f, r):
-    ec, eh, ea = errors(f, r)
-    return (ec / (CARRY_TOL_FRAC * r["carry_yd"]), eh / HEIGHT_TOL_YD, ea / LAND_TOL_DEG)
-
-
-def g2_misses(aero=None, dt=0.01):
-    """{"PGA/3w": {"carry_yd": err, ...}} for rows outside the published G2
-    tolerances, listing only the components that miss. Runs the model."""
-    out = {}
-    for tour, club, r in rows():
-        ec, eh, ea = errors(run_row(r, aero, dt), r)
-        miss = {}
-        if abs(ec) > CARRY_TOL_FRAC * r["carry_yd"]:
-            miss["carry_yd"] = round(ec, 1)
-        if abs(eh) > HEIGHT_TOL_YD:
-            miss["height_yd"] = round(eh, 1)
-        if abs(ea) > LAND_TOL_DEG:
-            miss["land_deg"] = round(ea, 1)
-        if miss:
-            out[f"{tour}/{club}"] = miss
-    return out
-
-
-def teaching_misses(aero=None, dt=0.01):
-    out = {}
-    for tour, club, r in rows():
-        ec, eh, ea = errors(run_row(r, aero, dt), r)
-        miss = {}
-        if abs(ec) > TEACH_CARRY_FRAC * r["carry_yd"]:
-            miss["carry_yd"] = round(ec, 1)
-        if abs(eh) > TEACH_HEIGHT_YD:
-            miss["height_yd"] = round(eh, 1)
-        if abs(ea) > TEACH_LAND_DEG:
-            miss["land_deg"] = round(ea, 1)
-        if miss:
-            out[f"{tour}/{club}"] = miss
-    return out
-
-
 # ---------------------------------------------------------------------------
 # Constraint penalties on the quadratic family
 # ---------------------------------------------------------------------------
@@ -144,7 +124,7 @@ PENALTY = 1000.0  # residual units per unit of violation (coefficient units), la
 def constraint_violations(p):
     """Vector of non-negative violations; all zero means every constraint holds.
     p: dict with QUAD keys."""
-    m = flight.quad_model(p)
+    m = build_aero(p)
     v = []
     cl = np.array([m.cl(s, 1.0) for s in _S_GRID])
     v.extend(np.maximum(0.0, 0.02 - cl))  # CL > 0 (with a 0.02 floor)
@@ -163,18 +143,12 @@ def constraints_ok(p, tol=1e-9):
 
 def _vec_to_p(x, variant="quad7"):
     v = VARIANTS[variant]
-    p = dict(v["fixed"])
-    for key, val in zip(v["keys"], x):
-        if key == "k5":
-            p["k"] = float(val) * K_UNIT
-        else:
-            p[key] = float(val)
-    return p
+    return {**v["fixed"], **{key: float(val) for key, val in zip(v["keys"], x)}}
 
 
 def quad_residuals(x, subset, dt, variant="quad7"):
     p = _vec_to_p(x, variant)
-    aero = flight.quad_model(p)
+    aero = build_aero(p)
     out = []
     for tour, club, r in rows(subset):
         out.extend(normalized(run_row(r, aero, dt), r))
@@ -182,7 +156,7 @@ def quad_residuals(x, subset, dt, variant="quad7"):
     return np.array(out)
 
 
-def fit_quad(subset=("PGA", "LPGA"), dt=0.02, variant="quad7", verbose=False):
+def fit_quad(subset=("PGA", "LPGA"), dt=0.02, variant="quad7", verbose=False, max_nfev=400):
     from scipy.optimize import least_squares
 
     v = VARIANTS[variant]
@@ -195,8 +169,13 @@ def fit_quad(subset=("PGA", "LPGA"), dt=0.02, variant="quad7", verbose=False):
             args=(subset, dt, variant),
             diff_step=1e-4,
             x_scale=0.1,
-            max_nfev=400,
+            max_nfev=max_nfev,
         )
+        if sol.status == 0 or not sol.success:
+            warnings.warn(
+                f"fit_quad({variant}, {subset}) from start {x0}: stopped at max_nfev={max_nfev} "
+                f"or did not converge (status {sol.status}, {sol.message})"
+            )
         cost = float(np.sum(sol.fun**2))
         if verbose:
             print(f"  {variant} start {x0} -> cost {cost:.2f}")
@@ -210,7 +189,7 @@ def fit_nathan(re_branch, dt=0.02):
 
     def res(x):
         p = dict(data.NATHAN, re_branch=re_branch, lift_mult=x[0], drag_mult=x[1])
-        aero = flight.nathan_model(p)
+        aero = baselines.nathan_model(p)
         out = []
         for _t, _c, r in rows():
             out.extend(normalized(run_row(r, aero, dt), r))
@@ -300,11 +279,12 @@ def landing_report(aero):
 def print_params(p, title):
     print(f"\n{title}")
     print("QUAD = {")
-    for k in QUAD_KEYS:
-        print(f'    "{k}": {p[k]:.5f},')
+    for k, val in p.items():
+        if isinstance(val, float):
+            print(f'    "{k}": {val:.5g},' if abs(val) < 1e-3 else f'    "{k}": {val:.5f},')
     print("}")
     print(f"constraints satisfied: {constraints_ok(p, 1e-3)}")
-    m = flight.quad_model(p)
+    m = build_aero(p)
     for s in (0.075, 0.15, 0.30, 0.45):
         print(f"  S={s:.3f}: CD(Re=1.5)={m.cd(s, 1.5):.3f}  CL={m.cl(s, 1.5):.3f}")
 
@@ -323,12 +303,12 @@ def compare(variants=("quad7", "A", "B")):
         allp = fit_quad(("PGA", "LPGA"), variant=name)
         pga = fit_quad(("PGA",), variant=name)
         lpga = fit_quad(("LPGA",), variant=name)
-        aa = flight.quad_model(allp)
-        n_g2 = 23 - len(g2_misses(aa))
-        n_te = 23 - len(teaching_misses(aa))
+        aa = build_aero(allp)
+        n_g2 = n_rows() - len(g2_misses(aa))
+        n_te = n_rows() - len(teaching_misses(aa))
         _, tot = rms(aa)
-        _, h_pl = rms(flight.quad_model(pga), ("LPGA",))
-        _, h_lp = rms(flight.quad_model(lpga), ("PGA",))
+        _, h_pl = rms(build_aero(pga), ("LPGA",))
+        _, h_lp = rms(build_aero(lpga), ("PGA",))
         s3, s6 = _side10(aa, "LPGA", "3w"), _side10(aa, "LPGA", "6i")
         results[name] = dict(params=allp, g2=n_g2, teach=n_te, rms=tot, pga_to_lpga=h_pl,
                              lpga_to_pga=h_lp, held=(h_pl + h_lp) / 2, side3w=s3, side6i=s6)
@@ -349,46 +329,98 @@ def compare(variants=("quad7", "A", "B")):
     return results
 
 
-def main(argv):
-    if "--nathan" in argv or "--nathan-re" in argv:
-        branch = "--nathan-re" in argv
-        p = fit_nathan(branch)
-        print(f"Nathan forms, re_branch={branch}: lift_mult={p['lift_mult']:.3f} drag_mult={p['drag_mult']:.3f}")
-        aero = flight.nathan_model(p)
+def is_worse(old, new, slack=0.15):
+    """True if `new` misses more than `old`: a new row, a new component, or a
+    component error larger in magnitude by more than `slack`."""
+    for key, miss in new.items():
+        if key not in old:
+            return True
+        for comp, err in miss.items():
+            if comp not in old[key] or abs(err) > abs(old[key][comp]) + slack:
+                return True
+    return False
+
+
+def diff_lines(label, old, new):
+    out = []
+    for key in sorted(set(old) | set(new)):
+        if key not in new:
+            out.append(f"  {label} {key}: now passes (was {old[key]})")
+        elif key not in old:
+            out.append(f"  {label} {key}: NEW miss {new[key]}")
+        elif old[key] != new[key]:
+            out.append(f"  {label} {key}: {old[key]} -> {new[key]}")
+    return out
+
+
+def write_misses(force=False):
+    new = {"g2": g2_misses(), "teaching": teaching_misses()}
+    try:
+        old = gates.load_record()
+    except FileNotFoundError:
+        old = None
+    if old is not None:
+        lines = diff_lines("g2", old["g2"], new["g2"]) + diff_lines("teaching", old["teaching"], new["teaching"])
+        print("diff against the existing record:" if lines else "no change against the existing record")
+        print("\n".join(lines))
+        worse = is_worse(old["g2"], new["g2"]) or is_worse(old["teaching"], new["teaching"])
+        if worse and not force:
+            print("REFUSED: the new result is worse than the recorded one. Pass --force to overwrite.")
+            return 1
+    with open(gates.MISSES_PATH, "w") as fh:
+        json.dump(new, fh, indent=2)
+        fh.write("\n")
+    print(f"wrote {len(new['g2'])} G2 misses and {len(new['teaching'])} teaching misses to {gates.MISSES_PATH}")
+    return 0
+
+
+def build_parser():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--fit", action="store_true", help="fit one variant on PGA, LPGA and all rows")
+    mode.add_argument("--compare", action="store_true", help="fit all variants and print the comparison")
+    mode.add_argument("--nathan", action="store_true", help="baseline: Nathan forms, flat Cd0, 2 multipliers")
+    mode.add_argument("--nathan-re", action="store_true", help="baseline: Nathan forms with the Re branch")
+    mode.add_argument("--write-misses", action="store_true", help="regenerate tests/g2_known_misses.json")
+    ap.add_argument("--variant", choices=sorted(VARIANTS), default="quad7", help="with --fit")
+    ap.add_argument("--force", action="store_true", help="with --write-misses: accept a worse result")
+    return ap
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    if args.nathan or args.nathan_re:
+        p = fit_nathan(args.nathan_re)
+        print(
+            f"Nathan forms, re_branch={args.nathan_re}: "
+            f"lift_mult={p['lift_mult']:.3f} drag_mult={p['drag_mult']:.3f}"
+        )
+        aero = baselines.nathan_model(p)
         print_table(aero, "Nathan baseline fit")
         landing_report(aero)
         curvature_report(aero, "Nathan baseline")
-        return
-    if "--write-misses" in argv:
-        misses = {"g2": g2_misses(), "teaching": teaching_misses()}
-        with open(MISSES_PATH, "w") as fh:
-            json.dump(misses, fh, indent=2, sort_keys=False)
-            fh.write("\n")
-        print(
-            f"wrote {len(misses['g2'])} G2 misses and {len(misses['teaching'])} "
-            f"teaching misses to {MISSES_PATH}"
-        )
-        return
-    if "--compare" in argv:
+    elif args.write_misses:
+        return write_misses(args.force)
+    elif args.compare:
         compare()
-        return
-    if "--fit" in argv:
-        variant = argv[argv.index("--variant") + 1] if "--variant" in argv else "quad7"
-        pga = fit_quad(("PGA",), variant=variant)
-        lpga = fit_quad(("LPGA",), variant=variant)
-        allp = fit_quad(("PGA", "LPGA"), variant=variant, verbose=True)
-        print_params(allp, f"ALL-ROWS FIT, variant {variant} (shipped candidate)")
-        print_table(flight.quad_model(allp), "ALL-ROWS fit, all rows (in sample)")
-        print_table(flight.quad_model(pga), "PGA-only fit predicting LPGA (held out)", ("LPGA",))
-        print_table(flight.quad_model(lpga), "LPGA-only fit predicting PGA (held out)", ("PGA",))
-        landing_report(flight.quad_model(allp))
-        curvature_report(flight.quad_model(allp), f"Variant {variant}")
-        return
-    print_params(data.QUAD, "Shipped data.QUAD")
-    print_table(flight.DEFAULT_AERO, "Shipped model")
-    landing_report(flight.DEFAULT_AERO)
-    curvature_report(flight.DEFAULT_AERO, "Shipped model")
+    elif args.fit:
+        v = args.variant
+        pga = fit_quad(("PGA",), variant=v)
+        lpga = fit_quad(("LPGA",), variant=v)
+        allp = fit_quad(("PGA", "LPGA"), variant=v, verbose=True)
+        print_params(allp, f"ALL-ROWS FIT, variant {v}")
+        print_table(build_aero(allp), "ALL-ROWS fit, all rows (in sample)")
+        print_table(build_aero(pga), "PGA-only fit predicting LPGA (held out)", ("LPGA",))
+        print_table(build_aero(lpga), "LPGA-only fit predicting PGA (held out)", ("PGA",))
+        landing_report(build_aero(allp))
+        curvature_report(build_aero(allp), f"Variant {v}")
+    else:
+        print_params(data.QUAD, "Shipped data.QUAD")
+        print_table(flight.DEFAULT_AERO, "Shipped model")
+        landing_report(flight.DEFAULT_AERO)
+        curvature_report(flight.DEFAULT_AERO, "Shipped model")
+    return 0
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    sys.exit(main())
