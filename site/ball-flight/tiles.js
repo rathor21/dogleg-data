@@ -66,7 +66,7 @@ export const METRICS = {
     words: (rh, d) => (isZero(d, ON_LINE_YD) ? "on the line" : `${dirWord(d)} of target`) },
   curve_yd: { label: "Curve", unit: "yd", dec: 1, signed: true, lateral: true,
     words: (rh, d) => (isZero(d, 0.05) ? "no curve" : `curves ${dirWord(d)}`) },
-  total_yd: { label: "Total", unit: "yd", dec: 0, noBand: true,
+  total_yd: { label: "Total", unit: "yd", dec: 0,
     words: () => "carry plus roll" },
 };
 
@@ -233,7 +233,7 @@ export function createTile(metric, prefix, extraClass) {
       const value = entry.disp;
       vEl.textContent = fmt(value, m.dec, m.signed, m.grouped);
       wordEl.textContent = m.words ? m.words(entry.rh, entry.disp) : "";
-      const band = m.noBand ? null : displayBand(metric, rawBand, hand);
+      const band = m.noBand || !rawBand ? null : displayBand(metric, rawBand, hand);
       if (!band) {
         el.classList.remove("in", "out");
         bar.hidden = true;
