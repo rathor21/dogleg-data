@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<!--
+Release 004 article page: "Face, path, and the ball flight laws, in numbers".
+Six chapters, five live figures (article.js), methods and limits, sources.
+
+Template convention (same as fairway-vs-rough/index.html, with absolute paths like augusta-12):
+1. Copy to site/<new-slug>/index.html; asset and page links start with /.
+2. Renumber the kicker to ANALYSIS Nº 004; rewrite h1, dek, byline.
+3. Update <title>, dates, reading time (body word count / 230 wpm, rounded).
+4. Nav: the current page's item is unlinked text (<a aria-current="page">, no href).
+5. Tool link is /ball-flight/tool.html.
+
+Numbers: every model number in the prose sits in <span data-num="key">fallback</span>.
+article.js fills it from the live model (flight.js) through article-numbers.js, so the text
+matches the figures and the lab. tests/article-numbers.mjs fails when a fallback drifts.
+Published numbers (TrackMan, PING) are plain text. The ledger is docs/sources/004_Caption.md.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Face, Path, and the Ball Flight Laws, in Numbers · Dogleg Data</title>
+<!-- seo -->
+<meta name="description" content="Face sets the start line, face-to-path sets the curve, and attack angle moves launch, spin and path. The ball flight laws in numbers, from a flight model fitted to TrackMan's Tour averages, with live figures and a lab you can use with a student.">
+<link rel="canonical" href="https://doglegdata.com/ball-flight/">
+<meta name="theme-color" content="#F4EDE0">
+<link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Face, Path, and the Ball Flight Laws, in Numbers · Dogleg Data">
+<meta property="og:description" content="Face sets the start line, face-to-path sets the curve, and attack angle moves launch, spin and path. The ball flight laws in numbers, from a flight model fitted to TrackMan's Tour averages.">
+<meta property="og:url" content="https://doglegdata.com/ball-flight/">
+<meta property="og:site_name" content="Dogleg Data">
+<meta property="og:image" content="https://doglegdata.com/assets/img/004_range.png">
+<meta property="og:image:width" content="1376">
+<meta property="og:image:height" content="768">
+<meta property="og:image:alt" content="A driving range at dusk seen from the tee, with painted target greens and a white center line under an orange and purple sky">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="article:published_time" content="2026-09-29">
+<meta property="article:author" content="Sunny Rathor">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Face, Path, and the Ball Flight Laws, in Numbers",
+  "description": "Face sets the start line, face-to-path sets the curve, and attack angle moves launch, spin and path. The ball flight laws in numbers, from a flight model fitted to TrackMan's Tour averages.",
+  "image": "https://doglegdata.com/assets/img/004_range.png",
+  "datePublished": "2026-09-29",
+  "author": {
+    "@type": "Person",
+    "name": "Sunny Rathor",
+    "jobTitle": "Founder, Dogleg Data",
+    "sameAs": ["https://x.com/DoglegData", "https://www.linkedin.com/in/sunnyrathor"]
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Dogleg Data",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://doglegdata.com/assets/brand/avatar-512.png"
+    }
+  },
+  "mainEntityOfPage": "https://doglegdata.com/ball-flight/"
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/site.css">
+<link rel="stylesheet" href="/ball-flight/article.css">
+</head>
+<body class="post">
+<div class="wrap">
+
+<header class="site-header">
+  <div class="header-row">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dogleg Data mark">
+        <path d="M8 28 V14 Q8 8 14 8 H21" fill="none" stroke="#1C1B18" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="26" cy="8" r="3.5" fill="#C05A36"/>
+      </svg>
+      <a class="wordmark" href="/">Dogleg Data</a>
+      <span class="tagline">Play the percentages</span>
+    </div>
+    <nav class="site-nav" aria-label="Primary">
+      <a aria-current="page">Analyses</a>
+      <a href="/augusta-12/tool.html">Tools</a>
+      <a href="/about/">About</a>
+      <a href="/cite/">Cite</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <article>
+
+    <div class="article-header">
+      <span class="kicker">Analysis Nº 004</span>
+      <h1>Face, path, and the ball flight laws, in numbers</h1>
+      <p class="dek">Instructors teach two rules. The face sets the start line, and the gap between face and path sets the curve. I fitted a flight model to TrackMan's published Tour averages and put a number on each rule for the driver, the 6-iron and the wedge. The figures below run that model in your browser, so every number here matches the Ball flight lab.</p>
+      <div class="byline">Sunny Rathor · Founder, Dogleg Data<span class="sep">·</span>September 29, 2026<span class="sep">·</span>8 min read</div>
+      <!-- CREDIT: pending consent from Justin Kraft; Sunny decides -->
+    </div>
+
+    <div class="cta-card cta-top">
+      <span class="kicker">Try it first</span>
+      <h3>Move the sliders yourself.</h3>
+      <p>The Ball flight lab flies a shot over a driving range from club speed, attack angle, path, face and dynamic loft, names it, and sets every number against its ideal band.</p>
+      <a class="btn btn-solid" href="/ball-flight/tool.html">Open the Ball flight lab</a>
+    </div>
+
+    <div class="article-body">
+
+      <p>Golfers hear the ball flight laws as slogans. Attack angle joins the two rules above, since it changes launch and spin and drags the path along with it. I wanted the weights: how much of the start line the face owns, how many yards a degree bends a wedge against a driver, and what the numbers read for a Tour pro, an LPGA player and a 14.5-handicap.</p>
+
+      <p>Published numbers come from TrackMan and PING and cite their pages. Model numbers carry the <span class="badge-modeled">modeled</span> badge and are computed live.</p>
+
+      <section class="chapter" id="start-line" aria-labelledby="ch1-h">
+        <div class="chapter-kicker">Chapter 1</div>
+        <h2 id="ch1-h">Face sets the start line</h2>
+
+        <p>Open the Tour driver's face 4 degrees with the path at zero, and the ball starts <span data-num="sd-drv-face4">3.1</span> degrees right of the target. Leave the face square and swing the path 4 degrees right, and the start line moves <span data-num="sd-drv-path4">0.9</span> degree. Figure 1 shows both moves for the driver and the 7-iron.</p>
+
+        <figure class="fig" id="fig-start" data-fig="start">
+          <div class="fig-title"><strong>Figure 1.</strong> Start direction from 4 degrees of face or 4 degrees of path</div>
+          <div class="fig-legend" data-legend></div>
+          <div class="fig-plot"><noscript>Enable JavaScript to see this figure. The data table below lists every value.</noscript></div>
+          <figcaption>Tour presets in the model. Face rows hold the path at zero, path rows hold the face at zero. Degrees from the target line, right positive. <span class="source-line">Source: Dogleg Data flight model, calibrated to TrackMan's 2023 Tour averages.</span> <span class="badge-modeled">modeled</span></figcaption>
+          <details class="fig-table"><summary>Data table</summary><div class="fig-table-body"></div></details>
+        </figure>
+
+        <p>That split puts the face's share of the start direction at <span data-num="share-drv">79</span> percent for the driver and <span data-num="share-6i">73</span> percent for the 6-iron. The driver's share runs higher because the ball leaves closer to where the face points as spin loft drops. I fitted the model to TrackMan's published dynamic loft and launch angle for the Tour driver and 6-iron, so these shares are model output.</p>
+
+        <p>You may have heard 85 percent for the driver and 75 for irons, or 87 and 81. I could not trace either pair to a TrackMan text. A 2014 coaching-academy page gives the first pair and names no source. A forum post gives the second and cites TrackMan Academy without a link. TrackMan's own pages call the face the main contributor to launch direction and print no percentage. My driver share sits <span data-num="share-gap-drv">6</span> points under the 85 and my 6-iron share sits <span data-num="share-gap-6i">2</span> under the 75. That comparison checks plausibility and cannot pick a winner. The table that should settle it sits in Fredrik Tuxen's TrackMan Ball Flight Laws paper, which I could not open. Until someone reads it, treat every share as an estimate.</p>
+      </section>
+
+      <section class="chapter" id="curve" aria-labelledby="ch2-h">
+        <div class="chapter-kicker">Chapter 2</div>
+        <h2 id="ch2-h">Face-to-path sets the curve</h2>
+
+        <p>Face-to-path is the face angle minus the club path. The ball curves toward the face and away from the path, and the club decides how far. At 2 degrees of face-to-path the Tour driver in the model bends <span data-num="curve2-drv">18.0</span> yards, the 6-iron <span data-num="curve2-6i">10.4</span> and the pitching wedge <span data-num="curve2-pw">3.1</span>. The driver bends <span data-num="ratio-drv-pw">5.8</span> times as far as the wedge and <span data-num="ratio-drv-6i">1.7</span> times as far as the 6-iron.</p>
+
+        <figure class="fig" id="fig-curve" data-fig="curve">
+          <div class="fig-title"><strong>Figure 2.</strong> Curve against face-to-path, with TrackMan's published examples</div>
+          <div class="fig-legend" data-legend></div>
+          <div class="fig-plot"><noscript>Enable JavaScript to see this figure. The data table below lists every value.</noscript></div>
+          <figcaption>Path 0, face equal to face-to-path. Solid lines are the PGA Tour presets and dashed lines the LPGA Tour presets. Dots are the eight examples on TrackMan's Face to Path page, filled for PGA and hollow for LPGA. <span class="source-line">Source: examples from TrackMan, "What is Face to Path?" (2024-09-23); lines from the Dogleg Data flight model.</span> <span class="badge-modeled">modeled</span></figcaption>
+          <details class="fig-table"><summary>Data table</summary><div class="fig-table-body"></div></details>
+        </figure>
+
+        <p>The gap comes from spin loft. The Tour driver has <span data-num="sl-drv">14.3</span> degrees of it and the wedge <span data-num="sl-pw">39</span>. Divide face-to-path by spin loft and you land close to the tilt of the spin axis, so a degree of face-to-path tips a driver's axis far more than a wedge's. The driver also flies farther, which gives the curve more room to build.</p>
+
+        <p>TrackMan's eight worked examples anchor the driver and the 6-iron. The lines pass within <span data-num="ex-miss">5.4</span> yards of all eight dots. TrackMan published no wedge example, so the wedge line is an extrapolation.</p>
+      </section>
+
+      <section class="chapter" id="attack" aria-labelledby="ch3-h">
+        <div class="chapter-kicker">Chapter 3</div>
+        <h2 id="ch3-h">Attack angle changes launch, spin, and path</h2>
+
+        <p>Attack angle changes spin loft, which is dynamic loft minus attack angle. Hold the Tour driver's dynamic loft at <span data-num="atk-loft">13.4</span> degrees and swing down 6 degrees, and the model launches the ball <span data-num="atk-launch-dn">8.8</span> degrees high with <span data-num="atk-spin-dn">3,684</span> rpm on <span data-num="atk-sl-dn">19.4</span> degrees of spin loft. Swing up 6 degrees and the same loft launches at <span data-num="atk-launch-up">11.9</span> degrees with <span data-num="atk-spin-up">1,086</span> rpm on <span data-num="atk-sl-up">7.4</span> degrees.</p>
+
+        <figure class="fig" id="fig-attack" data-fig="attack">
+          <div class="fig-title"><strong>Figure 3.</strong> Tour driver launch and spin as attack angle changes, dynamic loft held</div>
+          <div class="fig-legend" data-legend></div>
+          <div class="fig-plot"><noscript>Enable JavaScript to see this figure. The data table below lists every value.</noscript></div>
+          <figcaption>Club speed and dynamic loft stay at the PGA Tour driver preset. The optimizer lines are the published charts at that speed. <span class="source-line">Source: model line from the Dogleg Data flight model; TrackMan Driver Fitting Chart (2010), CARRY Optimizer; PING Optimal Launch &amp; Spin Chart (2019); Tour average from TrackMan's 2023 PGA table.</span> <span class="badge-modeled">modeled</span></figcaption>
+          <details class="fig-table"><summary>Data table</summary><div class="fig-table-body"></div></details>
+        </figure>
+
+        <p>Read the dotted segments with care. The launch fit has no data below <span data-num="sl-floor">12.7</span> degrees of spin loft, so the model extrapolates there. The optimizer charts raise dynamic loft as attack angle rises and the figure holds it fixed, which is why the model's spin runs under both charts at positive attack angles.</p>
+
+        <p>Attack angle moves the path too. Instructors teach that hitting down pushes the path right of where a shallower swing would put it, and the geometry agrees. With the swing direction held, each extra degree of down-attack adds about <span data-num="per-deg">0.87</span> degree of path on a <span data-num="plane">49</span>-degree swing plane, the Combine average for a driver. The formula comes from a 2011 Brian Manzella Golf forum post. TrackMan says path comes from swing direction, swing plane and attack angle and prints no equation.</p>
+
+        <p>Steepen the Tour driver by 4 degrees and hold the swing direction and a square face. The path moves <span data-num="couple-path">3.5</span> degrees right. The ball starts <span data-num="couple-start">0.8</span> degree right of target, launches at <span data-num="couple-launch">9.2</span> degrees with <span data-num="couple-spin">3,508</span> rpm, and hooks <span data-num="couple-curve">28</span> yards.</p>
+      </section>
+
+      <section class="chapter" id="windows" aria-labelledby="ch4-h">
+        <div class="chapter-kicker">Chapter 4</div>
+        <h2 id="ch4-h">The ideal window by club</h2>
+
+        <p>The lab shades an ideal band on every tile. TrackMan publishes Tour averages for every club and no target launch or spin for irons, so the Tour rows serve as the ideal for the Tour presets. The average-amateur rows stand on less: a measured driver row from TrackMan's Combine data, Optimizer defaults for the 6-iron and wedge, and modeled numbers for everything else.</p>
+
+        <figure class="fig fig-table-first" id="fig-presets" data-fig="presets">
+          <div class="fig-title"><strong>Table 1.</strong> The three preset rows the lab starts from</div>
+          <div class="tbl-wrap"><noscript>Enable JavaScript to see this table.</noscript></div>
+          <figcaption>Plain numbers are published: TrackMan's 2023 Tour tables, and the Combine average golfer (14.5 handicap) for the amateur driver. <span class="badge-modeled">default</span> marks a TrackMan Optimizer default, which is TrackMan model output and not a measurement. <span class="badge-modeled">modeled</span> marks Dogleg Data model output. <span class="source-line">Source: TrackMan, "New PGA &amp; LPGA Tour Averages" (2024-05-02); TrackMan Combine averages and Optimizer defaults (2024-09-23).</span></figcaption>
+        </figure>
+
+        <p>The driver has two published optimizers: TrackMan's 2010 driver fitting charts and PING's 2019 launch and spin chart. Figure 4 sets each group's published average against both, at that group's speed and attack angle. The lab's band spans the two charts and adds 1 degree of launch and 200 rpm of spin.</p>
+
+        <figure class="fig" id="fig-driver" data-fig="driver">
+          <div class="fig-title"><strong>Figure 4.</strong> Driver launch and spin against the two published optimizers</div>
+          <div class="fig-legend" data-legend></div>
+          <div class="fig-plot"><noscript>Enable JavaScript to see this figure. The data table below lists every value.</noscript></div>
+          <figcaption>Each row uses that group's club speed and attack angle. The shaded bar is the lab's ideal band. <span class="source-line">Source: averages from TrackMan's 2023 Tour tables and Combine average golfer; TrackMan Driver Fitting Chart (2010), CARRY Optimizer; PING Optimal Launch &amp; Spin Chart (2019). Chart lookups interpolate between published cells.</span> <span class="badge-modeled">modeled</span></figcaption>
+          <details class="fig-table"><summary>Data table</summary><div class="fig-table-body"></div></details>
+        </figure>
+
+        <p>The PGA Tour numbers agree with the charts: the average driver launches at 10.4 degrees against <span data-num="pga-tm-launch">9.3</span> from TrackMan and <span data-num="pga-ping-launch">10.4</span> from PING. The LPGA Tour average does not agree. LPGA players launch the driver at 12.6 degrees on a 2.8-degree up-swing. TrackMan's optimizer asks for <span data-num="lpga-tm-launch">14.2</span> at that speed and attack angle and PING's chart asks for <span data-num="lpga-ping-launch">14.8</span>, so the LPGA average launches <span data-num="lpga-gap-lo">1.6</span> to <span data-num="lpga-gap-hi">2.2</span> degrees below both. That gap sits in TrackMan's published averages and does not depend on my model.</p>
+
+        <p>Two cautions apply. The charts date from 2010 and 2019 and the LPGA table from 2023, and each chart optimizes carry for its own ball and conditions. A fitter could start with that gap. The average amateur launches at 12.6 degrees with 3,275 rpm, which matches TrackMan's spin and sits <span data-num="am-spin-gap">510</span> rpm over PING's.</p>
+      </section>
+
+      <section class="chapter" id="nine-windows" aria-labelledby="ch5-h">
+        <div class="chapter-kicker">Chapter 5</div>
+        <h2 id="ch5-h">Tiger's nine windows</h2>
+
+        <p>Nine windows is a drill Tiger Woods made part of his routine: three trajectories, low, mid and high, each shaped as a draw, a straight shot and a fade. TaylorMade's 2021 video "Tiger Woods' Nine Windows" carries his walkthrough with his irons, and its description calls the drill an example of the control a golfer can have with an iron. I cite the video for the concept alone.</p>
+
+        <p>No one has published launch monitor numbers for the nine windows, so I built the recipes. For each window a solver finds the path, face, attack angle and dynamic loft that hit a target peak height and curve with the Tour 7-iron. The low and high windows peak at <span data-num="t-low">70</span> and <span data-num="t-high">125</span> percent of the standard shot's height, and the draw and fade bend <span data-num="t-curve">5</span> percent of carry. Figure 5 flies all nine.</p>
+
+        <figure class="fig" id="fig-windows" data-fig="windows">
+          <div class="fig-title"><strong>Figure 5.</strong> The nine 7-iron windows, flown by the model</div>
+          <div class="fig-legend" data-legend></div>
+          <div class="fig-plot fig-plot-grid"><noscript>Enable JavaScript to see this figure. The data table below lists every recipe.</noscript></div>
+          <figcaption>Tour 7-iron at 92 mph, target line horizontal. Each cell shows the side profile above and the view from above, right of the target line downward. Heights are drawn at twice the horizontal scale and sideways movement at five times. <strong>Recipes are Dogleg Data model output. The nine-window drill is Tiger Woods's; these numbers are not his.</strong> <span class="source-line">Source: Dogleg Data flight model; concept from TaylorMade, "Tiger Woods' Nine Windows" (2021-09-21).</span> <span class="badge-modeled">modeled</span></figcaption>
+          <details class="fig-table"><summary>Recipe table</summary><div class="fig-table-body"></div></details>
+        </figure>
+
+        <p>Height comes from loft and attack angle together. The straight low window takes <span data-num="w-low-loft">15.3</span> degrees of dynamic loft and a <span data-num="w-low-aoa">7.1</span>-degree down-swing, and carries <span data-num="w-low-carry">186</span> yards with a <span data-num="w-low-h">27</span>-yard peak. The mid window takes <span data-num="w-mid-loft">23.4</span> degrees and <span data-num="w-mid-aoa">3.9</span> down for <span data-num="w-mid-carry">174</span> and <span data-num="w-mid-h">38</span>. The high window takes <span data-num="w-high-loft">34.6</span> degrees and <span data-num="w-high-aoa">0.6</span> up for <span data-num="w-high-carry">152</span> and <span data-num="w-high-h">48</span>.</p>
+
+        <p>Shape follows the same pattern at every height. The mid draw wants the path <span data-num="w-draw-path">4.4</span> degrees right with the face <span data-num="w-draw-face">2.3</span> degrees right, a face-to-path of <span data-num="w-draw-f2p">−2.1</span> that bends the ball <span data-num="w-draw-curve">9</span> yards and brings it back to the target line. The lab's 9 Windows mode flies the same nine recipes.</p>
+      </section>
+
+      <section class="chapter" id="student" aria-labelledby="ch6-h">
+        <div class="chapter-kicker">Chapter 6</div>
+        <h2 id="ch6-h">How to use the lab with a student</h2>
+
+        <ol class="moves">
+          <li>Set the student's miss. Pick the club and the closest player row, then enter the path and face from the student's launch monitor session. An <a href="/ball-flight/tool.html?c=driver&amp;p=amateur&amp;pa=-4&amp;f=0">average-amateur driver with a −4 path and a square face</a> is a <span data-num="cx-name">slice</span>: it starts on line, bends <span data-num="cx-curve">22</span> yards and finishes <span data-num="cx-finish">19</span> yards right. If that matches the range, you share a picture.</li>
+          <li>Pin it, then change one variable. Switch to Compare mode, pin this shot, and change the path alone, from −4 to −2. The curve falls to <span data-num="cx-curve2">11</span> yards, one cause and one effect.</li>
+          <li>Fix the start line first. The face carries about <span data-num="share-drv">79</span> percent of the driver's start direction, so point the face where the ball should start, then use the path to shape the flight.</li>
+          <li>Trade attack angle for loft. Change attack angle with dynamic loft locked and watch launch and spin move, as in Figure 3. Then restore the launch with loft.</li>
+          <li>Send the link. The lab's address holds the whole setup: club, player, speed, attack angle, path, face and loft. Copy it, text it, and the student opens the same shot on a phone.</li>
+        </ol>
+
+        <div class="cta-card">
+          <span class="kicker">Run your own shots</span>
+          <h3>Your student's miss, on a driving range.</h3>
+          <p>Pick a club, set the path and face, and read the shot's name and every tile against its band.</p>
+          <a class="btn btn-solid" href="/ball-flight/tool.html">Open the Ball flight lab</a>
+        </div>
+      </section>
+
+      <details class="method" id="method">
+        <summary><span class="kicker">Method and limits</span><span class="method-hint">What the model is and where it misses</span></summary>
+        <div class="method-body">
+          <p>A three-dimensional point mass flies under gravity, drag and Magnus lift, integrated with RK4 at 0.01 seconds in standard sea-level air. Lift and drag follow a quadratic form in spin factor. Its seven coefficients were fitted once to all 23 Tour rows (PGA 12, LPGA 11), with no per-club terms, and spin decays at the published rate from Smits and Smith. A second model turns club speed, attack angle, path, face and dynamic loft into launch, spin and ball speed through the D-plane geometry. The record of both fits is ADR 0004 in the project repository.</p>
+          <ul>
+            <li>Calibration tolerance. No single set of coefficients fits every Tour row inside the original gate (carry within 3 percent, height within 3 yards, land angle within 2 degrees). The model passes it on 6 of 23 rows and passes a teaching tolerance (5 percent, 4 yards, 3 degrees) on 12. The PGA 3-wood, 5-wood, hybrid and 6-iron fly 4.5 to 5.1 yards too high, the PGA 3-iron through 5-iron land 3.7 to 4.2 degrees shallower than the table, and the PGA wedge carries 8.5 yards short.</li>
+            <li>Launch, spin and ball speed. Within 1 degree of launch, 10 percent of spin and 2 percent of ball speed, 17 of 23 rows pass. Before the spin trim, the LPGA driver reads 24.5 percent low on spin and the LPGA 3-wood 30 percent high.</li>
+            <li>Spin trims. Each preset multiplies spin by one fixed factor, from 0.77 to 1.32, so the preset reproduces its published spin to within 1 percent. The factor stays as you move the sliders. The LPGA driver (1.32) and LPGA 3-wood (0.77) mark where the model is weakest.</li>
+            <li>Modeled amateur irons. The amateur driver is the one measurement. The 6-iron and wedge are Optimizer defaults, and every other amateur club interpolates between those anchors.</li>
+            <li>Curvature. The model reproduces the eight TrackMan examples within 20 percent or 3 yards in calibration. It runs 2 to 12 percent short of the carries those examples quote, and it bends the ball the same amount left and right where TrackMan's driver examples are a little asymmetric. Every other club extrapolates from the fit.</li>
+            <li>Start-direction shares. Unverified against a primary TrackMan text, as Chapter 1 says.</li>
+            <li>Low spin loft. The launch fit spans 12.7 to 25.9 degrees of spin loft. Outside it, including a driver hit up more than a degree or two at Tour loft, the model extrapolates.</li>
+            <li>Roll. Bounce and roll come from a simple empirical rule with no published source, so total distance is modeled.</li>
+            <li>Averages. Tour tables pool competition and range shots and give one average per club. The model reproduces an average shot and has no dispersion.</li>
+            <li>Conventions. TrackMan reports club speed, attack angle and path at the center of the club head, and camera-based monitors read attack angle about 2 degrees higher. The sliders follow TrackMan. TrackMan's tables do not adjust for altitude or weather.</li>
+            <li>Nine windows. The recipes are model output, and no primary source publishes numbers for any window.</li>
+          </ul>
+        </div>
+      </details>
+
+      <section class="sources" id="sources" aria-labelledby="sources-heading">
+        <h2 id="sources-heading">Sources</h2>
+        <dl>
+          <dt>Tour averages by club</dt>
+          <dd>TrackMan, <a href="https://www.trackman.com/blog/introducing-updated-tour-averages" target="_blank" rel="noopener">"New PGA &amp; LPGA Tour Averages"</a> (2024-05-02), the 2023 dataset. Cross-checked against the <a href="https://www.trackman.media/tour-averages" target="_blank" rel="noopener">TrackMan Media Kit</a>. Dynamic loft and spin loft: <a href="https://www.trackman.com/blog/golf/dynamic-loft" target="_blank" rel="noopener">What is Dynamic Loft</a> and <a href="https://www.trackman.com/blog/golf/spin-loft" target="_blank" rel="noopener">What is Spin Loft</a>.</dd>
+
+          <dt>Average amateur</dt>
+          <dd>TrackMan Combine averages for the driver, repeated on TrackMan's parameter pages such as <a href="https://www.trackman.com/blog/golf/what-is-club-speed" target="_blank" rel="noopener">Club Speed</a> and <a href="https://www.trackman.com/blog/spin-rate" target="_blank" rel="noopener">Spin Rate</a> (2024-09-23). The 6-iron and wedge use the Optimizer defaults stated on the same pages.</dd>
+
+          <dt>Driver optimizers</dt>
+          <dd>TrackMan, Driver Fitting Chart (2010), CARRY Optimizer, <a href="https://wishongolf.com/wp-content/uploads/2012/07/TrackMan-Driver-Optimization_2010.pdf" target="_blank" rel="noopener">hosted by a fitter</a>. PING, <a href="https://pgamagazine.com/wp-content/media/2021/02/Optimal-Launch-Spin-Chart-1.pdf" target="_blank" rel="noopener">Optimal Launch &amp; Spin Chart</a> (2019), a mirror of the PDF.</dd>
+
+          <dt>Face, path and curvature</dt>
+          <dd>TrackMan, <a href="https://www.trackman.com/blog/what-is-face-angle" target="_blank" rel="noopener">What is Face Angle?</a>, <a href="https://www.trackman.com/blog/golf/club-path" target="_blank" rel="noopener">Club Path</a>, <a href="https://www.trackman.com/blog/face-to-path" target="_blank" rel="noopener">What is Face to Path?</a> (the eight curvature examples), <a href="https://www.trackman.com/blog/spin-axis" target="_blank" rel="noopener">What is Spin Axis?</a> and <a href="https://www.trackman.com/blog/what-is-launch-direction" target="_blank" rel="noopener">What is Launch Direction?</a>. Measurement offsets: <a href="https://www.trackman.com/blog/club-data-definitions" target="_blank" rel="noopener">Understanding Club Data in Golf</a> (2017).</dd>
+
+          <dt>Start-direction shares in circulation</dt>
+          <dd>PGA Academy Australia, <a href="https://pgaacademy.com.au/trackman/starting-line-path-or-face/" target="_blank" rel="noopener">"Starting Line - Path or Face?"</a> (2014-07-22), 85 percent and 75 percent, no source named. Golf Simulator Forum, <a href="https://golfsimulatorforum.com/forum/foresight-sports/345478-experiment-rough-calculation-of-clubface-using-launch-direction-and-club-path" target="_blank" rel="noopener">an experiment thread</a> (2021-10-14), 87 percent and 81 percent, attributed to TrackMan Academy. Neither is a primary source.</dd>
+
+          <dt>Attack angle and path</dt>
+          <dd>TrackMan, <a href="https://www.trackman.com/blog/what-is-swing-direction" target="_blank" rel="noopener">What is Swing Direction?</a> and <a href="https://www.trackman.com/blog/what-is-swing-plane" target="_blank" rel="noopener">What is Swing Plane?</a>. The formula for path with the swing direction held comes from a Brian Manzella Golf forum post, <a href="https://forum.brianmanzellagolf.com/threads/clubhead-direction-aoa-and-club-path.15209/" target="_blank" rel="noopener">"Clubhead Direction - AoA and Club Path"</a> (2011-04-12), and is not a TrackMan equation.</dd>
+
+          <dt>Nine windows</dt>
+          <dd>TaylorMade Golf, <a href="https://www.youtube.com/watch?v=q0mj9Adz0Jw" target="_blank" rel="noopener">"Tiger Woods' Nine Windows"</a> (2021-09-21), cited for the drill. No launch monitor numbers for any window are published.</dd>
+
+          <dt>Aerodynamics</dt>
+          <dd>Alan Nathan, <a href="https://baseball.physics.illinois.edu/trajectory-calculator-golf.html" target="_blank" rel="noopener">Trajectory Calculator: Golf Version</a>, used as the baseline. Spin decay from Smits and Smith (1994), as stated in Nathan's <a href="https://baseball.physics.illinois.edu/spindown.pdf" target="_blank" rel="noopener">spin-down paper</a>. Functional form of lift and drag: McNally, Lambeth and Brekke, <a href="https://openaccess.thecvf.com/content/CVPR2023W/CVSports/papers/McNally_Combining_Physics_and_Deep_Learning_Models_To_Simulate_the_Flight_CVPRW_2023_paper.pdf" target="_blank" rel="noopener">CVPR 2023 Workshops</a>.</dd>
+        </dl>
+        <p class="sources-note">Every number in the text traces to a row in the release's caption ledger and its source log.</p>
+      </section>
+
+    </div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <div class="footer-copy">
+      <p>Dogleg Data tests golf's conventional wisdom against real data for the mid-to-high handicap golfer. Each analysis names its sources and labels anything modeled.</p>
+      <div class="footer-social">
+        <a href="https://x.com/DoglegData" target="_blank" rel="noopener" title="X">X</a>
+        <a href="https://www.linkedin.com/in/sunnyrathor" target="_blank" rel="noopener" title="LinkedIn">LinkedIn</a>
+        <a href="mailto:sunny@doglegdata.com" title="Email">Email</a>
+      </div>
+      <p class="footer-cite">Podcast or video? <a href="/cite/">Every chart is free to use with credit.</a></p>
+    </div>
+    <img class="footer-mascot" src="/assets/brand/mascot-run.png" width="344" height="175" alt="Dogleg Data mascot dachshund, mid-run">
+  </div>
+  <div class="copyright">&copy; 2026 Dogleg Data &middot; Play the percentages.</div>
+  <div class="footer-quip">The dog legs. The data doesn't.</div>
+</footer>
+
+</div>
+<script type="module" src="/ball-flight/article.js"></script>
+</body>
+</html>
