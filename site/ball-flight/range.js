@@ -106,12 +106,8 @@ export function createRange({ root, canvas, model, avoidEl }) {
   // vertical line. lat() widens the drawn side offset about 2x for ordinary shots
   // and saturates for big misses so they stay in frame. It is monotonic and odd,
   // so left, right and the ordering of shots are kept. Model numbers, labels and
-  // the carry and side text are untouched; only where shot geometry is painted
-  // moves (tracer, shadow, guide, landing, ghost, A, the nine windows). The
-  // painted-green plates sit at art pixels and are never passed through lat().
-  // The range says so on screen (LAT_NOTE).
+  // the carry and side text are untouched; only where the tracer is painted moves.
   const LAT_GAIN = 2.4, LAT_KNEE = 35;
-  const LAT_NOTE = "sideways widened for clarity", LAT_NOTE_SHORT = "sideways widened";
   const lat = (y) => (LAT_GAIN * y) / (1 + Math.abs(y) / LAT_KNEE);
 
   function project(a, x, y, z) {
@@ -693,17 +689,6 @@ export function createRange({ root, canvas, model, avoidEl }) {
     const fs = clamp(W / 80, MIN_FONT_PX, 17 * uiScale);
     taken = avoidRect ? [avoidRect] : [];
     linePts = collectLinePts();
-    // The tracer is drawn wider than true, so say so on the range (corner away from the shot label).
-    let noteRect = null, noteText = LAT_NOTE;
-    if (cur || pinned || collection.length) {
-      ctx.font = fontFor(fs);
-      // A narrow canvas gets the short wording so the pill stays left of the tee (the tracer starts at the centre).
-      noteText = LAT_NOTE;
-      if (ctx.measureText(noteText).width + fs * 1.1 > W * 0.42) noteText = LAT_NOTE_SHORT;
-      const nw = ctx.measureText(noteText).width + fs * 1.1, nh = fs * 1.75, nm = Math.max(6, fs * 0.5);
-      noteRect = { x: nm, y: H - nh - nm, w: nw, h: nh };
-      taken.push(noteRect);
-    }
 
     if (ghostVisible() && ghostShot !== cur) drawGhost(lw);
     const restingPlates = [];
@@ -738,7 +723,6 @@ export function createRange({ root, canvas, model, avoidEl }) {
       }
     }
     for (const x of placedResting) drawPlate(x.p, false);
-    if (noteRect) drawPlate({ r: noteRect, text: noteText, fs }, true);
     if (shotState) {
       if (shotState.topShown && shotState.heightPlate) drawPlate(shotState.heightPlate, false);
       if (shotState.landed && shotState.carryPlate) drawPlate(shotState.carryPlate, false);
