@@ -4,11 +4,21 @@
  * even where fullscreen is refused (an iframe, an older browser). Escape exits.
  * tool.css lays the page out for it: range across the screen, big shot label and
  * key tiles, and the controls in one slim bar at the bottom.
+ *
+ * options: onChange(on), focusEl (element or selector to focus on entering, the
+ * first control in the bar), returnEl (focus on exit, the button that started it).
  */
-export function createPresenter({ onChange }) {
+export function createPresenter({ onChange, focusEl, returnEl }) {
   const btn = document.querySelector("#present-btn");
   const exitBtn = document.querySelector("#exit-present");
   const root = document.documentElement;
+  const pick = (x) => (typeof x === "string" ? document.querySelector(x) : x);
+  const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+  const leaveFullscreen = () => {
+    if (!fsElement()) return;
+    const out = document.exitFullscreen || document.webkitExitFullscreen;
+    try { Promise.resolve(out.call(document)).catch(() => {}); } catch (e) { /* already out */ }
+  };
   let on = false;
   let usedFullscreen = false;
 
@@ -22,12 +32,15 @@ export function createPresenter({ onChange }) {
       const req = root.requestFullscreen || root.webkitRequestFullscreen;
       if (req) {
         await req.call(root);
-        usedFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        // The request can settle after the user has already left. Do not stay in fullscreen then.
+        if (!on) { leaveFullscreen(); return; }
+        usedFullscreen = !!fsElement();
       }
     } catch (e) { /* refused: the class still gives the presentation layout */ }
+    if (!on) return;
     window.scrollTo(0, 0);
     onChange(true);
-    const first = document.querySelector("#hit-btn-2");
+    const first = pick(focusEl);
     if (first) first.focus({ preventScroll: true });
   }
 
@@ -36,21 +49,18 @@ export function createPresenter({ onChange }) {
     on = false;
     root.classList.remove("presenting");
     document.body.classList.remove("presenting");
-    const fs = document.fullscreenElement || document.webkitFullscreenElement;
-    if (fs) {
-      const out = document.exitFullscreen || document.webkitExitFullscreen;
-      try { Promise.resolve(out.call(document)).catch(() => {}); } catch (e) { /* already out */ }
-    }
+    leaveFullscreen();
     usedFullscreen = false;
     onChange(false);
-    btn.focus({ preventScroll: true });
+    const back = pick(returnEl) || btn;
+    if (back) back.focus({ preventScroll: true });
   }
 
   btn.addEventListener("click", () => (on ? exit() : enter()));
   exitBtn.addEventListener("click", exit);
   // Leaving fullscreen with the browser's own Escape ends the mode too.
   document.addEventListener("fullscreenchange", () => {
-    if (on && usedFullscreen && !document.fullscreenElement) exit();
+    if (on && usedFullscreen && !fsElement()) exit();
   });
   // Real fullscreen already exits on Escape, so this mostly covers the class-only fallback.
   document.addEventListener("keydown", (e) => {

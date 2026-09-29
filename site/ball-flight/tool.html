@@ -113,7 +113,7 @@
     </div>
     <section class="card windows" id="windows" aria-labelledby="win-h" hidden>
       <h2 id="win-h">9 Windows</h2>
-      <p class="win-club" id="win-club-note"></p>
+      <p class="win-club" id="win-club-note" role="status" aria-live="polite"></p>
       <div class="win-layout">
         <div class="win-grid" id="win-grid" role="group" aria-label="Nine windows: height by shape"></div>
         <div class="win-recipe" id="win-recipe"></div>
@@ -139,27 +139,6 @@
 
     <div class="key-tiles" id="key-tiles" aria-label="Key numbers"></div>
 
-    <section class="views" id="views" aria-label="More views of this shot">
-      <div class="view-tabs" role="tablist" aria-label="Choose a view">
-        <button type="button" role="tab" class="view-tab" id="tab-top" data-view="top" aria-selected="true" aria-controls="panel-top">Top</button>
-        <button type="button" role="tab" class="view-tab" id="tab-side" data-view="side" aria-selected="false" aria-controls="panel-side">Side</button>
-        <button type="button" role="tab" class="view-tab" id="tab-impact" data-view="impact" aria-selected="false" aria-controls="panel-impact">Impact</button>
-      </div>
-      <div class="view-panels">
-        <figure class="vpanel" data-view="top" data-active="true" role="tabpanel" id="panel-top" aria-labelledby="tab-top">
-          <figcaption><h3>Top view</h3><span>Carry up the page. Curve and start line.</span></figcaption>
-          <div class="vbody"></div>
-        </figure>
-        <figure class="vpanel" data-view="side" data-active="false" role="tabpanel" id="panel-side" aria-labelledby="tab-side">
-          <figcaption><h3>Side profile</h3><span>Height against distance, angles to scale.</span></figcaption>
-          <div class="vbody"></div>
-        </figure>
-        <figure class="vpanel" data-view="impact" data-active="false" role="tabpanel" id="panel-impact" aria-labelledby="tab-impact">
-          <figcaption><h3>Impact</h3><span>Face, path, attack and loft at impact.</span></figcaption>
-          <div class="vbody"></div>
-        </figure>
-      </div>
-    </section>
   </section>
 
   <aside class="side" aria-label="Shot setup">
@@ -209,6 +188,28 @@
       <p class="preset-note" id="preset-note" hidden></p>
     </section>
   </aside>
+
+  <section class="views" id="views" aria-label="More views of this shot">
+    <div class="view-tabs" role="tablist" aria-label="Choose a view">
+      <button type="button" role="tab" class="view-tab" id="tab-top" data-view="top" aria-selected="true" aria-controls="panel-top">Top</button>
+      <button type="button" role="tab" class="view-tab" id="tab-side" data-view="side" aria-selected="false" aria-controls="panel-side">Side</button>
+      <button type="button" role="tab" class="view-tab" id="tab-impact" data-view="impact" aria-selected="false" aria-controls="panel-impact">Impact</button>
+    </div>
+    <div class="view-panels">
+      <figure class="vpanel" data-view="top" data-active="true" id="panel-top">
+        <figcaption><h3>Top view</h3><span>Carry up the page. Curve and start line.</span></figcaption>
+        <div class="vbody"></div>
+      </figure>
+      <figure class="vpanel" data-view="side" data-active="false" id="panel-side">
+        <figcaption><h3>Side profile</h3><span>Height against distance, angles to scale.</span></figcaption>
+        <div class="vbody"></div>
+      </figure>
+      <figure class="vpanel" data-view="impact" data-active="false" id="panel-impact">
+        <figcaption><h3>Impact</h3><span>Face, path, attack and loft at impact.</span></figcaption>
+        <div class="vbody"></div>
+      </figure>
+    </div>
+  </section>
 
   <section class="card all-tiles" id="all-tiles" aria-labelledby="all-h">
     <h2 id="all-h">Every number</h2>

@@ -685,7 +685,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
     const restingPlates = [];
     for (const s of collection) {
       const [lx, ly] = drawResting(s, lw, PAL.warm);
-      if (s.label) restingPlates.push({ text: s.label, x: lx, y: ly, dirs: ["below", "right", "left", "above"] });
+      if (s.label) restingPlates.push({ text: s.label, x: lx, y: ly, dirs: ["below", "right", "left", "above", "right2", "left2"], required: true });
     }
     if (pinned) {
       const [lx, ly] = drawResting(pinned, lw, PAL.cool);

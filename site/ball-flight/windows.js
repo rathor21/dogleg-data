@@ -47,18 +47,21 @@ export function createWindows({ model, store, range, hooks }) {
   }
 
   function applyWindow(key) {
+    store.switchClub("7i");
     Object.assign(state, delivery(key));
-    store.lastClubInGroup[store.groupOf("7i")] = "7i";
-    state.window = key;
+    store.selectWindow(key);
   }
 
   // ---- grid ------------------------------------------------------------------------
+  // Each button is described by its row and column header, and the arrow keys move
+  // between windows in the order they are drawn (so a lefty's grid moves the way it looks).
   function build() {
     grid.innerHTML = "";
-    grid.appendChild(Object.assign(document.createElement("span"), { className: "win-corner" }));
+    grid.appendChild(Object.assign(document.createElement("span"), { className: "win-corner", "aria-hidden": "true" }));
     for (const shape of WINDOW_SHAPES) {
       const h = document.createElement("span");
       h.className = "win-colhead";
+      h.id = `win-ch-${shape}`;
       h.dataset.shape = shape;
       h.style.gridRow = 1;
       h.textContent = cap(shape);
@@ -67,10 +70,11 @@ export function createWindows({ model, store, range, hooks }) {
     WINDOW_HEIGHTS.forEach((height, r) => {
       const rh = document.createElement("span");
       rh.className = "win-rowhead";
+      rh.id = `win-rh-${height}`;
       rh.style.gridRow = r + 2;
       rh.textContent = cap(height);
       grid.appendChild(rh);
-      for (const shape of WINDOW_SHAPES) {
+      WINDOW_SHAPES.forEach((shape) => {
         const key = `${height}_${shape}`;
         const b = document.createElement("button");
         b.type = "button";
@@ -79,14 +83,44 @@ export function createWindows({ model, store, range, hooks }) {
         b.dataset.shape = shape;
         b.dataset.height = height;
         b.style.gridRow = r + 2;
+        b.tabIndex = -1;
         b.setAttribute("aria-pressed", "false");
-        b.innerHTML = `<span class="wb-name">${windowName(key)}</span><span class="wb-peak"></span>`;
+        b.setAttribute("aria-describedby", `win-rh-${height} win-ch-${shape}`);
+        b.innerHTML = `<span class="wb-n" aria-hidden="true">${WINDOW_KEYS.indexOf(key) + 1}</span><span class="wb-name">${windowName(key)}</span><span class="wb-peak"></span>`;
         b.addEventListener("click", () => { if (!running) hooks.select(key); });
         grid.appendChild(b);
         buttons[key] = b;
-      }
+      });
     });
+    grid.addEventListener("keydown", onGridKey);
     flyBtn.addEventListener("click", () => (running ? stop() : flyAll()));
+  }
+
+  /** Visual [row, column] of a button: columns swap for a lefty. */
+  function cell(key) {
+    const [height, shape] = key.split("_");
+    const order = state.hand === "l" ? [...WINDOW_SHAPES].reverse() : WINDOW_SHAPES;
+    return [WINDOW_HEIGHTS.indexOf(height), order.indexOf(shape)];
+  }
+  function keyAt(row, col) {
+    const order = state.hand === "l" ? [...WINDOW_SHAPES].reverse() : WINDOW_SHAPES;
+    return `${WINDOW_HEIGHTS[row]}_${order[col]}`;
+  }
+  function onGridKey(e) {
+    const btn = e.target.closest(".win-btn");
+    if (!btn) return;
+    const d = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[e.key];
+    if (!d) return;
+    e.preventDefault();
+    const [r, c] = cell(btn.dataset.key);
+    const nr = Math.min(2, Math.max(0, r + d[0])), nc = Math.min(2, Math.max(0, c + d[1]));
+    const next = buttons[keyAt(nr, nc)];
+    setTabStop(next.dataset.key);
+    next.focus();
+  }
+  /** One tab stop for the whole grid: the selected window, or the first one. */
+  function setTabStop(key) {
+    for (const [k, b] of Object.entries(buttons)) b.tabIndex = k === key ? 0 : -1;
   }
 
   /** Put the columns in chart order for the hand: a lefty's draw is on the right. */
@@ -109,6 +143,7 @@ export function createWindows({ model, store, range, hooks }) {
       buttons[key].querySelector(".wb-peak").textContent = `${Math.round(w.flight.max_height_yd)} yd high`;
       buttons[key].setAttribute("aria-pressed", String(state.window === key));
     }
+    if (!grid.contains(document.activeElement)) setTabStop(state.window || keyAt(0, 0));
     // recipe
     if (!state.window) {
       recipe.innerHTML = '<p class="win-empty">Tap a window to load its recipe into the sliders and fly it.</p>';
@@ -139,10 +174,9 @@ export function createWindows({ model, store, range, hooks }) {
     // Each shot is computed from its own copy of the state, so the sliders stay put until it flies.
     const items = WINDOW_KEYS.map((key) => {
       const c = store.compute({ ...state, ...delivery(key), club: "7i" });
-      return { shot: c.rangeShot, label: windowName(key), key };
+      return { shot: c.rangeShot, label: String(WINDOW_KEYS.indexOf(key) + 1), name: windowName(key), key };
     });
     running = true;
-    flyBtn.textContent = "Stop";
     flyBtn.setAttribute("aria-pressed", "true");
     hooks.startSequence();
     range.playSequence(items, {
@@ -153,7 +187,6 @@ export function createWindows({ model, store, range, hooks }) {
       },
       onEnd(cancelled) {
         running = false;
-        flyBtn.textContent = "Fly all nine";
         flyBtn.setAttribute("aria-pressed", "false");
         hooks.endSequence(cancelled);
       },

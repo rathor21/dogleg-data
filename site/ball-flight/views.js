@@ -56,7 +56,7 @@ function samples(s) {
   return out;
 }
 
-export function createViews({ root }) {
+export function createViews({ root, onLineYd = 0.5 }) {
   const panels = {};
   for (const name of ["top", "side", "impact"]) {
     const host = root.querySelector(`[data-view="${name}"] .vbody`);
@@ -133,15 +133,16 @@ export function createViews({ root }) {
     const lx = X(lat), ly = Y(c.shot.carry);
     add(g, "circle", { cx: lx, cy: ly, r: 5.5 }, "pv-dot");
     // landing label: side distance, on the roomier side of the dot
-    const sideTxt = Math.abs(lat) < 0.5 ? "on line" : `${Math.abs(lat).toFixed(0)} yd ${lat > 0 ? "right" : "left"}`;
+    const sideTxt = Math.abs(lat) < onLineYd ? "on line" : `${Math.abs(lat).toFixed(0)} yd ${lat > 0 ? "right" : "left"}`;
     const onRight = lx < cx + pw * 0.15;
     label(svg, Math.max(ml + 4, Math.min(ml + pw - 4, onRight ? lx + 10 : lx - 10)), Math.max(mt + 14, ly + 4), sideTxt, "ink", onRight ? "start" : "end");
     // ball at the origin
     add(svg, "circle", { cx: X(0), cy: Y(0), r: 3.5 }, "pv-ball");
     label(svg, ml, 12, "yd downrange", "muted");
-    label(svg, ml + pw, H - 4, stretch > 1 ? `side distance ×${stretch}` : "sideways to scale", "muted", "end");
-    label(svg, ml, H - 4, "L ← → R", "muted");
-    const sideWord = Math.abs(lat) < 0.5 ? "on the target line" : `${Math.abs(lat).toFixed(0)} yards ${lat > 0 ? "right" : "left"} of the target line`;
+    const narrow = W < 300;
+    label(svg, ml + pw, H - 4, stretch > 1 ? `${narrow ? "sideways" : "side distance"} ×${stretch}` : "sideways to scale", "muted", "end");
+    if (!narrow) label(svg, ml, H - 4, "L ← → R", "muted");
+    const sideWord = Math.abs(lat) < onLineYd ? "on the target line" : `${Math.abs(lat).toFixed(0)} yards ${lat > 0 ? "right" : "left"} of the target line`;
     svg.setAttribute("aria-label", `Top view. The ball carries ${Math.round(c.shot.carry)} yards and lands ${sideWord}.${stretch > 1 ? " Sideways distance is stretched " + stretch + " times." : ""}`);
   }
 
@@ -159,7 +160,8 @@ export function createViews({ root }) {
     const hMax = Math.max(...shots.map((s) => s.maxHeight));
     const y0 = H - mb;
     // One scale for both axes, so the angles are true. The top 66px stay free for the readout.
-    const k = Math.min(pw / xMax, (y0 - 66) / (hMax * 1.25 + 8));
+    const readoutH = W < 300 ? 86 : 66;
+    const k = Math.min(pw / xMax, (y0 - readoutH) / (hMax * 1.25 + 8));
     const X = (d) => ml + d * k;
     const Y = (h) => y0 - h * k;
     const plotTop = Math.max(6, Y(hMax * 1.25 + 8));
@@ -189,25 +191,39 @@ export function createViews({ root }) {
     const R = Math.min(64, pw * 0.22);
     add(svg, "path", { d: arcPath(X(0), y0, R, -launch * RAD, 0, 1) }, "pv-wedge");
     add(svg, "line", { x1: X(0), y1: y0, x2: X(0) + Math.cos(launch * RAD) * (R + 22), y2: y0 - Math.sin(launch * RAD) * (R + 22) }, "pv-start");
-    label(svg, X(0) + R + 4, y0 - 5, `${launch.toFixed(0)}${DEG}`, "ink");
     path(s, "pv-path");
+    // Every path drawn here, as screen points, so labels can keep clear of the lines.
+    const linePts = [];
+    for (const q of shots) for (const p3 of samples(q)) linePts.push([X(p3[0]), Y(p3[2])]);
+    const isClear = (x, yb, txt, anchor) => {
+      const w = txt.length * 7.3;
+      const x0 = anchor === "end" ? x - w : anchor === "middle" ? x - w / 2 : x;
+      return !linePts.some((q) => q[0] > x0 - 5 && q[0] < x0 + w + 5 && q[1] > yb - 15 && q[1] < yb + 5);
+    };
+    /** Put a label at the first candidate spot that does not sit on a path. Skipped if none is free. */
+    const placeLabel = (txt, cands, cls) => {
+      const c0 = cands.find(([x, yb, anchor]) => isClear(x, yb, txt, anchor));
+      if (c0) label(svg, c0[0], c0[1], txt, cls, c0[2]);
+    };
+    placeLabel(`${launch.toFixed(0)}${DEG}`, [[X(0) + R + 4, y0 - 5, "start"], [X(0) + 8, y0 - 22, "start"], [X(0) + R + 4, y0 - 20, "start"]], "ink");
     // apex, at its true height
     let ai = 0;
     for (let i = 1; i < s.z.length; i++) if (s.z[i] > s.z[ai]) ai = i;
     add(svg, "line", { x1: X(s.x[ai]), x2: X(s.x[ai]), y1: Y(s.z[ai]), y2: y0 }, "pv-start");
     add(svg, "circle", { cx: X(s.x[ai]), cy: Y(s.z[ai]), r: 5 }, "pv-dot");
-    label(svg, X(s.x[ai]), Y(s.z[ai]) - 10, `${Math.round(s.maxHeight)} yd`, "ink", "middle");
+    placeLabel(`${Math.round(s.maxHeight)} yd`, [[X(s.x[ai]), Y(s.z[ai]) - 10, "middle"], [X(s.x[ai]) - 10, Y(s.z[ai]) - 8, "end"], [X(s.x[ai]) + 10, Y(s.z[ai]) - 8, "start"]], "ink");
     // landing angle, true
     const lx = X(s.carry);
     const wr = 30;
     add(svg, "path", { d: arcPath(lx, y0, wr, Math.PI, Math.PI + land * RAD, 1) }, "pv-wedge");
     add(svg, "line", { x1: lx, y1: y0, x2: lx - Math.cos(land * RAD) * (wr + 26), y2: y0 - Math.sin(land * RAD) * (wr + 26) }, "pv-start");
     add(svg, "circle", { cx: lx, cy: y0, r: 4.5 }, "pv-dot");
-    label(svg, lx - wr - 6, y0 - 5, `${land.toFixed(0)}${DEG}`, "ink", "end");
+    placeLabel(`${land.toFixed(0)}${DEG}`, [[lx - wr - 6, y0 - 5, "end"], [lx - wr - 6, y0 - 22, "end"], [lx + 8, y0 - 14, "start"]], "ink");
     // readout in the space above the plot, where the flat profile leaves room
     const rows = [["launch", `${launch.toFixed(1)}${DEG}`], ["land", `${land.toFixed(1)}${DEG}`], ["peak", `${Math.round(s.maxHeight)} yd`], ["carry", `${Math.round(s.carry)} yd`]];
+    const oneColumn = W < 300; // two columns of label and value do not fit a narrow panel
     rows.forEach(([k, val], i) => {
-      const rx = ml + (i % 2) * (pw / 2), ry = 30 + Math.floor(i / 2) * 20;
+      const rx = oneColumn ? ml : ml + (i % 2) * (pw / 2), ry = oneColumn ? 26 + i * 15 : 30 + Math.floor(i / 2) * 20;
       label(svg, rx, ry, k, "muted");
       label(svg, rx + 52, ry, val, "ink strong");
     });
@@ -235,9 +251,12 @@ export function createViews({ root }) {
     const dir = (deg) => [Math.sin(deg * RAD), -Math.cos(deg * RAD)]; // screen vector, up is target
     const pd = dir(pathD), nd = dir(faceD);
     // wedge between the path direction and the face normal
+    let wedgeTip = null;
     if (Math.abs(faceD - pathD) > 0.05) {
       const a0 = Math.atan2(pd[1], pd[0]), a1 = Math.atan2(nd[1], nd[0]);
       add(g1, "path", { d: arcPath(cx, cy, L * 0.98, a0, a1, faceD > pathD ? 1 : 0) }, "pv-wedge");
+      const mid = (a0 + a1) / 2;
+      wedgeTip = [cx + L * 0.98 * Math.cos(mid), cy + L * 0.98 * Math.sin(mid)];
     }
     // swing path arrow, through the ball
     add(g1, "line", { x1: cx - pd[0] * L, y1: cy - pd[1] * L, x2: cx + pd[0] * L, y2: cy + pd[1] * L }, "pv-arrow path");
@@ -258,8 +277,25 @@ export function createViews({ root }) {
     const cl = c.classification;
     const closed = f2pRh < -0.05, open = f2pRh > 0.05;
     const rel = Math.abs(f2pRh) < 0.05 ? "square to path" : `${Math.abs(f2pDisp).toFixed(1)}${DEG} ${closed ? "closed" : "open"} to path`;
-    const verb = cl ? VERB[cl.shape] || "" : "";
-    label(g1, W / 2, half - 6, `face ${rel}${verb ? " → " + verb : ""}`, "ink strong", "middle");
+    // A shot with almost no face-to-path has no bend to name, so no verb.
+    const verb = cl && Math.abs(f2pRh) >= 0.5 ? VERB[cl.shape] || "" : "";
+    // The caption wraps to two lines on a narrow panel.
+    const caption = `face ${rel}`;
+    const arrow = verb ? `→ ${verb}` : "";
+    if ((caption.length + arrow.length + 1) * 7.3 > W - 10 && arrow) {
+      label(g1, W / 2, half - 20, caption, "ink strong", "middle");
+      label(g1, W / 2, half - 6, arrow, "ink strong", "middle");
+    } else {
+      label(g1, W / 2, half - 6, arrow ? `${caption} ${arrow}` : caption, "ink strong", "middle");
+    }
+    // The wedge is named where it is, with a leader line for the small ones.
+    if (wedgeTip) {
+      const lxp = Math.min(W - 6, cx + 34), lyp = Math.max(46, wedgeTip[1] + 4);
+      add(g1, "line", { x1: wedgeTip[0], y1: wedgeTip[1], x2: lxp - 3, y2: lyp - 4 }, "pv-leader");
+      const full = `${Math.abs(f2pDisp).toFixed(1)}${DEG} ${closed ? "closed" : "open"}`;
+      // On a narrow panel the word goes and the number stays.
+      label(g1, lxp, lyp, (W - 6 - lxp) >= full.length * 7.3 ? full : `${Math.abs(f2pDisp).toFixed(1)}${DEG}`, "clay strong");
+    }
 
     // -- side view of the club and ball (lower half)
     const g2 = add(svg, "g", {});
@@ -284,7 +320,13 @@ export function createViews({ root }) {
     add(g2, "circle", { cx: sx0, cy: sy0, r: 4 }, "pv-ball");
     label(g2, 6, sy0 + 20, `attack ${f1(atk)}${DEG}`, "ink strong");
     label(g2, W - 6, sy0 + 20, `loft ${loft.toFixed(1)}${DEG}`, "clay strong", "end");
-    label(g2, W / 2, H - 6, `spin loft ${spinLoft.toFixed(1)}${DEG} (loft ${MINUS} attack)`, "ink strong", "middle");
+    const slText = `spin loft ${spinLoft.toFixed(1)}${DEG}`, slNote = `(loft ${MINUS} attack)`;
+    if ((slText.length + slNote.length + 1) * 7.3 > W - 10) {
+      label(g2, W / 2, H - 20, slText, "ink strong", "middle");
+      label(g2, W / 2, H - 6, slNote, "muted", "middle");
+    } else {
+      label(g2, W / 2, H - 6, `${slText} ${slNote}`, "ink strong", "middle");
+    }
     svg.setAttribute("aria-label", `Impact diagram. Club path ${f1(pathD)} degrees, face angle ${f1(faceD)} degrees, face ${rel}${verb ? ", so the ball " + verb : ""}. Attack angle ${f1(atk)} degrees, dynamic loft ${loft.toFixed(1)} degrees, spin loft ${spinLoft.toFixed(1)} degrees.`);
   }
 

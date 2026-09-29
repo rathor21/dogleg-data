@@ -13,7 +13,7 @@ import { createViews } from "./views.js";
 import { createWindows } from "./windows.js";
 import { createCompare } from "./compare.js";
 import { createPresenter } from "./present.js";
-import { TILE_GROUPS, KEY_TILES, DEG, fmt, createTile } from "./tiles.js";
+import { TILE_GROUPS, KEY_TILES, DEG, fmt, createTile, configureTiles } from "./tiles.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const swapLR = (t) => t.replace(/left|right/g, (m) => (m === "left" ? "right" : "left"));
@@ -71,7 +71,10 @@ async function main() {
   }
 
   // ---- secondary views --------------------------------------------------------------
-  const views = createViews({ root: $("#views") });
+  // One "on line" distance for the shot name, the Side tile and the top view: the model's own.
+  const onLineYd = model.data.model.classify.on_line_yd;
+  configureTiles({ onLineYd });
+  const views = createViews({ root: $("#views"), onLineYd });
   // On a phone the three panels are tabs. Wider, all three show and the tabs are hidden.
   const viewTabs = [...document.querySelectorAll("#views .view-tab")];
   function selectView(name, focus) {
@@ -92,6 +95,21 @@ async function main() {
     selectView(viewTabs[(i + step + viewTabs.length) % viewTabs.length].dataset.view, true);
   });
   selectView("top");
+  // The panels are tab panels only while the tabs show (a phone). Wider they are plain figures.
+  const tabsShown = window.matchMedia("(max-width: 559px)");
+  function applyTabRoles() {
+    for (const p of document.querySelectorAll("#views .vpanel")) {
+      if (tabsShown.matches) {
+        p.setAttribute("role", "tabpanel");
+        p.setAttribute("aria-labelledby", "tab-" + p.dataset.view);
+      } else {
+        p.removeAttribute("role");
+        p.removeAttribute("aria-labelledby");
+      }
+    }
+  }
+  applyTabRoles();
+  tabsShown.addEventListener("change", applyTabRoles);
 
   // ---- announcements ---------------------------------------------------------------
   // The visible shot label changes on every drag step, so it is not a live region.
@@ -107,6 +125,13 @@ async function main() {
     spoken = pendingSpeech;
     srLive.textContent = spoken;
     canvas.setAttribute("aria-label", "Range view. " + spoken);
+  }
+  /** Speak a one-off message (a mode change) without waiting for a shot to change. */
+  function announceMode(text) {
+    clearTimeout(speechTimer);
+    spoken = "";
+    srLive.textContent = "";
+    setTimeout(() => { srLive.textContent = text; }, 60);
   }
   function announceSoon() {
     clearTimeout(speechTimer);
@@ -158,9 +183,8 @@ async function main() {
     for (const t of tiles) t.update(current.values[t.metric], current.bands[t.metric], state.hand);
     renderLabel(current);
     renderMode();
-    windows.render();
-    compare.render(current);
-    syncViews();
+    if (state.mode === "w") windows.render();
+    if (state.mode === "c") compare.render(current);
     writeUrl();
     announceSoon();
   }
@@ -191,15 +215,11 @@ async function main() {
   }
   function setMode(m) {
     if (m === state.mode) return;
-    if (state.mode === "w") { windows.stop(); state.window = null; }
+    if (state.mode === "w") { windows.stop(); store.selectWindow(null); }
     if (state.mode === "c") compare.reset();
     state.mode = m;
-    if (m === "w" && state.club !== "7i") {
-      // The windows are 7-iron recipes, so the club follows.
-      state.club = "7i";
-      store.lastClubInGroup[store.groupOf("7i")] = "7i";
-      store.applyPreset(true);
-    }
+    // The windows are 7-iron recipes, so the club follows.
+    if (m === "w" && state.club !== "7i") store.switchClub("7i");
     commitChange();
   }
   const modeRadio = radioGroup($("#mode-seg"), (b) => setMode(b.dataset.mode));
@@ -236,14 +256,20 @@ async function main() {
     model, store, range,
     hooks: {
       select(key) { windows.applyWindow(key); commitChange(); },
-      startSequence() { clearTimeout(commitTimer); commitTimer = 0; },
-      step() { render(); },
-      endSequence() { render(); },
+      startSequence() {
+        clearTimeout(commitTimer);
+        commitTimer = 0;
+        // The windows are 7-iron shots: take the 7-iron and its camera view, even if another club was showing.
+        store.switchClub("7i");
+        range.setGroup(store.groupOf("7i"));
+      },
+      step() { render(); syncViews(); },
+      endSequence() { render(); syncViews(); },
     },
   });
   const compare = createCompare({
     model, store, range,
-    hooks: { pinRequest() { compare.pin(current); }, changed() { render(); } },
+    hooks: { pinRequest() { compare.pin(current); }, changed() { render(); syncViews(); } },
   });
 
   const sliders = createSliders({
@@ -253,10 +279,8 @@ async function main() {
   });
 
   const changeClub = (id) => {
-    state.club = id;
-    state.window = null; // a window is a 7-iron recipe
-    store.lastClubInGroup[store.groupOf(id)] = id;
-    store.applyPreset(true);
+    store.switchClub(id);
+    store.selectWindow(null); // a window is a 7-iron recipe
     commitChange();
   };
   const controls = createControls({
@@ -292,14 +316,14 @@ async function main() {
   }
   for (const id of ["#reset-btn", "#reset-btn-2"]) {
     $(id).addEventListener("click", () => {
-      state.window = null;
+      store.selectWindow(null);
       store.applyPreset(false);
       commitChange();
     });
   }
   $("#hit-btn").addEventListener("click", hit);
   $("#hit-btn-2").addEventListener("click", hit);
-  $("#ghost-check").addEventListener("change", (e) => range.setGhost(e.target.checked));
+  $("#ghost-check").addEventListener("change", (e) => { range.setGhost(e.target.checked); syncViews(); });
 
   const copyStatus = $("#copy-status");
   let copyTimer = 0;
@@ -326,7 +350,10 @@ async function main() {
 
   // ---- presentation mode -----------------------------------------------------------------
   const presenter = createPresenter({
-    onChange() {
+    focusEl: "#hit-btn-2",
+    returnEl: "#present-btn",
+    onChange(on) {
+      announceMode(on ? "Presentation mode on. Press Escape to exit." : "Presentation mode off.");
       applyDrawer();
       range.redraw();
       views.redraw();
@@ -377,6 +404,7 @@ async function main() {
   render();
   range.setGroup(current.group);
   range.commit(current.rangeShot);
+  syncViews();
   announceNow();
   window.__labReady = true;
 }

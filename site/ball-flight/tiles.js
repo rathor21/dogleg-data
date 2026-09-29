@@ -16,6 +16,12 @@
 export const MINUS = "−";
 export const DEG = "°";
 
+// The "on the line" distance for Side. The page sets it from the model's classify
+// on_line_yd, so the tile, the shot name and the top view all agree.
+let ON_LINE_YD = 0.05;
+export function configureTiles({ onLineYd }) {
+  if (Number.isFinite(onLineYd)) ON_LINE_YD = onLineYd;
+}
 const dirWord = (v) => (v > 0 ? "right" : "left");
 const isZero = (v, tol) => Math.abs(v) < tol;
 
@@ -57,7 +63,7 @@ export const METRICS = {
   land_angle_deg: { label: "Land angle", unit: DEG, dec: 1 },
   carry_yd: { label: "Carry", unit: "yd", dec: 0 },
   side_yd: { label: "Side", unit: "yd", dec: 1, signed: true, lateral: true,
-    words: (rh, d) => (isZero(d, 0.05) ? "on the line" : `${dirWord(d)} of target`) },
+    words: (rh, d) => (isZero(d, ON_LINE_YD) ? "on the line" : `${dirWord(d)} of target`) },
   curve_yd: { label: "Curve", unit: "yd", dec: 1, signed: true, lateral: true,
     words: (rh, d) => (isZero(d, 0.05) ? "no curve" : `curves ${dirWord(d)}`) },
   total_yd: { label: "Total", unit: "yd", dec: 0, noBand: true,

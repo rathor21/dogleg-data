@@ -44,6 +44,23 @@ export function createStore(model) {
     return p;
   }
 
+  /** The one way to change club: sets the club, remembers it for its group, and loads its preset (path and face stay). */
+  function switchClub(id) {
+    state.club = id;
+    lastClubInGroup[groupOf(id)] = id;
+    applyPreset(true);
+  }
+
+  /** The one writer of state.window (a window key, or null for none). */
+  function selectWindow(key) {
+    state.window = key;
+  }
+
+  /** What a pinned shot needs to remember about the setup, read through the store. */
+  function snapshot() {
+    return { club: state.club, player: state.player, hand: state.hand };
+  }
+
   /**
    * Pure parse of a query string into the keys that are present and usable.
    * A missing key, an empty value (?s=) and a non-number are all "missing".
@@ -89,7 +106,7 @@ export function createStore(model) {
     state.mode = p.mode || "e";
     if (state.mode === "w") state.club = "7i";
     applyPreset(false);
-    state.window = state.mode === "w" && p.window ? p.window : null;
+    selectWindow(state.mode === "w" && p.window ? p.window : null);
     if (state.window && afterPreset) afterPreset(state.window);
     Object.assign(state, p.nums);
     lastClubInGroup[groupOf()] = state.club;
@@ -143,5 +160,5 @@ export function createStore(model) {
     return { norm, s, bands, values, rangeShot, group: groupOf(st.club) };
   }
 
-  return { state, lastClubInGroup, clubById, groupOf, applyPreset, parseQuery, loadFromSearch, buildUrl, compute };
+  return { state, lastClubInGroup, clubById, groupOf, applyPreset, switchClub, selectWindow, snapshot, parseQuery, loadFromSearch, buildUrl, compute };
 }

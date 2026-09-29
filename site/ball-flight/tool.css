@@ -227,8 +227,9 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
   .key-tiles{grid-template-columns:repeat(3,minmax(0,1fr));}
   .side{display:contents;}
   .stage{order:1;}
-  .setup{order:2;}
-  .all-tiles{order:3;}
+  .views{order:2;}
+  .setup{order:3;}
+  .all-tiles{order:4;}
   .swing{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0 auto;max-width:52rem;border-radius:14px 14px 0 0;border-width:1px 0 0;border-top:3px double var(--line);padding:0 max(1rem,var(--safe-r)) var(--safe-b) max(1rem,var(--safe-l));box-shadow:0 -8px 24px var(--shadow-ink);}
   .swing-head{border-bottom:0;margin:0;padding:.35rem 0;min-height:var(--drawer-h);}
   .swing-title,#reset-btn{display:none;}
@@ -293,7 +294,7 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
   .lab{grid-template-columns:minmax(0,1.5fr) minmax(16rem,1fr);}
   .key-tiles{grid-template-columns:repeat(4,minmax(0,1fr));}
   .side{display:flex;position:sticky;top:.5rem;max-height:calc(100vh - 1rem);overflow-y:auto;}
-  .stage,.setup,.all-tiles{order:0;}
+  .stage,.views,.setup,.all-tiles{order:0;}
   .swing{position:static;max-width:none;margin:0;border-radius:var(--radius);border-width:1px;border-top-width:1px;border-style:solid;padding:.7rem .9rem;box-shadow:none;}
   .swing-head{border-bottom:3px double var(--line);margin-bottom:.4rem;min-height:0;padding:.2rem 0 .4rem;}
   .swing-title{display:block;}
@@ -330,7 +331,11 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
 .win-btn{min-height:3.6rem;border:1px solid var(--line);background:var(--bg);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.1rem;padding:.35rem .3rem;cursor:pointer;transition:border-color .15s,background .15s,color .15s;}
 .win-btn .wb-name{font-weight:600;font-size:.85rem;line-height:1.2;}
 .win-btn .wb-peak{font-family:var(--mono);font-size:.75rem;color:var(--muted);}
+.win-btn{position:relative;}
+.win-btn .wb-n{position:absolute;top:.25rem;left:.3rem;width:1.15rem;height:1.15rem;border-radius:50%;background:var(--ink);color:var(--card);font-family:var(--mono);font-size:.75rem;line-height:1.15rem;text-align:center;}
+.win-btn[aria-pressed="true"] .wb-n{background:var(--card);color:var(--clay-text);}
 .win-btn:hover{border-color:var(--clay);}
+#fly-all[aria-pressed="true"]{background:var(--ink);}
 .win-btn[aria-pressed="true"]{background:var(--clay-text);border-color:var(--clay-text);color:var(--card);}
 .win-btn[aria-pressed="true"] .wb-peak{color:var(--card);opacity:.9;}
 .win-recipe h3{font-family:var(--serif);font-weight:600;font-size:1.05rem;line-height:1.3;margin-bottom:.5rem;}
@@ -354,9 +359,9 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
 .cmp-d.zero{color:var(--muted);font-weight:400;}
 
 /* ---------- secondary views ---------- */
-.views{margin-top:1.1rem;}
+.views{grid-column:1 / -1;}
 .view-tabs{display:none;}
-.view-panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:.8rem;}
+.view-panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:.8rem;}
 .vpanel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:.6rem .7rem .5rem;min-width:0;}
 .vpanel figcaption{display:flex;flex-direction:column;margin-bottom:.4rem;}
 .vpanel h3{font-family:var(--serif);font-weight:600;font-size:1rem;line-height:1.3;}
@@ -381,6 +386,7 @@ svg.pv{display:block;max-width:100%;}
 .pv-head.face{fill:var(--clay-text);}
 .pv-head.target{fill:var(--ink-soft);}
 .pv-face{stroke:var(--clay-text);stroke-width:6;stroke-linecap:round;}
+.pv-leader{stroke:var(--clay-text);stroke-width:1;}
 .pv-shaft{stroke:var(--muted);stroke-width:2.5;stroke-dasharray:2 5;stroke-linecap:round;}
 .pv-text{font-family:var(--mono);font-size:12px;fill:var(--ink-soft);paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round;}
 .pv-text.muted{fill:var(--muted);}
@@ -399,12 +405,13 @@ svg.pv{display:block;max-width:100%;}
   .win-btn .wb-name{font-size:.8rem;}
 }
 @media (pointer:coarse){.view-tab,.win-btn{min-height:2.75rem;}}
+@media (max-width:899px){#present-btn{display:none;}}
 
 /* ---------- presentation mode (TV) ---------- */
 /* The range fills the screen. Shot label and the six key tiles are large. The
    controls collapse to one slim bar at the bottom. */
-html.presenting{font-size:20px;}
-@media (min-width:2600px){html.presenting{font-size:40px;}}
+html.presenting{font-size:clamp(12px,1.85vh,44px);} /* 20px at 1080 tall, 40px at 2160, 16.6px at 900 */
+@media (max-height:999px){body.presenting .key-tiles .tile-cap{display:none;}}
 body.presenting{overflow:hidden;padding:0;background:var(--dusk);}
 body.presenting .wrap{max-width:none;padding:0;}
 body.presenting .skip-link,body.presenting .page-head,body.presenting nav.tabs,body.presenting footer,body.presenting .modebar,
@@ -443,6 +450,9 @@ body.presenting .swing-body{order:1;flex:1 1 auto;min-width:0;display:block;}
 body.presenting .swing-inner{max-height:none;overflow:visible;padding:0;}
 body.presenting .sliders{flex-direction:row;gap:1rem;}
 body.presenting .slider{flex:1 1 0;min-width:0;border:0;padding:0;}
+body.presenting .slider-head label{white-space:nowrap;letter-spacing:.05em;}
+body.presenting .slider-head .val .w{display:none;}
+body.presenting .sliders{align-items:flex-start;}
 body.presenting #hit-btn-2,body.presenting #exit-present,body.presenting #reset-btn{display:inline-flex;}
 body.presenting .range-loading{font-size:1.1rem;}
 
