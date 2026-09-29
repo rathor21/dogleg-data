@@ -1,0 +1,128 @@
+/*
+ * State, shot computation and URL for the ball flight lab.
+ *
+ * State holds the delivery the way the sliders show it: target-line frame,
+ * positive is right, for both hands. For a left-handed golfer the model runs
+ * with path and face negated, and every lateral output is negated back for
+ * display and for the drawn scene. The shot name comes from classify on the
+ * right-handed-frame values, so a lefty draw still reads "Draw".
+ */
+import { METRICS } from "./tiles.js";
+
+export const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+export const round3 = (v) => Math.round(v * 1000) / 1000 + 0;
+export const snap = (v, step) => round3(Math.round(v / step) * step);
+
+const GROUP_DEFAULT_CLUB = { driver: "driver", wood: "3w", long_iron: "5i", short_iron: "7i", wedge: "pw" };
+// URL key to state key. Short keys keep shared links readable.
+const NUM_KEYS = { s: "clubSpeed", a: "attack", pa: "path", f: "face", l: "dynLoft" };
+
+export function createStore(model) {
+  const clubById = Object.fromEntries(model.clubs.map((c) => [c.id, c]));
+  const playerIds = model.players.map((p) => p.id);
+  const state = { club: "7i", player: "pga", hand: "r", clubSpeed: 0, attack: 0, path: 0, face: 0, dynLoft: 0, spinTrim: 1 };
+  const lastClubInGroup = { ...GROUP_DEFAULT_CLUB };
+
+  const groupOf = (club = state.club) => clubById[club].group;
+
+  /** Set club speed, attack, loft and spin trim from the preset. Path and face too unless keepLateral. */
+  function applyPreset(keepLateral) {
+    const p = model.preset(state.club, state.player);
+    state.clubSpeed = p.clubSpeed;
+    state.attack = p.attack;
+    state.dynLoft = p.dynLoft;
+    state.spinTrim = p.spinTrim;
+    if (!keepLateral) {
+      state.path = p.path + 0;
+      state.face = p.face + 0;
+    }
+    return p;
+  }
+
+  /**
+   * Pure parse of a query string into the keys that are present and usable.
+   * A missing key, an empty value (?s=) and a non-number are all "missing".
+   */
+  function parseQuery(search) {
+    const q = new URLSearchParams(search);
+    const get = (k) => {
+      const v = q.get(k);
+      return v === null || v.trim() === "" ? null : v.trim();
+    };
+    const out = { nums: {} };
+    const club = (get("c") || "").toLowerCase();
+    if (clubById[club]) out.club = club;
+    const player = (get("p") || "").toLowerCase();
+    if (playerIds.includes(player)) out.player = player;
+    const hand = (get("h") || "").toLowerCase();
+    if (hand === "l" || hand === "left") out.hand = "l";
+    else if (hand === "r" || hand === "right") out.hand = "r";
+    for (const [k, key] of Object.entries(NUM_KEYS)) {
+      const raw = get(k);
+      if (raw === null) continue;
+      const v = Number(raw);
+      if (Number.isFinite(v)) out.nums[key] = v;
+    }
+    return out;
+  }
+
+  /** Load state from a query string. Anything missing falls back to the preset for the club and player. */
+  function loadFromSearch(search) {
+    const p = parseQuery(search);
+    if (p.club) state.club = p.club;
+    if (p.player) state.player = p.player;
+    if (p.hand) state.hand = p.hand;
+    applyPreset(false);
+    Object.assign(state, p.nums);
+    lastClubInGroup[groupOf()] = state.club;
+  }
+
+  /** The share URL for a state, built synchronously (path and query, no origin). */
+  function buildUrl(st = state) {
+    const r2 = (v) => String(Math.round(v * 100) / 100 + 0);
+    const q = new URLSearchParams({
+      c: st.club, p: st.player, h: st.hand,
+      s: r2(st.clubSpeed), a: r2(st.attack), pa: r2(st.path), f: r2(st.face), l: r2(st.dynLoft),
+    });
+    return location.pathname + "?" + q.toString();
+  }
+
+  /**
+   * Pure: run the model for a state. Nothing here writes to the state.
+   * Returns {norm, s, bands, values, rangeShot, group}. norm is the state's
+   * delivery after clampToDomain (the caller decides whether to keep it).
+   */
+  function compute(st = state) {
+    const sign = st.hand === "l" ? -1 : 1;
+    const d = model.clampToDomain({
+      clubSpeed: st.clubSpeed, attack: st.attack, path: sign * st.path, face: sign * st.face,
+      dynLoft: st.dynLoft, club: st.club, spinTrim: st.spinTrim,
+    });
+    const norm = {
+      clubSpeed: round3(d.clubSpeed),
+      attack: round3(d.attack),
+      dynLoft: round3(d.dynLoft),
+      path: round3(sign * d.path),
+      face: round3(sign * d.face),
+    };
+    const s = model.shot(d);
+    const bands = model.idealBands(st.club, st.player, d.clubSpeed, d.attack);
+
+    const values = {};
+    for (const m of Object.keys(METRICS)) {
+      const rh = model.metricValue(m, s);
+      values[m] = { rh, disp: METRICS[m].lateral ? sign * rh + 0 : rh };
+    }
+    const f = s.flight;
+    const n = f.x.length;
+    const y = new Float64Array(n);
+    for (let i = 0; i < n; i++) y[i] = sign * f.y[i] + 0;
+    const rangeShot = {
+      t: f.t, x: f.x, y, z: f.z, flightTime: f.flightTime, carry: f.carry, maxHeight: f.maxHeight,
+      launchDir: sign * s.launch.launchDirDeg,
+    };
+    return { norm, s, bands, values, rangeShot, group: groupOf(st.club) };
+  }
+
+  return { state, lastClubInGroup, clubById, groupOf, applyPreset, parseQuery, loadFromSearch, buildUrl, compute };
+}

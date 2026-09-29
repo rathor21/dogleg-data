@@ -1,55 +1,71 @@
 /*
- * Tile definitions and rendering for the ball flight lab.
+ * Metric metadata and tile rendering for the ball flight lab.
  *
- * A tile shows one metric: label, value, a word for the direction, a band bar
- * with the ideal band and a marker at the value, and a status line. The values
- * the page passes in are in the display frame (positive is right of the target
- * line for both hands). Bands come from model.idealBands in the right-handed
- * frame, so a lateral metric's band is mirrored here when the golfer is left
- * handed. Every current lateral band is symmetric about zero, so the mirror
- * changes nothing today, and it stays right if a band ever stops being
- * symmetric.
+ * METRICS is the one table for every number on the page: label, unit, decimals,
+ * the words under the value, and (for the five inputs) the slider settings the
+ * sliders read. A tile shows label, value, a direction word, a band bar with the
+ * ideal band and a marker at the value, and a status line.
+ *
+ * Values the page passes in are in the display frame (positive is right of the
+ * target line for both hands). Bands come from model.idealBands in the
+ * right-handed frame, so a lateral metric's band is mirrored here for a
+ * left-handed golfer. Every current lateral band is symmetric about zero, so the
+ * mirror changes nothing today and stays right if a band stops being symmetric.
  */
 
 export const MINUS = "−";
+export const DEG = "°";
 
 const dirWord = (v) => (v > 0 ? "right" : "left");
 const isZero = (v, tol) => Math.abs(v) < tol;
 
 // words(rh, disp) returns the plain-language word under the value.
-// rh is the right-handed-frame value (the frame the model runs in), disp is
-// the value shown. Path, face and face to path read the same for both hands
-// through rh: positive rh path is in-to-out, positive rh face is open.
+// rh is the right-handed-frame value (the frame the model runs in), disp is the
+// value shown. Path, face and face to path read the same for both hands through
+// rh: positive rh path is in-to-out, positive rh face is open.
+//
+// slider: {stateKey, step, dom, zero, advanced, label, hints(hand)}. stateKey is
+// the key in the page state, dom the key in model.domain.
 export const METRICS = {
-  club_speed_mph: { label: "Club speed", unit: "mph", dec: 1 },
-  attack_deg: { label: "Attack angle", unit: "°", dec: 1, signed: true,
-    words: (rh) => (isZero(rh, 0.05) ? "level" : rh > 0 ? "hitting up" : "hitting down") },
-  path_deg: { label: "Club path", unit: "°", dec: 1, signed: true, lateral: true,
-    words: (rh) => (isZero(rh, 0.05) ? "square to target" : rh > 0 ? "in-to-out" : "out-to-in") },
-  face_deg: { label: "Face angle", unit: "°", dec: 1, signed: true, lateral: true,
-    words: (rh) => (isZero(rh, 0.05) ? "square to target" : rh > 0 ? "open to target" : "closed to target") },
-  face_to_path_deg: { label: "Face to path", unit: "°", dec: 1, signed: true, lateral: true,
+  club_speed_mph: { label: "Club speed", unit: "mph", dec: 1,
+    slider: { stateKey: "clubSpeed", step: 1, dom: "club_speed_mph", dec: 0 } },
+  attack_deg: { label: "Attack angle", unit: DEG, dec: 1, signed: true,
+    words: (rh) => (isZero(rh, 0.05) ? "level" : rh > 0 ? "hitting up" : "hitting down"),
+    slider: { stateKey: "attack", step: 0.5, dom: "attack_deg", zero: true, hints: () => [MINUS + " down", "+ up"] } },
+  path_deg: { label: "Club path", unit: DEG, dec: 1, signed: true, lateral: true,
+    words: (rh) => (isZero(rh, 0.05) ? "square to target" : rh > 0 ? "in-to-out" : "out-to-in"),
+    slider: { stateKey: "path", step: 0.5, dom: "path_deg", zero: true,
+      hints: (h) => (h === "l" ? [MINUS + " in-to-out", "+ out-to-in"] : [MINUS + " out-to-in", "+ in-to-out"]) } },
+  face_deg: { label: "Face angle", unit: DEG, dec: 1, signed: true, lateral: true,
+    words: (rh) => (isZero(rh, 0.05) ? "square to target" : rh > 0 ? "open to target" : "closed to target"),
+    slider: { stateKey: "face", step: 0.5, dom: "face_deg", zero: true, label: "Face angle (to target)",
+      hints: (h) => (h === "l" ? [MINUS + " open", "+ closed"] : [MINUS + " closed", "+ open"]) } },
+  face_to_path_deg: { label: "Face to path", unit: DEG, dec: 1, signed: true, lateral: true,
     words: (rh) => (isZero(rh, 0.05) ? "square to path" : rh > 0 ? "open to path" : "closed to path") },
-  dyn_loft_deg: { label: "Dynamic loft", unit: "°", dec: 1 },
-  spin_loft_deg: { label: "Spin loft", unit: "°", dec: 1 },
+  dyn_loft_deg: { label: "Dynamic loft", unit: DEG, dec: 1,
+    slider: { stateKey: "dynLoft", step: 0.5, dom: "dyn_loft_deg", advanced: true } },
+  spin_loft_deg: { label: "Spin loft", unit: DEG, dec: 1 },
   ball_speed_mph: { label: "Ball speed", unit: "mph", dec: 1 },
   smash: { label: "Smash factor", unit: "", dec: 2 },
-  launch_deg: { label: "Launch angle", unit: "°", dec: 1 },
-  launch_dir_deg: { label: "Launch direction", unit: "°", dec: 1, signed: true, lateral: true,
+  launch_deg: { label: "Launch angle", unit: DEG, dec: 1 },
+  launch_dir_deg: { label: "Launch direction", unit: DEG, dec: 1, signed: true, lateral: true,
     words: (rh, d) => (isZero(d, 0.05) ? "on the target line" : `starts ${dirWord(d)}`) },
   spin_rpm: { label: "Spin rate", unit: "rpm", dec: 0, grouped: true },
-  spin_axis_deg: { label: "Spin axis", unit: "°", dec: 1, signed: true, lateral: true,
+  spin_axis_deg: { label: "Spin axis", unit: DEG, dec: 1, signed: true, lateral: true,
     words: (rh, d) => (isZero(d, 0.05) ? "no side spin" : `tilts ${dirWord(d)}`) },
   max_height_yd: { label: "Height", unit: "yd", dec: 1 },
-  land_angle_deg: { label: "Land angle", unit: "°", dec: 1 },
+  land_angle_deg: { label: "Land angle", unit: DEG, dec: 1 },
   carry_yd: { label: "Carry", unit: "yd", dec: 0 },
   side_yd: { label: "Side", unit: "yd", dec: 1, signed: true, lateral: true,
     words: (rh, d) => (isZero(d, 0.05) ? "on the line" : `${dirWord(d)} of target`) },
   curve_yd: { label: "Curve", unit: "yd", dec: 1, signed: true, lateral: true,
     words: (rh, d) => (isZero(d, 0.05) ? "no curve" : `curves ${dirWord(d)}`) },
-  total_yd: { label: "Total", unit: "yd", dec: 0, noBand: true, modeledValue: true,
+  total_yd: { label: "Total", unit: "yd", dec: 0, noBand: true,
     words: () => "carry plus roll" },
 };
+
+/** Slider metrics in the order the sliders appear. */
+export const SLIDER_METRICS = ["club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg"];
 
 export const TILE_GROUPS = [
   { id: "club", name: "Club", note: "What you set with the sliders, plus face to path and spin loft.",
@@ -60,8 +76,8 @@ export const TILE_GROUPS = [
     items: ["max_height_yd", "land_angle_deg", "carry_yd", "side_yd", "curve_yd", "total_yd"] },
 ];
 
-// The six tiles beside the range. The phone shows the first four that are not
-// marked extra: start line, curve, carry, height.
+// The six tiles beside the range. The phone shows the four that are not extra:
+// start line, curve, carry, height.
 export const KEY_TILES = [
   { metric: "face_to_path_deg", extra: true },
   { metric: "launch_dir_deg" },
@@ -120,17 +136,44 @@ export function statusOf(band, value) {
   return "in";
 }
 
+const unitText = (m) => (m.unit === DEG ? DEG : m.unit ? " " + m.unit : "");
+
 function idealText(m, band) {
   const f = (x) => fmt(x, m.dec, m.signed, m.grouped);
-  const u = m.unit ? (m.unit === "°" ? "°" : " " + m.unit) : "";
+  const u = unitText(m);
   if (band.lo !== null && band.hi !== null) return `ideal ${f(band.lo)} to ${f(band.hi)}${u}`;
   if (band.lo !== null) return `ideal ${f(band.lo)}${u} or more`;
   return `ideal up to ${f(band.hi)}${u}`;
 }
 
+/** Source strings from ideals.json read like data. Clean them for display. */
+export function humanize(text, hasDetail) {
+  let t = String(text || "")
+    .replace(/\+-/g, "±")
+    .replace(/^MODELED:/, "Modeled:")
+    .replace(/\(MODELED margin\)/g, "(modeled margin)");
+  if (hasDetail) t = t.replace(/\s*\(values in detail\)/, "");
+  return t;
+}
+
+/** The text behind a tile's i button: band, source, and for driver launch and spin the live source values. */
+export function sourceText(metric, band) {
+  const m = METRICS[metric];
+  let text = `Ideal band, ${idealText(m, band).replace(/^ideal /, "")}. ${humanize(band.source, !!band.detail)}`;
+  if (band.detail && band.detail.trackman_carry_2010 && band.detail.ping_2019) {
+    const key = metric === "launch_deg" ? "launch_deg" : "spin_rpm";
+    const f = (x) => fmt(x, m.dec, false, m.grouped) + unitText(m);
+    const i = band.detail.inputs;
+    text += ` Right now: TrackMan 2010 ${f(band.detail.trackman_carry_2010[key])}, PING 2019 ${f(band.detail.ping_2019[key])}`
+      + ` (${Math.round(i.club_speed_mph)} mph club speed, ${i.ball_speed_mph.toFixed(1)} mph ball speed, ${fmt(i.attack_deg, 1, true)}${DEG} attack).`;
+  }
+  if (band.modeled && !/modeled/i.test(text)) text += " This band is modeled.";
+  return text;
+}
+
 /**
  * Build one tile. prefix keeps element ids unique when the same metric shows
- * twice on the page. Returns {el, update(entry, band, hand)}.
+ * twice on the page. Returns {el, metric, update(entry, band, hand)}.
  */
 export function createTile(metric, prefix, extraClass) {
   const m = METRICS[metric];
@@ -141,11 +184,11 @@ export function createTile(metric, prefix, extraClass) {
   el.dataset.metric = metric;
   el.innerHTML = `
     <div class="tile-top">
-      <span class="tile-label" id="${id}-l">${m.label}</span>
+      <span class="tile-label">${m.label}</span>
       <button type="button" class="tile-info" aria-expanded="false" aria-controls="${id}-src" aria-label="About the ${m.label.toLowerCase()} band"><span aria-hidden="true">i</span></button>
     </div>
     <span class="badge-modeled" hidden>modeled</span>
-    <div class="tile-val"><span class="v"></span><span class="u">${m.unit === "°" ? "°" : m.unit}</span></div>
+    <div class="tile-val"><span class="v"></span><span class="u${m.unit === DEG ? " deg" : ""}">${m.unit}</span></div>
     <div class="tile-word"></div>
     <div class="bar" aria-hidden="true"><i class="band"></i><i class="mark"></i></div>
     <div class="tile-cap"><span class="status"></span><span class="ideal"></span></div>
@@ -158,6 +201,7 @@ export function createTile(metric, prefix, extraClass) {
   const markEl = $(".mark");
   const statusEl = $(".status");
   const idealEl = $(".ideal");
+  const capEl = $(".tile-cap");
   const srcEl = $(".tile-src");
   const badge = $(".badge-modeled");
   const info = $(".tile-info");
@@ -178,17 +222,16 @@ export function createTile(metric, prefix, extraClass) {
       const band = m.noBand ? null : displayBand(metric, rawBand, hand);
       if (!band) {
         el.classList.remove("in", "out");
-        el.classList.add("plain");
         bar.hidden = true;
-        el.querySelector(".tile-cap").hidden = true;
+        capEl.hidden = true;
         badge.hidden = false;
         el.setAttribute("aria-label", `${m.label} ${vEl.textContent} ${m.unit}, modeled`);
-        info.title = "Total is carry plus a modeled roll.";
         srcEl.textContent = "Total is the carry plus a roll that the Dogleg Data model estimates from the landing angle and speed. It is modeled, not a published number.";
+        info.title = srcEl.textContent;
         return;
       }
       const st = statusOf(band, value);
-      el.classList.remove("plain", "in", "out");
+      el.classList.remove("in", "out");
       el.classList.add(st === "in" ? "in" : "out");
       const g = barGeometry(band, value);
       bandEl.style.left = g.bandL + "%";
@@ -199,9 +242,8 @@ export function createTile(metric, prefix, extraClass) {
       statusEl.textContent = (st === "in" ? "✓ " : st === "above" ? "▲ " : "▼ ") + statusText;
       idealEl.textContent = idealText(m, band);
       badge.hidden = !band.modeled;
-      const srcText = `Ideal band, ${idealText(m, band).replace(/^ideal /, "")}. ${band.source || ""}${band.modeled && !/^modeled/i.test(band.source || "") ? " This band is modeled." : ""}`;
-      srcEl.textContent = srcText;
-      info.title = srcText;
+      srcEl.textContent = sourceText(metric, band);
+      info.title = srcEl.textContent;
       // Screen readers get the value and the status together.
       el.setAttribute("aria-label", `${m.label} ${vEl.textContent} ${m.unit}, ${statusText.toLowerCase()}`);
     },

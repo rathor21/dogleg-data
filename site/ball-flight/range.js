@@ -9,12 +9,17 @@
  *   u      = u0 + (uh - u0) * t(x) + y * s(x)
  *   v      = row(x) - z * s(x)
  * The view is a crop of the art (a rect in art pixels) scaled to the canvas.
- * The wide art uses the per-group zoom rects from camera.json. The mobile art
- * has none, so a crop is computed from the group's flights.
+ * The wide art uses the per-group zoom rects from camera.json. The mobile art has
+ * none, so a crop is computed from the group's flights.
  *
- * Shots come in as {t, x, y, z, flightTime, carry, maxHeight, launchDir, ...}
- * with y already in the display frame (positive is right of the target line,
- * mirrored for a left-handed golfer by the page).
+ * Only the art for the current container shape loads (wide for landscape, mobile
+ * for portrait). If it fails to load, the tracer still draws on a plain dusk
+ * background and the overlay says so.
+ *
+ * Shots come in as {t, x, y, z, flightTime, carry, maxHeight, launchDir} with y
+ * already in the display frame (positive is right of the target line, mirrored
+ * for a left-handed golfer by the page). Colors come from CSS custom properties
+ * on :root (see tool.css), so the palette lives in one place.
  */
 
 const GROUP_VIEW_KEY = { driver: "driver", wood: "woods", long_iron: "long_iron", short_iron: "short_iron", wedge: "wedge" };
@@ -25,6 +30,7 @@ const ART_URL = {
 const ZOOM_MS = 650;
 const START_DELAY_MS = 250;
 const PULSE_MS = 800;
+const MIN_FONT_PX = 12;
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const easeOutQuart = (p) => 1 - Math.pow(1 - p, 4);
@@ -34,23 +40,57 @@ export function createRange({ root, canvas, model, avoidEl }) {
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
   const rootStyle = getComputedStyle(document.documentElement);
   const token = (name, fallback) => rootStyle.getPropertyValue(name).trim() || fallback;
-  const COL = { ink: token("--ink", "#1C1B18"), card: token("--card", "#FBF7EE") };
+  const COL = {
+    ink: token("--ink", "#1C1B18"),
+    dusk: token("--dusk", "#231B3A"),
+    dim: token("--range-dim", "rgba(14,9,26,.14)"),
+    halo: token("--tracer-halo", "rgba(20,10,24,.30)"),
+    glowOuter: token("--tracer-glow-outer", "rgba(255,138,61,.20)"),
+    glowInner: token("--tracer-glow-inner", "rgba(255,170,90,.38)"),
+    core: token("--tracer-core", "#FFF1DC"),
+    ghostHalo: token("--tracer-ghost-halo", "rgba(20,10,24,.22)"),
+    ghost: token("--tracer-ghost", "rgba(255,238,215,.42)"),
+    guide: token("--guide-line", "rgba(255,255,255,.62)"),
+    shadow: token("--ground-shadow", "rgba(10,8,14,.32)"),
+    ring: token("--tracer-ring", "rgba(255,241,220,.95)"),
+    ball: token("--ball", "#FFFDF6"),
+    plateBg: token("--plate-bg", "rgba(251,247,238,.96)"),
+    plateInk: token("--plate-ink", "#1C1B18"),
+    plateDarkBg: token("--plate-dark-bg", "rgba(28,27,24,.74)"),
+    plateDarkInk: token("--plate-dark-ink", "#F4EDE0"),
+    skyTop: token("--fallback-sky-top", "#2B2450"),
+    skyLow: token("--fallback-sky-low", "#B4573A"),
+    ground: token("--fallback-ground", "#26351F"),
+  };
 
-  // ---- art -----------------------------------------------------------------
+  // ---- art (loaded on demand, one at a time) -------------------------------------
+  const loadingEl = root.querySelector(".range-loading");
   function makeArt(key) {
     const c = model.camera[key];
-    const art = { key, w: c.width, h: c.height, P: c.params, greens: c.greens, views: c.views || null, img: new Image(), ready: false, groupTop: {} };
-    art.img.onload = () => {
-      art.ready = true;
-      loadingEl && loadingEl.classList.add("done");
-      request();
-    };
-    art.img.src = ART_URL[key];
-    return art;
+    return { key, w: c.width, h: c.height, P: c.params, greens: c.greens, views: c.views || null, img: null, status: "idle", groupTop: {} };
   }
-  const loadingEl = root.querySelector(".range-loading");
   const arts = { wide: makeArt("wide"), mobile: makeArt("mobile") };
   let art = arts.wide;
+
+  function loadArt(a) {
+    if (a.status !== "idle") return;
+    a.status = "loading";
+    a.img = new Image();
+    a.img.onload = () => { a.status = "ready"; updateOverlay(); request(); };
+    a.img.onerror = () => { a.status = "failed"; updateOverlay(); request(); };
+    a.img.src = ART_URL[a.key];
+  }
+
+  /** The overlay text follows the active art: loading, gone when ready, an error when it failed. */
+  function updateOverlay() {
+    if (!loadingEl) return;
+    const failed = art.status === "failed";
+    loadingEl.classList.toggle("done", art.status === "ready");
+    loadingEl.classList.toggle("failed", failed);
+    loadingEl.setAttribute("aria-hidden", failed ? "false" : "true");
+    if (failed) loadingEl.setAttribute("role", "status"); else loadingEl.removeAttribute("role");
+    loadingEl.textContent = failed ? "The range picture did not load. The tracer still works." : "Loading the range…";
+  }
 
   function project(a, x, y, z) {
     const P = a.P;
@@ -61,7 +101,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
     return [P.u0 + (P.uh - P.u0) * t + y * s, row - z * s, s];
   }
 
-  // ---- view (crop of the art) -----------------------------------------------
+  // ---- view (crop of the art) ------------------------------------------------------
   let W = 300, H = 200, dpr = 1, k = 1;
   let view = { l: 0, t: 0, w: 1376, h: 768 };
   let viewAnim = null;
@@ -123,22 +163,59 @@ export function createRange({ root, canvas, model, avoidEl }) {
     request();
   }
 
-  // ---- layout ----------------------------------------------------------------
-  function layout() {
-    const r = root.getBoundingClientRect();
-    if (r.width < 2 || r.height < 2) return;
-    W = r.width; H = r.height;
+  // ---- size, DPR and cached rects ----------------------------------------------------
+  let avoidRect = null; // label rect in canvas px, or null when it does not sit on the range
+
+  function measureAvoid() {
+    avoidRect = null;
+    if (!avoidEl) return;
+    const rr = root.getBoundingClientRect();
+    const ar = avoidEl.getBoundingClientRect();
+    if (!ar.width || ar.bottom <= rr.top || ar.top >= rr.bottom) return;
+    const ox = rr.left + root.clientLeft, oy = rr.top + root.clientTop;
+    avoidRect = { x: ar.left - ox - 6, y: ar.top - oy - 6, w: ar.width + 12, h: ar.height + 12 };
+  }
+
+  function applySize(w, h) {
+    if (w < 2 || h < 2) return;
+    W = w; H = h;
     dpr = Math.min(window.devicePixelRatio || 1, 3);
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     art = W / H < 1 ? arts.mobile : arts.wide;
+    loadArt(art);
+    updateOverlay();
     view = viewFor(art, group, W / H);
     viewAnim = null;
+    layer = null;
+    measureAvoid();
     request();
   }
-  new ResizeObserver(layout).observe(root);
 
-  // ---- shots -----------------------------------------------------------------
+  const ro = new ResizeObserver((entries) => {
+    let sized = false;
+    for (const e of entries) {
+      if (e.target === root) { applySize(e.contentRect.width, e.contentRect.height); sized = true; }
+    }
+    if (!sized) { measureAvoid(); request(); }
+  });
+  ro.observe(root);
+  if (avoidEl) ro.observe(avoidEl);
+
+  // The device pixel ratio changes on zoom or when the window moves screens.
+  let dprQuery = null;
+  function watchDpr() {
+    if (dprQuery) dprQuery.removeEventListener("change", onDpr);
+    dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+    dprQuery.addEventListener("change", onDpr);
+  }
+  function onDpr() {
+    applySize(W, H);
+    watchDpr();
+  }
+  watchDpr();
+
+  // ---- shots ---------------------------------------------------------------------------
   let cur = null;        // shot on screen
   let committed = null;  // last committed shot
   let ghostShot = null;  // shot drawn dimmed
@@ -150,7 +227,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
     const n = s.x.length;
     let ai = 0;
     for (let i = 1; i < n; i++) if (s.z[i] > s.z[ai]) ai = i;
-    return { ...s, n, apexIdx: ai, key: null, pj: null, gr: null, guide: null };
+    return { ...s, n, apexIdx: ai, topIdx: ai, key: null, pj: null, gr: null, guide: null };
   }
 
   function ensureProj(s) {
@@ -158,12 +235,15 @@ export function createRange({ root, canvas, model, avoidEl }) {
     s.key = art.key;
     s.pj = new Float32Array(2 * s.n);
     s.gr = new Float32Array(2 * s.n);
+    let top = 0;
     for (let i = 0; i < s.n; i++) {
       const p = project(art, s.x[i], s.y[i], s.z[i]);
       s.pj[2 * i] = p[0]; s.pj[2 * i + 1] = p[1];
+      if (p[1] < s.pj[2 * top + 1]) top = i;
       const g = project(art, s.x[i], s.y[i], 0);
       s.gr[2 * i] = g[0]; s.gr[2 * i + 1] = g[1];
     }
+    s.topIdx = top; // the visually highest point of the tracer, which is not always the true apex
     const tan = Math.tan((s.launchDir * Math.PI) / 180);
     const m = 28;
     s.guide = new Float32Array(2 * (m + 1));
@@ -204,7 +284,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
     request();
   }
 
-  // ---- drawing helpers -------------------------------------------------------
+  // ---- drawing helpers ---------------------------------------------------------------
   const sx = (u) => (u - view.l) * k;
   const sy = (v) => (v - view.t) * k;
 
@@ -234,9 +314,6 @@ export function createRange({ root, canvas, model, avoidEl }) {
     return [hx, hy];
   }
 
-  let taken = [];
-  const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-
   function roundRect(x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -247,8 +324,20 @@ export function createRange({ root, canvas, model, avoidEl }) {
     ctx.closePath();
   }
 
-  function plate(text, ax, ay, dirs, fs, dark, pts) {
-    ctx.font = `500 ${fs}px "IBM Plex Mono", ui-monospace, Menlo, monospace`;
+  // Plates are placed first (so the shot's plates get the best spots and the
+  // green plates fill in around them) and drawn last, on top of the tracer.
+  let taken = [];
+  let linePts = [];
+  const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const fontFor = (fs) => `500 ${fs}px "IBM Plex Mono", ui-monospace, Menlo, monospace`;
+
+  /**
+   * Find a spot for a plate near (ax, ay). A spot is free when it overlaps no
+   * other plate and no tracer point. If none is free, a required plate takes its
+   * first choice and an optional plate is skipped (returns null).
+   */
+  function placePlate(text, ax, ay, dirs, fs, required) {
+    ctx.font = fontFor(fs);
     const w = ctx.measureText(text).width + fs * 1.1;
     const h = fs * 1.75;
     const gap = fs * 0.85;
@@ -260,35 +349,45 @@ export function createRange({ root, canvas, model, avoidEl }) {
       right2: [ax + gap + 36, ay - h / 2],
       left2: [ax - gap - 36 - w, ay - h / 2],
     };
-    let best = null;
-    for (const d of dirs) {
+    const rects = dirs.map((d) => {
       const c = cands[d];
-      const r = { x: clamp(c[0], 4, W - w - 4), y: clamp(c[1], 4, H - h - 4), w, h };
-      const hitsLine = pts && pts.some((p) => p[0] > r.x - 4 && p[0] < r.x + w + 4 && p[1] > r.y - 4 && p[1] < r.y + h + 4);
-      if (!hitsLine && !taken.some((t) => overlaps(r, t))) { best = r; break; }
-      if (!best) best = r;
-    }
-    taken.push(best);
-    roundRect(best.x, best.y, w, h, h / 2);
+      return { x: clamp(c[0], 4, W - w - 4), y: clamp(c[1], 4, H - h - 4), w, h };
+    });
+    const blocked = (r) => taken.some((t) => overlaps(r, t));
+    const crossed = (r) => linePts.some((p) => p[0] > r.x - 4 && p[0] < r.x + w + 4 && p[1] > r.y - 4 && p[1] < r.y + h + 4);
+    // Best spot first (clear of plates and the tracer). A required plate then
+    // settles for a spot clear of other plates that the tracer crosses, and
+    // last for its first choice.
+    let r = rects.find((c) => !blocked(c) && !crossed(c));
+    if (!r && required) r = rects.find((c) => !blocked(c)) || rects[0];
+    if (!r) return null;
+    taken.push(r);
+    return { r, text, fs };
+  }
+
+  function drawPlate(p, dark) {
+    const { r, text, fs } = p;
+    roundRect(r.x, r.y, r.w, r.h, r.h / 2);
+    ctx.font = fontFor(fs);
     if (dark) {
-      ctx.fillStyle = "rgba(28,27,24,.74)";
+      ctx.fillStyle = COL.plateDarkBg;
       ctx.fill();
-      ctx.fillStyle = "#F4EDE0";
+      ctx.fillStyle = COL.plateDarkInk;
     } else {
-      ctx.fillStyle = "rgba(251,247,238,.96)";
+      ctx.fillStyle = COL.plateBg;
       ctx.fill();
       ctx.lineWidth = 1;
       ctx.strokeStyle = COL.ink;
       ctx.stroke();
-      ctx.fillStyle = COL.ink;
+      ctx.fillStyle = COL.plateInk;
     }
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(text, best.x + w / 2, best.y + h / 2 + fs * 0.05);
+    ctx.fillText(text, r.x + r.w / 2, r.y + r.h / 2 + fs * 0.05);
   }
 
-  /** Screen points along the shots, so the green plates can stay off the tracer. */
-  function linePoints() {
+  /** Screen points along the shots, so plates stay off the tracer. */
+  function collectLinePts() {
     const out = [];
     for (const s of [cur, ghostOn ? ghostShot : null]) {
       if (!s) continue;
@@ -298,39 +397,28 @@ export function createRange({ root, canvas, model, avoidEl }) {
     return out;
   }
 
-  function drawGreens(fs) {
-    const pts = linePoints();
-    for (const g of art.greens) {
-      const x = sx(g.pixel[0]), y = sy(g.pixel[1]);
-      if (x < 0 || x > W || y < 0 || y > H) continue;
-      plate(`${g.yardage} yd`, x, y, ["above", "right", "left", "right2", "left2", "below"], fs, true, pts);
-    }
-  }
-
-  const TRACER = { halo: "rgba(20,10,24,.30)", glowOuter: "rgba(255,138,61,.20)", glowInner: "rgba(255,170,90,.38)", core: "#FFF1DC" };
-
   function strokeTracer(lw) {
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.setLineDash([]);
-    ctx.strokeStyle = TRACER.halo; ctx.lineWidth = lw * 2.6; ctx.stroke();
-    ctx.strokeStyle = TRACER.glowOuter; ctx.lineWidth = lw * 3.6; ctx.stroke();
-    ctx.strokeStyle = TRACER.glowInner; ctx.lineWidth = lw * 2.1; ctx.stroke();
-    ctx.strokeStyle = TRACER.core; ctx.lineWidth = lw; ctx.stroke();
+    ctx.strokeStyle = COL.halo; ctx.lineWidth = lw * 2.6; ctx.stroke();
+    ctx.strokeStyle = COL.glowOuter; ctx.lineWidth = lw * 3.6; ctx.stroke();
+    ctx.strokeStyle = COL.glowInner; ctx.lineWidth = lw * 2.1; ctx.stroke();
+    ctx.strokeStyle = COL.core; ctx.lineWidth = lw; ctx.stroke();
   }
 
   function ballDot(x, y, r, glow) {
     if (glow) {
       const g = ctx.createRadialGradient(x, y, 0, x, y, r * 3.2);
-      g.addColorStop(0, "rgba(255,190,110,.75)");
+      g.addColorStop(0, COL.glowInner);
       g.addColorStop(1, "rgba(255,150,70,0)");
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(x, y, r * 3.2, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.fillStyle = "#FFFDF6";
+    ctx.fillStyle = COL.ball;
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
     ctx.lineWidth = 1.2;
-    ctx.strokeStyle = "rgba(28,27,24,.55)";
+    ctx.strokeStyle = COL.halo;
     ctx.stroke();
   }
 
@@ -339,14 +427,52 @@ export function createRange({ root, canvas, model, avoidEl }) {
     ensureProj(s);
     trace(s, s.pj, s.flightTime);
     ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.setLineDash([]);
-    ctx.strokeStyle = "rgba(20,10,24,.22)"; ctx.lineWidth = lw * 1.9; ctx.stroke();
-    ctx.strokeStyle = "rgba(255,238,215,.42)"; ctx.lineWidth = lw * 0.8; ctx.stroke();
+    ctx.strokeStyle = COL.ghostHalo; ctx.lineWidth = lw * 1.9; ctx.stroke();
+    ctx.strokeStyle = COL.ghost; ctx.lineWidth = lw * 0.8; ctx.stroke();
     const lx = sx(s.pj[2 * (s.n - 1)]), ly = sy(s.pj[2 * (s.n - 1) + 1]);
     const r = clamp(W / 190, 3, 7);
     ctx.beginPath(); ctx.ellipse(lx, ly, r * 1.6, r * 0.6, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(255,238,215,.55)"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = COL.ghost; ctx.lineWidth = 1.5; ctx.stroke();
   }
 
+  // ---- the art layer, cached per view ----------------------------------------------------
+  let layer = null; // {key, canvas}
+  function drawArtDirect(g) {
+    if (art.status === "ready") {
+      g.drawImage(art.img, view.l, view.t, view.w, view.h, 0, 0, W, H);
+      g.fillStyle = COL.dim;
+      g.fillRect(0, 0, W, H);
+      return;
+    }
+    // Fallback: a plain dusk sky over dark grass, split at the camera horizon.
+    const horizon = clamp(sy(art.P.h), 0, H);
+    const sky = g.createLinearGradient(0, 0, 0, horizon);
+    sky.addColorStop(0, COL.skyTop);
+    sky.addColorStop(1, COL.skyLow);
+    g.fillStyle = sky;
+    g.fillRect(0, 0, W, horizon);
+    g.fillStyle = COL.ground;
+    g.fillRect(0, horizon, W, H - horizon);
+  }
+  function drawArtLayer() {
+    if (viewAnim) { drawArtDirect(ctx); return; } // the view moves every frame during a zoom
+    const key = `${art.key}|${art.status}|${view.l}|${view.t}|${view.w}|${W}|${H}|${dpr}`;
+    if (!layer || layer.key !== key) {
+      const c = document.createElement("canvas");
+      c.width = canvas.width;
+      c.height = canvas.height;
+      const g = c.getContext("2d");
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.imageSmoothingQuality = "high";
+      drawArtDirect(g);
+      layer = { key, canvas: c };
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(layer.canvas, 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  // ---- one shot ----------------------------------------------------------------------------
   function drawShot(now, lw, fs) {
     const s = cur;
     ensureProj(s);
@@ -357,7 +483,8 @@ export function createRange({ root, canvas, model, avoidEl }) {
       if (p >= s.flightTime && landedAt === null) landedAt = now;
     }
     const landed = tt >= s.flightTime;
-    const apexShown = tt >= s.t[s.apexIdx];
+    const ai = s.apexIdx, ti = s.topIdx;
+    const topShown = tt >= Math.max(s.t[ai], s.t[ti]);
     const settled = mode !== "playing";
 
     // start line guide
@@ -367,7 +494,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
     ctx.lineCap = "butt";
     ctx.setLineDash([lw * 2.6, lw * 2.6]);
     ctx.lineWidth = Math.max(1.5, lw * 0.55);
-    ctx.strokeStyle = "rgba(255,255,255,.62)";
+    ctx.strokeStyle = COL.guide;
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -375,19 +502,19 @@ export function createRange({ root, canvas, model, avoidEl }) {
     trace(s, s.gr, tt);
     ctx.lineCap = "round"; ctx.lineJoin = "round";
     ctx.lineWidth = Math.max(1.5, lw * 0.9);
-    ctx.strokeStyle = "rgba(10,8,14,.32)";
+    ctx.strokeStyle = COL.shadow;
     ctx.stroke();
 
-    // apex drop line and marker
-    const ai = s.apexIdx;
+    // apex drop line
     const au = sx(s.pj[2 * ai]), av = sy(s.pj[2 * ai + 1]);
-    if (apexShown) {
+    const tu = sx(s.pj[2 * ti]), tv = sy(s.pj[2 * ti + 1]);
+    if (topShown) {
       ctx.beginPath();
       ctx.moveTo(au, av);
       ctx.lineTo(sx(s.gr[2 * ai]), sy(s.gr[2 * ai + 1]));
       ctx.setLineDash([2, 4]);
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = "rgba(255,241,220,.7)";
+      ctx.strokeStyle = COL.ring;
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -403,12 +530,15 @@ export function createRange({ root, canvas, model, avoidEl }) {
     if (landed) {
       const rx = br * 2.4, ry = rx * 0.38;
       ctx.beginPath(); ctx.ellipse(lx, ly, rx, ry, 0, 0, Math.PI * 2);
-      ctx.lineWidth = 2; ctx.strokeStyle = "rgba(255,241,220,.95)"; ctx.stroke();
+      ctx.lineWidth = 2; ctx.strokeStyle = COL.ring; ctx.stroke();
       if (landedAt !== null && !reduce.matches) {
         const pp = clamp((now - landedAt) / PULSE_MS, 0, 1);
         if (pp < 1) {
-          ctx.beginPath(); ctx.ellipse(lx, ly, rx * (1 + easeOutQuart(pp) * 1.8), ry * (1 + easeOutQuart(pp) * 1.8), 0, 0, Math.PI * 2);
-          ctx.lineWidth = 2; ctx.strokeStyle = `rgba(255,241,220,${0.8 * (1 - pp)})`; ctx.stroke();
+          const grow = 1 + easeOutQuart(pp) * 1.8;
+          ctx.beginPath(); ctx.ellipse(lx, ly, rx * grow, ry * grow, 0, 0, Math.PI * 2);
+          ctx.globalAlpha = 0.8 * (1 - pp);
+          ctx.lineWidth = 2; ctx.strokeStyle = COL.ring; ctx.stroke();
+          ctx.globalAlpha = 1;
         }
       }
     }
@@ -417,18 +547,24 @@ export function createRange({ root, canvas, model, avoidEl }) {
     if (!landed) ballDot(head[0], head[1], br, true);
     else ballDot(lx, ly, br * 0.7, false);
 
-    // apex ring and plates
-    if (apexShown) {
+    // apex ring at the true maximum height. When the visually highest tracer
+    // point sits elsewhere, a thin connector joins the two.
+    if (topShown) {
       ctx.beginPath(); ctx.arc(au, av, br * 1.25, 0, Math.PI * 2);
-      ctx.lineWidth = 2; ctx.strokeStyle = "rgba(255,241,220,.95)"; ctx.stroke();
-      plate(`${Math.round(s.maxHeight)} yd high`, au, av, ["above", "right", "left", "below"], fs, false);
+      ctx.lineWidth = 2; ctx.strokeStyle = COL.ring; ctx.stroke();
+      if (Math.hypot(tu - au, tv - av) > br * 1.5) {
+        ctx.beginPath(); ctx.moveTo(au, av); ctx.lineTo(tu, tv);
+        ctx.lineWidth = 1; ctx.strokeStyle = COL.ring; ctx.stroke();
+      }
     }
-    if (landed) plate(`${Math.round(s.carry)} yd carry`, lx, ly, ["below", "right", "left", "above"], fs, false);
 
-    return settled && (landedAt === null || performance.now() - landedAt > PULSE_MS);
+    // plates: placed as if everything were shown so nothing jumps when it appears
+    const heightPlate = placePlate(`${Math.round(s.maxHeight)} yd high`, tu, tv, ["above", "right", "left", "right2", "left2", "below"], fs, true);
+    const carryPlate = placePlate(`${Math.round(s.carry)} yd carry`, lx, ly, ["below", "right", "left", "right2", "left2", "above"], fs, true);
+    return { settled, landed, topShown, heightPlate, carryPlate };
   }
 
-  // ---- frame loop -------------------------------------------------------------
+  // ---- frame loop --------------------------------------------------------------------------
   let raf = 0;
   function request() { if (!raf) raf = requestAnimationFrame(frame); }
 
@@ -447,37 +583,43 @@ export function createRange({ root, canvas, model, avoidEl }) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     ctx.imageSmoothingQuality = "high";
-    if (art.ready) {
-      ctx.drawImage(art.img, view.l, view.t, view.w, view.h, 0, 0, W, H);
-      ctx.fillStyle = "rgba(14,9,26,.14)";
-      ctx.fillRect(0, 0, W, H);
-    } else {
-      ctx.fillStyle = "#231B3A";
-      ctx.fillRect(0, 0, W, H);
-    }
+    drawArtLayer();
 
     const lw = clamp(W / 240, 2.4, 6);
-    const fs = clamp(W / 80, 10.5, 17);
-    taken = [];
-    if (avoidEl) {
-      const rr = root.getBoundingClientRect();
-      const ar = avoidEl.getBoundingClientRect();
-      if (ar.width && ar.bottom > rr.top && ar.top < rr.bottom) taken.push({ x: ar.left - rr.left - 6, y: ar.top - rr.top - 6, w: ar.width + 12, h: ar.height + 12 });
-    }
-    if (art.ready) drawGreens(fs);
+    const fs = clamp(W / 80, MIN_FONT_PX, 17);
+    taken = avoidRect ? [avoidRect] : [];
+    linePts = collectLinePts();
+
     if (ghostOn && ghostShot && ghostShot !== cur) drawGhost(lw);
+    let shotState = null;
     if (cur) {
-      const done = drawShot(now, lw, fs);
-      if (!done) busy = true;
+      shotState = drawShot(now, lw, fs);
+      if (!shotState.settled || (landedAt !== null && now - landedAt <= PULSE_MS)) busy = true;
       if (mode === "playing" && landedAt !== null && now - landedAt > PULSE_MS) mode = "settled";
+    }
+
+    // Plates go on top of the tracer. Shot plates were placed first, so the
+    // green plates take what is left and skip a spot when none is free.
+    if (art.greens) {
+      for (const g of art.greens) {
+        const x = sx(g.pixel[0]), y = sy(g.pixel[1]);
+        if (x < 0 || x > W || y < 0 || y > H) continue;
+        const p = placePlate(`${g.yardage} yd`, x, y, ["above", "right", "left", "right2", "left2", "below"], fs, false);
+        if (p) drawPlate(p, true);
+      }
+    }
+    if (shotState) {
+      if (shotState.topShown && shotState.heightPlate) drawPlate(shotState.heightPlate, false);
+      if (shotState.landed && shotState.carryPlate) drawPlate(shotState.carryPlate, false);
     }
     if (busy) request();
   }
 
-  // ---- public ----------------------------------------------------------------
-  reduce.addEventListener && reduce.addEventListener("change", () => { if (reduce.matches) settle(); });
+  // ---- lifecycle ------------------------------------------------------------------------------
+  if (reduce.addEventListener) reduce.addEventListener("change", () => { if (reduce.matches) settle(); });
+  // A hidden tab pauses animation frames. Show the settled shot instead of a half flight on return.
+  document.addEventListener("visibilitychange", () => { if (document.hidden && mode === "playing") settle(); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(request);
-  layout();
 
   return {
     preview,
@@ -489,5 +631,6 @@ export function createRange({ root, canvas, model, avoidEl }) {
     setGhost(on) { ghostOn = on; request(); },
     redraw: request,
     get artKey() { return art.key; },
+    get artStatus() { return art.status; },
   };
 }
