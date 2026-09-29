@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ball flight lab: face, path and attack angle · Dogleg Data</title>
+<!-- seo -->
+<meta name="description" content="Move club path, face angle, attack angle, club speed and dynamic loft and watch the tracer fly over a driving range. The shot gets its name (push draw, pull hook, draw) and every number sits against its ideal band for the club and player.">
+<link rel="canonical" href="https://doglegdata.com/ball-flight/tool.html">
+<meta name="theme-color" content="#F4EDE0">
+<link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Ball flight lab: face, path and attack angle · Dogleg Data">
+<meta property="og:description" content="Move club path, face angle, attack angle, club speed and dynamic loft and watch the tracer fly over a driving range. The shot gets its name and every number sits against its ideal band.">
+<meta property="og:url" content="https://doglegdata.com/ball-flight/tool.html">
+<meta property="og:site_name" content="Dogleg Data">
+<meta property="og:image" content="https://doglegdata.com/assets/img/004_range.png">
+<meta property="og:image:width" content="1376">
+<meta property="og:image:height" content="768">
+<meta property="og:image:alt" content="A driving range at dusk seen from the tee, with painted target greens and a white center line under an orange and purple sky">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Dogleg Data Ball Flight Lab",
+  "url": "https://doglegdata.com/ball-flight/tool.html",
+  "applicationCategory": "Sports",
+  "description": "An instructor tool for the ball flight laws. Set club path, face angle, attack angle, club speed and dynamic loft for a club and a player type, watch the tracer fly over a driving range, and read the shot name and every launch and flight number against its ideal band."
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tool.css">
+</head>
+<body>
+<a class="skip-link" href="#app">Skip to the lab</a>
+<div class="wrap">
+
+<header class="page-head">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dogleg Data mark">
+      <path d="M8 28 V14 Q8 8 14 8 H21" fill="none" stroke="#1C1B18" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="26" cy="8" r="3.5" fill="#C05A36"/>
+    </svg>
+    <span class="wordmark">Dogleg Data</span>
+    <span class="tagline">Play the percentages</span>
+    <a class="home-link" href="/">&larr; <span class="long">Dogleg Data </span>home</a>
+  </div>
+  <div class="head-copy">
+    <h1>Ball flight lab: face, path and attack angle</h1>
+    <p>Pick a club and a player, then move the sliders. <span class="more">The tracer flies over the range, the shot gets its name, and each number shows where it sits against the ideal band for that club. Watch what the face does to the start line and what face-to-path does to the curve.</span></p>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Dogleg Data tools">
+  <span class="tab-btn active" aria-current="page">Ball flight lab</span>
+  <a class="tab-btn" href="/augusta-12/tool.html">Aim sandbox</a>
+  <a class="tab-btn" href="/tee-shot-distance/tool.html">Tee shot calculator</a>
+  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#scramble">Scramble decision</a>
+  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#breakeven">Break-even explorer</a>
+  <a class="tab-btn" href="/fairway-vs-rough/dashboard.html#gir">Monte Carlo GIR%</a>
+</nav>
+
+<div id="app-loading" class="state-msg" role="status">Loading the ball flight lab&hellip;</div>
+<div id="app-error" class="state-msg state-error" role="alert" hidden>Could not load the ball flight data. Try refreshing the page.</div>
+<noscript><div class="state-msg state-error">The ball flight lab needs JavaScript. Turn it on and reload.</div></noscript>
+
+<main id="app" class="lab" hidden>
+
+  <section class="stage" aria-label="Range view">
+    <div class="range-wrap">
+      <div class="range" id="range">
+        <canvas id="range-canvas" role="img" aria-label="Driving range with the ball flight tracer"></canvas>
+        <div class="range-loading" id="range-loading" aria-hidden="true">Loading the range&hellip;</div>
+      </div>
+      <div class="shot-label" id="shot-label" role="status" aria-live="polite" aria-atomic="true">
+        <span class="sl-kicker">Shot shape</span>
+        <span class="sl-name" id="sl-name">&mdash;</span>
+        <span class="sl-finish" id="sl-finish">&nbsp;</span>
+        <span class="sl-line" id="sl-line">&nbsp;</span>
+      </div>
+      <div class="range-bar">
+        <button type="button" class="btn btn-primary" id="hit-btn">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 2 L13 8 L3 14 Z" fill="currentColor"/></svg>
+          Hit again
+        </button>
+        <div class="seg seg-sm" role="radiogroup" aria-label="Playback speed" id="speed-seg">
+          <button type="button" role="radio" aria-checked="true" data-speed="1">1x</button>
+          <button type="button" role="radio" aria-checked="false" data-speed="2">2x</button>
+        </div>
+        <label class="check"><input type="checkbox" id="ghost-check" checked> <span>Show last shot</span></label>
+        <span class="range-bar-gap"></span>
+        <button type="button" class="btn btn-ghost" id="copy-btn">Copy link</button>
+        <span class="copy-status" id="copy-status" role="status" aria-live="polite"></span>
+      </div>
+    </div>
+    <div class="key-tiles" id="key-tiles" aria-label="Key numbers"></div>
+  </section>
+
+  <aside class="side" aria-label="Shot setup">
+    <section class="swing card" id="swing" aria-labelledby="swing-h">
+      <div class="swing-head">
+        <button type="button" class="swing-toggle" id="swing-toggle" aria-expanded="false" aria-controls="swing-body">
+          <span class="swing-chev" aria-hidden="true"></span>
+          <span class="swing-title" id="swing-h">Swing</span>
+          <span class="swing-summary" id="swing-summary"></span>
+        </button>
+        <button type="button" class="btn btn-outline btn-mini" id="reset-btn">Reset to ideal</button>
+        <button type="button" class="btn btn-primary btn-mini" id="hit-btn-2">Hit</button>
+      </div>
+      <div class="swing-body" id="swing-body">
+        <div class="swing-inner">
+          <div class="sliders" id="sliders"></div>
+          <details class="advanced" id="advanced">
+            <summary>Advanced</summary>
+            <div class="sliders" id="sliders-adv"></div>
+          </details>
+          <button type="button" class="btn btn-outline btn-block" id="reset-btn-2">Reset to ideal</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="setup card" aria-labelledby="setup-h">
+      <h2 id="setup-h" class="sr-only">Club and player</h2>
+      <div class="field">
+        <span class="field-label" id="group-label">Club</span>
+        <div class="chips" role="radiogroup" aria-labelledby="group-label" id="group-chips"></div>
+        <div class="chips chips-sm" role="radiogroup" aria-label="Specific club" id="club-chips"></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <span class="field-label" id="player-label">Player</span>
+          <div class="seg" role="radiogroup" aria-labelledby="player-label" id="player-seg"></div>
+        </div>
+        <div class="field">
+          <span class="field-label" id="hand-label">Hand</span>
+          <div class="seg" role="radiogroup" aria-labelledby="hand-label" id="hand-seg">
+            <button type="button" role="radio" aria-checked="true" data-hand="r">Right</button>
+            <button type="button" role="radio" aria-checked="false" data-hand="l">Left</button>
+          </div>
+        </div>
+      </div>
+      <p class="preset-note" id="preset-note" hidden></p>
+    </section>
+  </aside>
+
+  <section class="card all-tiles" id="all-tiles" aria-labelledby="all-h">
+    <h2 id="all-h">Every number</h2>
+    <p class="sub">The shaded stretch on each bar is the ideal band for this club and player. A green marker sits inside it, a clay marker sits outside. Tap the <span class="i-glyph" aria-hidden="true">i</span> on a tile for the source.</p>
+    <div class="tile-groups" id="tile-groups"></div>
+  </section>
+
+</main>
+
+<footer>
+  <p class="signoff">Dogleg Data &middot; Play the percentages.</p>
+  <p>Charts and sized exports are free to use with credit: <a href="/cite/">doglegdata.com/cite</a></p>
+  <h3>Sources &amp; methodology</h3>
+  <p>Ideal bands and presets come from TrackMan 2023 PGA Tour and LPGA Tour averages, TrackMan Combine averages (the average amateur), the TrackMan Optimizer, the TrackMan 2010 Driver Fitting Chart and the PING 2019 Optimal Launch &amp; Spin Chart. Driver launch and spin bands move with your club speed and attack angle.</p>
+  <p>The delivery model (how path, face, attack angle and dynamic loft set launch and spin) and the flight model (how the ball flies and rolls) are Dogleg Data models calibrated to those tables. Anything marked <span class="badge-modeled">modeled</span> is model output or a design choice, not a published number. Read how the models work in <a href="/ball-flight/">the ball flight methods write-up</a> (coming soon).</p>
+  <p>The range scene is an illustration. Yardage plates on the painted greens are approximate.</p>
+</footer>
+
+</div>
+
+<script type="module" src="ui.js"></script>
+</body>
+</html>
