@@ -1,0 +1,5 @@
+{
+  "description": "subordinate shot map (smaller, quieter, offscreen-cached)",
+  "target": "code",
+  "suspicious": "reverted: test 0.474 (v1 0.609); c6 fell to 0.02 but judge reasons cite whole-page clutter, not the map; suspected judge strictness drift, control re-judge of v1 scheduled"
+}

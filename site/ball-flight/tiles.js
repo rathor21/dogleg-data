@@ -55,7 +55,7 @@ export const METRICS = {
   smash: { label: "Smash factor", unit: "", dec: 2 },
   launch_deg: { label: "Launch angle", unit: DEG, dec: 1 },
   launch_dir_deg: { label: "Launch direction", unit: DEG, dec: 1, signed: true, lateral: true,
-    words: (rh, d) => (isZero(d, 0.05) ? "on the target line" : `starts ${dirWord(d)}`) },
+    words: (rh, d) => (isZero(d, 0.05) ? "on target line" : `starts ${dirWord(d)}`) },
   spin_rpm: { label: "Spin rate", unit: "rpm", dec: 0, grouped: true },
   spin_axis_deg: { label: "Spin axis", unit: DEG, dec: 1, signed: true, lateral: true,
     words: (rh, d) => (isZero(d, 0.05) ? "no side spin" : `tilts ${dirWord(d)}`) },
@@ -144,12 +144,17 @@ export function statusOf(band, value) {
 
 const unitText = (m) => (m.unit === DEG ? DEG : m.unit ? " " + m.unit : "");
 
-function idealText(m, band) {
+/** The band as {lead, range}: "ideal" and the unbreakable range, so a note wraps after "ideal" or not at all. */
+function idealParts(m, band) {
   const f = (x) => fmt(x, m.dec, m.signed, m.grouped);
   const u = unitText(m);
-  if (band.lo !== null && band.hi !== null) return `ideal ${f(band.lo)} to ${f(band.hi)}${u}`;
-  if (band.lo !== null) return `ideal ${f(band.lo)}${u} or more`;
-  return `ideal up to ${f(band.hi)}${u}`;
+  if (band.lo !== null && band.hi !== null) return { lead: "ideal", range: `${f(band.lo)} to ${f(band.hi)}${u}` };
+  if (band.lo !== null) return { lead: "ideal", range: `${f(band.lo)}${u} or more` };
+  return { lead: "ideal", range: `up to ${f(band.hi)}${u}` };
+}
+function idealText(m, band) {
+  const p = idealParts(m, band);
+  return `${p.lead} ${p.range}`;
 }
 
 /** Source strings from ideals.json read like data. Clean them for display. */
@@ -198,7 +203,7 @@ export function createTile(metric, prefix, extraClass) {
     <div class="tile-val"><span class="v"></span><span class="u${m.unit === DEG ? " deg" : ""}">${m.unit}</span></div>
     <div class="tile-word"></div>
     <div class="bar" aria-hidden="true"><i class="band"></i><i class="mark"></i></div>
-    <div class="tile-cap"><span class="status"></span><span class="ideal"></span></div>
+    <div class="tile-cap"><span class="status"></span><span class="ideal"><span class="il"></span> <span class="nw"></span></span></div>
     <p class="tile-src" id="${id}-src" hidden></p>`;
   const $ = (s) => el.querySelector(s);
   const vEl = $(".v");
@@ -207,7 +212,9 @@ export function createTile(metric, prefix, extraClass) {
   const bandEl = $(".band");
   const markEl = $(".mark");
   const statusEl = $(".status");
-  const idealEl = $(".ideal");
+  let lastIdeal = "";
+  const idealLead = $(".ideal .il");
+  const idealRange = $(".ideal .nw");
   const capEl = $(".tile-cap");
   const srcEl = $(".tile-src");
   const badge = $(".badge-modeled");
@@ -247,7 +254,15 @@ export function createTile(metric, prefix, extraClass) {
       markEl.classList.toggle("edge", g.edge);
       const statusText = st === "in" ? "In band" : st === "above" ? "Above band" : "Below band";
       statusEl.textContent = (st === "in" ? "✓ " : st === "above" ? "▲ " : "▼ ") + statusText;
-      idealEl.textContent = idealText(m, band);
+      // The band moves only when the club, player, speed or attack changes, so most drag steps skip this.
+      const ip = idealParts(m, band);
+      const ideal = ip.lead + " " + ip.range;
+      if (ideal !== lastIdeal) {
+        lastIdeal = ideal;
+        idealLead.textContent = ip.lead;
+        idealRange.textContent = ip.range;
+        bar.title = ideal; // the key tiles drop the note, the bar keeps it
+      }
       badge.hidden = !band.modeled;
       srcEl.textContent = sourceText(metric, band, exception);
       info.title = srcEl.textContent;

@@ -218,6 +218,10 @@ async function main() {
     $("#windows").hidden = state.mode !== "w";
     $("#compare").hidden = state.mode !== "c";
     $("#mode-hint").textContent = MODE_HINT[state.mode];
+    if (document.body.dataset.mode !== state.mode) {
+      document.body.dataset.mode = state.mode; // tool.css budgets the first screen per mode
+      scheduleFit(0);
+    }
   }
   function setMode(m) {
     if (m === state.mode) return;
@@ -333,7 +337,8 @@ async function main() {
 
   const copyStatus = $("#copy-status");
   let copyTimer = 0;
-  $("#copy-btn").addEventListener("click", async () => {
+  const copyBtn = $("#copy-btn");
+  copyBtn.addEventListener("click", async () => {
     const url = new URL(store.buildUrl(), location.href).href;
     let ok = false;
     try {
@@ -349,9 +354,11 @@ async function main() {
       try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
       ta.remove();
     }
+    // The status line is read aloud (and shown where there is room). On a phone the button itself says it.
     copyStatus.textContent = ok ? "Link copied" : "Copy failed";
+    copyBtn.textContent = ok ? "Copied" : "Copy failed";
     clearTimeout(copyTimer);
-    copyTimer = setTimeout(() => { copyStatus.textContent = ""; }, 2500);
+    copyTimer = setTimeout(() => { copyStatus.textContent = ""; copyBtn.textContent = "Copy link"; }, 2500);
   });
 
   // ---- presentation mode -----------------------------------------------------------------
@@ -361,6 +368,7 @@ async function main() {
     onChange(on) {
       announceMode(on ? "Presentation mode on. Press Escape to exit." : "Presentation mode off.");
       applyDrawer();
+      scheduleFit(0);
       range.redraw();
       views.redraw();
     },
@@ -381,6 +389,7 @@ async function main() {
     const open = !isDrawer() || drawerOpen || presenter.on;
     swing.dataset.open = String(open);
     toggle.setAttribute("aria-expanded", String(open));
+    document.body.dataset.drawer = isDrawer() && drawerOpen && !presenter.on ? "open" : "closed";
     body.inert = !open;
   }
   function setDrawer(open, refocus) {
@@ -404,6 +413,87 @@ async function main() {
   narrow.addEventListener("change", applyDrawer);
   shortLandscape.addEventListener("change", applyDrawer);
   applyDrawer();
+
+  // ---- fit to the fold -----------------------------------------------------------------
+  // The numbers a mode teaches with sit under the range: the key tiles, the nine
+  // windows, the compare card. This measures how much room they need and gives the
+  // rest to the range, so they end above the fixed bar instead of running under it.
+  // If the range would get too short, body[data-fit="1"] trims detail (see tool.css).
+  const rootStyle = document.body.style; // on body, so it beats the body[data-mode] fallbacks in tool.css
+  const MAX_RANGE_ASPECT = 2.4;
+  function fitFirstScreen() {
+    const bs = document.body.dataset;
+    if (presenter.on || shortLandscape.matches) {
+      rootStyle.removeProperty("--reserve");
+      rootStyle.removeProperty("--range-min");
+      $("#views").style.marginTop = "";
+      $(".win-note").style.marginTop = "";
+      delete bs.fit;
+      delete bs.tight;
+      return;
+    }
+    // In 9 Windows the attribution note is a footnote: the block that must fit ends at the Fly all nine button.
+    const target = state.mode === "w" ? $(".win-actions") : state.mode === "c" ? $("#compare") : $("#key-tiles");
+    const cardPad = state.mode === "w" ? parseFloat(getComputedStyle($("#windows")).paddingBottom) || 0 : 0;
+    const cs = getComputedStyle(document.documentElement);
+    const rem = parseFloat(cs.fontSize) || 16;
+    const drawerH = parseFloat(cs.getPropertyValue("--drawer-h")) || 0;
+    const barH = parseFloat(getComputedStyle(document.body).paddingBottom) || 0; // drawer and the safe area
+    const phone = window.innerWidth < 560;
+    // The range never gets flatter than about 2.4 to 1: the picture's crop stops working past that.
+    const aspectFloor = rangeRoot.getBoundingClientRect().width / MAX_RANGE_ASPECT;
+    // Full detail keeps a 14 rem range on a phone (16 rem wider). Trimmed, a phone may go down to 11 rem.
+    const floors = { 0: Math.max((phone ? 14 : 16) * rem, aspectFloor), 1: Math.max((phone ? 11 : 16) * rem, aspectFloor), 2: Math.max(9 * rem, aspectFloor) };
+    const pad = 16;
+    let reserve = null;
+    let minRange = floors[0];
+    // Levels: full, trimmed, and (phones only) trimmed with the range bar and page title out of the way.
+    for (const level of phone ? ["0", "1", "2"] : ["0", "1"]) {
+      bs.fit = level === "0" ? "0" : "1";
+      if (level === "2") bs.tight = "1"; else delete bs.tight;
+      minRange = floors[level];
+      const tr = target.getBoundingClientRect(); // forces layout
+      if (!tr.height) { reserve = null; break; }
+      const rr = rangeRoot.getBoundingClientRect();
+      const top = document.documentElement.getBoundingClientRect().top; // -scrollY, read in the same layout
+      const fixed = tr.bottom + cardPad - top - rr.height; // everything above the range plus everything under it
+      reserve = fixed + pad + (barH - drawerH);
+      if (window.innerHeight - drawerH - reserve >= minRange) break;
+    }
+    const setVar = (name, px) => {
+      if (px === null) rootStyle.removeProperty(name);
+      else if (Math.abs(px - (parseFloat(rootStyle.getPropertyValue(name)) || 0)) > 0.5) rootStyle.setProperty(name, px.toFixed(1) + "px");
+    };
+    setVar("--reserve", reserve);
+    setVar("--range-min", reserve === null ? null : minRange);
+    // The layout ends at the fold: if the next section would show only its top edge above
+    // the fixed bar, it starts below the fold instead. A section that shows more than a sliver stays put.
+    const next = $("#views");
+    next.style.marginTop = "0px";
+    const visible = window.innerHeight - barH - (next.getBoundingClientRect().top);
+    next.style.marginTop = visible > 0 && visible < 110 ? Math.ceil(visible + 8) + "px" : "";
+    // The 9 Windows footnote never shows half a line above the bar: if it would be cut, it starts below the fold.
+    const note = $(".win-note");
+    note.style.marginTop = "";
+    const nr = note.getBoundingClientRect();
+    const fold = window.innerHeight - barH;
+    if (state.mode === "w" && nr.height && nr.top < fold && nr.bottom > fold) note.style.marginTop = Math.ceil((parseFloat(getComputedStyle(note).marginTop) || 0) + fold - nr.top + 8) + "px";
+  }
+  // Debounced: a slider drag can change a tile's wrapping on every step, and the fit only needs to settle when it stops.
+  let fitTimer = 0;
+  function scheduleFit(delay = 90) {
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(() => requestAnimationFrame(fitFirstScreen), delay);
+  }
+  const fitObserver = new ResizeObserver(() => scheduleFit());
+  for (const el of ["#key-tiles", "#windows", "#compare", ".page-head", ".modebar"]) {
+    const node = $(el);
+    if (node) fitObserver.observe(node);
+  }
+  window.addEventListener("resize", () => scheduleFit());
+  narrow.addEventListener("change", () => scheduleFit(0));
+  shortLandscape.addEventListener("change", () => scheduleFit(0));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => scheduleFit(0));
 
   // ---- go ------------------------------------------------------------------------
   store.loadFromSearch(location.search, (key) => windows.applyWindow(key));

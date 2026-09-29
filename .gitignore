@@ -4,3 +4,11 @@ founder-skills-main.zip
 .wrangler/
 node_modules/
 launch/003-social/out/
+
+# Ball flight lab eval (hillclimb)
+.claude/hillclimb/**/traces/
+.claude/hillclimb/**/report.html
+.claude/hillclimb/**/trajectory/
+.claude/hillclimb/**/shots/*_full.*
+.claude/hillclimb/**/.partial/
+.claude/hillclimb/**/shots/
