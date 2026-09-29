@@ -1,10 +1,14 @@
 """Delivery to launch for release 004: club delivery in, ball launch out.
 
-    deliver(club_speed, attack, path, face, dyn_loft, club) -> Launch
+    deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg,
+            club=None, *, params=None, spin_trim=1.0) -> Launch
 
 feeds flight.simulate(ball_speed_mph, launch_deg, launch_dir_deg, spin_rpm,
 spin_axis_deg). Everything here is a MODELED approximation of the D-plane,
 fitted to the published tables (see data.LAUNCH_MODEL and calibrate_launch.py).
+
+This module is the JS port surface: deliver, its helpers, swing_path and
+Launch. Fitting and table-building helpers live in launch_tools.py.
 
 Frame and signs (TrackMan, right-handed golfer): x downrange, y right, z up.
 Angles are positive right, positive path is in-to-out, positive face is open to
@@ -21,12 +25,17 @@ Model:
   3. Smash factor and spin rate are functions of spin loft (and ball speed).
      Spin also takes a club-class factor for the driver and fairway woods.
   4. Spin axis is the tilt of the D-plane normal times one constant c. The
-     constant is calibrated so face-to-path maps to TrackMan's published curvature
-     (see calibrate_launch.py and ADR 0004).
+     constant is calibrated so face-to-path maps to TrackMan's published
+     curvature (see calibrate_launch.py and ADR 0004).
+
+Input contract. deliver raises ValueError, naming the argument, on a non-finite
+value, a value outside data.DOMAIN, dynamic loft minus attack angle under
+data.DOMAIN["min_spin_loft_deg"], a spin_trim that is not positive, or a club
+that is not None or a key of data.PGA. Outputs never carry a negative zero.
 """
 
 from dataclasses import dataclass
-from math import atan2, cos, degrees, radians, sin, sqrt, tan
+from math import atan2, cos, degrees, isfinite, radians, sin, sqrt, tan
 
 import data
 
@@ -69,6 +78,15 @@ def _unit(a):
     return (a[0] / n, a[1] / n, a[2] / n)
 
 
+def _angle_between(a, b):
+    """Angle between two vectors in degrees, from atan2 of |a x b| and a . b."""
+    return degrees(atan2(_norm(_cross(a, b)), _dot(a, b)))
+
+
+def _no_negative_zero(x):
+    return x + 0.0  # -0.0 + 0.0 is 0.0
+
+
 def club_direction(path_deg, attack_deg):
     p, a = radians(path_deg), radians(attack_deg)
     return (cos(a) * cos(p), cos(a) * sin(p), sin(a))
@@ -79,72 +97,75 @@ def face_normal(face_deg, dyn_loft_deg):
     return (cos(l) * cos(f), cos(l) * sin(f), sin(l))
 
 
+def blend(d, n, k):
+    """Unit vector along (1 - k) d + k n."""
+    return _unit((
+        (1.0 - k) * d[0] + k * n[0],
+        (1.0 - k) * d[1] + k * n[1],
+        (1.0 - k) * d[2] + k * n[2],
+    ))
+
+
 def spin_loft_deg(path_deg, attack_deg, face_deg, dyn_loft_deg):
     """3D angle between the club direction and the face normal, degrees."""
-    d = club_direction(path_deg, attack_deg)
-    n = face_normal(face_deg, dyn_loft_deg)
-    return degrees(atan2(_norm(_cross(d, n)), _dot(d, n)))
+    return _angle_between(club_direction(path_deg, attack_deg), face_normal(face_deg, dyn_loft_deg))
 
 
 # ---------------------------------------------------------------------------
-# The fitted pieces. `p` is a parameter dict shaped like data.LAUNCH_MODEL, so
+# The fitted pieces. `params` is a dict shaped like data.LAUNCH_MODEL, so
 # calibrate_launch.py can fit them before they are pasted into data.py.
 # ---------------------------------------------------------------------------
 
 
-def k_of(sl, p=None):
+def _params(params):
+    return data.LAUNCH_MODEL if params is None else params
+
+
+def k_of(sl, params=None):
     """Weight of the face normal in the launch vector. Linear in spin loft,
     held flat outside the spin loft range of the four fitting points."""
-    p = data.LAUNCH_MODEL if p is None else p
-    s = min(max(sl, p["k_sl_lo"]), p["k_sl_hi"])
-    return p["k0"] + p["k1"] * s
+    m = _params(params)
+    s = min(max(sl, m["k_sl_lo"]), m["k_sl_hi"])
+    return m["k0"] + m["k1"] * s
 
 
-def smash_of(sl, p=None):
-    p = data.LAUNCH_MODEL if p is None else p
+def smash_of(sl, params=None):
+    """Quadratic in spin loft, capped at the largest published smash and floored
+    at the fit's value at spin loft 45 (a quadratic keeps falling past the last
+    fitted row, and nothing supports that)."""
+    m = _params(params)
     s = max(sl, 0.0)
-    return min(p["smash_a"] + p["smash_b"] * s + p["smash_c"] * s * s, p["smash_cap"])
+    raw = m["smash_a"] + m["smash_b"] * s + m["smash_c"] * s * s
+    return max(min(raw, m["smash_cap"]), m["smash_floor"])
 
 
 SPIN_CLASS = {"driver": "driver", "3w": "wood", "5w": "wood"}  # every other club is an iron class
 
 
-def spin_class_factor(club, p=None):
+def spin_class_factor(club, *, params=None):
     """MODELED club-class multiplier on spin: f_driver for the driver, f_wood
     for the 3-wood and 5-wood, 1 for hybrids, irons and wedges (and when the
     club is not given)."""
-    p = data.LAUNCH_MODEL if p is None else p
+    m = _params(params)
     cls = SPIN_CLASS.get(club)
-    return 1.0 if cls is None else p["spin_f_" + cls]
+    return 1.0 if cls is None else m["spin_f_" + cls]
 
 
-def spin_of(ball_speed_mph, sl, club=None, p=None):
-    p = data.LAUNCH_MODEL if p is None else p
-    return spin_class_factor(club, p) * p["spin_a"] * ball_speed_mph * max(sl, 0.0) ** p["spin_b"]
+def spin_of(ball_speed_mph, sl, club=None, *, params=None):
+    m = _params(params)
+    return spin_class_factor(club, params=m) * m["spin_a"] * ball_speed_mph * max(sl, 0.0) ** m["spin_b"]
 
 
-def axis_scale(p=None):
+def axis_scale(params=None):
     """One constant on the D-plane tilt, calibrated to the eight curvature
     examples (data.LAUNCH_MODEL["axis_c"])."""
-    p = data.LAUNCH_MODEL if p is None else p
-    return p["axis_c"]
+    return _params(params)["axis_c"]
 
 
-def launch_vector(path_deg, attack_deg, face_deg, dyn_loft_deg, p=None):
-    """(launch angle deg, launch direction deg, spin loft deg)."""
-    d = club_direction(path_deg, attack_deg)
-    n = face_normal(face_deg, dyn_loft_deg)
-    sl = degrees(atan2(_norm(_cross(d, n)), _dot(d, n)))
-    k = k_of(sl, p)
-    u = _unit(tuple((1.0 - k) * d[i] + k * n[i] for i in range(3)))
-    return degrees(atan2(u[2], sqrt(u[0] * u[0] + u[1] * u[1]))), degrees(atan2(u[1], u[0])), sl
-
-
-def dplane_tilt_deg(path_deg, attack_deg, face_deg, dyn_loft_deg):
+def dplane_tilt_deg(d, n):
     """Tilt of the D-plane normal about the launch direction, degrees, positive
-    curves right. With small angles this is atan2(face - path, dyn loft - attack)."""
-    d = club_direction(path_deg, attack_deg)
-    n = face_normal(face_deg, dyn_loft_deg)
+    curves right. d is the club direction and n the face normal. With small
+    angles this is atan2(face - path, dyn loft - attack)."""
     m = _cross(d, n)
     if _norm(m) < 1e-9:
         return 0.0
@@ -153,75 +174,87 @@ def dplane_tilt_deg(path_deg, attack_deg, face_deg, dyn_loft_deg):
     u = _unit((d[0] + n[0], d[1] + n[1], d[2] + n[2]))
     right = _unit(_cross((0.0, 0.0, 1.0), u))  # horizontal, to the right of travel
     up = _cross(u, right)  # the up direction seen from the ball, perpendicular to u
-    if _dot(m, right) < 0.0:
-        m = (-m[0], -m[1], -m[2])
-    return degrees(atan2(-_dot(m, up), _dot(m, right)))
+    m_right = _dot(m, right)
+    m_up = _dot(m, up)
+    # Orient the normal to the backspin side, breaking an exact tie toward +90.
+    if m_right < 0.0 or (m_right == 0.0 and m_up > 0.0):
+        m_right = -m_right
+        m_up = -m_up
+    return degrees(atan2(-m_up, m_right))
 
 
-def deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=None, p=None, spin_trim=1.0):
+def launch_vector(path_deg, attack_deg, face_deg, dyn_loft_deg, *, params=None):
+    """(launch angle deg, launch direction deg, spin loft deg). No input checks:
+    the fitters and launch_tools call this outside the domain."""
+    d = club_direction(path_deg, attack_deg)
+    n = face_normal(face_deg, dyn_loft_deg)
+    sl = _angle_between(d, n)
+    u = blend(d, n, k_of(sl, params))
+    return degrees(atan2(u[2], sqrt(u[0] * u[0] + u[1] * u[1]))), degrees(atan2(u[1], u[0])), sl
+
+
+# ---------------------------------------------------------------------------
+# Input contract
+# ---------------------------------------------------------------------------
+
+
+def _check_range(name, value, key):
+    if not isfinite(value):
+        raise ValueError(f"{name} must be finite, got {value!r}")
+    lo, hi = data.DOMAIN[key]
+    if not lo <= value <= hi:
+        raise ValueError(f"{name} must be within {lo:g} to {hi:g}, got {value!r}")
+
+
+def check_club(club):
+    if club is not None and club not in data.PGA:
+        raise ValueError(f"club must be None or one of {tuple(data.PGA)}, got {club!r}")
+
+
+def check_delivery(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=None, spin_trim=1.0):
+    """Raise ValueError, naming the argument, for anything deliver rejects."""
+    _check_range("club_speed_mph", club_speed_mph, "club_speed_mph")
+    _check_range("attack_deg", attack_deg, "attack_deg")
+    _check_range("path_deg", path_deg, "path_deg")
+    _check_range("face_deg", face_deg, "face_deg")
+    _check_range("dyn_loft_deg", dyn_loft_deg, "dyn_loft_deg")
+    floor = data.DOMAIN["min_spin_loft_deg"]
+    if dyn_loft_deg - attack_deg < floor:
+        raise ValueError(
+            f"dyn_loft_deg - attack_deg must be at least {floor:g} deg, got {dyn_loft_deg - attack_deg:g}"
+        )
+    if not isfinite(spin_trim) or spin_trim <= 0.0:
+        raise ValueError(f"spin_trim must be finite and positive, got {spin_trim!r}")
+    check_club(club)
+
+
+def deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=None, *, params=None, spin_trim=1.0):
     """Club delivery to launch conditions. `club` picks the spin class factor
     (driver, fairway woods, everything else). `spin_trim` multiplies spin_rpm
     and nothing else: a preset-level correction (presets.preset returns one)
     that stands for where on the face a player group strikes the ball."""
-    p = data.LAUNCH_MODEL if p is None else p
-    launch_deg, launch_dir, sl = launch_vector(path_deg, attack_deg, face_deg, dyn_loft_deg, p)
-    smash = smash_of(sl, p)
+    check_delivery(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club, spin_trim)
+    m = _params(params)
+    d = club_direction(path_deg, attack_deg)
+    n = face_normal(face_deg, dyn_loft_deg)
+    sl = _angle_between(d, n)
+    u = blend(d, n, k_of(sl, m))
+    launch_deg = degrees(atan2(u[2], sqrt(u[0] * u[0] + u[1] * u[1])))
+    launch_dir = degrees(atan2(u[1], u[0]))
+    smash = smash_of(sl, m)
     ball = smash * club_speed_mph
-    spin = spin_of(ball, sl, club, p) * spin_trim
-    axis = axis_scale(p) * dplane_tilt_deg(path_deg, attack_deg, face_deg, dyn_loft_deg)
+    spin = spin_of(ball, sl, club, params=m) * spin_trim
+    axis = axis_scale(m) * dplane_tilt_deg(d, n)
     return Launch(
-        ball_speed_mph=ball,
-        smash=smash,
-        launch_deg=launch_deg,
-        launch_dir_deg=launch_dir,
-        spin_rpm=spin,
-        spin_axis_deg=axis,
-        spin_loft_deg=sl,
-        face_to_path_deg=face_deg - path_deg,
+        ball_speed_mph=_no_negative_zero(ball),
+        smash=_no_negative_zero(smash),
+        launch_deg=_no_negative_zero(launch_deg),
+        launch_dir_deg=_no_negative_zero(launch_dir),
+        spin_rpm=_no_negative_zero(spin),
+        spin_axis_deg=_no_negative_zero(axis),
+        spin_loft_deg=_no_negative_zero(sl),
+        face_to_path_deg=_no_negative_zero(face_deg - path_deg),
     )
-
-
-def horizontal_face_share(attack_deg, dyn_loft_deg, p=None):
-    """Weight of the face angle in launch direction for a small face-to-path,
-    k cos(L) / ((1 - k) cos(A) + k cos(L)). Compare with the unverified
-    85 / 75 and 87 / 81 shares in Anchor 5(a); this is model output, not a fit
-    to them."""
-    sl = dyn_loft_deg - attack_deg
-    k = k_of(sl, p)
-    cl, ca = cos(radians(dyn_loft_deg)), cos(radians(attack_deg))
-    return k * cl / ((1.0 - k) * ca + k * cl)
-
-
-def derive_dyn_loft(launch_deg, attack_deg, p=None, hi=80.0):
-    """Dynamic loft that makes path = face = 0 launch at `launch_deg` for the
-    given attack angle. Bisection on the launch vector model."""
-    lo_dl, hi_dl = attack_deg + 0.01, attack_deg + hi
-
-    def g(dl):
-        return launch_vector(0.0, attack_deg, 0.0, dl, p)[0] - launch_deg
-
-    if g(lo_dl) > 0.0 or g(hi_dl) < 0.0:
-        raise ValueError("launch angle outside the range the model can reach")
-    for _ in range(80):
-        mid = 0.5 * (lo_dl + hi_dl)
-        if g(mid) < 0.0:
-            lo_dl = mid
-        else:
-            hi_dl = mid
-    return 0.5 * (lo_dl + hi_dl)
-
-
-_TOUR_DL_CACHE = {}
-
-
-def tour_dyn_loft(tour, club):
-    """Default dynamic loft for a Tour table row, from derive_dyn_loft with the
-    shipped parameters. MODELED (only the driver and 6 iron are published)."""
-    key = (tour, club)
-    if key not in _TOUR_DL_CACHE:
-        r = data.TOURS[tour][club]
-        _TOUR_DL_CACHE[key] = derive_dyn_loft(r["launch_deg"], r["attack_deg"])
-    return _TOUR_DL_CACHE[key]
 
 
 def swing_path(swing_dir_deg, attack_deg, plane_deg=None):
@@ -232,7 +265,13 @@ def swing_path(swing_dir_deg, attack_deg, plane_deg=None):
     plane, swing direction and attack angle combine to give path. Hitting down
     (AA < 0) moves path right, the same direction TrackMan's statement implies.
     plane_deg defaults to the Combine average golfer's driver swing plane
-    (data.SWING_PLANE_DEG).
+    (data.SWING_PLANE_DEG) and must lie inside data.DOMAIN["swing_plane_deg"], ends excluded.
     """
     plane = data.SWING_PLANE_DEG if plane_deg is None else plane_deg
-    return swing_dir_deg - attack_deg * tan(radians(90.0 - plane))
+    for name, value in (("swing_dir_deg", swing_dir_deg), ("attack_deg", attack_deg), ("plane_deg", plane)):
+        if not isfinite(value):
+            raise ValueError(f"{name} must be finite, got {value!r}")
+    lo, hi = data.DOMAIN["swing_plane_deg"]
+    if not lo < plane < hi:
+        raise ValueError(f"plane_deg must be between {lo:g} and {hi:g} (exclusive), got {plane!r}")
+    return _no_negative_zero(swing_dir_deg - attack_deg * tan(radians(90.0 - plane)))

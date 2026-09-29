@@ -25,9 +25,6 @@
     }
   },
   "presets": {
-    "lpga/8i": {
-      "ball_pct": -2.3
-    },
     "amateur/driver": {
       "launch_deg": -1.25,
       "ball_pct": 2.78

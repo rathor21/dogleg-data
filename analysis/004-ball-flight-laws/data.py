@@ -163,19 +163,20 @@ CURVATURE_EXAMPLES = (
 # 72 mph, attack angle -3.2 and -3.9, dynamic loft 22.4 and 36.7.
 # ---------------------------------------------------------------------------
 
-AMATEUR_ANCHORS = {
-    "driver": dict(club_speed_mph=94, attack_deg=-1.8, dyn_loft_deg=15.1, spin_rpm=3275, source="TrackMan Combine, average golfer (14.5 HCP)"),
-    "6i": dict(club_speed_mph=80, attack_deg=-3.2, dyn_loft_deg=22.4, spin_rpm=5956, source="TrackMan Optimizer default"),
-    "pw": dict(club_speed_mph=72, attack_deg=-3.9, dyn_loft_deg=36.7, spin_rpm=8408, source="TrackMan Optimizer default"),
-}
+# Each anchor also carries the published row it should reproduce: ball speed,
+# launch angle, spin rate and spin loft. Combine: 133, 12.6, 3275, 18.3.
+# Optimizer 6 iron: 110, 16.9, 5956, 25.5. Optimizer PW: 86, 26.7, 8408, 40.6.
+# They are held-out checks for the launch model and the targets of the preset
+# spin trim, never fit targets.
 
-# Anchor 3 Source 2 Optimizer defaults, launch and spin columns. Held-out
-# checks for the launch model, never fit targets:
-# (club, club speed, attack, dynamic loft, ball speed, launch, spin rpm, spin loft).
-OPTIMIZER_DEFAULTS = (
-    ("6i", 80, -3.2, 22.4, 110, 16.9, 5956, 25.5),
-    ("pw", 72, -3.9, 36.7, 86, 26.7, 8408, 40.6),
-)
+AMATEUR_ANCHORS = {
+    "driver": dict(club_speed_mph=94, attack_deg=-1.8, dyn_loft_deg=15.1, ball_speed_mph=133, launch_deg=12.6,
+                   spin_rpm=3275, spin_loft_deg=18.3, source="TrackMan Combine, average golfer (14.5 HCP)"),
+    "6i": dict(club_speed_mph=80, attack_deg=-3.2, dyn_loft_deg=22.4, ball_speed_mph=110, launch_deg=16.9,
+               spin_rpm=5956, spin_loft_deg=25.5, source="TrackMan Optimizer default"),
+    "pw": dict(club_speed_mph=72, attack_deg=-3.9, dyn_loft_deg=36.7, ball_speed_mph=86, launch_deg=26.7,
+               spin_rpm=8408, spin_loft_deg=40.6, source="TrackMan Optimizer default"),
+}
 
 # Anchor 5(c) Source 2 and Anchor 3: swing plane of the Combine average golfer
 # with a driver, 49.0 deg (TrackMan puts a driver between 45 and 50). Used only
@@ -340,6 +341,10 @@ ROLL_MAX_YD = 40.0  # MODELED bound
 #       spin loft (rms 1.0 percent of ball speed, largest miss 2.3 percent).
 #       Monotone decreasing over SL 0 to 45. The cap is the largest published
 #       smash (1.49), so a low spin loft cannot buy speed no Tour row shows.
+#       smash_floor is the fit's own value at SL 45 (1.56883 - 0.00539408 * 45
+#       - 0.0000819501 * 45^2 = 1.16015), about where the fitted rows end (PGA PW
+#       38.5). The quadratic keeps falling past that, and no row supports
+#       extrapolating it, so smash holds at the floor for larger spin loft.
 #   spin = class_factor * spin_a * ball_speed_mph * SL^spin_b
 #       class_factor is spin_f_driver for the driver, spin_f_wood for the 3-wood
 #       and 5-wood, and 1 for hybrids, irons and wedges. a, b, f_driver and
@@ -390,9 +395,68 @@ LAUNCH_MODEL = {
     "smash_b": -0.00539408,
     "smash_c": -8.19501e-05,
     "smash_cap": 1.49,
+    "smash_floor": 1.16015,
     "spin_a": 0.778695,
     "spin_b": 1.30445,
     "spin_f_driver": 0.646101,
     "spin_f_wood": 0.878791,
     "axis_c": 1.0739,
+}
+
+# ---------------------------------------------------------------------------
+# Default dynamic loft per Tour row (deg). MODELED: for each row, the dynamic
+# loft that makes the launch model (LAUNCH_MODEL) reproduce the table's launch
+# angle at the table's attack angle, path 0 and face 0. Found by bisection in
+# launch_tools.derive_dyn_loft and printed by `calibrate_launch.py
+# --write-tour-dyn-loft`. Only the driver and 6 iron loft are published (see
+# DYNAMIC_LOFT_DEG); the inversion lands within 0.6 deg of them. A test checks
+# this table still matches a live inversion within 0.05 deg, so a refit of
+# LAUNCH_MODEL needs the table regenerated.
+# ---------------------------------------------------------------------------
+
+TOUR_DYN_LOFT = {
+    ("PGA", "driver"): 13.378,
+    ("PGA", "3w"): 12.396,
+    ("PGA", "5w"): 13.039,
+    ("PGA", "hybrid"): 13.707,
+    ("PGA", "3i"): 13.893,
+    ("PGA", "4i"): 14.793,
+    ("PGA", "5i"): 16.666,
+    ("PGA", "6i"): 20.092,
+    ("PGA", "7i"): 23.354,
+    ("PGA", "8i"): 25.749,
+    ("PGA", "9i"): 28.738,
+    ("PGA", "pw"): 33.813,
+    ("LPGA", "driver"): 15.060,
+    ("LPGA", "3w"): 15.022,
+    ("LPGA", "5w"): 16.385,
+    ("LPGA", "hybrid"): 18.925,
+    ("LPGA", "4i"): 18.820,
+    ("LPGA", "5i"): 20.058,
+    ("LPGA", "6i"): 23.603,
+    ("LPGA", "7i"): 26.102,
+    ("LPGA", "8i"): 29.299,
+    ("LPGA", "9i"): 33.048,
+    ("LPGA", "pw"): 35.313,
+}
+
+# ---------------------------------------------------------------------------
+# Model domain (task 004.3 review). MODELED design choice, not sourced: the
+# ranges launch.deliver accepts and the tool's sliders clamp to. Wide enough
+# for every preset and worked example (club speed 72 to 115, attack angle -4.9
+# to +3.0, dynamic loft up to 36.7) with room for a slider to move. Each range
+# is (low, high) inclusive. The spin loft floor keeps dynamic loft minus attack
+# angle at 1 degree or more: the fit has no data below spin loft 12 and the
+# D-plane normal is undefined when spin loft is zero. swing_plane_deg is the
+# open interval swing_path accepts.
+# ---------------------------------------------------------------------------
+
+DOMAIN = {
+    "club_speed_mph": (40.0, 140.0),
+    "attack_deg": (-10.0, 10.0),
+    "path_deg": (-15.0, 15.0),
+    "face_deg": (-15.0, 15.0),
+    "dyn_loft_deg": (0.0, 65.0),
+    "min_spin_loft_deg": 1.0,
+    "swing_plane_deg": (20.0, 80.0),
 }

@@ -1,33 +1,37 @@
 """Tests for the delivery-to-launch model (task 004.3, gates G3 and G4).
 
 G3: for every PGA and LPGA row of the TrackMan 2023 tables, deliver(table club
-speed, table attack angle, path 0, face 0, derived dynamic loft) reproduces the
+speed, table attack angle, path 0, face 0, default dynamic loft) reproduces the
 table's launch angle within 1 deg, spin within 10 percent and ball speed within
 2 percent. Rows the shipped model still misses are recorded in
 tests/g3_known_misses.json (written by `calibrate_launch.py --write-misses`,
-which runs the model) and are xfail(strict=False). The record never hides a
-regression: rows not in the file must pass, and a separate test fails if the
-model now misses a row that is not in the record or misses a recorded component
-by more than the recorded size.
+which runs the model) and are xfail(strict=True): a recorded row that starts
+passing fails the suite until the record is regenerated. Rows not in the record
+must pass. test_record_matches_model also fails on a new miss, a worse miss or
+a stale entry, in all three sections (g3, published, presets). No model runs at
+collection time: the record is a file read, and parameter ids come from data.
+
+These tests import gates_launch, not calibrate_launch, so they need no scipy.
 
 G4: physics sanity (symmetry, monotonicity, the same face-to-path curving the
 driver more than the irons, attack angle and swing direction coupling) and the
 five golfer cases on the PGA 7-iron preset.
 """
 
+import dataclasses
 import json
-from math import isclose
+import math
 
 import pytest
 
-import calibrate_launch as cal
 import data
 import flight
+import gates_launch as gl
 import launch
+import launch_tools
 import presets
 
-with open(cal.MISSES_PATH) as _fh:
-    _RECORD = json.load(_fh)
+_RECORD = gl.load_record()  # a file read, no model run
 G3_MISSES = _RECORD["g3"]
 PUBLISHED_MISSES = _RECORD["published"]
 PRESET_MISSES = _RECORD["presets"]
@@ -42,8 +46,21 @@ def _describe(miss):
 
 def _marks(record, key, label):
     if key in record:
-        return [pytest.mark.xfail(strict=False, reason=f"{label} miss: " + _describe(record[key]))]
+        return [pytest.mark.xfail(strict=True, reason=f"{label} miss: " + _describe(record[key]))]
     return []
+
+
+# Ratchet floors. Change these numbers only together with the evidence in the
+# data.LAUNCH_MODEL comment and ADR 0004, and only when a refit is shipped on
+# purpose.
+FLOOR_G3_PASSES = 17  # of 23 rows, all three tolerances
+FLOOR_CURVATURE_PASSES = 8  # of 8 examples
+FLOOR_AMATEUR_ANCHOR_PASSES = 1  # of 3 anchored amateur presets, all three tolerances (the PW)
+
+
+@pytest.fixture(scope="module")
+def current():
+    return gl.current_misses()
 
 
 # ---------------------------------------------------------------------------
@@ -53,39 +70,54 @@ def _marks(record, key, label):
 
 @pytest.mark.parametrize(
     "tour,club",
-    [pytest.param(t, c, marks=_marks(G3_MISSES, f"{t}/{c}", "G3"), id=f"{t}-{c}") for t, c, _ in cal.rows()],
+    [pytest.param(t, c, marks=_marks(G3_MISSES, f"{t}/{c}", "G3"), id=f"{t}-{c}") for t, c, _ in gl.rows()],
 )
 def test_g3_tour_row(tour, club):
-    el, es, eb, _ln, _dl = cal.g3_row(tour, club)
-    assert abs(el) <= cal.G3_LAUNCH_DEG
-    assert abs(es) <= cal.G3_SPIN_FRAC
-    assert abs(eb) <= cal.G3_BALL_FRAC
+    res = gl.g3_row(tour, club)
+    assert abs(res.launch_err_deg) <= gl.G3_LAUNCH_DEG
+    assert abs(res.spin_err_frac) <= gl.G3_SPIN_FRAC
+    assert abs(res.ball_err_frac) <= gl.G3_BALL_FRAC
 
 
-def test_g3_no_new_or_worse_misses():
-    """The xfail record documents misses; it must not absorb regressions."""
-    for key, miss in cal.g3_misses().items():
-        assert key in G3_MISSES, f"new G3 miss on {key}: {_describe(miss)}"
+@pytest.mark.parametrize("section", gl.SECTIONS)
+def test_record_matches_model(section, current):
+    """The xfail record documents misses; it must not absorb regressions and
+    must not go stale."""
+    record, now = _RECORD[section], current[section]
+    for key, miss in now.items():
+        assert key in record, f"new {section} miss on {key}: {_describe(miss)}"
         for comp, err in miss.items():
-            assert comp in G3_MISSES[key], f"{key}: new G3 component {comp} ({err:+.2f})"
-            assert abs(err) <= abs(G3_MISSES[key][comp]) + 0.15, (
-                f"{key}: {comp} worsened from {G3_MISSES[key][comp]:+.2f} to {err:+.2f}"
+            assert comp in record[key], f"{key}: new {section} component {comp} ({err:+.2f})"
+            assert abs(err) <= abs(record[key][comp]) + 0.15, (
+                f"{key}: {comp} worsened from {record[key][comp]:+.2f} to {err:+.2f}"
             )
+    for key, miss in record.items():
+        assert key in now, f"stale {section} entry: {key} now passes; rerun --write-misses"
+        for comp in miss:
+            assert comp in now[key], f"stale {section} entry: {key} {comp} now passes"
 
 
-def test_g3_misses_are_a_minority_and_never_launch():
-    assert len(G3_MISSES) <= 6
+def test_quality_floor(current):
+    assert gl.n_rows() - len(current["g3"]) >= FLOOR_G3_PASSES
+    assert gl.curvature_passes() >= FLOOR_CURVATURE_PASSES
+    spin_misses = [k for k, m in current["presets"].items() if "spin_pct" in m]
+    assert not spin_misses, f"presets whose spin is off by more than 1 percent: {spin_misses}"
+    amateur_pass = [c for c in data.AMATEUR_ANCHORS if f"amateur/{c}" not in current["presets"]]
+    assert len(amateur_pass) >= FLOOR_AMATEUR_ANCHOR_PASSES
+
+
+def test_g3_misses_never_include_launch():
+    """Launch passes by construction (dynamic loft comes from launch)."""
     assert all("launch_deg" not in m for m in G3_MISSES.values())
 
 
 @pytest.mark.parametrize("key", [f"{t}/{c}" for (t, c) in data.DYNAMIC_LOFT_DEG])
-def test_inverted_dynamic_loft_matches_published(key):
+def test_default_dynamic_loft_matches_published(key):
     """The default dynamic loft, inverted from the table launch angle, lands
     within 1 deg of TrackMan's published dynamic loft (driver and 6 iron)."""
     tour, club = key.split("/")
-    r = data.TOURS[tour][club]
-    dl = launch.derive_dyn_loft(r["launch_deg"], r["attack_deg"])
-    assert abs(dl - data.DYNAMIC_LOFT_DEG[(tour, club)]) <= cal.DL_CHECK_DEG
+    dl = launch_tools.derive_dyn_loft(data.TOURS[tour][club]["launch_deg"], data.TOURS[tour][club]["attack_deg"])
+    assert abs(dl - data.DYNAMIC_LOFT_DEG[(tour, club)]) <= gl.DL_CHECK_DEG
 
 
 @pytest.mark.parametrize(
@@ -100,20 +132,70 @@ def test_spin_loft_at_published_dynamic_loft(key):
     tour, club = key.split("/")
     r = data.TOURS[tour][club]
     ln = launch.deliver(r["club_speed_mph"], r["attack_deg"], 0.0, 0.0, data.DYNAMIC_LOFT_DEG[(tour, club)], club)
-    assert abs(ln.spin_loft_deg - data.SPIN_LOFT_DEG[(tour, club)]) <= cal.SL_CHECK_DEG + cal.SL_CHECK_SLACK
+    assert abs(ln.spin_loft_deg - data.SPIN_LOFT_DEG[(tour, club)]) <= gl.SL_CHECK_DEG + gl.SL_CHECK_SLACK
 
 
-def test_published_misses_have_not_grown():
-    for key, miss in cal.published_misses().items():
-        assert key in PUBLISHED_MISSES
-        assert abs(miss["spin_loft_deg"]) <= abs(PUBLISHED_MISSES[key]["spin_loft_deg"]) + 0.15
+def test_tour_dyn_loft_table_matches_a_live_inversion():
+    """data.TOUR_DYN_LOFT is a pasted copy of the inversion. A refit of
+    LAUNCH_MODEL must regenerate it (calibrate_launch.py --write-tour-dyn-loft)."""
+    assert set(data.TOUR_DYN_LOFT) == {(t, c) for t, c, _ in gl.rows()}
+    for tour, club, r in gl.rows():
+        live = launch_tools.derive_dyn_loft(r["launch_deg"], r["attack_deg"])
+        assert abs(live - data.TOUR_DYN_LOFT[(tour, club)]) <= gl.TABLE_DL_TOL_DEG, f"{tour}/{club}"
 
 
-def test_smash_falls_with_spin_loft():
-    vals = [launch.smash_of(sl) for sl in range(0, 46)]
+def test_derive_dyn_loft_rejects_unreachable_launch():
+    with pytest.raises(ValueError, match="not reachable"):
+        launch_tools.derive_dyn_loft(80.0, 0.0)  # steeper than 65 deg of dynamic loft can launch
+    with pytest.raises(ValueError, match="not reachable"):
+        launch_tools.derive_dyn_loft(-5.0, 0.0)  # below what a 1 deg spin loft launches
+
+
+# ---------------------------------------------------------------------------
+# Fitted pieces
+# ---------------------------------------------------------------------------
+
+
+def test_smash_falls_with_spin_loft_and_holds_at_cap_and_floor():
+    m = data.LAUNCH_MODEL
+    vals = [launch.smash_of(sl) for sl in range(0, 76)]
     assert all(b <= a + 1e-12 for a, b in zip(vals, vals[1:]))
-    assert vals[0] == data.LAUNCH_MODEL["smash_cap"]
-    assert vals[-1] < vals[15]
+    assert vals[0] == m["smash_cap"] == 1.49  # capped at the largest published smash
+    assert vals[12] == m["smash_cap"]  # the raw quadratic is still above the cap at SL 12
+    assert vals[-1] == m["smash_floor"]  # floored beyond the fit
+    raw45 = m["smash_a"] + m["smash_b"] * 45 + m["smash_c"] * 45 * 45
+    assert m["smash_floor"] == pytest.approx(raw45, abs=1e-4)  # the fit's value at SL 45
+    assert launch.smash_of(45.0) == pytest.approx(m["smash_floor"], abs=1e-4)
+    assert launch.smash_of(30.0) > m["smash_floor"]
+
+
+def test_k_of_is_linear_inside_and_flat_outside_the_fit_range():
+    m = data.LAUNCH_MODEL
+    lo, hi = m["k_sl_lo"], m["k_sl_hi"]
+    assert launch.k_of(lo - 8.0) == launch.k_of(lo) == pytest.approx(m["k0"] + m["k1"] * lo)
+    assert launch.k_of(hi + 20.0) == launch.k_of(hi) == pytest.approx(m["k0"] + m["k1"] * hi)
+    mid = 0.5 * (lo + hi)
+    assert launch.k_of(mid) == pytest.approx(0.5 * (launch.k_of(lo) + launch.k_of(hi)))
+
+
+def test_face_share_is_between_the_two_claims():
+    """Implied horizontal face share, model output and not a fit. The unverified
+    claims are 85 driver and 75 6 iron (unattributed) or 87 and 81 (forum).
+    Driver reads about 79 and 6 iron about 73 percent."""
+    for tour in ("PGA", "LPGA"):
+        for club, lo, hi in (("driver", 0.74, 0.88), ("6i", 0.66, 0.82)):
+            a = data.TOURS[tour][club]["attack_deg"]
+            share = launch_tools.horizontal_face_share(a, data.DYNAMIC_LOFT_DEG[(tour, club)])
+            assert lo <= share <= hi
+            assert share > 0.5  # face dominates start direction, as TrackMan says
+
+
+def test_face_share_matches_launch_direction_slope():
+    """Small face-to-path: launch direction is share * face + (1 - share) * path."""
+    p = presets.preset("driver", "pga")
+    share = launch_tools.horizontal_face_share(p["attack"], p["dyn_loft"])
+    ln = launch.deliver(p["club_speed"], p["attack"], 0.0, 1.0, p["dyn_loft"], "driver")
+    assert ln.launch_dir_deg == pytest.approx(share * 1.0, abs=0.01)
 
 
 def test_spin_class_factors():
@@ -127,36 +209,19 @@ def test_spin_class_factors():
     assert 0.0 < data.LAUNCH_MODEL["spin_f_driver"] < data.LAUNCH_MODEL["spin_f_wood"] < 1.0
 
 
-def test_pga_driver_preset_spin_is_in_band():
-    """The ideal driver preset must not light its own spin tile (coordinator,
-    task 004.3 follow-up): within 10 percent of the 2545 rpm table value."""
+def test_pga_driver_global_model_spin_is_in_band():
+    """The global model, with no trim, puts the PGA driver within 10 percent of
+    the 2545 rpm table value (class factor, ADR 0004)."""
     p = presets.preset("driver", "pga")
     ln = launch.deliver(p["club_speed"], p["attack"], 0.0, 0.0, p["dyn_loft"], "driver")
     assert abs(ln.spin_rpm / data.PGA["driver"]["spin_rpm"] - 1.0) <= 0.10
 
 
-def test_face_share_is_between_the_two_claims():
-    """Implied horizontal face share, model output and not a fit. The unverified
-    claims are 85 driver and 75 6 iron (unattributed) or 87 and 81 (forum).
-    Driver reads about 79 and 6 iron about 73 percent."""
-    for tour in ("PGA", "LPGA"):
-        for club, lo, hi in (("driver", 0.74, 0.88), ("6i", 0.66, 0.82)):
-            a = data.TOURS[tour][club]["attack_deg"]
-            share = launch.horizontal_face_share(a, data.DYNAMIC_LOFT_DEG[(tour, club)])
-            assert lo <= share <= hi
-            assert share > 0.5  # face dominates start direction, as TrackMan says
-
-
-def test_face_share_matches_launch_direction_slope():
-    """Small face-to-path: launch direction is share * face + (1 - share) * path."""
-    p = presets.preset("driver", "pga")
-    share = launch.horizontal_face_share(p["attack"], p["dyn_loft"])
-    ln = launch.deliver(p["club_speed"], p["attack"], 0.0, 1.0, p["dyn_loft"], "driver")
-    assert ln.launch_dir_deg == pytest.approx(share * 1.0, abs=0.01)
-
-
 # ---------------------------------------------------------------------------
-# Curvature calibration against the eight Anchor 5(b) examples.
+# Curvature calibration against the eight Anchor 5(b) examples. IN-SAMPLE: the
+# eight examples are the fitting data for axis_c, so these pass by design. They
+# show the fit works and guard the mapping students see, and they say nothing
+# about clubs and face-to-path values TrackMan did not publish.
 # ---------------------------------------------------------------------------
 
 
@@ -165,11 +230,139 @@ def test_face_share_matches_launch_direction_slope():
     [pytest.param(*e, id=f"{e[0]}-{e[1]}-{e[2]:+.0f}") for e in data.CURVATURE_EXAMPLES],
 )
 def test_curvature_example(tour, club, f2p, pub):
-    ln, f = cal.curvature_example(tour, club, f2p, dict(data.LAUNCH_MODEL))
-    assert abs(f.curve_yd - pub) <= cal.curve_tol(pub), (
+    _ln, f = gl.curvature_example(tour, club, f2p)
+    assert abs(f.curve_yd - pub) <= gl.curve_tol(pub), (
         f"{tour} {club} f2p {f2p:+.0f}: curve {f.curve_yd:+.1f} yd against published {pub:+.0f}"
     )
     assert (f.curve_yd > 0) == (pub > 0)
+
+
+# ---------------------------------------------------------------------------
+# Input contract (data.DOMAIN)
+# ---------------------------------------------------------------------------
+
+_GOOD = dict(club_speed_mph=92.0, attack_deg=-3.0, path_deg=0.0, face_deg=0.0, dyn_loft_deg=20.0)
+
+
+def _deliver(club=None, **changes):
+    kw = dict(_GOOD, **changes)
+    trim = kw.pop("spin_trim", 1.0)
+    return launch.deliver(kw["club_speed_mph"], kw["attack_deg"], kw["path_deg"], kw["face_deg"], kw["dyn_loft_deg"],
+                          club, spin_trim=trim)
+
+
+@pytest.mark.parametrize("name", list(_GOOD))
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_deliver_rejects_non_finite_input(name, bad):
+    with pytest.raises(ValueError, match=name):
+        _deliver(**{name: bad})
+
+
+@pytest.mark.parametrize(
+    "name,value",
+    [("club_speed_mph", 39.9), ("club_speed_mph", 140.1), ("attack_deg", -10.1), ("attack_deg", 10.1),
+     ("path_deg", -15.1), ("path_deg", 15.1), ("face_deg", -15.1), ("face_deg", 15.1),
+     ("dyn_loft_deg", -0.1), ("dyn_loft_deg", 65.1)],
+)
+def test_deliver_rejects_input_outside_the_domain(name, value):
+    with pytest.raises(ValueError, match=name):
+        _deliver(**{name: value})
+
+
+@pytest.mark.parametrize("name", list(_GOOD))
+def test_deliver_accepts_every_domain_edge(name):
+    lo, hi = data.DOMAIN[name]
+    for value in (lo, hi):
+        kw = {name: value}
+        if name == "dyn_loft_deg" and value - _GOOD["attack_deg"] < 1.0:
+            continue
+        if name == "attack_deg" and _GOOD["dyn_loft_deg"] - value < 1.0:
+            continue
+        ln = _deliver(**kw)
+        assert math.isfinite(ln.spin_axis_deg) and ln.ball_speed_mph > 0.0
+
+
+def test_deliver_rejects_spin_loft_under_one_degree():
+    with pytest.raises(ValueError, match="dyn_loft_deg - attack_deg"):
+        _deliver(attack_deg=5.0, dyn_loft_deg=5.9)
+    _deliver(attack_deg=5.0, dyn_loft_deg=6.0)  # 1 deg is allowed
+
+
+@pytest.mark.parametrize("bad", [0.0, -1.0, float("nan"), float("inf")])
+def test_deliver_rejects_bad_spin_trim(bad):
+    with pytest.raises(ValueError, match="spin_trim"):
+        _deliver(spin_trim=bad)
+
+
+def test_deliver_rejects_unknown_club_and_accepts_every_known_one():
+    with pytest.raises(ValueError, match="club"):
+        _deliver(club="2i")
+    with pytest.raises(ValueError, match="club"):
+        _deliver(club="Driver")
+    _deliver(club=None)
+    for club in data.PGA:
+        _deliver(club=club)
+
+
+def test_deliver_params_and_trim_are_keyword_only():
+    with pytest.raises(TypeError):
+        launch.deliver(92.0, -3.0, 0.0, 0.0, 20.0, "7i", None)
+    with pytest.raises(TypeError):
+        launch.deliver(92.0, -3.0, 0.0, 0.0, 20.0, "7i", None, 1.2)
+    launch.deliver(92.0, -3.0, 0.0, 0.0, 20.0, "7i", params=None, spin_trim=1.2)
+
+
+def test_outputs_carry_no_negative_zero():
+    for path, face in ((0.0, 0.0), (-0.0, -0.0), (0.0, -0.0), (-0.0, 0.0)):
+        ln = launch.deliver(92.0, 0.0, path, face, 20.0, "7i")
+        for field in dataclasses.fields(ln):
+            value = getattr(ln, field.name)
+            assert math.copysign(1.0, value) == 1.0 or value != 0.0, f"{field.name} is -0.0"
+    assert math.copysign(1.0, launch.swing_path(-0.0, -0.0, 49.0)) == 1.0
+
+
+@pytest.mark.parametrize("attack", [0.0, 5.0, 9.0])
+@pytest.mark.parametrize("f2p", [-5.0, 5.0])
+def test_smallest_spin_loft_with_face_to_path(attack, f2p):
+    """Dynamic loft = attack + 1: the D-plane normal lies close to horizontal, the
+    axis tilt is large, and nothing ties or divides by zero."""
+    ln = launch.deliver(90.0, attack, 0.0, f2p, attack + 1.0, "7i")
+    mirrored = launch.deliver(90.0, attack, 0.0, -f2p, attack + 1.0, "7i")
+    assert math.copysign(1.0, ln.spin_axis_deg) == math.copysign(1.0, f2p)
+    assert 60.0 < abs(ln.spin_axis_deg) < 100.0
+    assert mirrored.spin_axis_deg == pytest.approx(-ln.spin_axis_deg, abs=1e-9)
+    assert ln.spin_loft_deg == pytest.approx(math.hypot(1.0, f2p), rel=0.02)
+    f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg)
+    assert f.carry_yd > 0.0
+
+
+def test_dplane_normal_tie_breaks_toward_positive_ninety():
+    """Exact tie: the D-plane normal is vertical, so it has no component
+    along the right axis. Both orientations give +90, with no sign flip."""
+    d = (1.0, 0.0, 0.0)
+    for n in ((0.0, 1.0, 0.0), (0.0, -1.0, 0.0)):  # d x n is (0, 0, +1) or (0, 0, -1)
+        assert launch.dplane_tilt_deg(d, n) == pytest.approx(90.0, abs=1e-9)
+
+
+def test_swing_path_validates_plane_and_finiteness():
+    for bad in (20.0, 80.0, 10.0, 90.0, float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="plane_deg"):
+            launch.swing_path(0.0, -3.0, bad)
+    launch.swing_path(0.0, -3.0, 20.5)
+    launch.swing_path(0.0, -3.0, 79.5)
+    with pytest.raises(ValueError, match="swing_dir_deg"):
+        launch.swing_path(float("nan"), -3.0, 49.0)
+    with pytest.raises(ValueError, match="attack_deg"):
+        launch.swing_path(0.0, float("inf"), 49.0)
+
+
+def test_scale_speed_validates_speed():
+    p = presets.preset("7i", "pga")
+    for bad in (39.9, 140.1, float("nan"), float("inf"), -5.0):
+        with pytest.raises(ValueError, match="club_speed"):
+            presets.scale_speed(p, bad)
+    assert presets.scale_speed(p, 40.0)["club_speed"] == 40.0
+    assert presets.scale_speed(p, 140.0)["club_speed"] == 140.0
 
 
 # ---------------------------------------------------------------------------
@@ -187,8 +380,7 @@ def _shot(p, path=0.0, face=0.0, attack=None, dyn_loft=None, club_speed=None):
         p["club"],
         spin_trim=p["spin_trim"],
     )
-    f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg)
-    return ln, f
+    return ln, gl.fly(ln)
 
 
 PLAYER_CLUBS = [(pl, c) for pl in presets.PLAYERS for c in ("driver", "5i", "7i", "pw")]
@@ -285,15 +477,14 @@ def test_swing_path_moves_right_as_attack_gets_steeper():
     assert launch.swing_path(0.0, -4.0, 40.0) > launch.swing_path(0.0, -4.0, 55.0)
 
 
-def test_launch_geometry_matches_small_angle_spin_axis():
+def test_dplane_tilt_is_close_to_the_small_angle_spin_axis():
     """The exact D-plane normal tilt is close to atan2(face-to-path, spin loft).
     It differs by cos(dynamic loft) on the face-to-path term (about 3 percent at
     20 deg of loft), because a lofted face tilts less sideways per degree."""
-    from math import atan2, degrees
-
-    tilt = launch.dplane_tilt_deg(0.0, -3.0, 4.0, 20.0)
-    assert tilt == pytest.approx(degrees(atan2(4.0, 23.0)), rel=0.04)
-    assert launch.dplane_tilt_deg(2.0, 0.0, 2.0, 15.0) == pytest.approx(0.0, abs=1e-9)
+    tilt = launch.dplane_tilt_deg(launch.club_direction(0.0, -3.0), launch.face_normal(4.0, 20.0))
+    assert tilt == pytest.approx(math.degrees(math.atan2(4.0, 23.0)), rel=0.04)
+    flat = launch.dplane_tilt_deg(launch.club_direction(2.0, 0.0), launch.face_normal(2.0, 15.0))
+    assert flat == pytest.approx(0.0, abs=1e-9)
 
 
 # ---------------------------------------------------------------------------
@@ -343,6 +534,11 @@ def test_golfer_pull_hook():
 # ---------------------------------------------------------------------------
 
 
+def test_club_ladder_is_the_data_ladder():
+    assert presets.CLUBS == tuple(data.PGA)
+    assert presets.CLUBS == ("driver", "3w", "5w", "hybrid", "3i", "4i", "5i", "6i", "7i", "8i", "9i", "pw")
+
+
 def test_amateur_anchors_match_the_log():
     d = presets.preset("driver", "amateur")
     assert (d["club_speed"], d["attack"], d["dyn_loft"]) == (94.0, -1.8, 15.1)  # Combine, average golfer (14.5)
@@ -359,11 +555,22 @@ def test_amateur_ladder_is_ordered_and_modeled():
     speeds = [p["club_speed"] for p in ps]
     assert all(b < a for a, b in zip(speeds, speeds[1:]))
     assert all(p["modeled"] for p in ps[1:])
-    # Every club sits between the driver and the PW on speed and attack angle
-    assert all(72.0 <= p["club_speed"] <= 94.0 and -3.9 <= p["attack"] <= -1.8 for p in ps)
-    # Shorter clubs use more loft
-    dls = [p["dyn_loft"] for p in ps[4:]]
-    assert all(b > a for a, b in zip(dls, dls[1:]))
+    # Every club sits between the driver and the PW on speed, attack angle and loft
+    assert all(72.0 <= p["club_speed"] <= 94.0 and -3.9 <= p["attack"] <= -1.8 and 15.1 <= p["dyn_loft"] <= 36.7
+               for p in ps)
+
+
+def test_amateur_dynamic_loft_never_falls_from_driver_through_pw():
+    """Loft is non-decreasing driver through PW and rising at every step from the
+    hybrid on. Recorded exception: the driver, 3-wood and 5-wood share one loft
+    (15.1). The PGA shape has the driver loft above the 3-wood and 5-wood, so
+    the interpolation position clamps to 0 and the woods sit on the driver."""
+    dls = {c: presets.preset(c, "amateur")["dyn_loft"] for c in presets.CLUBS}
+    ordered = [dls[c] for c in presets.CLUBS]
+    assert all(b >= a for a, b in zip(ordered, ordered[1:]))
+    assert dls["3w"] == dls["5w"] == dls["driver"]
+    tail = [dls[c] for c in presets.CLUBS[3:]]
+    assert all(b > a for a, b in zip(tail, tail[1:]))
 
 
 def test_amateur_slower_than_pga_on_every_club():
@@ -377,7 +584,7 @@ def test_tour_presets_come_from_the_tables(player, tour):
         p = presets.preset(club, player)
         assert p["club_speed"] == r["club_speed_mph"]
         assert p["attack"] == r["attack_deg"]
-        assert p["dyn_loft"] == pytest.approx(launch.derive_dyn_loft(r["launch_deg"], r["attack_deg"]))
+        assert p["dyn_loft"] == data.TOUR_DYN_LOFT[(tour, club)]
         assert p["path"] == 0.0 and p["face"] == 0.0
         assert not p["modeled"]
 
@@ -412,7 +619,7 @@ def test_every_preset_flies():
         for c in presets.CLUBS:
             _, f = _shot(presets.preset(c, pl))
             assert 60.0 < f.carry_yd < 330.0
-            assert isclose(f.curve_yd, 0.0, abs_tol=0.5)
+            assert math.isclose(f.curve_yd, 0.0, abs_tol=0.5)
 
 
 # ---------------------------------------------------------------------------
@@ -430,36 +637,24 @@ def test_spin_trim_multiplies_spin_only():
         a.ball_speed_mph, a.launch_deg, a.launch_dir_deg, a.spin_axis_deg, a.spin_loft_deg)
 
 
-_PRESET_ROWS = cal.preset_rows()
-
-
 @pytest.mark.parametrize(
-    "player,club,pd_,pubd",
-    [pytest.param(*r, marks=_marks(PRESET_MISSES, f"{r[0]}/{r[1]}", "preset"), id=f"{r[0]}-{r[1]}")
-     for r in _PRESET_ROWS],
+    "player,club",
+    [pytest.param(p, c, marks=_marks(PRESET_MISSES, f"{p}/{c}", "preset"), id=f"{p}-{c}") for p, c in gl.preset_keys()],
 )
-def test_preset_reproduces_its_published_row(player, club, pd_, pubd):
-    """Spin within 1 percent, launch within 1 deg, ball speed within 2 percent.
-    Spin holds by construction of the trim. Launch and ball speed come from the
-    global model: they miss for the amateur driver and 6 iron (published launch
-    against a model that reads 1.25 deg low) and for the LPGA 8 iron."""
-    el, es, eb = cal.preset_errors(pd_, pubd)
-    assert abs(es) <= cal.PRESET_TOL["spin_pct"]
-    assert abs(el) <= cal.PRESET_TOL["launch_deg"]
-    assert abs(eb) <= cal.PRESET_TOL["ball_pct"]
-
-
-def test_preset_spin_always_reproduced():
-    for player, club, pd_, pubd in _PRESET_ROWS:
-        assert abs(cal.preset_errors(pd_, pubd)[1]) <= 1.0, f"{player}/{club}"
-
-
-def test_preset_misses_have_not_grown():
-    for key, miss in cal.preset_misses().items():
-        assert key in PRESET_MISSES, f"new preset miss on {key}: {_describe(miss)}"
-        for comp, err in miss.items():
-            assert comp in PRESET_MISSES[key]
-            assert abs(err) <= abs(PRESET_MISSES[key][comp]) + 0.15
+def test_preset_reproduces_its_published_row(player, club):
+    """Spin within 1 percent for every preset (the trim makes it so). Launch
+    within 1 deg and ball speed within 2 percent: for the amateur anchors here,
+    and for a Tour preset as the G3 row's own numbers (recorded once, under
+    "g3", so the LPGA 8 iron ball speed miss is not listed twice)."""
+    err_launch, err_spin, err_ball = gl.preset_errors(player, club)
+    assert abs(err_spin) <= gl.PRESET_TOL["spin_pct"]
+    if player == "amateur":
+        assert abs(err_launch) <= gl.PRESET_TOL["launch_deg"]
+        assert abs(err_ball) <= gl.PRESET_TOL["ball_pct"]
+    else:
+        g3 = gl.g3_row("PGA" if player == "pga" else "LPGA", club)
+        assert err_launch == pytest.approx(g3.launch_err_deg, abs=1e-3)
+        assert err_ball == pytest.approx(100.0 * g3.ball_err_frac, abs=1e-3)
 
 
 def test_trims_are_between_0p6_and_1p6():
@@ -484,3 +679,25 @@ def test_amateur_trim_interpolates_between_anchors():
 
 def test_lpga_three_iron_trim_follows_the_four_iron():
     assert presets.preset("3i", "lpga")["spin_trim"] == presets.preset("4i", "lpga")["spin_trim"]
+
+
+# ---------------------------------------------------------------------------
+# Golden vectors for the JS parity test (tests/golden_launch.json)
+# ---------------------------------------------------------------------------
+
+
+def test_golden_vectors_match_the_model():
+    """The file the JS port tests against. Regenerate with
+    `calibrate_launch.py --write-golden` after any model or preset change."""
+    with open(gl.GOLDEN_PATH) as fh:
+        recorded = json.load(fh)
+    assert recorded["dt"] == gl.GOLDEN_DT
+    cases = gl.golden_cases()
+    assert [c["id"] for c in recorded["cases"]] == [c[0] for c in cases]
+    assert 36 <= len(cases) <= 44 and len({c[0] for c in cases}) == len(cases)
+    for rec, case in zip(recorded["cases"], cases):
+        live = gl.golden_entry(*case)
+        assert rec["args"] == live["args"], rec["id"]
+        assert rec["kwargs"] == live["kwargs"], rec["id"]
+        assert rec["launch"] == pytest.approx(live["launch"], rel=1e-9, abs=1e-9), rec["id"]
+        assert rec["flight"] == pytest.approx(live["flight"], rel=1e-9, abs=1e-9), rec["id"]
