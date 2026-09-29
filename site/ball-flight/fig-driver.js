@@ -1,4 +1,4 @@
-/* Figure 4: driver launch and spin, each group's published average against the two published optimizers. */
+/* Figure 4: driver launch and spin, each group's published average against the three published charts. */
 import { driverWindows } from "./article-data.js";
 import { svg, sgn, grp, scaleLin, tokens, mountResponsive, tip, centerOf, fillTable, legendItem } from "./article-svg.js";
 
@@ -16,7 +16,7 @@ export function drawDriver(fig, model) {
   fillTable(fig.querySelector(".fig-table"),
     ["Group", "Club speed (mph)", "Ball speed (mph)", "Attack angle (deg)", "Average launch (deg)", "Carry chart launch (deg)", "PING launch (deg)", "Total chart launch (deg)", "Average spin (rpm)", "Carry chart spin (rpm)", "PING spin (rpm)", "Total chart spin (rpm)"],
     D.map((d) => [d.label, d.clubSpeed.toFixed(0), d.ballSpeed.toFixed(0), sgn(d.attack, 1), d.avg.launch.toFixed(1), d.tm.launch_deg.toFixed(1), d.ping.launch_deg.toFixed(1), d.total.launch_deg.toFixed(1), grp(d.avg.spin), grp(d.tm.spin_rpm), grp(d.ping.spin_rpm), grp(d.total.spin_rpm)]),
-    "Averages are TrackMan's 2023 Tour tables and the Combine average golfer (14.5 handicap), all published. Chart values interpolate between published cells at the group's published club speed (TrackMan charts), published ball speed (PING) and attack angle. The band is the carry chart and PING widened by 1 degree and 200 rpm.");
+    "Averages are TrackMan's 2023 Tour tables and the Combine average golfer (14.5 handicap), all published. Chart values interpolate between published cells at the group's published club speed (TrackMan charts), published ball speed (PING) and attack angle. The band runs from the lowest to the highest of the carry chart, total-distance chart and PING values, widened by 1 degree and 200 rpm.");
 
   const panels = [
     { id: "launch", title: "Launch angle, degrees", dom: [6, 16], step: 2, avg: (d) => d.avg.launch, tm: (d) => d.tm.launch_deg, total: (d) => d.total.launch_deg, ping: (d) => d.ping.launch_deg, band: (d) => d.band.launch, fmt: (v) => v.toFixed(1), tick: (v) => String(v) },

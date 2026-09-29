@@ -11,7 +11,7 @@
  */
 import {
   faceShare, startDirection, shotAt, exampleCheck, publishedRatio, attackSweep, couplingShot,
-  driverWindows, nineWindows, coachingExample, TRACKMAN_TOTAL_2010, OPTIMIZER_DEFAULT_DRIVER,
+  driverWindows, nineWindows, coachingExample, chartGains, driverIdeals, TRACKMAN_TOTAL_2010, OPTIMIZER_DEFAULT_DRIVER,
 } from "./article-data.js";
 
 const MINUS = "−";
@@ -90,6 +90,36 @@ export function computeNumbers(model) {
   put("couple-launch", "Launch of that shot (degrees)", "launch.launchDeg", cp2.shot.launch.launchDeg.toFixed(1));
   put("couple-spin", "Spin of that shot (rpm)", "launch.spinRpm", grp(cp2.shot.launch.spinRpm));
 
+  // Chapter 3, the driver and hitting up
+  const cg = chartGains(model);
+  put("ch-carry-dn", "TrackMan 2010 carry chart carry at 115 mph, attack -5 (yd)", "published; ideals.json driver.trackman_carry_2010.carry_yd", grp(cg.cr.chartCarryDn));
+  put("ch-carry-up", "TrackMan 2010 carry chart carry at 115 mph, attack +5 (yd)", "published; same", grp(cg.cr.chartCarryUp));
+  put("ch-carry-gain", "TrackMan carry chart: carry gained from attack -5 to +5 at 115 mph (yd)", "published; ch-carry-up minus ch-carry-dn", grp(cg.cr.chartCarryGain));
+  put("ch-total-gain", "TrackMan carry chart: total distance gained from attack -5 to +5 at 115 mph (yd)", "published; total_yd of the carry rows", grp(cg.cr.chartTotalGain));
+  put("ch-total-gain-tt", "TrackMan total-distance chart: total distance gained from attack -5 to +5 at 115 mph (yd)", "published; total_yd of the total rows", grp(cg.tt.chartTotalGain));
+  put("md-carry-gain", "Model flown from the carry chart's launch conditions: carry gained from attack -5 to +5 at 115 mph (yd)", "model.simulate at each row's ball speed, launch and spin, axis 0", grp(cg.cr.modelCarryGain));
+  put("md-total-gain", "Same: total distance gained (yd)", "carry plus model.roll", grp(cg.cr.modelTotalGain));
+  let fxPeak = sw.rows[0];
+  for (const r of sw.rows) if (r.carry > fxPeak.carry) fxPeak = r;
+  put("fx-peak-carry", "Tour driver, loft held at the preset: highest carry in the sweep (yd)", "flight.carry, spin trim on; max over attack -6 to +10", grp(fxPeak.carry));
+  put("fx-peak-atk", "Attack angle of that highest carry (degrees)", "argmax of the same sweep", `+${fxPeak.attack}`);
+  put("fx-carry-p5", "Tour driver, loft held: carry at attack +5 (yd)", "flight.carry, spin trim on", grp(at(5).carry));
+  put("fx-carry-p10", "Tour driver, loft held: carry at attack +10 (yd)", "flight.carry, spin trim on", grp(top.carry));
+  const di = Object.fromEntries(driverIdeals(model).map((d) => [d.player, d]));
+  put("id-atk", "Lab driver ideal attack angle (degrees)", "presets.json driver_ideal.attack_deg", `+${model.data.presets.driver_ideal.attack_deg}`);
+  put("id-pga-loft", "PGA driver ideal dynamic loft (degrees)", "model.idealDelivery: mean of the TrackMan carry and total optimizer lofts", di.pga.ideal.dynLoft.toFixed(1));
+  for (const pl of ["pga", "lpga", "amateur"]) {
+    const k = pl === "amateur" ? "am" : pl;
+    put(`av-${k}-carry`, `${di[pl].label} driver, average delivery: carry (yd)`, "flight.carry at model.preset", grp(di[pl].avg.carry));
+    put(`av-${k}-total`, `${di[pl].label} driver, average delivery: total (yd)`, "carry plus model.roll at model.preset", grp(di[pl].avg.total));
+    put(`id-${k}-carry`, `${di[pl].label} driver, lab ideal: carry (yd)`, "flight.carry at model.idealDelivery", grp(di[pl].ideal.carry));
+    put(`id-${k}-total`, `${di[pl].label} driver, lab ideal: total (yd)`, "carry plus model.roll at model.idealDelivery", grp(di[pl].ideal.total));
+  }
+
+  const pgaKeep = model.shot({ ...di.pga.ideal, spinTrim: di.pga.avg.spinTrim });
+  put("id-pga-carry-tt", "PGA driver ideal carry if the Tour spin trim is kept (yd)", "flight.carry at model.idealDelivery with the preset's spin trim", grp(pgaKeep.flight.carry));
+  put("id-pga-gain-tt", "That carry over the average delivery's (yd)", "carry with the Tour trim minus av-pga-carry (unrounded)", grp(pgaKeep.flight.carry - di.pga.avg.carry));
+
   // Chapter 4
   const [pg, lp, am] = driverWindows(model);
   put("pga-tm-launch", "TrackMan 2010 carry chart launch, PGA driver (degrees)", "trackmanCarry2010(115, -0.9), interpolated between published cells", pg.tm.launch_deg.toFixed(1));
@@ -99,6 +129,11 @@ export function computeNumbers(model) {
   put("lpga-total-launch", "TrackMan 2010 total-distance chart launch, LPGA driver (degrees)", "bilinear lookup in the published TOTAL chart (96 mph, +2.8)", lp.total.launch_deg.toFixed(1));
   put("lpga-gap-lo", "LPGA average launch under the nearer of the carry chart and PING (degrees)", "min(tm, ping) - 12.6", (Math.min(lp.tm.launch_deg, lp.ping.launch_deg) - lp.avg.launch).toFixed(1));
   put("lpga-gap-hi", "LPGA average launch under the farther of the carry chart and PING (degrees)", "max(tm, ping) - 12.6", (Math.max(lp.tm.launch_deg, lp.ping.launch_deg) - lp.avg.launch).toFixed(1));
+  put("pga-total-launch", "TrackMan 2010 total-distance chart launch, PGA driver (degrees)", "bilinear lookup in the published TOTAL chart (115 mph, -0.9)", pg.total.launch_deg.toFixed(1));
+  put("lpga-total-gap", "LPGA average launch over the total-distance chart's (degrees)", "12.6 - lpga-total-launch (unrounded)", (lp.avg.launch - lp.total.launch_deg).toFixed(1));
+  const wid = ["pga", "lpga", "amateur"].map((pl) => { const b = model.idealBands("driver", pl).launch_deg; return b.hi - b.lo; });
+  put("band-w-lo", "Narrowest lab driver launch band across the three players, at each player's ideal (degrees wide)", "idealBands hi - lo, launch_deg", Math.min(...wid).toFixed(1));
+  put("band-w-hi", "Widest lab driver launch band across the three players (degrees wide)", "idealBands hi - lo, launch_deg", Math.max(...wid).toFixed(1));
   put("am-tm-spin", "TrackMan 2010 carry chart spin, amateur driver (rpm)", "trackmanCarry2010(94, -1.8), interpolated", grp(am.tm.spin_rpm));
   put("am-ping-spin", "PING 2019 spin, amateur driver at 133 mph ball speed (rpm)", "ping2019(133, -1.8), interpolated", grp(am.ping.spin_rpm));
   put("am-ping-gap", "Amateur average spin over PING's (rpm)", "3,275 minus ping2019 spin", grp(am.avg.spin - am.ping.spin_rpm));
@@ -148,10 +183,7 @@ export function computeNumbers(model) {
 
   // Method and limits
   const pgaDrv = shotAt(model, "driver", "pga");
-  const pubCarry = model.data.presets.published.pga.driver.carry_yd;
-  put("pga-drv-carry", "PGA driver preset carry (yd)", "flight.carry at the preset", pgaDrv.flight.carry.toFixed(0));
-  put("pga-drv-gap", "Published PGA driver carry minus the preset's (yd)", "282 - flight.carry", (pubCarry - pgaDrv.flight.carry).toFixed(0));
-  put("pga-drv-gap-pct", "That gap in percent of the published carry", "gap / 282", (((pubCarry - pgaDrv.flight.carry) / pubCarry) * 100).toFixed(0));
+  put("pga-drv-carry", "PGA driver preset carry (yd)", "flight.carry at the preset; published 282", pgaDrv.flight.carry.toFixed(0));
   put("pga-drv-ball", "PGA driver preset ball speed (mph)", "launch.ballSpeedMph", pgaDrv.launch.ballSpeedMph.toFixed(1));
   const noTrim = model.shot({ ...model.preset("driver", "pga"), spinTrim: 1 });
   put("pga-drv-spin-nt", "PGA driver spin with no trim (rpm)", "launch.spinRpm with spinTrim 1", grp(noTrim.launch.spinRpm));
