@@ -204,7 +204,7 @@ const REQUIRED_KEYS = [
     "ball.radius_m", "air.density_kg_m3", "air.viscosity_pa_s", "aero.re_pivot", "aero.re_unit",
     "aero.spin_decay_coef", ...["d0", "d1", "d2", "d3", "l0", "l1", "l2"].map((k) => "aero.quad." + k),
     "flight.dt", "flight.max_flight_s", "flight.v_floor_ms", "roll.k", "roll.cos_power", "roll.spin_power",
-    "roll.spin_ref_rpm", "roll.spin_floor_rpm", "roll.max_yd",
+    "roll.spin_ref_rpm", "roll.spin_floor_rpm", "roll.max_yd", "roll.cap_frac",
     ...["k0", "k1", "k_sl_lo", "k_sl_hi", "k0_driver", "k1_driver", "k_sl_lo_driver", "k_sl_hi_driver", "smash_a",
       "smash_b", "smash_c", "smash_cap", "smash_floor", "spin_a", "spin_b", "spin_f_wood", "spin_a_driver",
       "spin_b_driver", "axis_c0", "axis_c1", "axis_sl_lo", "axis_sl_hi"].map((k) => "launch_model." + k),
@@ -591,14 +591,15 @@ export function createModel(json) {
   /**
    * flight.py roll: total distance in yards, carry plus a modeled bounce and roll,
    * k v cos(land angle)^p (spin_ref / max(landing spin, spin_floor))^q, fitted to
-   * TrackMan's 2010 chart totals.
+   * TrackMan's 2010 chart totals, and capped at cap_frac * carry so a slow swing cannot roll farther
+   * than TrackMan's own charts allow.
    */
   function roll(shotResult) {
     const c = Math.cos(shotResult.landAngle * RAD);
     const spin = Math.max(shotResult.landSpin, ROLL.spin_floor_rpm);
     let r = ROLL.k * shotResult.landSpeed * Math.pow(c, ROLL.cos_power)
       * Math.pow(ROLL.spin_ref_rpm / spin, ROLL.spin_power);
-    r = Math.min(Math.max(r, 0.0), ROLL.max_yd);
+    r = Math.min(Math.max(r, 0.0), ROLL.max_yd, ROLL.cap_frac * Math.max(shotResult.carry, 0.0));
     return shotResult.carry + r;
   }
 

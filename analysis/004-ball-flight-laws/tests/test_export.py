@@ -117,6 +117,7 @@ def test_model_json_carries_the_constants(built):
     assert {k: m["roll"][k] for k in ("cos_power", "k", "max_yd", "spin_power", "spin_ref_rpm", "spin_floor_rpm")} == {
         "cos_power": data.ROLL_COS_POWER, "k": data.ROLL_K, "max_yd": data.ROLL_MAX_YD, "spin_power": data.ROLL_SPIN_POWER,
         "spin_ref_rpm": data.ROLL_SPIN_REF_RPM, "spin_floor_rpm": data.ROLL_SPIN_FLOOR_RPM}
+    assert m["roll"]["cap_frac"] == data.ROLL_CAP_FRAC and "cap_frac" in m["roll"]["form"]
     assert "total_yd" in m["roll"]["form"]
     assert m["swing_plane_default_deg"] == data.SWING_PLANE_DEG
 

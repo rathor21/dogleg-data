@@ -289,12 +289,14 @@ def roll(shot):
     shrinks as the ball keeps more backspin:
         roll = ROLL_K * land_speed_mph * cos(land_angle)^ROLL_COS_POWER
                  * (ROLL_SPIN_REF_RPM / max(land_spin_rpm, ROLL_SPIN_FLOOR_RPM))^ROLL_SPIN_POWER,
-    bounded to [0, ROLL_MAX_YD]. Three fitted numbers (k, cos power, spin
-    power). The chart holds driver deliveries only, so irons and wedges are an
+    bounded to [0, ROLL_MAX_YD] and to ROLL_CAP_FRAC * carry (1.1 times the
+    largest roll to carry ratio on TrackMan's 2010 charts, which keeps a slow swing
+    from rolling farther than it carried). Three fitted numbers (k, cos power,
+    spin power). The chart holds driver deliveries only, so irons and wedges are an
     extrapolation through landing angle and landing spin.
     """
     c = cos(radians(shot.land_angle_deg))
     spin = max(shot.land_spin_rpm, data.ROLL_SPIN_FLOOR_RPM)
     r = data.ROLL_K * shot.land_speed_mph * c**data.ROLL_COS_POWER * (data.ROLL_SPIN_REF_RPM / spin) ** data.ROLL_SPIN_POWER
-    r = min(max(r, 0.0), data.ROLL_MAX_YD)
+    r = min(max(r, 0.0), data.ROLL_MAX_YD, data.ROLL_CAP_FRAC * max(shot.carry_yd, 0.0))
     return shot.carry_yd + r

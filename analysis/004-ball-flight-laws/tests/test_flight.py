@@ -24,6 +24,7 @@ import calibrate
 import data
 import flight
 import gates
+import presets
 
 _RECORD = gates.load_record()
 G2_MISSES = _RECORD["g2"]
@@ -304,8 +305,8 @@ def test_air_density_matters():
 # closest to 150 in either table). The published figures are "about" values,
 # rounded to 0.1 to 1 yd: 3 yd could be 2.5 to 3.5, so +-17% is rounding alone.
 # Tolerances: 25% on the 200 yd case, 35% on the 150 yd case. Results for the
-# shipped quadratic fit: LPGA 3w about 18% low (2.5 and 12.1 yd), LPGA 6i about
-# 28% high (2.8 and 14.0 yd). The flat-Nathan two-multiplier model this
+# shipped quadratic fit (refit on the TrackMan 2010 chart too): LPGA 3w about 14%
+# low (2.6 and 12.8 yd), LPGA 6i about 26% high (2.8 and 13.9 yd). The flat-Nathan two-multiplier model this
 # replaced read 3% high on the 3w and 27% high on the 6i, so the 3w check got
 # worse and the 6i is unchanged.
 # ---------------------------------------------------------------------------
@@ -332,7 +333,7 @@ def test_spin_axis_curvature_examples(tour, club, axis, published, rel):
 @pytest.mark.xfail(
     strict=False,
     reason="TrackMan's examples curve the 200 yd shot more than the 150 yd shot "
-    "(15 vs 11 yd at 10 deg); the quadratic fit gives the 6-iron more (14.0 vs 12.1)",
+    "(15 vs 11 yd at 10 deg); the quadratic fit gives the 6-iron more (13.9 vs 12.8)",
 )
 def test_longer_shot_curves_more_for_same_axis():
     assert _side("LPGA", "3w", 10.0) > _side("LPGA", "6i", 10.0)
@@ -444,3 +445,66 @@ def test_flight_that_never_lands_raises():
 def test_vertical_launch_in_air_does_not_produce_nan():
     f = flight.simulate(60.0, 90.0, 0.0, 3000.0, 0.0)
     assert math.isfinite(f.carry_yd) and math.isfinite(f.max_height_yd)
+
+
+# ---------------------------------------------------------------------------
+# Roll cap (pre-merge review): roll <= ROLL_CAP_FRAC * carry
+# ---------------------------------------------------------------------------
+
+
+def _uncapped_roll(f):
+    """The roll form without the carry cap (and without the absolute bound)."""
+    c = math.cos(math.radians(f.land_angle_deg))
+    spin = max(f.land_spin_rpm, data.ROLL_SPIN_FLOOR_RPM)
+    return data.ROLL_K * f.land_speed_mph * c**data.ROLL_COS_POWER * (data.ROLL_SPIN_REF_RPM / spin) ** data.ROLL_SPIN_POWER
+
+
+def test_roll_cap_is_1_1_times_the_largest_chart_ratio():
+    ratios = [(r[6] - r[5]) / r[5] for table in (data.TRACKMAN_CARRY_2010, data.TRACKMAN_TOTAL_2010) for r in table]
+    assert len(ratios) == 60
+    assert max(ratios) == pytest.approx(0.3265, abs=1e-4)
+    assert data.ROLL_CAP_FRAC == pytest.approx(1.1 * max(ratios), abs=1e-4)
+
+
+@pytest.mark.parametrize("speed", [40.0, 50.0, 60.0, 75.0, 90.0, 105.0, 120.0, 140.0])
+def test_roll_never_exceeds_the_cap_for_any_club_at_any_speed(speed):
+    for player in presets.PLAYERS:
+        for club in presets.CLUBS:
+            p = presets.preset(club, player)
+            for delivery in (presets.scale_speed(p, speed), presets.ideal_delivery(club, player, speed)):
+                f = presets.fly(delivery)[1]
+                roll = flight.roll(f) - f.carry_yd
+                assert 0.0 <= roll <= data.ROLL_CAP_FRAC * f.carry_yd + 1e-9, (club, player, speed)
+
+
+def test_total_over_carry_is_sane_at_40_mph():
+    for player in presets.PLAYERS:
+        for club in presets.CLUBS:
+            f = presets.fly(presets.ideal_delivery(club, player, 40.0))[1]
+            ratio = flight.roll(f) / f.carry_yd
+            assert 1.0 < ratio <= 1.0 + data.ROLL_CAP_FRAC + 1e-9, (club, player)
+    drv = presets.fly(presets.ideal_delivery("driver", "pga", 40.0))[1]
+    assert drv.carry_yd == pytest.approx(46.4, abs=0.5)
+    assert flight.roll(drv) < 70.0  # was 118 yd before the cap
+
+
+def test_the_cap_does_not_bind_inside_the_fit_or_at_the_presets():
+    rows = [gates.run_chart_row(r) for _c, _l, r in gates.chart_rows()] + [gates.run_row(r) for _t, _c, r in gates.rows()]
+    for player in presets.PLAYERS:
+        for club in presets.CLUBS:
+            p = presets.preset(club, player)
+            rows += [presets.fly(p)[1], presets.fly(p["ideal"])[1]]
+    for f in rows:
+        assert _uncapped_roll(f) < data.ROLL_CAP_FRAC * f.carry_yd
+        assert flight.roll(f) - f.carry_yd == pytest.approx(min(_uncapped_roll(f), data.ROLL_MAX_YD))
+
+
+def test_the_cap_binds_on_a_slow_7_iron():
+    f = presets.fly(presets.scale_speed(presets.preset("7i", "pga"), 40.0))[1]
+    assert _uncapped_roll(f) > data.ROLL_CAP_FRAC * f.carry_yd
+    assert flight.roll(f) - f.carry_yd == pytest.approx(data.ROLL_CAP_FRAC * f.carry_yd)
+
+
+def test_zero_carry_gives_zero_roll():
+    f = flight.simulate(60.0, 0.0, 0.0, 0.0, 0.0)
+    assert flight.roll(dataclasses.replace(f, carry_yd=0.0)) == 0.0

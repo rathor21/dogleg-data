@@ -100,7 +100,7 @@ Everything the port needs to recompute a shot.
 | `ball` | `mass_kg`, `diameter_m`, `radius_m`. |
 | `air` | `density_kg_m3`, `viscosity_pa_s`. |
 | `aero` | `quad` (`d0 d1 d2 d3 l0 l1 l2`), `re_unit`, `re_pivot`, `spin_decay_coef`, `forms` (text of CD, CL, Re, S and spin decay). |
-| `roll` | `k`, `cos_power`, `spin_power`, `spin_ref_rpm`, `spin_floor_rpm`, `max_yd`, `form` (text). |
+| `roll` | `k`, `cos_power`, `spin_power`, `spin_ref_rpm`, `spin_floor_rpm`, `max_yd`, `cap_frac` (roll never exceeds `cap_frac * carry_yd`: 1.1 times the largest roll to carry ratio on TrackMan's 2010 charts), `form` (text). |
 | `flight` | `dt` (0.01 s step), `max_flight_s`, `v_floor_ms`, `integrator` (`rk4`). |
 | `launch_model` | `k0 k1 k_sl_lo k_sl_hi` (iron, hybrid and wood k line), `k0_driver k1_driver k_sl_lo_driver k_sl_hi_driver` (the driver's k line and its range), `smash_a smash_b smash_c smash_cap smash_floor`, `spin_a spin_b spin_f_wood` (iron spin law and the 3-wood and 5-wood factor), `spin_a_driver spin_b_driver` (the driver's spin law), `axis_c0 axis_c1 axis_sl_lo axis_sl_hi` (spin axis scale, linear in spin loft between the two bounds). |
 | `spin_class` | Club id to spin class (`driver`, `wood`). The driver takes its own k line and spin law, a `wood` club the iron spin law times `spin_f_wood`, and every club not listed the iron laws. |
@@ -373,8 +373,10 @@ def build_model():
         "roll": {
             "k": data.ROLL_K, "cos_power": data.ROLL_COS_POWER, "spin_power": data.ROLL_SPIN_POWER,
             "spin_ref_rpm": data.ROLL_SPIN_REF_RPM, "spin_floor_rpm": data.ROLL_SPIN_FLOOR_RPM, "max_yd": data.ROLL_MAX_YD,
+            "cap_frac": data.ROLL_CAP_FRAC,
             "form": "roll_yd = clamp(k * land_speed_mph * cos(land_angle)^cos_power * "
-                    "(spin_ref_rpm / max(land_spin_rpm, spin_floor_rpm))^spin_power, 0, max_yd); "
+                    "(spin_ref_rpm / max(land_spin_rpm, spin_floor_rpm))^spin_power, clamped to [0, max_yd] and to "
+                    "cap_frac * carry_yd; "
                     "land_spin_rpm is the spin state at the landing step; total_yd = carry_yd + roll_yd",
         },
         "flight": {"dt": dt, "max_flight_s": flight.MAX_FLIGHT_S, "v_floor_ms": flight.V_FLOOR_MS, "integrator": "rk4"},

@@ -362,6 +362,18 @@ ROLL_SPIN_POWER = 0.5594  # MODELED, fitted to the chart
 ROLL_SPIN_REF_RPM = 2500.0  # MODELED reference (about the chart's median landing spin), not fitted
 ROLL_SPIN_FLOOR_RPM = 500.0  # MODELED, keeps a zero-spin shot finite
 ROLL_MAX_YD = 80.0  # MODELED safety bound, not fitted (the chart rolls reach 58 yd)
+# Roll cap, added at the pre-merge review. The roll fit saw only 75 to 120 mph driver
+# rows, and the form k v cos^p (ref / spin)^q grows unchecked at slow club speeds:
+# the driver ideal at 40 mph carried 46 yd and rolled 72. TrackMan's own model output
+# bounds the ratio. Across the 60 rows of both 2010 charts (TRACKMAN_CARRY_2010 and
+# TRACKMAN_TOTAL_2010, "TrackMan 2010 chart (TrackMan model output)") the largest
+# (total - carry) / carry is 0.3265, the 75 mph, attack 0 row of the total chart
+# (carry 147, total 195). The cap is that ratio times 1.1: roll <= ROLL_CAP_FRAC *
+# carry. MODELED; the 1.1 margin is a design choice. It does not bind on any chart
+# row (the model's largest chart ratio is 0.355) or on any Tour row, preset or ideal
+# delivery at its own club speed, so it changes nothing inside the fit; it binds
+# only when a slow swing rolls out. tests/test_flight.py checks both.
+ROLL_CAP_FRAC = 0.3592  # MODELED, 1.1 x 0.3265
 
 # ---------------------------------------------------------------------------
 # Delivery-to-launch model (task 004.3, gate G3). Every number is MODELED: a
