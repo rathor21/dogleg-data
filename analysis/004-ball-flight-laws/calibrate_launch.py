@@ -16,7 +16,7 @@ Fit order (each step uses the ones before it):
   3. Smash factor vs spin loft: printed smash, all 23 rows.
   4. Spin rate vs ball speed and spin loft: printed spin, all 23 rows, with
      club-class factors for the driver and the 3-wood and 5-wood.
-  5. Spin axis scale c(spin loft), linear: the eight Anchor 5(b) curvature
+  5. Spin axis scale c, one constant: the eight Anchor 5(b) curvature
      examples, flown through flight.simulate from the 2019 rows they quote.
 
 Step 5 runs the flight model, so it absorbs that model's own curvature per
@@ -163,10 +163,14 @@ def fit_spin(p):
 
 def curvature_example(tour, club, f2p, p):
     """Fly one Anchor 5(b) example: 2019 row of that tour and club, path 0,
-    face = face-to-path, default dynamic loft inverted from the 2019 launch."""
+    face = face-to-path, default dynamic loft inverted from the 2019 launch.
+    The spin trim is that row's own 2019 spin over the model's spin at path 0
+    and face 0, held fixed as the face opens, like a preset's trim."""
     r = data.SUPERSEDED_2019[(tour, club)]
     dl = launch.derive_dyn_loft(r["launch_deg"], r["attack_deg"], p)
-    ln = launch.deliver(r["club_speed_mph"], r["attack_deg"], 0.0, f2p, dl, club, p)
+    base = launch.deliver(r["club_speed_mph"], r["attack_deg"], 0.0, 0.0, dl, club, p)
+    trim = r["spin_rpm"] / base.spin_rpm
+    ln = launch.deliver(r["club_speed_mph"], r["attack_deg"], 0.0, f2p, dl, club, p, spin_trim=trim)
     f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg)
     return ln, f
 
@@ -176,21 +180,19 @@ def curve_tol(published):
 
 
 def fit_axis(p):
-    """c(spin loft) = c0 + c1 * SL, two parameters. With the driver spin factor
-    in place a single constant fails the two LPGA driver examples (the LPGA
-    driver's low derived spin loft leaves it 1900 rpm and under-curved), so c
-    takes a slope."""
+    """One constant c on the D-plane tilt, fitted to the eight examples with
+    the spin trims applied (a linear c(spin loft) is not needed: see ADR 0004)."""
 
     def res(x):
-        q = dict(p, axis_c0=x[0], axis_c1=x[1])
+        q = dict(p, axis_c=x[0])
         out = []
         for tour, club, f2p, pub in data.CURVATURE_EXAMPLES:
             _, f = curvature_example(tour, club, f2p, q)
             out.append((f.curve_yd - pub) / curve_tol(pub))
         return out
 
-    sol = least_squares(res, [1.6, -0.026], diff_step=1e-3)
-    return dict(axis_c0=float(sol.x[0]), axis_c1=float(sol.x[1]))
+    sol = least_squares(res, [1.0], diff_step=1e-3)
+    return dict(axis_c=float(sol.x[0]))
 
 
 def fit_all(verbose=True):
@@ -198,7 +200,7 @@ def fit_all(verbose=True):
     p.update(fit_k())
     p.update(fit_smash(p))
     p.update(fit_spin(p))
-    p.update(axis_c0=1.0, axis_c1=0.0)
+    p.update(axis_c=1.0)
     p.update(fit_axis(p))
     return p
 
@@ -264,6 +266,67 @@ def published_misses(p=None):
     return out
 
 
+def preset_rows():
+    """[(player, club, preset dict, published dict)] for every preset that has a
+    published row: PGA and LPGA tables, and the amateur anchors."""
+    import presets
+
+    out = []
+    for player, tour in (("pga", "PGA"), ("lpga", "LPGA")):
+        for club, r in data.TOURS[tour].items():
+            out.append((player, club, presets.preset(club, player),
+                        dict(launch=r["launch_deg"], spin=r["spin_rpm"], ball=r["ball_speed_mph"])))
+    pub = {"driver": (12.6, 3275, 133), "6i": (16.9, 5956, 110), "pw": (26.7, 8408, 86)}
+    for club, (la, sp, bs) in pub.items():
+        out.append(("amateur", club, presets.preset(club, "amateur"), dict(launch=la, spin=sp, ball=bs)))
+    return out
+
+
+PRESET_TOL = dict(launch_deg=1.0, spin_pct=1.0, ball_pct=2.0)
+
+
+def preset_errors(p_dict, pubd):
+    """(launch err deg, spin err percent, ball speed err percent) for a preset."""
+    ln = launch.deliver(p_dict["club_speed"], p_dict["attack"], 0.0, 0.0, p_dict["dyn_loft"],
+                        p_dict["club"], spin_trim=p_dict["spin_trim"])
+    return (ln.launch_deg - pubd["launch"], 100.0 * (ln.spin_rpm / pubd["spin"] - 1.0),
+            100.0 * (ln.ball_speed_mph / pubd["ball"] - 1.0))
+
+
+def preset_misses():
+    """{"pga/5w": {...}} for presets outside launch 1 deg, spin 1 percent or
+    ball speed 2 percent of their published row."""
+    out = {}
+    for player, club, pd_, pubd in preset_rows():
+        el, es, eb = preset_errors(pd_, pubd)
+        m = {}
+        if abs(el) > PRESET_TOL["launch_deg"]:
+            m["launch_deg"] = round(el, 2)
+        if abs(es) > PRESET_TOL["spin_pct"]:
+            m["spin_pct"] = round(es, 2)
+        if abs(eb) > PRESET_TOL["ball_pct"]:
+            m["ball_pct"] = round(eb, 2)
+        if m:
+            out[f"{player}/{club}"] = m
+    return out
+
+
+def print_trims():
+    import presets
+
+    print("\nSpin trim per preset (published spin / model spin at the preset delivery):")
+    print(f"{'club':<8}{'PGA':>8}{'LPGA':>8}{'amateur':>9}")
+    for club in presets.CLUBS:
+        print(f"{club:<8}" + "".join(f"{presets.preset(club, pl)['spin_trim']:>{w}.3f}"
+                                     for pl, w in (("pga", 8), ("lpga", 8), ("amateur", 9))))
+    print("preset checks against the published row (launch 1 deg, spin 1 pct, ball 2 pct):")
+    for player, club, pd_, pubd in preset_rows():
+        el, es, eb = preset_errors(pd_, pubd)
+        bad = abs(el) > 1.0 or abs(es) > 1.0 or abs(eb) > 2.0
+        if bad:
+            print(f"  {player}/{club}: launch {el:+.2f}  spin {es:+.1f}%  ball {eb:+.1f}%  MISS")
+
+
 # ---------------------------------------------------------------------------
 # Printing
 # ---------------------------------------------------------------------------
@@ -272,7 +335,7 @@ def published_misses(p=None):
 def print_params(p):
     print("\nLAUNCH_MODEL (paste into data.py, MODELED):")
     for key in ("k0", "k1", "k_sl_lo", "k_sl_hi", "smash_a", "smash_b", "smash_c", "smash_cap",
-                "spin_a", "spin_b", "spin_f_driver", "spin_f_wood", "axis_c0", "axis_c1"):
+                "spin_a", "spin_b", "spin_f_driver", "spin_f_wood", "axis_c"):
         print(f"    {key!r}: {p[key]:.6g},")
 
 
@@ -345,11 +408,12 @@ def print_all(p):
     print_g3(p)
     print_curvature(p)
     print_held_out(p)
+    print_trims()
 
 
 def main(argv):
     if "--write-misses" in argv:
-        record = {"g3": g3_misses(), "published": published_misses()}
+        record = {"g3": g3_misses(), "published": published_misses(), "presets": preset_misses()}
         with open(MISSES_PATH, "w") as fh:
             json.dump(record, fh, indent=2)
             fh.write("\n")

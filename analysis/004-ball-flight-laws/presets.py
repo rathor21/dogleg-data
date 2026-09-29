@@ -1,6 +1,6 @@
 """Player presets for release 004: a club delivery per club and player.
 
-    preset(club, player) -> dict(club_speed, attack, dyn_loft, path=0, face=0, ...)
+    preset(club, player) -> dict(club_speed, attack, dyn_loft, path=0, face=0, spin_trim, ...)
 
 player is "pga", "lpga" or "amateur". Club ids match data.py.
 
@@ -16,6 +16,14 @@ player is "pga", "lpga" or "amateur". Club ids match data.py.
               loft interpolate between the anchored clubs (driver, 6 iron, PW),
               placed by where the PGA Tour value for that club falls between
               the PGA values of the two anchor clubs.
+
+Each preset also carries spin_trim, a MODELED multiplier for deliver(...,
+spin_trim=). It is the published spin over the model's spin at the preset
+delivery (path 0, face 0), so the "ideal" preset reproduces its published row.
+It stands for where on the face each player group strikes the ball, which the
+published averages include and the model does not. It stays fixed as sliders
+move, so the model supplies only the response to delivery changes. Amateur
+clubs between the anchors interpolate the trim by club speed.
 
 LPGA has no 3 iron. preset("3i", "lpga") returns the 4 iron and says so in
 "note" and "club".
@@ -34,12 +42,19 @@ def _pga_values(club):
     return {"club_speed": r["club_speed_mph"], "attack": r["attack_deg"], "dyn_loft": launch.tour_dyn_loft("PGA", club)}
 
 
+def _model_spin(club, vals):
+    """Model spin (trim 1) at a preset delivery: path 0, face 0."""
+    ln = launch.deliver(vals["club_speed"], vals["attack"], 0.0, 0.0, vals["dyn_loft"], club)
+    return ln.spin_rpm
+
+
 def _amateur(club):
-    """(values, source, modeled) for one club."""
+    """(values, source, modeled) for one club. values includes spin_trim."""
     anchors = data.AMATEUR_ANCHORS
     if club in anchors:
         a = anchors[club]
         vals = {"club_speed": float(a["club_speed_mph"]), "attack": a["attack_deg"], "dyn_loft": a["dyn_loft_deg"]}
+        vals["spin_trim"] = a["spin_rpm"] / _model_spin(club, vals)
         return vals, a["source"], club != "driver"
     idx = CLUBS.index(club)
     lo = max((c for c in _ANCHOR_ORDER if CLUBS.index(c) < idx), key=CLUBS.index)
@@ -55,6 +70,9 @@ def _amateur(club):
     for key, (v0, v1) in amateur.items():
         t = (p_c[key] - p_lo[key]) / (p_hi[key] - p_lo[key])
         vals[key] = v0 + t * (v1 - v0)
+    t_speed = (p_c["club_speed"] - p_lo["club_speed"]) / (p_hi["club_speed"] - p_lo["club_speed"])
+    trims = [_amateur(c)[0]["spin_trim"] for c in (lo, hi)]
+    vals["spin_trim"] = trims[0] + t_speed * (trims[1] - trims[0])
     return vals, f"MODELED: between amateur {lo} and {hi}, PGA shape", True
 
 
@@ -78,6 +96,7 @@ def preset(club, player):
             "attack": r["attack_deg"],
             "dyn_loft": launch.tour_dyn_loft(tour, used),
         }
+        vals["spin_trim"] = r["spin_rpm"] / _model_spin(used, vals)
         source = f"TrackMan 2023 {tour} table; dynamic loft derived by the launch model"
         modeled = False
     return dict(
@@ -86,6 +105,7 @@ def preset(club, player):
         dyn_loft=vals["dyn_loft"],
         path=0.0,
         face=0.0,
+        spin_trim=vals["spin_trim"],
         club=used,
         source=source,
         modeled=modeled,
@@ -94,7 +114,7 @@ def preset(club, player):
 
 
 def scale_speed(p, club_speed):
-    """Copy of a preset with only the club speed changed."""
+    """Copy of a preset with only the club speed changed. The spin trim stays."""
     out = dict(p)
     out["club_speed"] = float(club_speed)
     return out

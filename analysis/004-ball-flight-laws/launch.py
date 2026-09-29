@@ -20,8 +20,8 @@ Model:
      and n, so that plane is the D-plane and its normal is the spin axis.
   3. Smash factor and spin rate are functions of spin loft (and ball speed).
      Spin also takes a club-class factor for the driver and fairway woods.
-  4. Spin axis is the tilt of the D-plane normal times c(spin loft), linear. The
-     scale is calibrated so face-to-path maps to TrackMan's published curvature
+  4. Spin axis is the tilt of the D-plane normal times one constant c. The
+     constant is calibrated so face-to-path maps to TrackMan's published curvature
      (see calibrate_launch.py and ADR 0004).
 """
 
@@ -123,13 +123,11 @@ def spin_of(ball_speed_mph, sl, club=None, p=None):
     return spin_class_factor(club, p) * p["spin_a"] * ball_speed_mph * max(sl, 0.0) ** p["spin_b"]
 
 
-def axis_scale(sl, p=None):
-    """Scale on the D-plane tilt: c0 + c1 * spin loft, held flat outside the
-    spin loft range of the k fit (12.7 to 25.9), where the eight curvature
-    examples sit."""
+def axis_scale(p=None):
+    """One constant on the D-plane tilt, calibrated to the eight curvature
+    examples (data.LAUNCH_MODEL["axis_c"])."""
     p = data.LAUNCH_MODEL if p is None else p
-    s = min(max(sl, p["k_sl_lo"]), p["k_sl_hi"])
-    return p["axis_c0"] + p["axis_c1"] * s
+    return p["axis_c"]
 
 
 def launch_vector(path_deg, attack_deg, face_deg, dyn_loft_deg, p=None):
@@ -160,15 +158,17 @@ def dplane_tilt_deg(path_deg, attack_deg, face_deg, dyn_loft_deg):
     return degrees(atan2(-_dot(m, up), _dot(m, right)))
 
 
-def deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=None, p=None):
-    """Club delivery to launch conditions. `club` is accepted so callers can
-    pass it through; the shipped fit is shared by all clubs (no per-club terms)."""
+def deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=None, p=None, spin_trim=1.0):
+    """Club delivery to launch conditions. `club` picks the spin class factor
+    (driver, fairway woods, everything else). `spin_trim` multiplies spin_rpm
+    and nothing else: a preset-level correction (presets.preset returns one)
+    that stands for where on the face a player group strikes the ball."""
     p = data.LAUNCH_MODEL if p is None else p
     launch_deg, launch_dir, sl = launch_vector(path_deg, attack_deg, face_deg, dyn_loft_deg, p)
     smash = smash_of(sl, p)
     ball = smash * club_speed_mph
-    spin = spin_of(ball, sl, club, p)
-    axis = axis_scale(sl, p) * dplane_tilt_deg(path_deg, attack_deg, face_deg, dyn_loft_deg)
+    spin = spin_of(ball, sl, club, p) * spin_trim
+    axis = axis_scale(p) * dplane_tilt_deg(path_deg, attack_deg, face_deg, dyn_loft_deg)
     return Launch(
         ball_speed_mph=ball,
         smash=smash,

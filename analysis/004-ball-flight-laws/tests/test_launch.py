@@ -30,6 +30,7 @@ with open(cal.MISSES_PATH) as _fh:
     _RECORD = json.load(_fh)
 G3_MISSES = _RECORD["g3"]
 PUBLISHED_MISSES = _RECORD["published"]
+PRESET_MISSES = _RECORD["presets"]
 
 _NAMES = {"launch_deg": "launch {:+.2f} deg", "spin_pct": "spin {:+.1f}%", "ball_pct": "ball speed {:+.1f}%",
           "spin_loft_deg": "spin loft {:+.1f} deg"}
@@ -184,6 +185,7 @@ def _shot(p, path=0.0, face=0.0, attack=None, dyn_loft=None, club_speed=None):
         face,
         p["dyn_loft"] if dyn_loft is None else dyn_loft,
         p["club"],
+        spin_trim=p["spin_trim"],
     )
     f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg)
     return ln, f
@@ -411,3 +413,74 @@ def test_every_preset_flies():
             _, f = _shot(presets.preset(c, pl))
             assert 60.0 < f.carry_yd < 330.0
             assert isclose(f.curve_yd, 0.0, abs_tol=0.5)
+
+
+# ---------------------------------------------------------------------------
+# Spin trim: a preset-level multiplier on spin only (MODELED).
+# ---------------------------------------------------------------------------
+
+
+def test_spin_trim_multiplies_spin_only():
+    p = presets.preset("7i", "pga")
+    args = (p["club_speed"], p["attack"], 2.0, 4.0, p["dyn_loft"], "7i")
+    a = launch.deliver(*args)
+    b = launch.deliver(*args, spin_trim=1.25)
+    assert b.spin_rpm == pytest.approx(1.25 * a.spin_rpm, rel=1e-12)
+    assert (b.ball_speed_mph, b.launch_deg, b.launch_dir_deg, b.spin_axis_deg, b.spin_loft_deg) == (
+        a.ball_speed_mph, a.launch_deg, a.launch_dir_deg, a.spin_axis_deg, a.spin_loft_deg)
+
+
+_PRESET_ROWS = cal.preset_rows()
+
+
+@pytest.mark.parametrize(
+    "player,club,pd_,pubd",
+    [pytest.param(*r, marks=_marks(PRESET_MISSES, f"{r[0]}/{r[1]}", "preset"), id=f"{r[0]}-{r[1]}")
+     for r in _PRESET_ROWS],
+)
+def test_preset_reproduces_its_published_row(player, club, pd_, pubd):
+    """Spin within 1 percent, launch within 1 deg, ball speed within 2 percent.
+    Spin holds by construction of the trim. Launch and ball speed come from the
+    global model: they miss for the amateur driver and 6 iron (published launch
+    against a model that reads 1.25 deg low) and for the LPGA 8 iron."""
+    el, es, eb = cal.preset_errors(pd_, pubd)
+    assert abs(es) <= cal.PRESET_TOL["spin_pct"]
+    assert abs(el) <= cal.PRESET_TOL["launch_deg"]
+    assert abs(eb) <= cal.PRESET_TOL["ball_pct"]
+
+
+def test_preset_spin_always_reproduced():
+    for player, club, pd_, pubd in _PRESET_ROWS:
+        assert abs(cal.preset_errors(pd_, pubd)[1]) <= 1.0, f"{player}/{club}"
+
+
+def test_preset_misses_have_not_grown():
+    for key, miss in cal.preset_misses().items():
+        assert key in PRESET_MISSES, f"new preset miss on {key}: {_describe(miss)}"
+        for comp, err in miss.items():
+            assert comp in PRESET_MISSES[key]
+            assert abs(err) <= abs(PRESET_MISSES[key][comp]) + 0.15
+
+
+def test_trims_are_between_0p6_and_1p6():
+    for player in presets.PLAYERS:
+        for club in presets.CLUBS:
+            trim = presets.preset(club, player)["spin_trim"]
+            assert 0.6 <= trim <= 1.6, f"{player}/{club}: trim {trim:.3f}"
+
+
+def test_scale_speed_keeps_the_trim():
+    p = presets.preset("driver", "amateur")
+    assert presets.scale_speed(p, 100.0)["spin_trim"] == p["spin_trim"]
+
+
+def test_amateur_trim_interpolates_between_anchors():
+    a = {c: presets.preset(c, "amateur")["spin_trim"] for c in presets.CLUBS}
+    for c in ("3w", "5w", "hybrid", "3i", "4i", "5i"):
+        assert min(a["driver"], a["6i"]) <= a[c] <= max(a["driver"], a["6i"])
+    for c in ("7i", "8i", "9i"):
+        assert min(a["6i"], a["pw"]) <= a[c] <= max(a["6i"], a["pw"])
+
+
+def test_lpga_three_iron_trim_follows_the_four_iron():
+    assert presets.preset("3i", "lpga")["spin_trim"] == presets.preset("4i", "lpga")["spin_trim"]

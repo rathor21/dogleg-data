@@ -164,9 +164,9 @@ CURVATURE_EXAMPLES = (
 # ---------------------------------------------------------------------------
 
 AMATEUR_ANCHORS = {
-    "driver": dict(club_speed_mph=94, attack_deg=-1.8, dyn_loft_deg=15.1, source="TrackMan Combine, average golfer (14.5 HCP)"),
-    "6i": dict(club_speed_mph=80, attack_deg=-3.2, dyn_loft_deg=22.4, source="TrackMan Optimizer default"),
-    "pw": dict(club_speed_mph=72, attack_deg=-3.9, dyn_loft_deg=36.7, source="TrackMan Optimizer default"),
+    "driver": dict(club_speed_mph=94, attack_deg=-1.8, dyn_loft_deg=15.1, spin_rpm=3275, source="TrackMan Combine, average golfer (14.5 HCP)"),
+    "6i": dict(club_speed_mph=80, attack_deg=-3.2, dyn_loft_deg=22.4, spin_rpm=5956, source="TrackMan Optimizer default"),
+    "pw": dict(club_speed_mph=72, attack_deg=-3.9, dyn_loft_deg=36.7, spin_rpm=8408, source="TrackMan Optimizer default"),
 }
 
 # Anchor 3 Source 2 Optimizer defaults, launch and spin columns. Held-out
@@ -359,14 +359,26 @@ ROLL_MAX_YD = 40.0  # MODELED bound
 #       15.0), and at the published 15.0 the same factor would give 2460 rpm
 #       against 2506. Other rows that miss 10 percent: PGA 5w -11.9, LPGA 3w
 #       +30.2, LPGA 5w -10.7, LPGA hybrid +12.2.
-#   spin_axis = (axis_c0 + axis_c1 * SL) * atan2(face-to-path, vertical spin loft)
-#       (D-plane normal tilt). SL is held to 12.7 to 25.9 like k. c is linear
-#       in spin loft (1.32 at 12.7, 0.95 at 25.9), fitted so the eight Anchor
-#       5(b) face-to-path examples reproduce their curvature through
-#       flight.simulate (largest miss 15 percent, all inside max(20 percent,
-#       3 yd)). It absorbs the flight model's own curvature per degree of
-#       axis. A constant c fits when the driver has no spin factor (0.968) and
-#       fails both LPGA driver examples once it has one (-24 and +22 percent).
+#   spin_axis = axis_c * atan2(face-to-path, vertical spin loft)   (D-plane normal tilt)
+#       axis_c is one constant, fitted with the spin trims below applied, so
+#       the eight Anchor 5(b) face-to-path examples reproduce their curvature
+#       through flight.simulate (largest miss 13 percent, or 1.5 yd on the PGA
+#       6 iron; all inside max(20 percent, 3 yd)). It absorbs the flight
+#       model's own curvature per degree of axis. Each example takes a spin
+#       trim from its own 2019 row: 2019 spin over model spin at path 0 and
+#       face 0, held fixed as the face opens. Before trims, a constant c fit
+#       only while the driver had no spin factor (0.968), and the driver
+#       factor forced a slope (1.68 - 0.0283 SL).
+#
+# Spin trim (MODELED, presets.py, not stored here). Each preset carries
+# spin_trim = published spin / model spin at the preset delivery (path 0,
+# face 0), passed to launch.deliver(spin_trim=) as a multiplier on spin_rpm.
+# It stands for where on the face each player group strikes the ball, which
+# the published averages include and the model does not. It stays fixed as
+# sliders move. The global model above and its G3 test are unchanged: G3 runs
+# with trim 1. Amateur anchors take their spin from AMATEUR_ANCHORS (Combine
+# 3275, Optimizer 5956 and 8408); amateur clubs between them interpolate the
+# trim by club speed. Trims far from 1 mark where the global model is weakest.
 # ---------------------------------------------------------------------------
 
 LAUNCH_MODEL = {
@@ -382,6 +394,5 @@ LAUNCH_MODEL = {
     "spin_b": 1.30445,
     "spin_f_driver": 0.646101,
     "spin_f_wood": 0.878791,
-    "axis_c0": 1.68377,
-    "axis_c1": -0.0283407,
+    "axis_c": 1.0739,
 }
