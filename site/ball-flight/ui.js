@@ -189,6 +189,7 @@ async function main() {
     for (const t of tiles) t.update(current.values[t.metric], current.bands[t.metric], state.hand, exceptionFor(t.metric));
     renderLabel(current);
     renderMode();
+    renderAverageButtons();
     if (state.mode === "w") windows.render();
     if (state.mode === "c") compare.render(current);
     writeUrl();
@@ -302,7 +303,7 @@ async function main() {
         if (id === state.player) return;
         state.player = id;
         if (state.mode === "w" && state.window) windows.applyWindow(state.window); // the same window, this player's recipe
-        else store.applyPreset(true);
+        else store.applyBase(true);
         commitChange();
       },
       onHand(h) {
@@ -324,12 +325,29 @@ async function main() {
     // A slider change waiting to fly goes now, so Hit never replays a stale shot.
     if (commitTimer) commitNow(); else range.replay();
   }
+  // Reset to ideal loads the ideal at the current club speed. The average button loads the
+  // tour or amateur average and shows only where the two differ (the driver).
   for (const id of ["#reset-btn", "#reset-btn-2"]) {
     $(id).addEventListener("click", () => {
       store.selectWindow(null);
-      store.applyPreset(false);
+      store.loadIdeal();
       commitChange();
     });
+  }
+  for (const id of ["#avg-btn", "#avg-btn-2"]) {
+    $(id).addEventListener("click", () => {
+      store.selectWindow(null);
+      store.loadAverage();
+      commitChange();
+    });
+  }
+  function renderAverageButtons() {
+    const show = store.averageDiffers();
+    const label = `${state.player === "amateur" ? "Amateur" : "Tour"} average`;
+    for (const id of ["#avg-btn", "#avg-btn-2"]) {
+      $(id).hidden = !show;
+      $(id).textContent = label;
+    }
   }
   $("#hit-btn").addEventListener("click", hit);
   $("#hit-btn-2").addEventListener("click", hit);

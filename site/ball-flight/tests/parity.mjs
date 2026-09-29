@@ -141,6 +141,7 @@ for (const c of golden.cases) {
   const { ln, f, cls } = run(c.delivery, c.delivery.club, c.delivery.spin_trim, golden.dt);
   compareLaunch("deliver", c.id, ln, c.launch);
   compareFlight("flight", c.id, f, c.flight);
+  near("flight", `${c.id}.land_spin_rpm`, f.landSpin, c.flight.land_spin_rpm, 0.5);
   if (c.classification === null) {
     exact("classify (cases)", `${c.id} null classification`, cls, null);
     throwsWith("classify (cases)", `${c.id} carry <= 0`, () => model.classify(ln.launchDirDeg, ln.spinAxisDeg, f.curve, f.side, f.carry), "carry_yd");
@@ -195,6 +196,55 @@ for (const p of json.presets.players.map((x) => x.id)) {
     for (const [k, js] of Object.entries(LAUNCH_KEYS)) near("presets", `${p}.${club}.${k}`, ln[js], pr.atPreset.launch[k], 1e-4, true);
     for (const [k, [js]] of Object.entries(FLIGHT_KEYS)) near("presets", `${p}.${club}.${k}`, fl[js], pr.atPreset.flight[k], 0.05);
   }
+}
+
+// 4b. ideal deliveries: presets.json ideal recomputes, idealDelivery agrees, optimalLoft vectors
+
+for (const p of json.presets.players.map((x) => x.id)) {
+  for (const club of json.presets.clubs.map((x) => x.id)) {
+    const pr = model.preset(club, p);
+    const id = pr.ideal;
+    const where = `${p}.${club}.ideal`;
+    const ln = model.deliver(id.clubSpeed, id.attack, id.path, id.face, id.dynLoft, id.club, { spinTrim: id.spinTrim });
+    const fl = model.simulate(ln.ballSpeedMph, ln.launchDeg, ln.launchDirDeg, ln.spinRpm, ln.spinAxisDeg);
+    fl.total = model.roll(fl);
+    for (const [k, js] of Object.entries(LAUNCH_KEYS)) near("ideal presets", `${where}.${k}`, ln[js], id.atIdeal.launch[k], 1e-4, true);
+    for (const [k, [js]] of Object.entries(FLIGHT_KEYS)) near("ideal presets", `${where}.${k}`, fl[js], id.atIdeal.flight[k], 0.05);
+    // idealDelivery at the preset speed is the same delivery, without the stale atIdeal
+    const again = model.idealDelivery(club, p);
+    for (const k of ["clubSpeed", "attack", "dynLoft", "path", "face", "spinTrim", "club", "label", "source", "modeled", "speedClamped"]) {
+      if (typeof id[k] === "number") near("ideal presets", `${where}.${k} idealDelivery`, again[k], id[k], 1e-4, true);
+      else exact("ideal presets", `${where}.${k} idealDelivery`, again[k], id[k]);
+    }
+    exact("ideal presets", `${where}.no atIdeal on idealDelivery`, again.atIdeal, undefined);
+    if (club === "driver") {
+      const ol = model.optimalLoft(pr.clubSpeed, json.presets.driver_ideal.attack_deg);
+      near("ideal presets", `${where}.dynLoft is optimalLoft`, id.dynLoft, ol.dynLoft, 1e-4, true);
+      exact("ideal presets", `${where}.attack`, id.attack, json.presets.driver_ideal.attack_deg);
+      exact("ideal presets", `${where}.spinTrim`, id.spinTrim, json.presets.driver_ideal.spin_trim);
+      exact("ideal presets", `${where}.label`, id.label, json.presets.driver_ideal.label);
+    } else {
+      near("ideal presets", `${where}.repeats the preset dynLoft`, id.dynLoft, pr.dynLoft, 1e-9, true);
+      near("ideal presets", `${where}.repeats the preset attack`, id.attack, pr.attack, 1e-9, true);
+    }
+  }
+}
+// the driver's ideal loft follows club speed, every other club keeps its preset
+{
+  const a = model.idealDelivery("driver", "pga", 100);
+  const b = model.idealDelivery("driver", "pga", 115);
+  exact("ideal presets", "driver loft falls with speed", a.dynLoft > b.dynLoft, true);
+  exact("ideal presets", "7i keeps its loft at another speed", model.idealDelivery("7i", "pga", 80).dynLoft, model.preset("7i", "pga").dynLoft);
+  exact("ideal presets", "speed clamped flag", model.idealDelivery("driver", "pga", 60).speedClamped, true);
+}
+for (const v of golden.optimal_loft_vectors) {
+  const [speed, attack] = v.args;
+  const r = model.optimalLoft(speed, attack);
+  near("optimalLoft", `(${speed}, ${attack})`, r.dynLoft, v.result.dyn_loft_deg, 1e-6, true);
+  near("optimalLoft", `(${speed}, ${attack}) carry`, r.carryLoft, v.result.carry_loft_deg, 1e-6, true);
+  near("optimalLoft", `(${speed}, ${attack}) total`, r.totalLoft, v.result.total_loft_deg, 1e-6, true);
+  exact("optimalLoft", `(${speed}, ${attack}) extrapolated`, r.extrapolated, v.result.extrapolated);
+  exact("optimalLoft", `(${speed}, ${attack}) speedClamped`, r.speedClamped, v.result.speed_clamped);
 }
 
 // ---------------------------------------------------------------------------
@@ -262,6 +312,11 @@ throwsWith("invalid input", "simulate dt NaN", () => model.simulate(150, 12, 0, 
 throwsWith("invalid input", "simulate never lands", () => model.simulate(1000, 89, 0, 0, 0), "did not land", RuntimeError);
 throwsWith("invalid input", "scaleSpeed low", () => model.scaleSpeed(model.preset("7i", "pga"), 39.9), "club_speed");
 throwsWith("invalid input", "scaleSpeed NaN", () => model.scaleSpeed(model.preset("7i", "pga"), NaN), "club_speed");
+throwsWith("invalid input", "optimalLoft speed NaN", () => model.optimalLoft(NaN, 0), "club_speed");
+throwsWith("invalid input", "optimalLoft attack Infinity", () => model.optimalLoft(100, Infinity), "attack");
+throwsWith("invalid input", "idealDelivery speed low", () => model.idealDelivery("driver", "pga", 39.9), "club_speed");
+throwsWith("invalid input", "idealDelivery NaN", () => model.idealDelivery("driver", "pga", NaN), "club_speed");
+throwsWith("invalid input", "idealDelivery club", () => model.idealDelivery("2i", "pga", 100), "club");
 throwsWith("invalid input", "preset player", () => model.preset("7i", "scratch"), "player");
 throwsWith("invalid input", "preset club", () => model.preset("2i", "pga"), "club");
 throwsWith("invalid input", "swingPath plane", () => model.swingPath(0, -3, 20), "plane_deg");
@@ -323,7 +378,7 @@ fixture.points.forEach((pt, i) => {
     exact("ideal bands (fixture)", `${label}.${metric}.modeled`, g.modeled, w.modeled);
     exact("ideal bands (fixture)", `${label}.${metric}.published`, g.published, w.published);
     if (w.detail) {
-      for (const src of ["trackman_carry_2010", "ping_2019"]) {
+      for (const src of ["trackman_carry_2010", "trackman_total_2010", "ping_2019"]) {
         for (const k of ["launch_deg", "spin_rpm"]) {
           near("ideal bands (fixture)", `${label}.${metric}.detail.${src}.${k}`, g.detail[src][k], w.detail[src][k], 1e-4, true);
         }

@@ -129,20 +129,35 @@ export function publishedRatio() {
   return { pga, lpga };
 }
 
+/** Bilinear lookup of one grid of a driver chart in ideals.json ("carry_yd", "total_yd"), clamped to the chart's range. */
+export function chartYd(model, chart, field, clubSpeed, attack) {
+  const T = model.data.ideals.driver[chart];
+  const [r0, r1, fr] = bracketIn(T.club_speed_mph, clubSpeed);
+  const [c0, c1, fc] = bracketIn(T.attack_deg, attack);
+  const g = T[field];
+  return (g[r0][c0] * (1 - fc) + g[r0][c1] * fc) * (1 - fr) + (g[r1][c0] * (1 - fc) + g[r1][c1] * fc) * fr;
+}
+
 /**
- * Chapter 3. Tour driver, dynamic loft held at the preset, attack angle -6 to +10.
+ * Chapter 3. Tour driver, attack angle -6 to +10, two ways. The fixed-loft rows hold dynamic loft at the preset.
  * Spin is shown with the preset's spin trim (the lab's number) and with no trim (the TrackMan chart's own basis).
- * A row is extrapolated when its spin loft leaves the range the driver law was calibrated on (launch_model
- * k_sl_lo_driver to k_sl_hi_driver, the TrackMan 2010 chart's 6.3 to 23.2 degrees).
+ * The `fol` rows let loft follow attack: dynamic loft is model.optimalLoft (midway between the TrackMan 2010 carry
+ * and total optimizers at this club speed), spin trim is the driver ideal's (1.0, the chart's own strike). A fixed-loft
+ * row is extrapolated when its spin loft leaves the range the driver law was calibrated on (launch_model
+ * k_sl_lo_driver to k_sl_hi_driver, the TrackMan 2010 chart's 6.3 to 23.2 degrees). A `fol` row is extrapolated
+ * on that test too, and when the chart's loft is extended past its own attack range of -5 to +5.
  */
 export function attackSweep(model) {
   const p = model.preset("driver", "pga");
   const lo = model.data.model.launch_model.k_sl_lo_driver;
   const hi = model.data.model.launch_model.k_sl_hi_driver;
+  const idealTrim = model.data.presets.driver_ideal.spin_trim;
   const rows = [];
   for (let a = -6; a <= 10; a += 1) {
     const s = model.shot({ ...p, attack: a });
     const u = model.shot({ ...p, attack: a, spinTrim: 1 });
+    const ol = model.optimalLoft(p.clubSpeed, a);
+    const f = model.shot({ ...p, attack: a, dynLoft: ol.dynLoft, spinTrim: idealTrim });
     const row = {
       attack: a,
       launch: s.launch.launchDeg,
@@ -150,19 +165,71 @@ export function attackSweep(model) {
       spinUntrimmed: u.launch.spinRpm,
       spinLoft: s.launch.spinLoftDeg,
       carry: s.flight.carry,
+      carryUntrimmed: u.flight.carry,
       extrapolated: s.launch.spinLoftDeg < lo || s.launch.spinLoftDeg > hi,
+      fol: {
+        loft: ol.dynLoft,
+        launch: f.launch.launchDeg,
+        spin: f.launch.spinRpm,
+        spinLoft: f.launch.spinLoftDeg,
+        carry: f.flight.carry,
+        total: f.total,
+        extrapolated: ol.extrapolated || f.launch.spinLoftDeg < lo || f.launch.spinLoftDeg > hi,
+      },
       tm: null,
+      tmCarry: null,
       ping: null,
     };
     if (a >= -5 && a <= 5) {
       const [l, sp] = model.trackmanCarry2010(p.clubSpeed, a);
       row.tm = { launch: l, spin: sp };
+      row.tmCarry = chartYd(model, "trackman_carry_2010", "carry_yd", p.clubSpeed, a);
     }
     const [pl, ps] = model.ping2019(s.launch.ballSpeedMph, a);
     row.ping = { launch: pl, spin: ps };
     rows.push(row);
   }
-  return { dynLoft: p.dynLoft, spinTrim: p.spinTrim, clubSpeed: p.clubSpeed, floor: lo, ceil: hi, rows, tour: model.data.presets.published.pga.driver };
+  return { dynLoft: p.dynLoft, spinTrim: p.spinTrim, followTrim: idealTrim, clubSpeed: p.clubSpeed, floor: lo, ceil: hi, rows, tour: model.data.presets.published.pga.driver };
+}
+
+/**
+ * Chapter 3. What TrackMan's 2010 chart and the model each gain in carry and total from attack -5 to +5
+ * at one club speed (default the PGA driver's 115 mph). The chart's own carry and total come from its carry
+ * rows (and its total-distance rows, `tt`). The model gain flies each row's own ball speed, launch and spin
+ * with no axis, the way the calibration does (ADR 0004 addendum 1), so it isolates the flight and roll.
+ */
+export function chartGains(model, clubSpeed = 115) {
+  const I = model.data.ideals.driver;
+  const out = {};
+  for (const [id, chart] of [["cr", "trackman_carry_2010"], ["tt", "trackman_total_2010"]]) {
+    const T = I[chart];
+    const i = T.club_speed_mph.indexOf(clubSpeed);
+    const flown = [0, 2].map((j) => {
+      const f = model.simulate(T.ball_speed_mph[i][j], T.launch_deg[i][j], 0.0, T.spin_rpm[i][j], 0.0);
+      return { carry: f.carry, total: model.roll(f) };
+    });
+    out[id] = {
+      chartCarryDn: T.carry_yd[i][0], chartCarryUp: T.carry_yd[i][2],
+      chartTotalDn: T.total_yd[i][0], chartTotalUp: T.total_yd[i][2],
+      modelCarryGain: flown[1].carry - flown[0].carry, modelTotalGain: flown[1].total - flown[0].total,
+    };
+    out[id].chartCarryGain = out[id].chartCarryUp - out[id].chartCarryDn;
+    out[id].chartTotalGain = out[id].chartTotalUp - out[id].chartTotalDn;
+  }
+  return out;
+}
+
+/**
+ * Chapter 3. The lab's driver ideal against the average delivery for each player, at that player's own club speed.
+ * The average is model.preset (the published Tour or Combine row). The ideal is model.idealDelivery.
+ */
+export function driverIdeals(model) {
+  return ["pga", "lpga", "amateur"].map((pl) => {
+    const avg = model.preset("driver", pl);
+    const ideal = model.idealDelivery("driver", pl);
+    const a = model.shot(avg), i = model.shot(ideal);
+    return { player: pl, label: PLAYER_LABEL[pl], avg: { ...avg, carry: a.flight.carry, total: a.total }, ideal: { ...ideal, carry: i.flight.carry, total: i.total } };
+  });
 }
 
 /** Chapter 3 coupling. Steepen the Tour driver by 4 degrees with the swing direction and face held. */
@@ -181,7 +248,7 @@ export function couplingShot(model, steeper = 4) {
  * Chapter 4. Driver launch and spin, each group's published average against TrackMan's 2010 carry chart,
  * PING's 2019 chart and TrackMan's 2010 total-distance chart. Chart lookups use the group's published club
  * speed (TrackMan), published ball speed (PING) and published attack angle. The band is the lab's rule
- * (both carry-chart and PING values, widened by the ideals.json margins) applied to those lookups.
+ * (the lowest and highest of the three sources, widened by the ideals.json margins) applied to those lookups.
  */
 export function driverWindows(model) {
   const tol = model.data.ideals.tolerances;
@@ -201,7 +268,7 @@ export function driverWindows(model) {
       ping: { launch_deg: pl2, spin_rpm: ps },
       total: { launch_deg: tot.launch, spin_rpm: tot.spin },
       avg: { launch: pub.launch_deg, spin: pub.spin_rpm },
-      band: { launch: [Math.min(tl, pl2) - ml, Math.max(tl, pl2) + ml], spin: [Math.min(ts, ps) - ms, Math.max(ts, ps) + ms] },
+      band: { launch: [Math.min(tl, pl2, tot.launch) - ml, Math.max(tl, pl2, tot.launch) + ml], spin: [Math.min(ts, ps, tot.spin) - ms, Math.max(ts, ps, tot.spin) + ms] },
       source: pub.source || "TrackMan 2023 Tour table",
     };
   });
@@ -253,9 +320,36 @@ export function nineWindows(model) {
   });
 }
 
-/** Chapter 6 example: amateur driver, face square, path 4 and then 2 degrees left. */
+/**
+ * Chapter 6 example: the amateur driver's average delivery (94 mph, -1.8 attack, loft 15.1), face square,
+ * path 4 and then 2 degrees left. The spin trim is the lab's ideal trim, 1.0, because the article's deep link
+ * carries speed, attack, path, face and loft and no trim, so the lab opens with the driver ideal's trim.
+ */
 export function coachingExample(model) {
-  const a = shotAt(model, "driver", "amateur", { path: -4, face: 0 });
-  const b = shotAt(model, "driver", "amateur", { path: -2, face: 0 });
+  const trim = model.idealDelivery("driver", "amateur").spinTrim;
+  const a = shotAt(model, "driver", "amateur", { path: -4, face: 0, spinTrim: trim });
+  const b = shotAt(model, "driver", "amateur", { path: -2, face: 0, spinTrim: trim });
   return { a, b };
+}
+
+/**
+ * Method and limits. Club speeds at which the lab's driver ideal gives less total distance than the average delivery.
+ * Both are flown at the same club speed (the average is the preset with its club speed changed, the ideal is
+ * model.idealDelivery at that speed), scanned over the lab's whole club speed range in 5 mph steps. Returns the lowest
+ * and highest such speed for each Tour player, or null when the ideal never loses total.
+ */
+export function idealTotalReversal(model) {
+  const [lo, hi] = model.domain.club_speed_mph;
+  const out = {};
+  for (const pl of ["pga", "lpga"]) {
+    const p = model.preset("driver", pl);
+    const hits = [];
+    for (let s = Math.ceil(lo / 5) * 5; s <= hi; s += 5) {
+      const a = model.shot(model.scaleSpeed(p, s));
+      const i = model.shot(model.idealDelivery("driver", pl, s));
+      if (i.total < a.total) hits.push(s);
+    }
+    out[pl] = hits.length ? { lo: hits[0], hi: hits[hits.length - 1] } : null;
+  }
+  return out;
 }

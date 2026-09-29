@@ -70,6 +70,7 @@ class Flight:
     curve_yd: float  # side_yd minus carry * tan(launch_dir)
     land_speed_mph: float
     launch_dir_deg: float = 0.0
+    land_spin_rpm: float = 0.0  # spin left at landing, after decay
 
 
 def _cross(a, b):
@@ -275,19 +276,27 @@ def simulate(
         curve_yd=side - carry * tan(psi),
         land_speed_mph=land_speed,
         launch_dir_deg=launch_dir_deg,
+        land_spin_rpm=land[6] / data.RPM_TO_RADS,
     )
 
 
 def roll(shot):
     """Total distance in yards: carry plus a simple bounce and roll estimate.
 
-    MODELED. No source covers bounce and roll (log, Gaps item 8). Roll grows
-    with landing speed and shrinks fast as the ball comes in steeper:
-        roll = ROLL_K * land_speed_mph * cos(land_angle)^ROLL_COS_POWER,
-    bounded to [0, ROLL_MAX_YD]. Constants are chosen for a plausible spread
-    (driver about 20 to 30 yd, wedge a few yd) and are not fitted to data.
+    MODELED, anchored to TrackMan's model output: fitted to total minus carry
+    on the 60 rows of the 2010 Driver Fitting Chart (calibrate.py --fit-roll).
+    Roll grows with landing speed, shrinks as the ball comes in steeper, and
+    shrinks as the ball keeps more backspin:
+        roll = ROLL_K * land_speed_mph * cos(land_angle)^ROLL_COS_POWER
+                 * (ROLL_SPIN_REF_RPM / max(land_spin_rpm, ROLL_SPIN_FLOOR_RPM))^ROLL_SPIN_POWER,
+    bounded to [0, ROLL_MAX_YD] and to ROLL_CAP_FRAC * carry (1.1 times the
+    largest roll to carry ratio on TrackMan's 2010 charts, which keeps a slow swing
+    from rolling farther than it carried). Three fitted numbers (k, cos power,
+    spin power). The chart holds driver deliveries only, so irons and wedges are an
+    extrapolation through landing angle and landing spin.
     """
     c = cos(radians(shot.land_angle_deg))
-    r = data.ROLL_K * shot.land_speed_mph * c**data.ROLL_COS_POWER
-    r = min(max(r, 0.0), data.ROLL_MAX_YD)
+    spin = max(shot.land_spin_rpm, data.ROLL_SPIN_FLOOR_RPM)
+    r = data.ROLL_K * shot.land_speed_mph * c**data.ROLL_COS_POWER * (data.ROLL_SPIN_REF_RPM / spin) ** data.ROLL_SPIN_POWER
+    r = min(max(r, 0.0), data.ROLL_MAX_YD, data.ROLL_CAP_FRAC * max(shot.carry_yd, 0.0))
     return shot.carry_yd + r

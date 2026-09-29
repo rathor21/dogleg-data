@@ -13,7 +13,7 @@
  * ------------------------------
  *   flight.py    simulate()             -> model.simulate      (deriv and rk4 inlined, MAX_FLIGHT_S, V_FLOOR_MS)
  *                _lift_dir_launch()     -> liftDirLaunch
- *                roll()                 -> model.roll
+ *                roll()                 -> model.roll          (uses landSpin, the spin state at the landing step)
  *   launch.py    deliver()              -> model.deliver
  *                check_delivery()       -> checkDelivery
  *                _check_range()         -> checkRange
@@ -31,9 +31,13 @@
  *                _no_negative_zero()    -> noNegZero
  *   classify.py  classify()             -> model.classify (with startOf, shapeOf, nameOf, finishText)
  *   presets.py   preset(), scale_speed()-> model.preset, model.scaleSpeed (values read from presets.json)
+ *                ideal_delivery()       -> model.idealDelivery (the driver's ideal is computed here from
+ *                                          presets.json driver_ideal and optimalLoft)
+ *   chart.py     optimal_loft()         -> model.optimalLoft   (dynamic loft midway between the TrackMan 2010
+ *                                          CARRY and TOTAL optimizer grids)
  *   ideals.py    ideal_bands()          -> model.idealBands
- *                _bracket, _bilinear, trackman_carry_2010, ping_2019
- *                                       -> bracket, bilinear, trackmanCarry2010, ping2019
+ *                _bracket, _bilinear, trackman_carry_2010, trackman_total_2010, ping_2019
+ *                                       -> bracket, bilinear, trackmanCarry2010, trackmanTotal2010, ping2019
  *   (new)        clampToDomain, shot, metricValue, METRIC_FIELDS, loadModel, createModel
  *
  * Field name mapping (Python snake_case -> JS camelCase)
@@ -46,14 +50,22 @@
  *   t, x, y, z (Float64Array, x/y/z in yards, y positive right),
  *   carry_yd carry, side_yd side, curve_yd curve, max_height_yd maxHeight,
  *   apex_x_yd apexX, land_angle_deg landAngle, flight_time_s flightTime,
- *   land_speed_mph landSpeed, launch_dir_deg launchDir.
+ *   land_speed_mph landSpeed, land_spin_rpm landSpin, launch_dir_deg launchDir.
  * classify() returns:
  *   start, shape, name, worked_back workedBack, finish_yd finishYd,
  *   finish_text finishText.
  * A delivery object (input to shot and clampToDomain, output of preset) is:
  *   clubSpeed, attack, path, face, dynLoft, club, spinTrim.
- * preset() also returns source, modeled, note and atPreset (the launch and
- * flight summaries exactly as export.py wrote them, in Python snake_case).
+ * preset() also returns source, modeled, note, atPreset (the launch and
+ * flight summaries exactly as export.py wrote them, in Python snake_case) and
+ * ideal: the ideal delivery at the preset club speed, {clubSpeed, attack, dynLoft,
+ * path, face, spinTrim, club, label, source, modeled, speedClamped, atIdeal}. For
+ * every club but the driver it repeats the preset. For the driver it is attack
+ * +5 with the balanced TrackMan 2010 chart loft and spin trim 1.0.
+ * idealDelivery(club, player, clubSpeed) gives the ideal at another club speed
+ * (the driver's loft moves with speed). optimalLoft(clubSpeed, attack) returns
+ * {dynLoft, carryLoft, totalLoft, extrapolated, speedClamped}, dynLoft being the
+ * mean of the carry-chart and total-chart lofts.
  * shot() returns {delivery, launch, flight, total, classification}, where
  * total is total_yd (carry plus roll) and classification is null when the
  * carry is zero or less (classify() would throw).
@@ -191,7 +203,8 @@ const REQUIRED_KEYS = [
   ...["units.mph_to_ms", "units.yd_to_m", "units.rpm_to_rads", "units.g", "ball.mass_kg", "ball.diameter_m",
     "ball.radius_m", "air.density_kg_m3", "air.viscosity_pa_s", "aero.re_pivot", "aero.re_unit",
     "aero.spin_decay_coef", ...["d0", "d1", "d2", "d3", "l0", "l1", "l2"].map((k) => "aero.quad." + k),
-    "flight.dt", "flight.max_flight_s", "flight.v_floor_ms", "roll.k", "roll.cos_power", "roll.max_yd",
+    "flight.dt", "flight.max_flight_s", "flight.v_floor_ms", "roll.k", "roll.cos_power", "roll.spin_power",
+    "roll.spin_ref_rpm", "roll.spin_floor_rpm", "roll.max_yd", "roll.cap_frac",
     ...["k0", "k1", "k_sl_lo", "k_sl_hi", "k0_driver", "k1_driver", "k_sl_lo_driver", "k_sl_hi_driver", "smash_a",
       "smash_b", "smash_c", "smash_cap", "smash_floor", "spin_a", "spin_b", "spin_f_wood", "spin_a_driver",
       "spin_b_driver", "axis_c0", "axis_c1", "axis_sl_lo", "axis_sl_hi"].map((k) => "launch_model." + k),
@@ -200,9 +213,9 @@ const REQUIRED_KEYS = [
     ...["start_straight_deg", "axis_straight_deg", "curve_hook_frac", "on_target_frac", "on_line_yd"].map(
       (k) => "classify." + k),
     "swing_plane_default_deg"].map((k) => "model." + k),
-  "presets.clubs", "presets.players", "presets.presets",
+  "presets.clubs", "presets.players", "presets.presets", "presets.driver_ideal",
   "ideals.tolerances", "ideals.bands", "ideals.sources", "ideals.metrics", "ideals.driver.trackman_carry_2010",
-  "ideals.driver.ping_2019",
+  "ideals.driver.ping_2019", "ideals.driver.trackman_total_2010", "ideals.driver.default_attack_deg",
 ];
 
 function capitalize(s) {
@@ -342,6 +355,7 @@ export function createModel(json) {
   const DOMAIN = M.domain;
   const CLS = M.classify;
   const ROLL = M.roll;
+  const DRIVER_IDEAL = PRE.driver_ideal;
   const TOL = IDL.tolerances;
   const FROZEN_DOMAIN = deepFreeze(clone(DOMAIN)); // what model.domain exposes
   for (const metric of IDL.metrics) {
@@ -363,6 +377,22 @@ export function createModel(json) {
   const BALL_RADIUS = BALL.radius_m;
 
   /** One preset row as a delivery object. The single place that maps presets.json keys. */
+  function idealFromRow(i) {
+    return {
+      clubSpeed: i.club_speed_mph,
+      attack: i.attack_deg,
+      dynLoft: i.dyn_loft_deg,
+      path: i.path_deg,
+      face: i.face_deg,
+      spinTrim: i.spin_trim,
+      club: i.club,
+      label: i.label,
+      source: i.source,
+      modeled: i.modeled,
+      speedClamped: i.speed_clamped,
+      atIdeal: clone(i.at_ideal),
+    };
+  }
   function presetFromRow(e) {
     return {
       clubSpeed: e.club_speed_mph,
@@ -376,6 +406,7 @@ export function createModel(json) {
       modeled: e.modeled,
       note: e.note,
       atPreset: clone(e.at_preset),
+      ideal: idealFromRow(e.ideal),
     };
   }
   const presetRow = (player, club) => PRE.presets[player][club];
@@ -497,7 +528,7 @@ export function createModel(json) {
     let t = 0.0;
     const maxSteps = Math.trunc(MAX_FLIGHT_S / dt);
     let landed = false;
-    let lvx = 0.0, lvy = 0.0, lvz = 0.0;
+    let lvx = 0.0, lvy = 0.0, lvz = 0.0, lw = 0.0;
     for (let step = 0; step < maxSteps; step++) {
       rk4(dt);
       const tNew = t + dt;
@@ -511,6 +542,7 @@ export function createModel(json) {
         lvx = s[3] + f * (sn[3] - s[3]);
         lvy = s[4] + f * (sn[4] - s[4]);
         lvz = s[5] + f * (sn[5] - s[5]);
+        lw = s[6] + f * (sn[6] - s[6]);
         n++;
         landed = true;
         break;
@@ -551,15 +583,23 @@ export function createModel(json) {
       flightTime: sT[n - 1],
       curve: side - carry * Math.tan(psi),
       landSpeed,
+      landSpin: lw / U.rpm_to_rads,
       launchDir,
     };
   }
 
-  /** flight.py roll: total distance in yards, carry plus a modeled bounce and roll. */
+  /**
+   * flight.py roll: total distance in yards, carry plus a modeled bounce and roll,
+   * k v cos(land angle)^p (spin_ref / max(landing spin, spin_floor))^q, fitted to
+   * TrackMan's 2010 chart totals, and capped at cap_frac * carry so a slow swing cannot roll farther
+   * than TrackMan's own charts allow.
+   */
   function roll(shotResult) {
     const c = Math.cos(shotResult.landAngle * RAD);
-    let r = ROLL.k * shotResult.landSpeed * Math.pow(c, ROLL.cos_power);
-    r = Math.min(Math.max(r, 0.0), ROLL.max_yd);
+    const spin = Math.max(shotResult.landSpin, ROLL.spin_floor_rpm);
+    let r = ROLL.k * shotResult.landSpeed * Math.pow(c, ROLL.cos_power)
+      * Math.pow(ROLL.spin_ref_rpm / spin, ROLL.spin_power);
+    r = Math.min(Math.max(r, 0.0), ROLL.max_yd, ROLL.cap_frac * Math.max(shotResult.carry, 0.0));
     return shotResult.carry + r;
   }
 
@@ -789,14 +829,40 @@ export function createModel(json) {
     return presetFromRow(presetRow(player, club));
   }
 
-  /** presets.scale_speed: copy of a preset with only the club speed changed. The spin trim stays. */
-  function scaleSpeed(presetObj, clubSpeed) {
+  /** presets._check_speed: ValueError unless clubSpeed is finite and inside the domain. */
+  function checkSpeed(clubSpeed) {
     const lo = DOMAIN.club_speed_mph[0];
     const hi = DOMAIN.club_speed_mph[1];
     if (!(isFiniteNumber(clubSpeed) && lo <= clubSpeed && clubSpeed <= hi)) {
       throw new ValueError(`club_speed must be within ${pyG(lo)} to ${pyG(hi)} mph, got ${pyRepr(clubSpeed)}`);
     }
+  }
+
+  /** presets.scale_speed: copy of a preset with only the club speed changed. The spin trim stays.
+   *  The copy's `ideal` stays at the old club speed: call idealDelivery for the ideal at the new one. */
+  function scaleSpeed(presetObj, clubSpeed) {
+    checkSpeed(clubSpeed);
     return { ...presetObj, clubSpeed };
+  }
+
+  /**
+   * presets.ideal_delivery: the ideal delivery for a club and player at a club speed
+   * (default the preset's). Same fields as preset().ideal. The driver's is the player's
+   * club speed, attack driver_ideal.attack_deg, dynamic loft optimalLoft(speed, attack),
+   * path 0, face 0, spin trim driver_ideal.spin_trim. Every other club repeats its preset
+   * at that club speed. Throws ValueError for a speed outside the domain.
+   */
+  function idealDelivery(club, player, clubSpeed) {
+    const p = preset(club, player);
+    const speed = clubSpeed === undefined || clubSpeed === null ? p.clubSpeed : clubSpeed;
+    checkSpeed(speed);
+    const { atIdeal, ...base } = p.ideal; // atIdeal is only valid at the preset club speed
+    if (club === "driver") {
+      const ol = optimalLoft(speed, DRIVER_IDEAL.attack_deg);
+      return { ...base, clubSpeed: speed, attack: DRIVER_IDEAL.attack_deg, dynLoft: ol.dynLoft, path: 0.0, face: 0.0,
+        spinTrim: DRIVER_IDEAL.spin_trim, speedClamped: ol.speedClamped };
+    }
+    return { ...base, clubSpeed: speed, speedClamped: false };
   }
 
   // -------------------------------------------------------------------------
@@ -849,6 +915,7 @@ export function createModel(json) {
 
   const TM = IDL.driver.trackman_carry_2010;
   const PG = IDL.driver.ping_2019;
+  const TT = IDL.driver.trackman_total_2010;
 
   /** (lower index, upper index, fraction) of x in a sorted grid, clamped to its range. */
   function bracket(grid, x) {
@@ -876,9 +943,52 @@ export function createModel(json) {
     return bilinear(TM.club_speed_mph, TM.attack_deg, [TM.launch_deg, TM.spin_rpm], clubSpeed, attack);
   }
 
+  /** ideals.trackman_total_2010: [launch deg, spin rpm] from the TrackMan 2010 TOTAL Optimizer. */
+  function trackmanTotal2010(clubSpeed, attack) {
+    return bilinear(TT.club_speed_mph, TT.attack_deg, [TT.launch_deg, TT.spin_rpm], clubSpeed, attack);
+  }
+
   /** ideals.ping_2019: [launch deg, spin rpm] from the PING 2019 Optimal Launch & Spin chart. */
   function ping2019(ballSpeed, attack) {
     return bilinear(PG.ball_speed_mph, PG.attack_deg, [PG.launch_deg, PG.spin_rpm], ballSpeed, attack);
+  }
+
+  /**
+   * chart._loft_at: [loft, extrapolated] from one chart's dynamic loft table: linear across the
+   * two nearest club speeds (clamped) at each chart attack angle, then linear in attack angle,
+   * extended along the edge slope beyond the first and last chart attack angles.
+   */
+  function loftAt(grid, clubSpeed, attack) {
+    const aoas = grid.attack_deg;
+    const [s0, s1, fs] = bracket(grid.club_speed_mph, clubSpeed);
+    const loft = aoas.map((_a, j) => grid.dyn_loft_deg[s0][j] * (1 - fs) + grid.dyn_loft_deg[s1][j] * fs);
+    const aLo = aoas[0], aMid = aoas[1], aHi = aoas[2];
+    if (attack > aHi) return [loft[2] + ((loft[2] - loft[1]) / (aHi - aMid)) * (attack - aHi), true];
+    if (attack < aLo) return [loft[0] + ((loft[1] - loft[0]) / (aMid - aLo)) * (attack - aLo), true];
+    if (attack <= aMid) {
+      const t = (attack - aLo) / (aMid - aLo);
+      return [loft[0] * (1 - t) + loft[1] * t, false];
+    }
+    const t = (attack - aMid) / (aHi - aMid);
+    return [loft[1] * (1 - t) + loft[2] * t, false];
+  }
+
+  /**
+   * chart.optimal_loft: balanced dynamic loft, the mean of the TrackMan 2010 CARRY chart's and
+   * TOTAL chart's optimal dynamic loft, each bilinear over club speed (clamped to 75 to 120 mph)
+   * and attack angle (-5, 0, +5). Beyond -5 or +5 each loft extends along its edge slope and
+   * `extrapolated` is true. Returns {dynLoft, carryLoft, totalLoft, extrapolated, speedClamped}.
+   * Throws ValueError for a non-finite input.
+   */
+  function optimalLoft(clubSpeed, attack) {
+    for (const [name, v] of [["club_speed_mph", clubSpeed], ["attack_deg", attack]]) {
+      if (!isFiniteNumber(v)) throw new ValueError(`${name} must be finite, got ${pyRepr(v)}`);
+    }
+    const [carryLoft, extrapolated] = loftAt(TM, clubSpeed, attack);
+    const [totalLoft] = loftAt(TT, clubSpeed, attack);
+    const speeds = TM.club_speed_mph;
+    const speedClamped = clubSpeed < speeds[0] || clubSpeed > speeds[speeds.length - 1];
+    return { dynLoft: 0.5 * (carryLoft + totalLoft), carryLoft, totalLoft, extrapolated, speedClamped };
   }
 
   function fly(p) {
@@ -896,17 +1006,20 @@ export function createModel(json) {
    */
   function idealBands(club, player, clubSpeed, attack) {
     const p = preset(club, player);
-    const [ln0, f0] = fly(p);
+    const ideal0 = p.ideal; // at the preset club speed
+    const [ln0, f0] = fly(ideal0);
     const speed = clubSpeed === undefined || clubSpeed === null ? p.clubSpeed : clubSpeed;
-    const ps = scaleSpeed(p, speed); // throws ValueError outside the domain
-    const [lnS, fS] = speed === p.clubSpeed ? [ln0, f0] : fly(ps);
-    const aoa = attack === undefined || attack === null ? p.attack : attack;
+    const idealS = idealDelivery(club, player, speed); // throws ValueError outside the domain
+    const [lnS, fS] = speed === p.clubSpeed ? [ln0, f0] : fly(idealS);
+    const aoa = attack === undefined || attack === null ? ideal0.attack : attack;
     const loA = DOMAIN.attack_deg[0];
     const hiA = DOMAIN.attack_deg[1];
     if (!(isFiniteNumber(aoa) && loA <= aoa && aoa <= hiA)) {
       throw new ValueError(`attack must be within ${pyG(loA)} to ${pyG(hiA)} deg, got ${pyRepr(aoa)}`);
     }
     const carry = fS.carry;
+    const total = roll(fS);
+    const driver = club === "driver";
 
     const b = {};
     const put = (metric, lo, hi, target) => {
@@ -919,11 +1032,13 @@ export function createModel(json) {
     const around = (metric, center, half) => put(metric, center - half, center + half, center);
 
     around("club_speed_mph", p.clubSpeed, TOL.club_speed_frac * p.clubSpeed);
-    around("attack_deg", p.attack, TOL.attack_deg);
+    if (driver) put("attack_deg", DRIVER_IDEAL.attack_lo_deg, DRIVER_IDEAL.attack_hi_deg, DRIVER_IDEAL.attack_deg);
+    else around("attack_deg", p.attack, TOL.attack_deg);
     around("path_deg", 0.0, TOL.path_deg);
     around("face_deg", 0.0, TOL.face_deg);
     around("face_to_path_deg", 0.0, TOL.face_to_path_deg);
-    around("dyn_loft_deg", p.dynLoft, TOL.dyn_loft_deg);
+    if (driver) around("dyn_loft_deg", optimalLoft(speed, aoa).dynLoft, DRIVER_IDEAL.dyn_loft_half_deg);
+    else around("dyn_loft_deg", p.dynLoft, TOL.dyn_loft_deg);
     around("spin_loft_deg", ln0.spinLoftDeg, TOL.spin_loft_deg);
     around("ball_speed_mph", lnS.ballSpeedMph, TOL.ball_speed_frac * lnS.ballSpeedMph);
     put("smash", ln0.smash - TOL.smash_below, null, ln0.smash);
@@ -934,24 +1049,29 @@ export function createModel(json) {
     around("max_height_yd", f0.maxHeight, TOL.max_height_yd);
     put("land_angle_deg", f0.landAngle - TOL.land_angle_below_deg, null, f0.landAngle);
     around("carry_yd", carry, TOL.carry_frac * carry);
+    around("total_yd", total, TOL.total_frac * total);
     around("side_yd", 0.0, TOL.side_frac * carry);
     around("curve_yd", 0.0, TOL.curve_frac * carry);
 
-    if (club === "driver") {
+    if (driver) {
       const [tmLaunch, tmSpin] = trackmanCarry2010(speed, aoa);
+      const [ttLaunch, ttSpin] = trackmanTotal2010(speed, aoa);
       const [pgLaunch, pgSpin] = ping2019(lnS.ballSpeedMph, aoa);
       const ml = TOL.driver_launch_margin_deg;
       const mr = TOL.driver_spin_margin_rpm;
+      const launches = [tmLaunch, ttLaunch, pgLaunch];
+      const spins = [tmSpin, ttSpin, pgSpin];
       // Each band gets its own detail object.
       const detail = () => ({
         trackman_carry_2010: { launch_deg: tmLaunch, spin_rpm: tmSpin },
+        trackman_total_2010: { launch_deg: ttLaunch, spin_rpm: ttSpin },
         ping_2019: { launch_deg: pgLaunch, spin_rpm: pgSpin },
         inputs: { club_speed_mph: speed, ball_speed_mph: lnS.ballSpeedMph, attack_deg: aoa },
       });
-      put("launch_deg", Math.min(tmLaunch, pgLaunch) - ml, Math.max(tmLaunch, pgLaunch) + ml,
-        0.5 * (tmLaunch + pgLaunch)).detail = detail();
-      put("spin_rpm", Math.min(tmSpin, pgSpin) - mr, Math.max(tmSpin, pgSpin) + mr,
-        0.5 * (tmSpin + pgSpin)).detail = detail();
+      put("launch_deg", Math.min(...launches) - ml, Math.max(...launches) + ml,
+        (launches[0] + launches[1] + launches[2]) / 3.0).detail = detail();
+      put("spin_rpm", Math.min(...spins) - mr, Math.max(...spins) + mr,
+        (spins[0] + spins[1] + spins[2]) / 3.0).detail = detail();
     }
     return b;
   }
@@ -968,8 +1088,11 @@ export function createModel(json) {
     swingPath,
     preset,
     scaleSpeed,
+    idealDelivery,
+    optimalLoft,
     idealBands,
     trackmanCarry2010,
+    trackmanTotal2010,
     ping2019,
     // Convenience
     shot,

@@ -55,13 +55,14 @@ export function createSliders({ model, store, containers, hooks }) {
       const v = clamp(round3(dir > 0 ? (Math.floor(q + 1e-9) + 1) * cfg.step : (Math.ceil(q - 1e-9) - 1) * cfg.step), lo, hi);
       if (v === cur) return;
       state[key] = v;
+      store.afterSliderChange(key);
       hooks.live();
       hooks.commitSoon(380);
     };
 
     input.addEventListener("input", () => {
       const v = clamp(snap(parseFloat(input.value), cfg.step), lo, hi);
-      if (v !== state[key]) { state[key] = v; hooks.live(); }
+      if (v !== state[key]) { state[key] = v; store.afterSliderChange(key); hooks.live(); }
     });
     input.addEventListener("change", () => hooks.commitNow());
     input.addEventListener("keydown", (e) => {
@@ -73,7 +74,7 @@ export function createSliders({ model, store, containers, hooks }) {
       } else if (e.key === "Home" || e.key === "End") {
         e.preventDefault();
         const v = e.key === "Home" ? lo : hi;
-        if (v !== state[key]) { state[key] = v; hooks.live(); hooks.commitSoon(380); }
+        if (v !== state[key]) { state[key] = v; store.afterSliderChange(key); hooks.live(); hooks.commitSoon(380); }
       }
     });
 
@@ -99,8 +100,27 @@ export function createSliders({ model, store, containers, hooks }) {
     build(metric, METRICS[metric].slider.advanced ? containers.adv : containers.main);
   }
 
+  // Driver only: the switch that lets the dynamic loft follow the attack angle. It sits
+  // under the attack slider, where the golfer is looking when it matters.
+  const follow = document.createElement("div");
+  follow.className = "loft-follow";
+  follow.hidden = true;
+  follow.innerHTML = `
+    <label class="check"><input type="checkbox" id="loft-follow"> <span>Loft follows attack angle</span></label>
+    <p class="follow-note" id="follow-note"></p>
+    <p class="follow-hint" id="follow-hint" hidden></p>`;
+  sliders.attack_deg.wrap.appendChild(follow);
+  const followBox = follow.querySelector("input");
+  const followNote = follow.querySelector("#follow-note");
+  const followHint = follow.querySelector("#follow-hint");
+  followBox.addEventListener("change", () => {
+    store.setLoftFollows(followBox.checked);
+    hooks.live();
+    hooks.commitNow();
+  });
+
   /** Sync every slider to the state and the computed shot c. */
-  function render(c, hand) {
+  function renderMain(c, hand) {
     for (const metric of SLIDER_METRICS) {
       const api = sliders[metric];
       const m = METRICS[metric];
@@ -109,7 +129,8 @@ export function createSliders({ model, store, containers, hooks }) {
       const entry = c.values[metric];
       const decs = m.slider.dec === undefined ? m.dec : m.slider.dec;
       const text = fmt(v, decs, m.signed) + (m.unit === DEG ? DEG : " " + m.unit);
-      const word = m.words ? m.words(entry.rh, entry.disp) : "";
+      let word = m.words ? m.words(entry.rh, entry.disp) : "";
+      if (metric === "dyn_loft_deg" && state.club === "driver" && state.loftFollows) word = "follows attack";
       api.val.innerHTML = "";
       api.val.append(text);
       if (word) {
@@ -135,5 +156,33 @@ export function createSliders({ model, store, containers, hooks }) {
     }
   }
 
-  return { render, sliders };
+  /** Show or hide the driver's loft switch and keep its notes current. */
+  function renderFollow() {
+    const driver = state.club === "driver";
+    follow.hidden = !driver;
+    if (!driver) return;
+    followBox.checked = state.loftFollows;
+    const chart = store.chartLoft();
+    if (state.loftFollows) {
+      const off = state.loftOffset;
+      const chartTxt = `Chart loft is ${fmt(chart.dynLoft, 1)}${DEG}`;
+      let tail = ".";
+      if (Math.abs(off) >= 0.05) {
+        // Words the golfer's own change differently from a delivery that simply sits off the chart.
+        tail = state.loftOffsetIsMine
+          ? `, and you added ${fmt(off, 1, true)}${DEG}.`
+          : `; this delivery sits ${fmt(Math.abs(off), 1)}${DEG} ${off > 0 ? "above" : "below"} it.`;
+      }
+      followNote.textContent = `Loft ${fmt(state.dynLoft, 1)}${DEG} now. ${chartTxt}${tail}`;
+    } else {
+      followNote.textContent = `Loft is fixed at ${fmt(state.dynLoft, 1)}${DEG}.`;
+    }
+    const notes = [];
+    if (state.loftFollows && chart.extrapolated) notes.push(`Attack is outside the chart (${MINUS}5${DEG} to +5${DEG}), so the loft is extended along the chart's slope.`);
+    if (state.loftFollows && chart.speedClamped) notes.push("Club speed is outside the chart (75 to 120 mph), so the loft is held at the chart's edge.");
+    followHint.hidden = notes.length === 0;
+    followHint.textContent = notes.join(" ");
+  }
+
+  return { render(c, hand) { renderMain(c, hand); renderFollow(); }, sliders };
 }

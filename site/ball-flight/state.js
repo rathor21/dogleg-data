@@ -25,10 +25,93 @@ export const WINDOW_KEYS = WINDOW_HEIGHTS.flatMap((h) => WINDOW_SHAPES.map((s) =
 export function createStore(model) {
   const clubById = Object.fromEntries(model.clubs.map((c) => [c.id, c]));
   const playerIds = model.players.map((p) => p.id);
-  const state = { club: "7i", player: "pga", hand: "r", clubSpeed: 0, attack: 0, path: 0, face: 0, dynLoft: 0, spinTrim: 1, mode: "e", window: null };
+  // loftFollows and loftOffset are the driver's "loft follows attack angle" switch and the
+  // manual loft the golfer added on top of the chart loft. Other clubs ignore both.
+  const state = { club: "7i", player: "pga", hand: "r", clubSpeed: 0, attack: 0, path: 0, face: 0, dynLoft: 0, spinTrim: 1, mode: "e", window: null, loftFollows: true, loftOffset: 0, loftOffsetIsMine: false };
   const lastClubInGroup = { ...GROUP_DEFAULT_CLUB };
 
   const groupOf = (club = state.club) => clubById[club].group;
+
+  const isDriver = (st = state) => st.club === "driver";
+  const [LOFT_LO, LOFT_HI] = model.domain.dyn_loft_deg;
+  const chartLoft = (st = state) => model.optimalLoft(st.clubSpeed, st.attack);
+
+  /** Driver: remember how far the loft sits from the chart loft, so following keeps that offset. */
+  function syncLoftOffset(fromSlider = false) {
+    state.loftOffset = isDriver() ? round3(state.dynLoft - chartLoft().dynLoft) : 0;
+    // Only an offset the golfer set on the loft slider is "theirs". One that comes from a loaded
+    // average or a link is just how that delivery sits against the chart, and the note says so.
+    state.loftOffsetIsMine = fromSlider && Math.abs(state.loftOffset) >= 0.05;
+  }
+
+  /** Driver with the switch on: loft is the chart loft for this speed and attack, plus the golfer's own offset. */
+  function followLoft() {
+    if (!isDriver() || !state.loftFollows) return;
+    state.dynLoft = round3(clamp(chartLoft().dynLoft + state.loftOffset, LOFT_LO, LOFT_HI));
+  }
+
+  /** Call after a slider moves. The loft slider sets the offset. Attack and club speed pull the loft along. */
+  function afterSliderChange(key) {
+    if (!isDriver()) return;
+    if (key === "dynLoft") syncLoftOffset(true);
+    else if (key === "attack" || key === "clubSpeed") followLoft();
+  }
+
+  /** Turning it on returns the loft to the chart loft for this speed and attack. Turning it off leaves the loft where it is. */
+  function setLoftFollows(on) {
+    state.loftFollows = !!on;
+    if (on) {
+      state.loftOffset = 0;
+      state.loftOffsetIsMine = false;
+      followLoft();
+    }
+  }
+
+  /**
+   * Load the ideal delivery (model.idealDelivery) at the preset club speed, as
+   * "Reset to ideal" always has. The driver's ideal hits up, with loft from the chart.
+   * Every other club is its preset. Path and face go to the ideal too, and the loft
+   * switch goes back on.
+   */
+  function loadIdeal() {
+    const d = applyBase(false); // idealDelivery(club, player) at the preset club speed, path and face included
+    state.loftFollows = true;
+    return d;
+  }
+
+  /**
+   * The default for a club and player, at the preset club speed: the ideal. Used on
+   * first load and on a club or player change. Path and face stay when keepLateral.
+   */
+  function applyBase(keepLateral) {
+    const d = model.idealDelivery(state.club, state.player);
+    state.clubSpeed = d.clubSpeed;
+    state.attack = d.attack;
+    state.dynLoft = d.dynLoft;
+    state.spinTrim = d.spinTrim;
+    state.loftOffset = 0;
+    state.loftOffsetIsMine = false;
+    if (!keepLateral) {
+      state.path = d.path + 0;
+      state.face = d.face + 0;
+    }
+    return d;
+  }
+
+  /** Does the tour or amateur average differ from the ideal? True for the driver. */
+  function averageDiffers() {
+    const p = model.preset(state.club, state.player);
+    const d = model.idealDelivery(state.club, state.player);
+    const far = (a, b, tol) => Math.abs(a - b) > tol;
+    return far(p.attack, d.attack, 0.05) || far(p.dynLoft, d.dynLoft, 0.05) || far(p.spinTrim, d.spinTrim, 0.001) || far(p.clubSpeed, d.clubSpeed, 0.05);
+  }
+
+  /** Load the preset (the tour or amateur average) as it is, at its own club speed. */
+  function loadAverage() {
+    applyPreset(false);
+    state.loftFollows = true;
+    syncLoftOffset(); // the average's loft sits where it sits; following moves it from there
+  }
 
   /** Set club speed, attack, loft and spin trim from the preset. Path and face too unless keepLateral. */
   function applyPreset(keepLateral) {
@@ -48,7 +131,7 @@ export function createStore(model) {
   function switchClub(id) {
     state.club = id;
     lastClubInGroup[groupOf(id)] = id;
-    applyPreset(true);
+    applyBase(true);
   }
 
   /** The one writer of state.window (a window key, or null for none). */
@@ -83,6 +166,8 @@ export function createStore(model) {
     if (MODES.includes(mode)) out.mode = mode;
     const win = (get("w") || "").toLowerCase().replace(/-/g, "_");
     if (WINDOW_KEYS.includes(win)) out.window = win;
+    const lf = (get("lf") || "").toLowerCase();
+    if (lf === "1" || lf === "0") out.loftFollows = lf === "1";
     for (const [k, key] of Object.entries(NUM_KEYS)) {
       const raw = get(k);
       if (raw === null) continue;
@@ -105,10 +190,16 @@ export function createStore(model) {
     if (p.hand) state.hand = p.hand;
     state.mode = p.mode || "e";
     if (state.mode === "w") state.club = "7i";
-    applyPreset(false);
+    applyBase(false);
+    if (p.loftFollows !== undefined) state.loftFollows = p.loftFollows;
     selectWindow(state.mode === "w" && p.window ? p.window : null);
     if (state.window && afterPreset) afterPreset(state.window);
     Object.assign(state, p.nums);
+    if (isDriver()) {
+      // A driver link that names speed or attack but no loft gets the chart loft for them.
+      if (p.nums.dynLoft === undefined && state.loftFollows) state.dynLoft = round3(clamp(chartLoft().dynLoft, LOFT_LO, LOFT_HI));
+      syncLoftOffset();
+    }
     lastClubInGroup[groupOf()] = state.club;
   }
 
@@ -119,6 +210,7 @@ export function createStore(model) {
       c: st.club, p: st.player, h: st.hand, m: st.mode,
       s: r2(st.clubSpeed), a: r2(st.attack), pa: r2(st.path), f: r2(st.face), l: r2(st.dynLoft),
     });
+    if (st.club === "driver") q.set("lf", st.loftFollows ? "1" : "0");
     if (st.mode === "w" && st.window) q.set("w", st.window.replace(/_/g, "-"));
     return location.pathname + "?" + q.toString();
   }
@@ -160,5 +252,5 @@ export function createStore(model) {
     return { norm, s, bands, values, rangeShot, group: groupOf(st.club) };
   }
 
-  return { state, lastClubInGroup, clubById, groupOf, applyPreset, switchClub, selectWindow, snapshot, parseQuery, loadFromSearch, buildUrl, compute };
+  return { state, lastClubInGroup, clubById, groupOf, applyPreset, applyBase, loadIdeal, loadAverage, averageDiffers, afterSliderChange, setLoftFollows, followLoft, chartLoft, switchClub, selectWindow, snapshot, parseQuery, loadFromSearch, buildUrl, compute };
 }

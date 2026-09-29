@@ -140,6 +140,7 @@
           <span class="swing-summary" id="swing-summary" aria-hidden="true"><b></b><span></span></span>
         </button>
         <button type="button" class="btn btn-outline btn-mini" id="reset-btn">Reset to ideal</button>
+        <button type="button" class="btn btn-ghost btn-mini" id="avg-btn" hidden>Tour average</button>
         <button type="button" class="btn btn-primary btn-mini" id="hit-btn-2">Hit</button>
         <button type="button" class="btn btn-outline btn-mini" id="exit-present">Exit</button>
       </div>
@@ -150,7 +151,10 @@
             <summary>Advanced</summary>
             <div class="sliders" id="sliders-adv"></div>
           </details>
-          <button type="button" class="btn btn-outline btn-block" id="reset-btn-2">Reset to ideal</button>
+          <div class="reset-row">
+            <button type="button" class="btn btn-outline" id="reset-btn-2">Reset to ideal</button>
+            <button type="button" class="btn btn-ghost" id="avg-btn-2" hidden>Tour average</button>
+          </div>
         </div>
       </div>
     </section>
@@ -223,7 +227,7 @@
   <p>Charts and sized exports are free to use with credit: <a href="/cite/">doglegdata.com/cite</a></p>
   <h3>Sources &amp; methodology</h3>
   <p>Ideal bands and presets come from TrackMan 2023 PGA Tour and LPGA Tour averages, TrackMan Combine averages (the average amateur), the TrackMan Optimizer, the TrackMan 2010 Driver Fitting Chart and the PING 2019 Optimal Launch &amp; Spin Chart. Driver launch and spin bands move with your club speed and attack angle.</p>
-  <p>The delivery model (how path, face, attack angle and dynamic loft set launch and spin) and the flight model (how the ball flies and rolls) are Dogleg Data models calibrated to those tables. Anything marked <span class="badge-modeled">modeled</span> is model output or a design choice that no published table contains. How the models work and where they miss is in the Method and limits section of <a href="/ball-flight/#method">the article</a>.</p>
+  <p>The delivery model (how path, face, attack angle and dynamic loft set launch and spin) and the flight model (how the ball flies and rolls) are Dogleg Data models calibrated to those tables. Anything marked <span class="badge-modeled">modeled</span> is model output or a design choice that no published table contains. Read the Method and limits section of <a href="/ball-flight/#method">the article</a> for how the models work and where they miss.</p>
   <p>The range scene is an illustration. Yardage plates on the painted greens are approximate.</p>
 </footer>
 

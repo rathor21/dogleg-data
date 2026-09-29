@@ -24,13 +24,18 @@ import calibrate
 import data
 import flight
 import gates
+import presets
 
-G2_MISSES = gates.load_record()["g2"]
-TEACHING_MISSES = gates.load_record()["teaching"]
+_RECORD = gates.load_record()
+G2_MISSES = _RECORD["g2"]
+TEACHING_MISSES = _RECORD["teaching"]
+CHART_MISSES = _RECORD["chart"]
+CHART_TOTAL_MISSES = _RECORD["chart_total"]
 
 
 def _describe(miss):
-    names = {"carry_yd": "carry {:+.1f} yd", "height_yd": "height {:+.1f} yd", "land_deg": "land angle {:+.1f} deg"}
+    names = {"carry_yd": "carry {:+.1f} yd", "height_yd": "height {:+.1f} yd", "land_deg": "land angle {:+.1f} deg",
+             "total_yd": "total {:+.1f} yd"}
     return "; ".join(names[k].format(v) for k, v in miss.items())
 
 
@@ -71,6 +76,8 @@ def test_teaching_tolerance_row(tour, club):
 @pytest.mark.parametrize("label,now,record", [
     ("G2", gates.g2_misses, G2_MISSES),
     ("teaching", gates.teaching_misses, TEACHING_MISSES),
+    ("chart", gates.chart_misses, CHART_MISSES),
+    ("chart total", gates.chart_total_misses, CHART_TOTAL_MISSES),
 ])
 def test_record_matches_model(label, now, record):
     """The xfail record documents misses; it must not absorb regressions and
@@ -89,11 +96,68 @@ def test_record_matches_model(label, now, record):
             assert comp in current[key], f"stale {label} entry: {key} {comp} now passes"
 
 
+def _chart_params(record, label):
+    out = []
+    for _c, key, _r in gates.chart_rows():
+        marks = []
+        if key in record:
+            marks.append(pytest.mark.xfail(strict=True, reason=f"chart {label} miss: " + _describe(record[key])))
+        out.append(pytest.param(key, marks=marks, id=key))
+    return out
+
+
+def _chart_row(key):
+    return next(r for _c, k, r in gates.chart_rows() if k == key)
+
+
+@pytest.mark.parametrize("key", _chart_params(CHART_MISSES, "carry"))
+def test_chart_carry_within_three_percent(key):
+    """TrackMan 2010 Driver Fitting Chart (model output): fly each of the 60 rows
+    from its own ball speed, launch and spin. Carry within 3 percent."""
+    r = _chart_row(key)
+    f = gates.run_chart_row(r)
+    assert f.carry_yd == pytest.approx(r["carry_yd"], rel=gates.CHART_CARRY_TOL_FRAC)
+
+
+@pytest.mark.parametrize("key", _chart_params(CHART_TOTAL_MISSES, "total"))
+def test_chart_total_within_five_percent(key):
+    """Model carry plus MODELED roll against the chart's total column, within 5 percent."""
+    r = _chart_row(key)
+    f = gates.run_chart_row(r)
+    assert flight.roll(f) == pytest.approx(r["total_yd"], rel=gates.CHART_TOTAL_TOL_FRAC)
+
+
+@pytest.mark.parametrize("chart", ["C", "T"])
+@pytest.mark.parametrize("speed", [75, 80, 85, 90, 95, 100, 105, 110, 115, 120])
+def test_carry_rises_with_attack_angle_at_chart_deliveries(chart, speed):
+    """The owner's check: at the chart's own launch and spin for attack -5, 0 and
+    +5, model carry rises with attack angle. Every club speed on both charts."""
+    carry = {}
+    for c, _k, r in gates.chart_rows():
+        if c == chart and r["club_speed_mph"] == speed:
+            carry[r["attack_deg"]] = gates.run_chart_row(r).carry_yd
+    assert carry[-5] < carry[0] < carry[5]
+
+
+CHART_GAIN_FLOOR = 0.6  # model gain from attack -5 to +5 is at least this share of the chart's gain
+
+
+@pytest.mark.parametrize("chart", ["C", "T"])
+@pytest.mark.parametrize("speed", [90, 105, 115])
+def test_attack_angle_gain_tracks_the_chart(chart, speed):
+    """Carry gain from attack -5 to +5 at 90, 105 and 115 mph: at least 60 percent
+    of the chart's gain and no more than the chart's gain plus 3 yd. The model
+    used to give about 50 percent of it."""
+    model, chart_gain = calibrate.chart_gains(flight.DEFAULT_AERO, (speed,))[(chart, speed)]
+    assert CHART_GAIN_FLOOR * chart_gain <= model <= chart_gain + 3.0
+
+
 # Ratchet floor. Change these numbers only together with the evidence comment
 # above data.QUAD in data.py, and only when a refit is shipped on purpose.
 FLOOR_G2_PASSES = 6
-FLOOR_TEACHING_PASSES = 12
-CEILING_OVERALL_RMS = 1.05
+FLOOR_TEACHING_PASSES = 15
+CEILING_OVERALL_RMS = 1.20
+CEILING_CHART_RMS = 0.45  # rms of chart carry errors in units of 3 percent
 
 
 def test_quality_floor():
@@ -102,6 +166,7 @@ def test_quality_floor():
     assert n - len(gates.teaching_misses()) >= FLOOR_TEACHING_PASSES
     _, overall = gates.rms(flight.DEFAULT_AERO)
     assert overall <= CEILING_OVERALL_RMS
+    assert gates.chart_rms(flight.DEFAULT_AERO) <= CEILING_CHART_RMS
 
 
 def test_tables_are_complete():
@@ -240,8 +305,8 @@ def test_air_density_matters():
 # closest to 150 in either table). The published figures are "about" values,
 # rounded to 0.1 to 1 yd: 3 yd could be 2.5 to 3.5, so +-17% is rounding alone.
 # Tolerances: 25% on the 200 yd case, 35% on the 150 yd case. Results for the
-# shipped quadratic fit: LPGA 3w about 18% low (2.5 and 12.1 yd), LPGA 6i about
-# 28% high (2.8 and 14.0 yd). The flat-Nathan two-multiplier model this
+# shipped quadratic fit (refit on the TrackMan 2010 chart too): LPGA 3w about 14%
+# low (2.6 and 12.8 yd), LPGA 6i about 26% high (2.8 and 13.9 yd). The flat-Nathan two-multiplier model this
 # replaced read 3% high on the 3w and 27% high on the 6i, so the 3w check got
 # worse and the 6i is unchanged.
 # ---------------------------------------------------------------------------
@@ -268,7 +333,7 @@ def test_spin_axis_curvature_examples(tour, club, axis, published, rel):
 @pytest.mark.xfail(
     strict=False,
     reason="TrackMan's examples curve the 200 yd shot more than the 150 yd shot "
-    "(15 vs 11 yd at 10 deg); the quadratic fit gives the 6-iron more (14.0 vs 12.1)",
+    "(15 vs 11 yd at 10 deg); the quadratic fit gives the 6-iron more (13.9 vs 12.8)",
 )
 def test_longer_shot_curves_more_for_same_axis():
     assert _side("LPGA", "3w", 10.0) > _side("LPGA", "6i", 10.0)
@@ -288,8 +353,29 @@ def _total(tour, club):
 def test_roll_driver_and_wedge_ranges():
     _, driver_roll = _total("PGA", "driver")
     _, pw_roll = _total("PGA", "pw")
-    assert 20.0 <= driver_roll <= 30.0
-    assert 1.0 <= pw_roll <= 7.0
+    assert 20.0 <= driver_roll <= 40.0
+    assert 1.0 <= pw_roll <= 8.0
+
+
+@pytest.mark.parametrize("tour", ["PGA", "LPGA"])
+@pytest.mark.parametrize("club", ["7i", "8i", "9i", "pw"])
+def test_short_iron_and_wedge_roll_a_few_yards(tour, club):
+    """The chart holds drivers only, so irons and wedges are an extrapolation:
+    it must still give a few yards, not a driver's 25 to 35."""
+    _, r = _total(tour, club)
+    assert 1.0 <= r <= 12.0
+
+
+def test_roll_falls_with_landing_spin():
+    """Same landing speed and angle, more spin left: less roll."""
+    f = flight.simulate(150.0, 12.0, 0.0, 2500.0, 0.0)
+    more = dataclasses.replace(f, land_spin_rpm=f.land_spin_rpm * 2.0)
+    assert flight.roll(more) < flight.roll(f)
+
+
+def test_landing_spin_is_reported_after_decay():
+    f = flight.simulate(150.0, 12.0, 0.0, 2500.0, 0.0)
+    assert 0.0 < f.land_spin_rpm < 2500.0
 
 
 def test_roll_is_bounded_and_nonnegative():
@@ -359,3 +445,66 @@ def test_flight_that_never_lands_raises():
 def test_vertical_launch_in_air_does_not_produce_nan():
     f = flight.simulate(60.0, 90.0, 0.0, 3000.0, 0.0)
     assert math.isfinite(f.carry_yd) and math.isfinite(f.max_height_yd)
+
+
+# ---------------------------------------------------------------------------
+# Roll cap (pre-merge review): roll <= ROLL_CAP_FRAC * carry
+# ---------------------------------------------------------------------------
+
+
+def _uncapped_roll(f):
+    """The roll form without the carry cap (and without the absolute bound)."""
+    c = math.cos(math.radians(f.land_angle_deg))
+    spin = max(f.land_spin_rpm, data.ROLL_SPIN_FLOOR_RPM)
+    return data.ROLL_K * f.land_speed_mph * c**data.ROLL_COS_POWER * (data.ROLL_SPIN_REF_RPM / spin) ** data.ROLL_SPIN_POWER
+
+
+def test_roll_cap_is_1_1_times_the_largest_chart_ratio():
+    ratios = [(r[6] - r[5]) / r[5] for table in (data.TRACKMAN_CARRY_2010, data.TRACKMAN_TOTAL_2010) for r in table]
+    assert len(ratios) == 60
+    assert max(ratios) == pytest.approx(0.3265, abs=1e-4)
+    assert data.ROLL_CAP_FRAC == pytest.approx(1.1 * max(ratios), abs=1e-4)
+
+
+@pytest.mark.parametrize("speed", [40.0, 50.0, 60.0, 75.0, 90.0, 105.0, 120.0, 140.0])
+def test_roll_never_exceeds_the_cap_for_any_club_at_any_speed(speed):
+    for player in presets.PLAYERS:
+        for club in presets.CLUBS:
+            p = presets.preset(club, player)
+            for delivery in (presets.scale_speed(p, speed), presets.ideal_delivery(club, player, speed)):
+                f = presets.fly(delivery)[1]
+                roll = flight.roll(f) - f.carry_yd
+                assert 0.0 <= roll <= data.ROLL_CAP_FRAC * f.carry_yd + 1e-9, (club, player, speed)
+
+
+def test_total_over_carry_is_sane_at_40_mph():
+    for player in presets.PLAYERS:
+        for club in presets.CLUBS:
+            f = presets.fly(presets.ideal_delivery(club, player, 40.0))[1]
+            ratio = flight.roll(f) / f.carry_yd
+            assert 1.0 < ratio <= 1.0 + data.ROLL_CAP_FRAC + 1e-9, (club, player)
+    drv = presets.fly(presets.ideal_delivery("driver", "pga", 40.0))[1]
+    assert drv.carry_yd == pytest.approx(46.4, abs=0.5)
+    assert flight.roll(drv) < 70.0  # was 118 yd before the cap
+
+
+def test_the_cap_does_not_bind_inside_the_fit_or_at_the_presets():
+    rows = [gates.run_chart_row(r) for _c, _l, r in gates.chart_rows()] + [gates.run_row(r) for _t, _c, r in gates.rows()]
+    for player in presets.PLAYERS:
+        for club in presets.CLUBS:
+            p = presets.preset(club, player)
+            rows += [presets.fly(p)[1], presets.fly(p["ideal"])[1]]
+    for f in rows:
+        assert _uncapped_roll(f) < data.ROLL_CAP_FRAC * f.carry_yd
+        assert flight.roll(f) - f.carry_yd == pytest.approx(min(_uncapped_roll(f), data.ROLL_MAX_YD))
+
+
+def test_the_cap_binds_on_a_slow_7_iron():
+    f = presets.fly(presets.scale_speed(presets.preset("7i", "pga"), 40.0))[1]
+    assert _uncapped_roll(f) > data.ROLL_CAP_FRAC * f.carry_yd
+    assert flight.roll(f) - f.carry_yd == pytest.approx(data.ROLL_CAP_FRAC * f.carry_yd)
+
+
+def test_zero_carry_gives_zero_roll():
+    f = flight.simulate(60.0, 0.0, 0.0, 0.0, 0.0)
+    assert flight.roll(dataclasses.replace(f, carry_yd=0.0)) == 0.0
