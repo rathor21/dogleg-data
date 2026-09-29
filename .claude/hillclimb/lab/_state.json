@@ -184,5 +184,10 @@
       "input_p95_ms",
       "load_ms"
     ]
+  },
+  "current_round": 1,
+  "best": {
+    "round": 1,
+    "test_score": 0.609
   }
 }
