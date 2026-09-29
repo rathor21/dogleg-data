@@ -460,3 +460,168 @@ DOMAIN = {
     "min_spin_loft_deg": 1.0,
     "swing_plane_deg": (20.0, 80.0),
 }
+
+# ---------------------------------------------------------------------------
+# Shot classifier (task 004.4). classify.py reads these.
+#   start_straight_deg: launch direction inside +-2 deg counts as a straight
+#       start. Anchor 5(a) Source 2, TrackMan "What is Launch Direction?"
+#       (2022-02-17): a Master's quote on the page says to keep launch
+#       direction within plus or minus 2 degrees. SOURCED (a coach quote on
+#       TrackMan's page, not a TrackMan-defined class boundary).
+#   axis_straight_deg: spin axis between -2 and 2 counts as straight. Anchor
+#       5(b) Source 2, TrackMan "What is Spin Axis?" (2024-09-23). SOURCED.
+#   curve_hook_frac: curve over carry above which a curving ball reads as a
+#       hook or slice instead of a draw or fade. MODELED design choice, an
+#       instructor can adjust it. Reasoning from the Anchor 5(b) Source 1
+#       worked examples: a PGA driver with face-to-path +5 curves 44 yd on a
+#       275 yd carry (16 percent), which reads as a slice; a PGA 6 iron with
+#       face-to-path +2 curves 8 yd on 183 (4.4 percent), which reads as a
+#       fade. 8 percent sits between them.
+# ---------------------------------------------------------------------------
+
+CLASSIFY = {
+    "start_straight_deg": 2.0,
+    "axis_straight_deg": 2.0,
+    "curve_hook_frac": 0.08,
+}
+
+# ---------------------------------------------------------------------------
+# Nine windows (task 004.4). Every number is MODELED: Anchor 6 (TaylorMade,
+# "Tiger Woods' Nine Windows", 2021) anchors the concept and the name only.
+# The source log holds no launch, spin or height for any window, so the
+# recipes are model output, carry the modeled badge and are never attributed
+# to Tiger Woods.
+#   height_mult: peak height as a multiple of the preset's modeled peak height
+#       (mid is the preset itself). MODELED.
+#   curve_frac: draw and fade curvature as a fraction of the window's own
+#       carry, draw negative. MODELED.
+#   side_tol_yd: every window must finish this close to the target line. MODELED.
+#   attack_per_loft: attack angle change per degree of the height lever h,
+#       with dynamic loft = preset dynamic loft + h. MODELED: a lower shot
+#       comes from a ball played further back, which delofts and steepens the
+#       blow together; a higher shot comes from a ball further forward, which
+#       adds loft and shallows the blow.
+# ---------------------------------------------------------------------------
+
+WINDOWS = {
+    "club": "7i",
+    "heights": {"low": 0.70, "mid": 1.00, "high": 1.25},
+    "curve_frac": {"draw": -0.05, "straight": 0.0, "fade": 0.05},
+    "side_tol_yd": 1.5,
+    "attack_per_loft": 0.4,
+}
+
+# ---------------------------------------------------------------------------
+# Ideal bands (task 004.4). ideals.py reads these.
+# Delivery bands for a straight target shot. launch_dir and spin_axis: TrackMan
+# plus or minus 2 deg (Anchors 5(a) and 5(b), see CLASSIFY). Everything else
+# in IDEAL_TOL is a MODELED width chosen by design, not a source value.
+# Driver launch and spin come from the two optimizer tables below, widened by
+# a MODELED margin: one degree of launch and 200 rpm of spin on each side.
+# PING's own printed tolerance is 1 deg launch and 300 rpm spin around a cell
+# (Anchor 4 Source 2); the band here is [lowest source - margin, highest
+# source + margin], so it already spans the two sources' disagreement.
+# ---------------------------------------------------------------------------
+
+IDEAL_TOL = {
+    "path_deg": 2.0,
+    "face_deg": 1.0,
+    "face_to_path_deg": 1.5,
+    "launch_dir_deg": 2.0,  # Anchor 5(a), TrackMan
+    "spin_axis_deg": 2.0,  # Anchor 5(b), TrackMan
+    "side_frac": 0.05,  # of carry
+    "curve_frac": 0.04,  # of carry
+    "launch_deg": 1.5,  # non-driver clubs
+    "spin_frac": 0.10,  # non-driver clubs
+    "max_height_yd": 3.0,
+    "land_angle_below_deg": 3.0,  # lower edge only, upper edge open
+    "attack_deg": 1.5,
+    "dyn_loft_deg": 2.0,
+    "spin_loft_deg": 2.0,
+    "smash_below": 0.03,  # lower edge only, upper edge open
+    "ball_speed_frac": 0.03,
+    "carry_frac": 0.03,
+    "club_speed_frac": 0.05,
+    "driver_launch_margin_deg": 1.0,
+    "driver_spin_margin_rpm": 200.0,
+}
+
+# Anchor 4 Source 1: TrackMan Driver Fitting Chart (2010), CARRY Optimizer.
+# Rows: (club speed mph, attack angle deg, ball speed mph, launch deg, spin rpm,
+# carry yd, total yd, dynamic loft deg). Club speed 75 to 120 in 5 mph steps,
+# attack angle -5, 0, +5. Values as printed in the log. The log flags the total
+# at 100 mph as a likely printing error; total is unused here.
+TRACKMAN_CARRY_2010_FIELDS = (
+    "club_speed_mph", "attack_deg", "ball_speed_mph", "launch_deg", "spin_rpm", "carry_yd", "total_yd", "dyn_loft_deg",
+)
+TRACKMAN_CARRY_2010 = (
+    (75, -5, 104, 14.6, 3722, 143, 166, 18.2),
+    (75, 0, 107, 16.3, 3121, 154, 178, 19.2),
+    (75, 5, 108, 19.2, 2720, 164, 187, 21.8),
+    (80, -5, 113, 12.9, 3652, 160, 176, 16.2),
+    (80, 0, 115, 15.5, 3179, 171, 187, 18.3),
+    (80, 5, 116, 18.0, 2648, 181, 197, 20.3),
+    (85, -5, 121, 11.9, 3669, 175, 199, 15.0),
+    (85, 0, 123, 14.5, 3164, 187, 211, 17.1),
+    (85, 5, 124, 17.0, 2596, 197, 223, 19.1),
+    (90, -5, 129, 11.1, 3689, 191, 215, 14.0),
+    (90, 0, 131, 13.4, 3093, 203, 228, 15.8),
+    (90, 5, 132, 16.4, 2633, 214, 239, 18.5),
+    (95, -5, 137, 9.9, 3626, 207, 243, 12.6),
+    (95, 0, 138, 12.7, 3114, 219, 244, 15.0),
+    (95, 5, 140, 15.7, 2595, 231, 256, 17.6),
+    (100, -5, 144, 9.6, 3722, 222, 244, 12.2),
+    (100, 0, 146, 12.1, 3118, 235, 272, 14.3),
+    (100, 5, 148, 14.9, 2538, 247, 272, 16.7),
+    (105, -5, 152, 8.7, 3675, 237, 260, 11.1),
+    (105, 0, 154, 11.2, 3038, 251, 275, 13.2),
+    (105, 5, 155, 14.5, 2563, 263, 288, 16.2),
+    (110, -5, 160, 7.7, 3570, 252, 275, 9.9),
+    (110, 0, 162, 10.5, 2970, 266, 291, 12.3),
+    (110, 5, 163, 13.7, 2435, 279, 305, 15.2),
+    (115, -5, 168, 7.0, 3548, 266, 290, 9.2),
+    (115, 0, 170, 9.8, 2919, 281, 306, 11.6),
+    (115, 5, 171, 13.0, 2358, 295, 321, 14.4),
+    (120, -5, 176, 6.1, 3433, 281, 305, 8.1),
+    (120, 0, 178, 9.3, 2890, 296, 321, 11.0),
+    (120, 5, 179, 12.6, 2343, 310, 350, 14.0),
+)
+# Anchor 4 Source 2: PING Optimal Launch & Spin Chart (2019). Rows are driver
+# ball speed (mph, 80 to 180), columns are angle of attack (PING_2019_AOA_DEG,
+# radar-monitor convention), cells are (launch deg, spin rpm).
+PING_2019_AOA_DEG = (-10, -8, -6, -4, -2, 0, 2, 4, 6, 8, 10)
+PING_2019 = {
+    180: (
+        (3.6, 3450), (4.9, 3250), (6.2, 3050), (7.5, 2850), (9.0, 2700), (10.4, 2550), (11.9, 2400), (13.3, 2200), (14.8, 2050), (16.4, 1950), (17.9, 1800),
+    ),
+    170: (
+        (4.3, 3500), (5.7, 3300), (6.9, 3100), (8.2, 2900), (9.6, 2750), (11.0, 2550), (12.4, 2400), (13.9, 2250), (15.3, 2100), (16.8, 1950), (18.2, 1800),
+    ),
+    160: (
+        (5.2, 3500), (6.5, 3300), (7.7, 3100), (9.0, 2950), (10.3, 2750), (11.7, 2600), (13.0, 2400), (14.4, 2300), (15.9, 2100), (17.3, 1950), (18.7, 1800),
+    ),
+    150: (
+        (6.2, 3500), (7.4, 3350), (8.6, 3150), (9.8, 2950), (11.1, 2750), (12.4, 2600), (13.7, 2450), (15.1, 2300), (16.4, 2150), (17.9, 2000), (19.3, 1850),
+    ),
+    140: (
+        (7.3, 3550), (8.3, 3300), (9.5, 3150), (10.7, 2950), (12.0, 2800), (13.2, 2600), (14.5, 2450), (15.8, 2300), (17.2, 2150), (18.5, 2000), (19.9, 1850),
+    ),
+    130: (
+        (8.4, 3500), (9.4, 3300), (10.6, 3150), (11.7, 2950), (12.8, 2750), (14.1, 2600), (15.3, 2450), (16.6, 2300), (17.9, 2150), (19.2, 2000), (20.6, 1850),
+    ),
+    120: (
+        (9.6, 3450), (10.6, 3250), (11.6, 3100), (12.7, 2900), (13.8, 2750), (15.0, 2600), (16.2, 2450), (17.4, 2300), (18.7, 2150), (19.9, 2000), (21.2, 1850),
+    ),
+    110: (
+        (10.9, 3400), (11.8, 3200), (12.7, 3000), (13.9, 2850), (14.9, 2700), (15.9, 2550), (17.1, 2400), (18.2, 2250), (19.5, 2100), (20.7, 1950), (21.9, 1850),
+    ),
+    100: (
+        (11.9, 3250), (12.9, 3100), (13.9, 2950), (14.9, 2800), (15.9, 2600), (16.9, 2450), (18.0, 2300), (19.1, 2150), (20.3, 2050), (21.4, 1900), (22.6, 1750),
+    ),
+    90: (
+        (12.7, 3050), (13.9, 2950), (15.0, 2800), (15.9, 2650), (16.9, 2500), (18.0, 2350), (19.0, 2200), (20.0, 2100), (21.1, 1950), (22.2, 1850), (23.3, 1700),
+    ),
+    80: (
+        (13.8, 2800), (14.5, 2650), (15.8, 2600), (16.9, 2450), (17.8, 2350), (18.8, 2200), (19.9, 2100), (20.8, 1950), (21.8, 1800), (22.9, 1700), (24.0, 1600),
+    ),
+}
