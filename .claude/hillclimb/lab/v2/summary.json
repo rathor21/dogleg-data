@@ -1,0 +1,5 @@
+{
+  "description": "widen tracer sideways offset about 2x with an on-range disclosure note",
+  "target": "code",
+  "suspicious": "reverted: test -0.115; judges read the disclosure note as debug text (c8 0.73->0.20, c5 0.30->0.13) while c2 rose on train only"
+}

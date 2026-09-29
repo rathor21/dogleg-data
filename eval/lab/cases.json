@@ -1,0 +1,564 @@
+[
+  {
+    "id": "phone-slice-driver",
+    "tags": [
+      "phone",
+      "range",
+      "explore"
+    ],
+    "scenario": "Coach at the range on a phone shows a student why their driver slices: path -4, face 0. The face points at the target and the path swings across it.",
+    "viewport": {
+      "w": 390,
+      "h": 844,
+      "dpr": 3,
+      "mobile": true
+    },
+    "url": "c=driver&p=amateur&pa=-4&f=0",
+    "focus": "Shot name (a slice or fade family), where it finishes, the start line (on the target line) and the curve to the right. The path -4 and face 0 numbers."
+  },
+  {
+    "id": "phone-lefty-hook",
+    "tags": [
+      "phone",
+      "controls",
+      "explore"
+    ],
+    "scenario": "A lefty student hooks their 7-iron. The coach opens the swing controls on a phone to show that the face is closed to the path, and that the ball starts left and turns hard right for a left-hander.",
+    "viewport": {
+      "w": 390,
+      "h": 844,
+      "dpr": 3,
+      "mobile": true
+    },
+    "url": "c=7i&p=amateur&h=l&pa=-6&f=-1",
+    "actions": [
+      "openDrawer"
+    ],
+    "focus": "Shot name (a hook), that the hand is set to Left, the curve direction for a left-hander, and the path and face sliders with their values and words."
+  },
+  {
+    "id": "phone-window-high-draw",
+    "tags": [
+      "phone",
+      "windows",
+      "windows"
+    ],
+    "scenario": "Coach shows one of the nine windows on a phone: the high draw with a 7-iron for a PGA Tour player.",
+    "viewport": {
+      "w": 390,
+      "h": 844,
+      "dpr": 3,
+      "mobile": true
+    },
+    "url": "m=w&w=high-draw&p=pga",
+    "focus": "The selected window (High draw), the shot name and finish, and the recipe numbers (path, face, attack, loft) for that window."
+  },
+  {
+    "id": "phone-compare-slice-to-draw",
+    "tags": [
+      "phone",
+      "compare",
+      "compare"
+    ],
+    "scenario": "Coach pins the student's slice (path -4, face 0) as A, then dials in path +3 and face +1 to show the fix as B, on a phone.",
+    "viewport": {
+      "w": 390,
+      "h": 844,
+      "dpr": 3,
+      "mobile": true
+    },
+    "url": "c=driver&p=amateur&m=c&pa=-4&f=0",
+    "actions": [
+      "pin",
+      "set:{\"path\":3,\"face\":1}"
+    ],
+    "focus": "Two tracers on the range (A and B) that can be told apart, the shot names for A and B, and the A/B/difference table for carry, curve and start line."
+  },
+  {
+    "id": "phone-wedge-fade",
+    "tags": [
+      "phone",
+      "range",
+      "explore"
+    ],
+    "scenario": "Coach shows an LPGA player's pitching wedge fade on a phone: path -3, face -1. The same face-to-path as a driver, but a short club, so much less curve.",
+    "viewport": {
+      "w": 390,
+      "h": 844,
+      "dpr": 3,
+      "mobile": true
+    },
+    "url": "c=pw&p=lpga&pa=-3&f=-1",
+    "focus": "The shot name, finish, and how little the ball curves in yards. The face to path number."
+  },
+  {
+    "id": "phone-default-7i",
+    "tags": [
+      "phone",
+      "range",
+      "explore"
+    ],
+    "scenario": "A student opens the lab on a phone for the first time with the default 7-iron and PGA Tour player, before touching anything.",
+    "viewport": {
+      "w": 390,
+      "h": 844,
+      "dpr": 3,
+      "mobile": true
+    },
+    "url": "c=7i&p=pga",
+    "focus": "A first-time screen: is the shot name obvious, is the ball flight visible, is it clear what to touch next."
+  },
+  {
+    "id": "phone-attack-up-driver",
+    "tags": [
+      "phone",
+      "views",
+      "explore"
+    ],
+    "scenario": "Coach on a phone shows how hitting up on the driver (attack +4) raises launch and lowers spin. The Side view tab shows the launch angle.",
+    "viewport": {
+      "w": 390,
+      "h": 844,
+      "dpr": 3,
+      "mobile": true
+    },
+    "url": "c=driver&p=pga&a=4",
+    "actions": [
+      "tab:side"
+    ],
+    "focus": "Launch angle and spin rate numbers, the Side profile view, the attack angle value."
+  },
+  {
+    "id": "phoneland-driver-draw",
+    "tags": [
+      "phone_land",
+      "range",
+      "explore"
+    ],
+    "scenario": "Coach holds a phone sideways and shows a PGA Tour driver draw: path +3, face +1. The ball starts right of target and curves back left.",
+    "viewport": {
+      "w": 844,
+      "h": 390,
+      "dpr": 3,
+      "mobile": true
+    },
+    "url": "c=driver&p=pga&pa=3&f=1",
+    "focus": "Shot name, finish, the range and tracer (short screen), key numbers, and whether the controls are visible beside the range."
+  },
+  {
+    "id": "phoneland-push-6i",
+    "tags": [
+      "phone_land",
+      "controls",
+      "explore"
+    ],
+    "scenario": "Coach shows the difference between a push and a pull on a phone in landscape. This is a push: path +3 and face +3 with a 6-iron. The face sets the start line, and face equals path so the ball does not curve.",
+    "viewport": {
+      "w": 844,
+      "h": 390,
+      "dpr": 3,
+      "mobile": true
+    },
+    "url": "c=6i&p=pga&pa=3&f=3",
+    "focus": "Shot name (push), starts right and no curve, path and face sliders and values, all readable on a 390 px tall screen."
+  },
+  {
+    "id": "phoneland-flyall",
+    "tags": [
+      "phone_land",
+      "windows",
+      "windows"
+    ],
+    "scenario": "Coach taps Fly all nine on a phone in landscape to show the whole nine-window chart with every tracer on the range.",
+    "viewport": {
+      "w": 844,
+      "h": 390,
+      "dpr": 3,
+      "mobile": true
+    },
+    "url": "m=w&p=pga",
+    "actions": [
+      "flyAll"
+    ],
+    "focus": "Nine tracers visible on the range with their numbers, and the window grid. Whether the range is still legible with nine tracers."
+  },
+  {
+    "id": "phoneland-compare-face",
+    "tags": [
+      "phone_land",
+      "compare",
+      "compare"
+    ],
+    "scenario": "Coach pins an amateur 7-iron with path -3 and face 0, then closes the face to -3 in landscape on a phone to show the face controls the start line.",
+    "viewport": {
+      "w": 844,
+      "h": 390,
+      "dpr": 3,
+      "mobile": true
+    },
+    "url": "c=7i&p=amateur&m=c&pa=-3&f=0",
+    "actions": [
+      "pin",
+      "set:{\"face\":-3}"
+    ],
+    "focus": "Pinned A and live B tracers, the change in start line, the compare table."
+  },
+  {
+    "id": "tabletl-face-start-7i",
+    "tags": [
+      "tablet",
+      "range",
+      "explore"
+    ],
+    "scenario": "Coach on an iPad in landscape teaches that the face sets the start line: path 0, face +3 with a 7-iron. The ball starts right of the target.",
+    "viewport": {
+      "w": 1024,
+      "h": 768,
+      "dpr": 2,
+      "mobile": true
+    },
+    "url": "c=7i&p=pga&pa=0&f=3",
+    "focus": "Start line (3 degrees right), shot name, the face slider, launch direction number."
+  },
+  {
+    "id": "tabletl-window-low-fade",
+    "tags": [
+      "tablet",
+      "windows",
+      "windows"
+    ],
+    "scenario": "Coach picks the low fade window on an iPad in landscape to show a lower flight with a left-to-right curve.",
+    "viewport": {
+      "w": 1024,
+      "h": 768,
+      "dpr": 2,
+      "mobile": true
+    },
+    "url": "m=w&w=low-fade&p=pga",
+    "focus": "Selected window, its recipe numbers, the shot label, the range and tracer."
+  },
+  {
+    "id": "tabletl-present",
+    "tags": [
+      "tablet",
+      "present",
+      "present"
+    ],
+    "scenario": "Coach mirrors an iPad to a small screen and taps Present for an amateur 5-wood slice.",
+    "viewport": {
+      "w": 1024,
+      "h": 768,
+      "dpr": 2,
+      "mobile": true
+    },
+    "url": "c=5w&p=amateur&pa=-5&f=-1",
+    "actions": [
+      "present"
+    ],
+    "focus": "Presentation layout: big shot name, the range, key tiles, and the slim control bar."
+  },
+  {
+    "id": "tabletp-slice-to-draw",
+    "tags": [
+      "tablet",
+      "compare",
+      "compare"
+    ],
+    "scenario": "A student's slice to a draw on an iPad held upright: pin the slice (driver, path -4, face 0), then set path +3 and face +1.",
+    "viewport": {
+      "w": 768,
+      "h": 1024,
+      "dpr": 2,
+      "mobile": true
+    },
+    "url": "c=driver&p=amateur&m=c&pa=-4&f=0",
+    "actions": [
+      "pin",
+      "set:{\"path\":3,\"face\":1}"
+    ],
+    "focus": "Both tracers and their labels, the compare table with the difference column, and the shot names for A and B."
+  },
+  {
+    "id": "tabletp-lefty-draw",
+    "tags": [
+      "tablet",
+      "range",
+      "explore"
+    ],
+    "scenario": "A lefty student's 7-iron draw on an iPad held upright. A left-hander's draw starts left of the target and curves back right, the mirror of a right-hander's draw, and the lab must show it that way.",
+    "viewport": {
+      "w": 768,
+      "h": 1024,
+      "dpr": 2,
+      "mobile": true
+    },
+    "url": "c=7i&p=pga&h=l&pa=-3&f=-1",
+    "focus": "Shot name (draw), the hand set to Left, and the curve direction on the range and top view consistent with a left-handed draw."
+  },
+  {
+    "id": "tabletp-attack-down-driver",
+    "tags": [
+      "tablet",
+      "controls",
+      "explore"
+    ],
+    "scenario": "Coach on an iPad shows what hitting down on the driver (attack -5) does to launch and spin for an amateur.",
+    "viewport": {
+      "w": 768,
+      "h": 1024,
+      "dpr": 2,
+      "mobile": true
+    },
+    "url": "c=driver&p=amateur&a=-5",
+    "actions": [
+      "openDrawer"
+    ],
+    "focus": "Launch angle, spin rate and attack angle numbers, and the attack slider (open in the drawer)."
+  },
+  {
+    "id": "laptop-straight-7i",
+    "tags": [
+      "laptop",
+      "range",
+      "explore"
+    ],
+    "scenario": "Coach in the studio opens the lab on a laptop with the default PGA Tour 7-iron, a straight shot, as the starting point for a lesson.",
+    "viewport": {
+      "w": 1440,
+      "h": 900,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "c=7i&p=pga",
+    "focus": "Shot name (Straight), where it finishes, the range and tracer, the key numbers."
+  },
+  {
+    "id": "laptop-fade-driver-lpga",
+    "tags": [
+      "laptop",
+      "range",
+      "explore"
+    ],
+    "scenario": "Coach shows an LPGA driver fade on a laptop: path -2, face -1. The ball starts left of target and drifts right.",
+    "viewport": {
+      "w": 1440,
+      "h": 900,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "c=driver&p=lpga&pa=-2&f=-1",
+    "focus": "Shot name, the start line to the left and the drift right, the path, face and face-to-path values."
+  },
+  {
+    "id": "laptop-flyall-nine",
+    "tags": [
+      "laptop",
+      "windows",
+      "windows"
+    ],
+    "scenario": "Coach runs Fly all nine on a laptop to show all nine windows of the 7-iron for a PGA Tour player.",
+    "viewport": {
+      "w": 1440,
+      "h": 900,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "m=w&p=pga",
+    "actions": [
+      "flyAll"
+    ],
+    "focus": "Nine tracers on the range, the nine-window grid, and whether each window can be matched to its tracer."
+  },
+  {
+    "id": "laptop-compare-slice-draw",
+    "tags": [
+      "laptop",
+      "compare",
+      "compare"
+    ],
+    "scenario": "A student's slice to a draw on a laptop with Compare: A is path -4, face 0 with a driver, B is path +3, face +1.",
+    "viewport": {
+      "w": 1440,
+      "h": 900,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "c=driver&p=amateur&m=c&pa=-4&f=0",
+    "actions": [
+      "pin",
+      "set:{\"path\":3,\"face\":1}"
+    ],
+    "focus": "A and B tracers, the compare table, the change in curve and start line, shot names."
+  },
+  {
+    "id": "laptop-hook-first-screen",
+    "tags": [
+      "laptop",
+      "views",
+      "explore"
+    ],
+    "scenario": "Coach in the studio on a laptop shows a 7-iron hook: path +6, face +1. The face is 5 degrees closed to the path, so the ball starts slightly right and hooks left. The coach wants the first screen to show what caused it.",
+    "viewport": {
+      "w": 1440,
+      "h": 900,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "c=7i&p=pga&pa=6&f=1",
+    "focus": "Shot name (a hook), start line and curve, path, face and face-to-path values, and whether any view of face and path at impact is on the first screen."
+  },
+  {
+    "id": "laptop-push-3wood",
+    "tags": [
+      "laptop",
+      "range",
+      "explore"
+    ],
+    "scenario": "Coach shows a PGA Tour 3-wood push on a laptop: path +3, face +3.",
+    "viewport": {
+      "w": 1440,
+      "h": 900,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "c=3w&p=pga&pa=3&f=3",
+    "focus": "Shot name (push), starts right with no curve, the controls next to the range."
+  },
+  {
+    "id": "laptop-launch-spin-numbers",
+    "tags": [
+      "laptop",
+      "tiles",
+      "explore"
+    ],
+    "scenario": "Coach in the studio on a laptop wants the student to see why an amateur driver with path -4 and face 0 loses distance: the coach reads launch angle and spin rate against their ideal bands.",
+    "viewport": {
+      "w": 1440,
+      "h": 900,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "c=driver&p=amateur&pa=-4&f=0",
+    "focus": "Launch angle and spin rate (and face to path) readable on the first screen without scrolling, with a clear in-band or out-of-band signal on each."
+  },
+  {
+    "id": "tv-present-driver-draw",
+    "tags": [
+      "tv",
+      "present",
+      "present"
+    ],
+    "scenario": "Coach on a studio TV runs Present for a PGA Tour driver draw: path +3, face +1. Students sit across the room.",
+    "viewport": {
+      "w": 1920,
+      "h": 1080,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "c=driver&p=pga&pa=3&f=1",
+    "actions": [
+      "present"
+    ],
+    "focus": "From across a room: the shot name and finish, the tracer, the key tiles. Size, contrast and whether the control bar stays out of the way."
+  },
+  {
+    "id": "tv-present-slice-amateur",
+    "tags": [
+      "tv",
+      "present",
+      "present"
+    ],
+    "scenario": "Coach on a TV shows an amateur driver slice in Present mode: path -4, face 0.",
+    "viewport": {
+      "w": 1920,
+      "h": 1080,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "c=driver&p=amateur&pa=-4&f=0",
+    "actions": [
+      "present"
+    ],
+    "focus": "Shot name, the curve direction on the range, key tiles, readable from across the room."
+  },
+  {
+    "id": "tv-present-flyall",
+    "tags": [
+      "tv",
+      "present",
+      "windows"
+    ],
+    "scenario": "Coach runs Fly all nine and then goes to Present on a TV so the students see the whole nine-window pattern.",
+    "viewport": {
+      "w": 1920,
+      "h": 1080,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "m=w&p=pga",
+    "actions": [
+      "flyAll",
+      "present"
+    ],
+    "focus": "Nine tracers on a big range, whether each can be told apart, and the shot label state after the sequence."
+  },
+  {
+    "id": "tv-present-compare",
+    "tags": [
+      "tv",
+      "present",
+      "compare"
+    ],
+    "scenario": "Coach pins a slice as A and moves to the draw as B, then presents on a TV to show both tracers together.",
+    "viewport": {
+      "w": 1920,
+      "h": 1080,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "c=driver&p=amateur&m=c&pa=-4&f=0",
+    "actions": [
+      "pin",
+      "set:{\"path\":3,\"face\":1}",
+      "present"
+    ],
+    "focus": "A and B tracers with their tags, the shot name, and whether the difference between A and B can be read without the compare table."
+  },
+  {
+    "id": "tv-wedge-explore",
+    "tags": [
+      "tv",
+      "range",
+      "explore"
+    ],
+    "scenario": "Coach in the studio shows a wedge shot (LPGA pitching wedge, path -3, face -1) on a 1080p TV without Present mode.",
+    "viewport": {
+      "w": 1920,
+      "h": 1080,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "c=pw&p=lpga&pa=-3&f=-1",
+    "focus": "How the page uses a wide screen: the range size, the tiles, the controls, empty space, hierarchy."
+  },
+  {
+    "id": "tv4k-present-hook",
+    "tags": [
+      "tv",
+      "present",
+      "present"
+    ],
+    "scenario": "A 4K TV in the studio in Present mode with a PGA Tour driver hook: path +5, face +1.",
+    "viewport": {
+      "w": 3840,
+      "h": 2160,
+      "dpr": 1,
+      "mobile": false
+    },
+    "url": "c=driver&p=pga&pa=5&f=1",
+    "actions": [
+      "present"
+    ],
+    "focus": "Text and control sizing at 3840x2160, the shot name, whether the layout scales without empty areas or tiny text."
+  }
+]

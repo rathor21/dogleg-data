@@ -1,0 +1,407 @@
+{
+ "image": "range_final.png",
+ "width": 1376,
+ "height": 768,
+ "notes": "Pixel coordinates (u right, v down) measured by eye from zoomed, gamma-brightened crops. Poles: base = where the pole meets the grass, top = centre of the lamp glow.",
+ "horizon_row_from_pole_rows": 301,
+ "vanishing_point_estimate": [
+  689,
+  301
+ ],
+ "ball": [
+  689,
+  712
+ ],
+ "ball_note": "No ball is painted. Mat centre on the white centre line, about 65 px behind the mat front edge (row 647).",
+ "mat_front_edge_row": 647,
+ "center_line_far_end": [
+  689,
+  316
+ ],
+ "lines": [
+  {
+   "name": "center_line",
+   "kind": "center",
+   "points": [
+    [
+     689,
+     318
+    ],
+    [
+     689,
+     335
+    ],
+    [
+     689,
+     350
+    ],
+    [
+     689,
+     400
+    ],
+    [
+     689,
+     450
+    ],
+    [
+     689,
+     500
+    ],
+    [
+     689,
+     550
+    ],
+    [
+     689,
+     600
+    ],
+    [
+     689,
+     650
+    ],
+    [
+     689,
+     700
+    ],
+    [
+     689,
+     750
+    ]
+   ]
+  },
+  {
+   "name": "pole_left_base",
+   "kind": "pole",
+   "side": "left",
+   "level": "base",
+   "points": [
+    [
+     313,
+     357
+    ],
+    [
+     424,
+     340
+    ],
+    [
+     485,
+     331
+    ],
+    [
+     524,
+     326
+    ],
+    [
+     548,
+     320
+    ],
+    [
+     567,
+     316
+    ]
+   ]
+  },
+  {
+   "name": "pole_left_top",
+   "kind": "pole",
+   "side": "left",
+   "level": "top",
+   "points": [
+    [
+     313,
+     247
+    ],
+    [
+     424,
+     266
+    ],
+    [
+     486,
+     274
+    ],
+    [
+     525,
+     279
+    ],
+    [
+     549,
+     282
+    ],
+    [
+     567,
+     285
+    ]
+   ]
+  },
+  {
+   "name": "pole_right_base",
+   "kind": "pole",
+   "side": "right",
+   "level": "base",
+   "points": [
+    [
+     1133,
+     360
+    ],
+    [
+     986,
+     340
+    ],
+    [
+     919,
+     331
+    ],
+    [
+     875,
+     325
+    ],
+    [
+     849,
+     320
+    ],
+    [
+     829,
+     316
+    ]
+   ]
+  },
+  {
+   "name": "pole_right_top",
+   "kind": "pole",
+   "side": "right",
+   "level": "top",
+   "points": [
+    [
+     1138,
+     239
+    ],
+    [
+     987,
+     261
+    ],
+    [
+     919,
+     270
+    ],
+    [
+     874,
+     276
+    ],
+    [
+     849,
+     280
+    ],
+    [
+     828,
+     283
+    ]
+   ]
+  },
+  {
+   "name": "stripe_left_1",
+   "kind": "stripe",
+   "points": [
+    [
+     295,
+     553
+    ],
+    [
+     375,
+     515
+    ],
+    [
+     450,
+     472
+    ]
+   ]
+  },
+  {
+   "name": "stripe_right_1",
+   "kind": "stripe",
+   "points": [
+    [
+     935,
+     500
+    ],
+    [
+     1010,
+     540
+    ],
+    [
+     1075,
+     565
+    ]
+   ]
+  },
+  {
+   "name": "stripe_right_2",
+   "kind": "stripe",
+   "points": [
+    [
+     735,
+     440
+    ],
+    [
+     775,
+     500
+    ],
+    [
+     805,
+     545
+    ]
+   ]
+  }
+ ],
+ "poles_all": {
+  "left_bases": [
+   [
+    313,
+    357
+   ],
+   [
+    424,
+    340
+   ],
+   [
+    485,
+    331
+   ],
+   [
+    524,
+    326
+   ],
+   [
+    548,
+    320
+   ],
+   [
+    567,
+    316
+   ]
+  ],
+  "right_bases": [
+   [
+    1133,
+    360
+   ],
+   [
+    986,
+    340
+   ],
+   [
+    919,
+    331
+   ],
+   [
+    875,
+    325
+   ],
+   [
+    849,
+    320
+   ],
+   [
+    829,
+    316
+   ]
+  ]
+ },
+ "greens": [
+  {
+   "name": "A (left, near)",
+   "center": [
+    479,
+    399
+   ],
+   "left": [
+    333,
+    399
+   ],
+   "right": [
+    625,
+    399
+   ],
+   "flag_base": [
+    483,
+    399
+   ]
+  },
+  {
+   "name": "B (right, near)",
+   "center": [
+    999,
+    422
+   ],
+   "left": [
+    784,
+    422
+   ],
+   "right": [
+    1213,
+    422
+   ],
+   "flag_base": [
+    990,
+    425
+   ]
+  },
+  {
+   "name": "C (left, mid)",
+   "center": [
+    618,
+    341
+   ],
+   "left": [
+    562,
+    341
+   ],
+   "right": [
+    680,
+    341
+   ],
+   "flag_base": [
+    616,
+    336
+   ]
+  },
+  {
+   "name": "D (right, mid)",
+   "center": [
+    797,
+    357
+   ],
+   "left": [
+    715,
+    357
+   ],
+   "right": [
+    880,
+    357
+   ],
+   "flag_base": [
+    797,
+    358
+   ]
+  },
+  {
+   "name": "E (centre, far)",
+   "center": [
+    690,
+    313
+   ],
+   "left": [
+    664,
+    313
+   ],
+   "right": [
+    718,
+    313
+   ],
+   "flag_base": [
+    688,
+    312
+   ]
+  }
+ ],
+ "mowing_stripe_vp_note": "Stripe edges and the centre-line width taper point to a lower vanishing row (about 340 to 390) than the pole rows and tree base line (about 301 to 312). The painting is not perspective-consistent, so stripe lines carry low weight."
+}

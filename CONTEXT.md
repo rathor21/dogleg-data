@@ -25,3 +25,23 @@ A pin position whose direct line puts a meaningful share of the dispersion oval 
 ## Short-sided
 
 A miss that finishes on the same side as the pin, leaving little green between the ball and the hole. Priced in the model through the recovery leg, never treated as merely "a missed green."
+
+## Ball flight laws
+
+The short list of cause and effect instructors teach: the face sets the start line, face-to-path sets the curve, attack angle changes launch and spin and moves the path. The subject of release 004. The article puts a weight on each rule and the lab lets a student move the inputs.
+
+## Face-to-path
+
+Face angle minus club path, in degrees, right positive. The ball curves toward the face and away from the path, so a positive value curves a right-hander's shot right. The same face-to-path bends a driver farther than a wedge, because the tilt of the spin axis falls as spin loft rises. Zero face-to-path gives no curve.
+
+## Spin loft
+
+The 3D angle between the club head's direction of travel (attack angle and path) and the face normal (dynamic loft and face angle). Dynamic loft minus attack angle approximates it and drifts as face-to-path grows. Higher spin loft gives more spin and lower smash factor. Not the same as the club's static loft.
+
+## Spin axis
+
+The tilt of the ball's spin axis from horizontal, in degrees, positive curving right. The model takes it from the D-plane, the plane through the club's travel direction and the face normal. A spin axis within 2 degrees of zero counts as straight.
+
+## Window
+
+One of the nine trajectories of the nine-windows drill: low, mid or high height crossed with draw, straight or fade. A window's recipe (path, face, attack angle, dynamic loft) is MODELED output. The drill is Tiger Woods's. The numbers are not his.

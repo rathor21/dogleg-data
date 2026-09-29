@@ -1,0 +1,5 @@
+{
+  "description": "top-down shot map inset on the range",
+  "target": "code",
+  "suspicious": "flat on test: c2 up (test .67->.79) but c6 hierarchy down (test .67->.29); inset competes with the shot"
+}

@@ -1,0 +1,194 @@
+{
+  "metrics": [
+    {
+      "id": "design",
+      "label": "Design",
+      "kind": "float",
+      "better": "higher",
+      "scale": 1
+    },
+    {
+      "id": "c1",
+      "label": "Readable",
+      "kind": "float",
+      "better": "higher",
+      "scale": 1
+    },
+    {
+      "id": "c2",
+      "label": "Flight",
+      "kind": "float",
+      "better": "higher",
+      "scale": 1
+    },
+    {
+      "id": "c3",
+      "label": "Numbers",
+      "kind": "float",
+      "better": "higher",
+      "scale": 1
+    },
+    {
+      "id": "c4",
+      "label": "Controls",
+      "kind": "float",
+      "better": "higher",
+      "scale": 1
+    },
+    {
+      "id": "c5",
+      "label": "No defects",
+      "kind": "float",
+      "better": "higher",
+      "scale": 1
+    },
+    {
+      "id": "c6",
+      "label": "Hierarchy",
+      "kind": "float",
+      "better": "higher",
+      "scale": 1
+    },
+    {
+      "id": "c7",
+      "label": "Teach fit",
+      "kind": "float",
+      "better": "higher",
+      "scale": 1
+    },
+    {
+      "id": "c8",
+      "label": "Polish",
+      "kind": "float",
+      "better": "higher",
+      "scale": 1
+    },
+    {
+      "id": "console_errors",
+      "label": "Console errs",
+      "kind": "float",
+      "better": "lower",
+      "scale": 20
+    },
+    {
+      "id": "overflow_x",
+      "label": "Overflow X",
+      "kind": "float",
+      "better": "lower",
+      "scale": 1
+    },
+    {
+      "id": "min_font_px",
+      "label": "Min font px",
+      "kind": "float",
+      "better": "higher",
+      "scale": 30
+    },
+    {
+      "id": "small_targets",
+      "label": "Small targets",
+      "kind": "float",
+      "better": "lower",
+      "scale": 40
+    },
+    {
+      "id": "axe_serious",
+      "label": "Axe serious",
+      "kind": "float",
+      "better": "lower",
+      "scale": 10
+    },
+    {
+      "id": "input_p95_ms",
+      "label": "Input p95 ms",
+      "kind": "float",
+      "better": "lower",
+      "scale": 200
+    },
+    {
+      "id": "load_ms",
+      "label": "Load ms",
+      "kind": "float",
+      "better": "lower",
+      "scale": 3000
+    },
+    {
+      "id": "js_kb",
+      "label": "JS KB",
+      "kind": "float",
+      "better": "lower",
+      "scale": 500
+    }
+  ],
+  "perf_fields": [
+    {
+      "id": "latency_s",
+      "label": "Load",
+      "unit": "s"
+    }
+  ],
+  "train_ids": [
+    "phone-lefty-hook",
+    "phone-window-high-draw",
+    "phone-wedge-fade",
+    "phone-default-7i",
+    "phoneland-driver-draw",
+    "phoneland-flyall",
+    "tabletl-window-low-fade",
+    "tabletp-slice-to-draw",
+    "tabletp-lefty-draw",
+    "tabletp-attack-down-driver",
+    "laptop-fade-driver-lpga",
+    "laptop-compare-slice-draw",
+    "laptop-hook-first-screen",
+    "laptop-launch-spin-numbers",
+    "tv-present-driver-draw",
+    "tv-present-slice-amateur",
+    "tv-present-compare",
+    "tv4k-present-hook"
+  ],
+  "test_ids": [
+    "phone-slice-driver",
+    "phone-compare-slice-to-draw",
+    "phone-attack-up-driver",
+    "phoneland-push-6i",
+    "phoneland-compare-face",
+    "tabletl-face-start-7i",
+    "tabletl-present",
+    "laptop-straight-7i",
+    "laptop-flyall-nine",
+    "laptop-push-3wood",
+    "tv-present-flyall",
+    "tv-wedge-explore"
+  ],
+  "split": {
+    "seed": 20260929,
+    "method": "random, stratified by tags[0] (viewport class), about 60/40",
+    "n_train": 18,
+    "n_test": 12
+  },
+  "harness_paths": [
+    "eval/lab/run.mjs",
+    "eval/lab/merge.mjs",
+    "eval/lab/rubric.md",
+    "eval/lab/judge_prompt.md",
+    "eval/lab/cases.json"
+  ],
+  "goal": {
+    "target": "design",
+    "direction": "higher",
+    "hold": [
+      "console_errors",
+      "overflow_x",
+      "axe_serious",
+      "input_p95_ms",
+      "load_ms"
+    ]
+  },
+  "current_round": 5,
+  "best": {
+    "round": 5,
+    "test_score": 0.74,
+    "basis": "blind tournament re-judge of test screenshots"
+  }
+}

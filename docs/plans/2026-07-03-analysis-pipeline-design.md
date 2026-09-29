@@ -25,6 +25,8 @@ The old seasonality tiebreaker (decision pieces in playing season, planning piec
 
 ## The pipeline
 
+> **Note, 2026-09-29:** Release 004 is the ball flight laws instructor tool (Face, Path, and the Ball Flight Laws, in Numbers, with the Ball flight lab), Sunny's call on 2026-09-28. The previously planned 004, "What separates a 0 from a 10 from a 20 from a 30", moves to 005, and every later release shifts by one number (Go for it or lay up is 006, The 3-putt zone is 007, What "being a 15" actually means is 008, Practice ROI is 009). The table below keeps its original numbers and dates and predates this shift. Spec: [2026-09-28-004-ball-flight-laws-design.md](2026-09-28-004-ball-flight-laws-design.md).
+
 | # | Release | Window | Question type | One-line hook |
 |---|---|---|---|---|
 | 002 | How far do you need to hit it? | Jul 24, 2026 (slipped from Jul 20) | Tee-club decision | You don't need to hit it as far as you think. Here's the number, at your handicap |
