@@ -93,6 +93,7 @@ class Aero:
     name: str
     cd: Callable[[float, float], float]
     cl: Callable[[float, float], float]
+    spin_decay: float = data.SPIN_DECAY_COEF  # k in tau = R / (k v), SI
 
 
 def nathan_model(p=None, name="nathan"):
@@ -119,19 +120,34 @@ def nathan_model(p=None, name="nathan"):
 
 
 def quad_model(p=None, name="quad"):
-    """Quadratic family (Anchor 7 Source 4 form), parameters from data.QUAD."""
+    """Quadratic family (Anchor 7 Source 4 form), parameters from data.QUAD.
+
+    CL = l0 + l1 S + l2 S^2. CD = d0 + d1 S + d2 S^2 + speed term, where the
+    speed term is d3 (Re - pivot) for form "linear" or the logistic rise
+    d3 / (1 + exp((Re - re0) / w)) for form "logistic". p["k"] optionally sets
+    the spin decay coefficient (default: the Anchor 7 value).
+    """
     p = data.QUAD if p is None else p
     d0, d1, d2, d3 = p["d0"], p["d1"], p["d2"], p["d3"]
     l0, l1, l2 = p["l0"], p["l1"], p["l2"]
     piv = data.RE_PIVOT
+    k = p.get("k", data.SPIN_DECAY_COEF)
 
-    def cd(spin, re):
-        return d0 + d1 * spin + d2 * spin * spin + d3 * (re - piv)
+    if p.get("form", "linear") == "logistic":
+        re0, w = p["re0"], p["w"]
+
+        def cd(spin, re):
+            return d0 + d1 * spin + d2 * spin * spin + d3 / (1.0 + exp((re - re0) / w))
+
+    else:
+
+        def cd(spin, re):
+            return d0 + d1 * spin + d2 * spin * spin + d3 * (re - piv)
 
     def cl(spin, re):
         return l0 + l1 * spin + l2 * spin * spin
 
-    return Aero(name, cd, cl)
+    return Aero(name, cd, cl, k)
 
 
 DEFAULT_AERO = quad_model()
@@ -145,7 +161,7 @@ def _make_deriv(air, omega_hat, aero):
     kf = 0.5 * air.density * area / m
     re_per_v = air.density * d / air.viscosity / data.RE_UNIT
     g = data.G
-    decay = data.SPIN_DECAY_COEF
+    decay = aero.spin_decay
     cd_fn, cl_fn = aero.cd, aero.cl
 
     def deriv(s):

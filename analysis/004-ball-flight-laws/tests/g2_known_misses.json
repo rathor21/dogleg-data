@@ -1,16 +1,16 @@
 {
   "g2": {
     "PGA/driver": {
-      "land_deg": 3.4
+      "land_deg": 3.5
     },
     "PGA/3w": {
-      "height_yd": 4.6
+      "height_yd": 4.0
     },
     "PGA/5w": {
-      "height_yd": 5.1
+      "height_yd": 4.5
     },
     "PGA/hybrid": {
-      "height_yd": 5.1,
+      "height_yd": 4.6,
       "land_deg": -3.0
     },
     "PGA/3i": {
@@ -20,57 +20,53 @@
       "land_deg": -4.2
     },
     "PGA/5i": {
-      "land_deg": -4.1
+      "land_deg": -4.0
     },
     "PGA/6i": {
-      "height_yd": 4.5
-    },
-    "PGA/7i": {
-      "carry_yd": -5.6,
-      "land_deg": -2.0
+      "height_yd": 4.4
     },
     "PGA/9i": {
-      "land_deg": -2.5
+      "land_deg": -2.8
     },
     "PGA/pw": {
-      "carry_yd": -8.5,
-      "land_deg": -2.2
+      "carry_yd": -7.5,
+      "land_deg": -2.7
     },
     "LPGA/driver": {
-      "carry_yd": -7.3
+      "carry_yd": -7.7,
+      "land_deg": 2.0
     },
     "LPGA/3w": {
-      "height_yd": -4.2,
-      "land_deg": -4.4
+      "height_yd": -3.9,
+      "land_deg": -4.0
     },
     "LPGA/hybrid": {
-      "height_yd": 3.6
+      "height_yd": 3.4
     },
     "LPGA/4i": {
-      "carry_yd": -6.6
+      "carry_yd": -6.9
     },
     "LPGA/5i": {
-      "carry_yd": -5.3,
-      "land_deg": -3.4
+      "carry_yd": -5.6,
+      "land_deg": -3.2
     },
     "LPGA/pw": {
       "height_yd": -3.6,
-      "land_deg": -2.0
+      "land_deg": -2.4
     }
   },
   "teaching": {
     "PGA/driver": {
-      "land_deg": 3.4
+      "land_deg": 3.5
     },
     "PGA/3w": {
-      "height_yd": 4.6
+      "height_yd": 4.0
     },
     "PGA/5w": {
-      "height_yd": 5.1
+      "height_yd": 4.5
     },
     "PGA/hybrid": {
-      "height_yd": 5.1,
-      "land_deg": -3.0
+      "height_yd": 4.6
     },
     "PGA/3i": {
       "land_deg": -3.7
@@ -79,20 +75,19 @@
       "land_deg": -4.2
     },
     "PGA/5i": {
-      "land_deg": -4.1
+      "land_deg": -4.0
     },
     "PGA/6i": {
-      "height_yd": 4.5
+      "height_yd": 4.4
     },
     "PGA/pw": {
-      "carry_yd": -8.5
+      "carry_yd": -7.5
     },
     "LPGA/3w": {
-      "height_yd": -4.2,
-      "land_deg": -4.4
+      "land_deg": -4.0
     },
     "LPGA/5i": {
-      "land_deg": -3.4
+      "land_deg": -3.2
     }
   }
 }

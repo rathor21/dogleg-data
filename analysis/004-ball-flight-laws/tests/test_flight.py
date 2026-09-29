@@ -184,18 +184,21 @@ def test_flight_arrays_consistent():
 
 
 def test_spin_decay_lowers_the_apex():
-    """Anchor 7 Source 3: tau = R / (2.0e-5 v), 23.9 s at 100 mph. Spin lost in
-    flight removes lift, so the decayed shot peaks lower than the same shot with
-    the decay coefficient zeroed. Over a 7 s flight the effect is small."""
+    """Spin lost in flight removes lift, so the decayed shot peaks lower than
+    the same shot with decay switched off. Uses the shipped fitted k."""
+    import dataclasses
+
     with_decay = flight.simulate(150.0, 12.0, 0.0, 3000.0, 0.0)
-    old = data.SPIN_DECAY_COEF
-    try:
-        data.SPIN_DECAY_COEF = 0.0
-        no_decay = flight.simulate(150.0, 12.0, 0.0, 3000.0, 0.0)
-    finally:
-        data.SPIN_DECAY_COEF = old
+    no_decay_model = dataclasses.replace(flight.DEFAULT_AERO, spin_decay=0.0)
+    no_decay = flight.simulate(150.0, 12.0, 0.0, 3000.0, 0.0, aero=no_decay_model)
     assert with_decay.max_height_yd < no_decay.max_height_yd
-    assert abs(with_decay.carry_yd - no_decay.carry_yd) < 5.0
+    assert abs(with_decay.carry_yd - no_decay.carry_yd) < 10.0
+
+
+def test_spin_decay_k_sits_inside_its_fit_bounds():
+    lo, hi = 1.0e-5, 6.0e-5  # task 004.2 round 3 bounds, SI
+    assert lo <= data.QUAD["k"] <= hi + 1e-12
+    assert flight.DEFAULT_AERO.spin_decay == data.QUAD["k"]
 
 
 def test_air_density_matters():
@@ -214,8 +217,8 @@ def test_air_density_matters():
 # closest to 150 in either table). The published figures are "about" values,
 # rounded to 0.1 to 1 yd: 3 yd could be 2.5 to 3.5, so +-17% is rounding alone.
 # Tolerances: 25% on the 200 yd case, 35% on the 150 yd case. Results for the
-# shipped quadratic fit: LPGA 3w about 18% low (2.5 and 12.1 yd), LPGA 6i about
-# 28% high (2.8 and 14.0 yd). The flat-Nathan two-multiplier model this
+# shipped quadratic fit with fitted spin decay: LPGA 3w about 20% low (2.4 and
+# 11.8 yd), LPGA 6i about 28% high (2.8 and 14.1 yd). The flat-Nathan two-multiplier model this
 # replaced read 3% high on the 3w and 27% high on the 6i, so the 3w check got
 # worse and the 6i is unchanged.
 # ---------------------------------------------------------------------------

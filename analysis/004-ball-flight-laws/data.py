@@ -219,20 +219,28 @@ CD_BAND = (0.15, 0.45)
 CL_MAX = 0.40
 RE_RANGE = (0.5, 2.3)  # units of 1e5, about 40 to 185 mph
 
-# MODELED, fitted by `calibrate.py --fit` to all 23 PGA and LPGA rows (rms of
-# the G2-normalized residuals: carry 0.81, height 0.95, land angle 1.24; 1.0
-# sits on the gate). Constraints hold on S in [0.05, 0.50] and Re in [0.5,
-# 2.3]. Effective CD at Re 1.5: 0.26 at S = 0.15, 0.31 at S = 0.30. CL: 0.23
-# at S = 0.15, 0.34 at S = 0.30. The lift multiplier of 2.3 on Nathan's power
-# law is gone; the fitted lift is concave in S and bends toward its cap.
+# MODELED, fitted by `calibrate.py --compare` (variant A) to all 23 PGA and LPGA
+# rows: the 7 quadratic parameters plus the spin decay coefficient k. rms of
+# the G2-normalized residuals: overall 0.99 (1.0 sits on the gate). Constraints
+# hold on S in [0.05, 0.50] and Re in [0.5, 2.3]. CD at Re 1.5: 0.26 at
+# S = 0.15, 0.31 at S = 0.30. CL: 0.23 at S = 0.15, 0.34 at S = 0.30.
+# k is the coefficient in tau = R / (k v), SI. Anchor 7 logs 2.0e-5 (Smits and
+# Smith) and 2.5e-5 (Tavares); k was free in [1.0e-5, 6.0e-5] and the fit sits
+# on the UPPER BOUND, 3x the Smits and Smith value (spin time constant 8 s at
+# 100 mph instead of 24 s). Read it as "the Tour tables want spin to fall
+# faster than the logged laws", not as a measured decay rate. The comparison
+# against the 7-parameter model and the logistic variant is in the 004.2
+# report; the 7-parameter model at k = 2.0e-5 had held-out rms 1.14, this has
+# 1.10.
 QUAD = {
-    "d0": 0.19877,
-    "d1": 0.52450,
-    "d2": -0.50182,
-    "d3": -0.09224,  # per unit of Re/1e5 above the pivot: drag falls as the ball speeds up
-    "l0": 0.05635,
-    "l1": 1.36147,
-    "l2": -1.34813,
+    "d0": 0.19710,
+    "d1": 0.54852,
+    "d2": -0.52694,
+    "d3": -0.09160,  # per unit of Re/1e5 above the pivot: drag falls as the ball speeds up
+    "l0": 0.06628,
+    "l1": 1.37548,
+    "l2": -1.41620,
+    "k": 6.0e-5,  # MODELED, fitted, at the upper bound of its [1.0e-5, 6.0e-5] range
 }
 
 # ---------------------------------------------------------------------------

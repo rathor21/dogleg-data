@@ -39,6 +39,37 @@ QUAD_KEYS = ("d0", "d1", "d2", "d3", "l0", "l1", "l2")
 # Bounds are wide sanity boxes; the real constraints are the penalties below.
 QUAD_LO = (0.0, -2.0, -5.0, -0.3, -0.2, -2.0, -8.0)
 QUAD_HI = (0.6, 3.0, 5.0, 0.3, 0.5, 5.0, 8.0)
+K_UNIT = 1.0e-5  # the vector holds k in units of 1e-5 (SI)
+K_BOUNDS = (1.0, 6.0)  # k in [1.0e-5, 6.0e-5] SI (task 004.2, round 3)
+LOGISTIC_W = 0.15  # MODELED fixed width of the logistic drag rise, units of 1e5 in Re
+
+# Variants. "keys" order is the parameter vector order.
+VARIANTS = {
+    # 7-parameter quadratic shipped in round 2 (k fixed at the Anchor 7 value)
+    "quad7": dict(
+        keys=QUAD_KEYS, lo=QUAD_LO, hi=QUAD_HI, fixed={},
+        starts=[(0.22, 0.30, 0.0, 0.0, 0.05, 0.9, -0.8), (0.25, 0.2, 0.3, 0.02, 0.1, 0.5, 0.0)],
+    ),
+    # A: quad7 plus fitted spin decay k
+    "A": dict(
+        keys=QUAD_KEYS + ("k5",), lo=QUAD_LO + (K_BOUNDS[0],), hi=QUAD_HI + (K_BOUNDS[1],), fixed={},
+        starts=[
+            (0.20, 0.52, -0.50, -0.09, 0.056, 1.36, -1.35, 2.0),
+            (0.20, 0.52, -0.50, -0.09, 0.056, 1.36, -1.35, 4.0),
+        ],
+    ),
+    # B: logistic low-Re drag rise (d2 = 0, width fixed) plus fitted k
+    "B": dict(
+        keys=("d0", "d1", "d3", "re0", "l0", "l1", "l2", "k5"),
+        lo=(0.0, -2.0, 0.0, 0.5, -0.2, -2.0, -8.0, K_BOUNDS[0]),
+        hi=(0.6, 3.0, 0.6, 2.0, 0.5, 5.0, 8.0, K_BOUNDS[1]),
+        fixed={"form": "logistic", "d2": 0.0, "w": LOGISTIC_W},
+        starts=[
+            (0.2356, 0.0894, 0.18, 0.92, 0.10, 0.95, -0.87, 2.0),
+            (0.2356, 0.0894, 0.18, 0.92, 0.10, 0.95, -0.87, 4.0),
+        ],
+    ),
+}
 
 
 def rows(tours=("PGA", "LPGA")):
@@ -130,12 +161,19 @@ def constraints_ok(p, tol=1e-9):
     return bool(np.all(constraint_violations(p) <= tol))
 
 
-def _vec_to_p(x):
-    return dict(zip(QUAD_KEYS, (float(v) for v in x)))
+def _vec_to_p(x, variant="quad7"):
+    v = VARIANTS[variant]
+    p = dict(v["fixed"])
+    for key, val in zip(v["keys"], x):
+        if key == "k5":
+            p["k"] = float(val) * K_UNIT
+        else:
+            p[key] = float(val)
+    return p
 
 
-def quad_residuals(x, subset, dt):
-    p = _vec_to_p(x)
+def quad_residuals(x, subset, dt, variant="quad7"):
+    p = _vec_to_p(x, variant)
     aero = flight.quad_model(p)
     out = []
     for tour, club, r in rows(subset):
@@ -144,34 +182,27 @@ def quad_residuals(x, subset, dt):
     return np.array(out)
 
 
-def fit_quad(subset=("PGA", "LPGA"), dt=0.02, starts=None, verbose=False):
+def fit_quad(subset=("PGA", "LPGA"), dt=0.02, variant="quad7", verbose=False):
     from scipy.optimize import least_squares
 
-    if starts is None:
-        starts = [
-            (0.22, 0.30, 0.0, 0.0, 0.05, 0.9, -0.8),
-            (0.25, 0.20, 0.3, 0.02, 0.10, 0.5, 0.0),
-            (0.20, 0.50, -0.3, -0.02, 0.0, 1.0, -1.0),
-            (0.30, 0.0, 0.5, 0.0, 0.15, 0.3, 0.3),
-        ]
+    v = VARIANTS[variant]
     best = None
-    for x0 in starts:
+    for x0 in v["starts"]:
         sol = least_squares(
             quad_residuals,
             np.array(x0),
-            bounds=(QUAD_LO, QUAD_HI),
-            args=(subset, dt),
+            bounds=(v["lo"], v["hi"]),
+            args=(subset, dt, variant),
             diff_step=1e-4,
             x_scale=0.1,
             max_nfev=400,
         )
         cost = float(np.sum(sol.fun**2))
         if verbose:
-            print(f"  start {x0} -> cost {cost:.2f}")
+            print(f"  {variant} start {x0} -> cost {cost:.2f}")
         if best is None or cost < best[0]:
             best = (cost, sol)
-    p = _vec_to_p(best[1].x)
-    return p
+    return _vec_to_p(best[1].x, variant)
 
 
 def fit_nathan(re_branch, dt=0.02):
@@ -278,6 +309,46 @@ def print_params(p, title):
         print(f"  S={s:.3f}: CD(Re=1.5)={m.cd(s, 1.5):.3f}  CL={m.cl(s, 1.5):.3f}")
 
 
+def _side10(aero, tour, club):
+    r = data.TOURS[tour][club]
+    return flight.simulate(
+        r["ball_speed_mph"], r["launch_deg"], 0.0, r["spin_rpm"], 10.0, aero=aero
+    ).side_yd
+
+
+def compare(variants=("quad7", "A", "B")):
+    """Fit each variant on all rows, PGA only and LPGA only; print one table."""
+    results = {}
+    for name in variants:
+        allp = fit_quad(("PGA", "LPGA"), variant=name)
+        pga = fit_quad(("PGA",), variant=name)
+        lpga = fit_quad(("LPGA",), variant=name)
+        aa = flight.quad_model(allp)
+        n_g2 = 23 - len(g2_misses(aa))
+        n_te = 23 - len(teaching_misses(aa))
+        _, tot = rms(aa)
+        _, h_pl = rms(flight.quad_model(pga), ("LPGA",))
+        _, h_lp = rms(flight.quad_model(lpga), ("PGA",))
+        s3, s6 = _side10(aa, "LPGA", "3w"), _side10(aa, "LPGA", "6i")
+        results[name] = dict(params=allp, g2=n_g2, teach=n_te, rms=tot, pga_to_lpga=h_pl,
+                             lpga_to_pga=h_lp, held=(h_pl + h_lp) / 2, side3w=s3, side6i=s6)
+    print(
+        f"{'variant':8}{'nparams':>8}{'G2':>5}{'teach':>7}{'all rms':>9}{'PGA>LPGA':>10}"
+        f"{'LPGA>PGA':>10}{'held mean':>10}{'3w@10':>8}{'6i@10':>8}{'3w>6i':>7}"
+    )
+    for name, r in results.items():
+        n = len(VARIANTS[name]["keys"])
+        print(
+            f"{name:8}{n:8d}{r['g2']:5d}{r['teach']:7d}{r['rms']:9.3f}{r['pga_to_lpga']:10.3f}"
+            f"{r['lpga_to_pga']:10.3f}{r['held']:10.3f}{r['side3w']:8.1f}{r['side6i']:8.1f}"
+            f"{'yes' if r['side3w'] > r['side6i'] else 'NO':>7}"
+        )
+    for name, r in results.items():
+        print(f"\n{name} all-rows parameters:")
+        print(json.dumps(r["params"], indent=2))
+    return results
+
+
 def main(argv):
     if "--nathan" in argv or "--nathan-re" in argv:
         branch = "--nathan-re" in argv
@@ -298,20 +369,20 @@ def main(argv):
             f"teaching misses to {MISSES_PATH}"
         )
         return
+    if "--compare" in argv:
+        compare()
+        return
     if "--fit" in argv:
-        pga = fit_quad(("PGA",))
-        lpga = fit_quad(("LPGA",))
-        allp = fit_quad(("PGA", "LPGA"), verbose=True)
-        print_params(allp, "ALL-ROWS FIT (shipped)")
-        print_params(pga, "PGA-only fit")
-        print_params(lpga, "LPGA-only fit")
+        variant = argv[argv.index("--variant") + 1] if "--variant" in argv else "quad7"
+        pga = fit_quad(("PGA",), variant=variant)
+        lpga = fit_quad(("LPGA",), variant=variant)
+        allp = fit_quad(("PGA", "LPGA"), variant=variant, verbose=True)
+        print_params(allp, f"ALL-ROWS FIT, variant {variant} (shipped candidate)")
         print_table(flight.quad_model(allp), "ALL-ROWS fit, all rows (in sample)")
         print_table(flight.quad_model(pga), "PGA-only fit predicting LPGA (held out)", ("LPGA",))
-        print_table(flight.quad_model(pga), "PGA-only fit on PGA (in sample)", ("PGA",))
         print_table(flight.quad_model(lpga), "LPGA-only fit predicting PGA (held out)", ("PGA",))
-        print_table(flight.quad_model(lpga), "LPGA-only fit on LPGA (in sample)", ("LPGA",))
         landing_report(flight.quad_model(allp))
-        curvature_report(flight.quad_model(allp), "All-rows quadratic fit")
+        curvature_report(flight.quad_model(allp), f"Variant {variant}")
         return
     print_params(data.QUAD, "Shipped data.QUAD")
     print_table(flight.DEFAULT_AERO, "Shipped model")
