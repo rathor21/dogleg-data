@@ -116,7 +116,8 @@ def test_default_dynamic_loft_matches_published(key):
     """The default dynamic loft, inverted from the table launch angle, lands
     within 1 deg of TrackMan's published dynamic loft (driver and 6 iron)."""
     tour, club = key.split("/")
-    dl = launch_tools.derive_dyn_loft(data.TOURS[tour][club]["launch_deg"], data.TOURS[tour][club]["attack_deg"])
+    r = data.TOURS[tour][club]
+    dl = launch_tools.derive_dyn_loft(r["launch_deg"], r["attack_deg"], club)
     assert abs(dl - data.DYNAMIC_LOFT_DEG[(tour, club)]) <= gl.DL_CHECK_DEG
 
 
@@ -140,7 +141,7 @@ def test_tour_dyn_loft_table_matches_a_live_inversion():
     LAUNCH_MODEL must regenerate it (calibrate_launch.py --write-tour-dyn-loft)."""
     assert set(data.TOUR_DYN_LOFT) == {(t, c) for t, c, _ in gl.rows()}
     for tour, club, r in gl.rows():
-        live = launch_tools.derive_dyn_loft(r["launch_deg"], r["attack_deg"])
+        live = launch_tools.derive_dyn_loft(r["launch_deg"], r["attack_deg"], club)
         assert abs(live - data.TOUR_DYN_LOFT[(tour, club)]) <= gl.TABLE_DL_TOL_DEG, f"{tour}/{club}"
 
 
@@ -178,6 +179,20 @@ def test_k_of_is_linear_inside_and_flat_outside_the_fit_range():
     assert launch.k_of(mid) == pytest.approx(0.5 * (launch.k_of(lo) + launch.k_of(hi)))
 
 
+def test_k_of_driver_has_its_own_line_and_range():
+    m = data.LAUNCH_MODEL
+    lo, hi = m["k_sl_lo_driver"], m["k_sl_hi_driver"]
+    assert (lo, hi) == (6.3, 23.2)  # the TrackMan 2010 chart's spin loft range
+    assert launch.k_of(2.0, "driver") == launch.k_of(lo, "driver") == pytest.approx(m["k0_driver"] + m["k1_driver"] * lo)
+    assert launch.k_of(40.0, "driver") == launch.k_of(hi, "driver")
+    # Inside the chart range the driver is not held at the iron line's floor value
+    assert launch.k_of(8.0, "driver") == pytest.approx(m["k0_driver"] + m["k1_driver"] * 8.0)
+    assert launch.k_of(8.0, "driver") != launch.k_of(8.0, "7i") == launch.k_of(m["k_sl_lo"], "7i")
+    # Every other club, and no club, share the iron line
+    for club in (None, "3w", "hybrid", "7i", "pw"):
+        assert launch.k_of(20.0, club) == pytest.approx(m["k0"] + m["k1"] * 20.0)
+
+
 def test_face_share_is_between_the_two_claims():
     """Implied horizontal face share, model output and not a fit. The unverified
     claims are 85 driver and 75 6 iron (unattributed) or 87 and 81 (forum).
@@ -185,7 +200,7 @@ def test_face_share_is_between_the_two_claims():
     for tour in ("PGA", "LPGA"):
         for club, lo, hi in (("driver", 0.74, 0.88), ("6i", 0.66, 0.82)):
             a = data.TOURS[tour][club]["attack_deg"]
-            share = launch_tools.horizontal_face_share(a, data.DYNAMIC_LOFT_DEG[(tour, club)])
+            share = launch_tools.horizontal_face_share(a, data.DYNAMIC_LOFT_DEG[(tour, club)], club)
             assert lo <= share <= hi
             assert share > 0.5  # face dominates start direction, as TrackMan says
 
@@ -193,28 +208,100 @@ def test_face_share_is_between_the_two_claims():
 def test_face_share_matches_launch_direction_slope():
     """Small face-to-path: launch direction is share * face + (1 - share) * path."""
     p = presets.preset("driver", "pga")
-    share = launch_tools.horizontal_face_share(p["attack"], p["dyn_loft"])
+    share = launch_tools.horizontal_face_share(p["attack"], p["dyn_loft"], "driver")
     ln = launch.deliver(p["club_speed"], p["attack"], 0.0, 1.0, p["dyn_loft"], "driver")
     assert ln.launch_dir_deg == pytest.approx(share * 1.0, abs=0.01)
 
 
-def test_spin_class_factors():
-    """Driver and fairway woods spin less per degree of spin loft than irons;
-    hybrids, irons, wedges and an unnamed club share the iron curve."""
+def test_spin_laws_by_club_class():
+    """The driver has its own power law. The 3-wood and 5-wood take the iron law
+    times spin_f_wood. Hybrids, irons, wedges and an unnamed club take the iron law."""
+    m = data.LAUNCH_MODEL
     iron = launch.spin_of(140.0, 20.0, "7i")
     assert launch.spin_of(140.0, 20.0, "hybrid") == iron == launch.spin_of(140.0, 20.0)
-    assert launch.spin_of(140.0, 20.0, "5w") < iron
+    assert launch.spin_of(140.0, 20.0, "5w") == pytest.approx(m["spin_f_wood"] * iron)
     assert launch.spin_of(140.0, 20.0, "3w") == launch.spin_of(140.0, 20.0, "5w")
-    assert launch.spin_of(140.0, 20.0, "driver") < launch.spin_of(140.0, 20.0, "3w")
-    assert 0.0 < data.LAUNCH_MODEL["spin_f_driver"] < data.LAUNCH_MODEL["spin_f_wood"] < 1.0
+    assert launch.spin_of(140.0, 20.0, "driver") == pytest.approx(m["spin_a_driver"] * 140.0 * 20.0 ** m["spin_b_driver"])
+    assert 0.0 < m["spin_f_wood"] < 1.0
+    assert "spin_f_driver" not in m
+    # Iron and wood spin is unchanged by the driver refit (task 004.3 chart)
+    assert (m["spin_a"], m["spin_b"], m["spin_f_wood"]) == (0.778695, 1.30445, 0.878791)
 
 
-def test_pga_driver_global_model_spin_is_in_band():
-    """The global model, with no trim, puts the PGA driver within 10 percent of
-    the 2545 rpm table value (class factor, ADR 0004)."""
+def test_driver_spin_falls_almost_linearly_with_spin_loft():
+    """The chart law is nearly linear in spin loft (exponent 1.04), unlike the
+    iron law (1.30) that collapsed toward zero below its fitted floor."""
+    m = data.LAUNCH_MODEL
+    assert 0.95 <= m["spin_b_driver"] <= 1.15
+    lo = launch.spin_of(170.0, 7.4, "driver")
+    hi = launch.spin_of(170.0, 14.8, "driver")
+    assert hi / lo == pytest.approx(2.0, rel=0.10)
+
+
+# ---------------------------------------------------------------------------
+# The TrackMan 2010 chart (TrackMan model output): 60 driver deliveries.
+# ---------------------------------------------------------------------------
+
+
+def _chart_deliveries():
+    for row in data.TRACKMAN_CARRY_2010 + data.TRACKMAN_TOTAL_2010:
+        club_speed, attack, ball, launch_deg, spin, _carry, _total, dyn_loft = row
+        yield club_speed, attack, ball, launch_deg, spin, dyn_loft
+
+
+def test_chart_has_sixty_rows_at_three_attack_angles():
+    rows60 = list(_chart_deliveries())
+    assert len(rows60) == 60
+    assert {r[1] for r in rows60} == {-5, 0, 5}
+    assert {r[0] for r in rows60} == set(range(75, 121, 5))
+    assert min(r[5] - r[1] for r in rows60) == pytest.approx(6.3)
+
+
+def test_driver_reproduces_the_chart_launch_and_spin():
+    """In-sample: launch within 0.4 deg, spin within 2.5 percent, ball speed
+    within 3 percent, at every attack angle and speed."""
+    for club_speed, attack, ball, launch_deg, spin, dyn_loft in _chart_deliveries():
+        ln = launch.deliver(float(club_speed), float(attack), 0.0, 0.0, dyn_loft, "driver")
+        where = f"{club_speed} mph, attack {attack}"
+        assert abs(ln.launch_deg - launch_deg) <= 0.4, where
+        assert abs(ln.spin_rpm / spin - 1.0) <= 0.025, where
+        assert abs(ln.ball_speed_mph / ball - 1.0) <= 0.03, where
+
+
+def test_driver_spin_falls_as_attack_angle_rises_at_fixed_loft_below_the_iron_floor():
+    """The case that prompted the refit: PGA driver loft, attack angle up to
+    +10, spin loft down to 3.4. Spin falls smoothly and stays above 1,000 rpm
+    down to the chart's lowest spin loft."""
     p = presets.preset("driver", "pga")
-    ln = launch.deliver(p["club_speed"], p["attack"], 0.0, 0.0, p["dyn_loft"], "driver")
-    assert abs(ln.spin_rpm / data.PGA["driver"]["spin_rpm"] - 1.0) <= 0.10
+    spins = [launch.deliver(p["club_speed"], a, 0.0, 0.0, p["dyn_loft"], "driver", spin_trim=p["spin_trim"]).spin_rpm
+             for a in (-6.0, 0.0, 3.0, 6.0, 10.0)]
+    assert all(b < a for a, b in zip(spins, spins[1:]))
+    assert spins[3] > 1150.0  # +6 deg attack, spin loft 6.7, with the PGA trim: the old iron law gave 1,086 rpm
+    assert spins[4] > 0.0
+    raw = launch.deliver(p["club_speed"], 6.0, 0.0, 0.0, p["dyn_loft"], "driver").spin_rpm
+    assert raw > 1500.0  # untrimmed, at the chart's own spin loft 6.7 (115 mph, +5 row: 1,681 rpm)
+
+
+def test_driver_at_equal_spin_loft_is_no_longer_under_the_chart():
+    """Old iron-law driver spin ran 20 to 37 percent under the chart at equal
+    spin loft. Now within 2.5 percent, checked here at the five 100 mph rows."""
+    for row in _chart_deliveries():
+        club_speed, attack, ball, launch_deg, spin, dyn_loft = row
+        if club_speed != 100:
+            continue
+        ln = launch.deliver(float(club_speed), float(attack), 0.0, 0.0, dyn_loft, "driver")
+        assert ln.spin_rpm >= 0.975 * spin
+
+
+def test_pga_driver_global_model_needs_a_trim_and_lpga_does_not():
+    """With no trim the PGA driver reads well over its table (Tour strike
+    offsets the chart law does not carry) and the LPGA driver is within 10
+    percent. The preset trim restores the PGA driver (ADR 0004)."""
+    pga = gl.g3_row("PGA", "driver")
+    lpga = gl.g3_row("LPGA", "driver")
+    assert pga.spin_err_frac > 0.25
+    assert abs(lpga.spin_err_frac) <= 0.10
+    assert 0.6 <= presets.preset("driver", "pga")["spin_trim"] <= 0.85
 
 
 # ---------------------------------------------------------------------------
@@ -562,13 +649,13 @@ def test_amateur_ladder_is_ordered_and_modeled():
 
 def test_amateur_dynamic_loft_never_falls_from_driver_through_pw():
     """Loft is non-decreasing driver through PW and rising at every step from the
-    hybrid on. Recorded exception: the driver, 3-wood and 5-wood share one loft
-    (15.1). The PGA shape has the driver loft above the 3-wood and 5-wood, so
-    the interpolation position clamps to 0 and the woods sit on the driver."""
+    hybrid on. Recorded exception: the 3-wood shares the driver's loft (15.1).
+    The PGA shape has the driver loft (12.7) above the 3-wood (12.4), so the
+    interpolation position clamps to 0 and the 3-wood sits on the driver."""
     dls = {c: presets.preset(c, "amateur")["dyn_loft"] for c in presets.CLUBS}
     ordered = [dls[c] for c in presets.CLUBS]
     assert all(b >= a for a, b in zip(ordered, ordered[1:]))
-    assert dls["3w"] == dls["5w"] == dls["driver"]
+    assert dls["3w"] == dls["driver"] < dls["5w"]
     tail = [dls[c] for c in presets.CLUBS[3:]]
     assert all(b > a for a, b in zip(tail, tail[1:]))
 

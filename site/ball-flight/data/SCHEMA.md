@@ -55,8 +55,8 @@ Everything the port needs to recompute a shot.
 | `aero` | `quad` (`d0 d1 d2 d3 l0 l1 l2`), `re_unit`, `re_pivot`, `spin_decay_coef`, `forms` (text of CD, CL, Re, S and spin decay). |
 | `roll` | `k`, `cos_power`, `max_yd`, `form` (text). |
 | `flight` | `dt` (0.01 s step), `max_flight_s`, `v_floor_ms`, `integrator` (`rk4`). |
-| `launch_model` | `k0 k1 k_sl_lo k_sl_hi smash_a smash_b smash_c smash_cap smash_floor spin_a spin_b spin_f_driver spin_f_wood axis_c`. |
-| `spin_class` | Club id to spin class (`driver`, `wood`). Every club not listed uses factor 1. |
+| `launch_model` | `k0 k1 k_sl_lo k_sl_hi` (iron, hybrid and wood k line), `k0_driver k1_driver k_sl_lo_driver k_sl_hi_driver` (the driver's k line and its range), `smash_a smash_b smash_c smash_cap smash_floor`, `spin_a spin_b spin_f_wood` (iron spin law and the 3-wood and 5-wood factor), `spin_a_driver spin_b_driver` (the driver's spin law), `axis_c0 axis_c1 axis_sl_lo axis_sl_hi` (spin axis scale, linear in spin loft between the two bounds). |
+| `spin_class` | Club id to spin class (`driver`, `wood`). The driver takes its own k line and spin law, a `wood` club the iron spin law times `spin_f_wood`, and every club not listed the iron laws. |
 | `domain` | Ranges `deliver` accepts, each `[lo, hi]` inclusive: `club_speed_mph`, `attack_deg`, `path_deg`, `face_deg`, `dyn_loft_deg`, `swing_plane_deg` (open interval). `min_spin_loft_deg` is a number: `dyn_loft_deg - attack_deg` must be at least that. |
 | `classify` | Thresholds: `start_straight_deg`, `axis_straight_deg`, `curve_hook_frac`, `on_target_frac`, `on_line_yd`. |
 | `swing_plane_default_deg` | Default swing plane for the hold-swing-direction toggle. |

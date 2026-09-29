@@ -328,6 +328,8 @@ ROLL_MAX_YD = 40.0  # MODELED bound
 # fit made by `calibrate_launch.py --fit` to the published tables above. Forms
 # are in launch.py; ADR 0004 records the choices.
 #
+# Irons, hybrids and woods (fitted first, and unchanged by the driver refit):
+#
 #   k(SL) = k0 + k1 * clamp(SL, k_sl_lo, k_sl_hi)   weight of the face normal
 #       Fitted to the four published (dynamic loft, attack angle, launch)
 #       triples: PGA and LPGA driver and 6 iron. Exact k per row is 0.824,
@@ -335,7 +337,8 @@ ROLL_MAX_YD = 40.0  # MODELED bound
 #       launch residuals of -0.42, +0.07, +0.35 and 0.00 deg. The clamp bounds
 #       are the spin lofts of those rows (dynamic loft minus attack angle:
 #       12.7 to 25.9). Outside that range k stays flat rather than
-#       extrapolating a line fitted through four points.
+#       extrapolating a line fitted through four points. Every club except the
+#       driver uses this line.
 #   smash(SL) = min(smash_a + smash_b SL + smash_c SL^2, smash_cap)
 #       Fitted to ball speed over club speed on all 23 rows against the derived
 #       spin loft (rms 1.0 percent of ball speed, largest miss 2.3 percent).
@@ -344,36 +347,62 @@ ROLL_MAX_YD = 40.0  # MODELED bound
 #       smash_floor is the fit's own value at SL 45 (1.56883 - 0.00539408 * 45
 #       - 0.0000819501 * 45^2 = 1.16015), about where the fitted rows end (PGA PW
 #       38.5). The quadratic keeps falling past that, and no row supports
-#       extrapolating it, so smash holds at the floor for larger spin loft.
-#   spin = class_factor * spin_a * ball_speed_mph * SL^spin_b
-#       class_factor is spin_f_driver for the driver, spin_f_wood for the 3-wood
-#       and 5-wood, and 1 for hybrids, irons and wedges. a, b, f_driver and
-#       f_wood are fitted together, soft-L1 loss on relative error, all 23 rows
-#       (rms 9.5 percent). MODELED, no per-tour factor.
-#       Rationale, kept modest: tour players strike the driver above center,
-#       and vertical gear effect cuts spin, and fairway woods are low-CG heads.
-#       Both give less spin per degree of spin loft than an iron. The published
-#       evidence that strike location moves spin loft, and so spin, is
-#       Anchor 5(c) Source 3: a 10 mm low strike makes a driver's dynamic loft
-#       2 degrees lower. The log holds no spin-by-strike-height data, so the
-#       size of each factor is a fit and not a measurement. Without the factors
-#       the PGA driver read 3777 rpm against 2545 (+48 percent).
-#       Result: PGA driver +7.6 percent, LPGA driver -24.5 percent. One factor
-#       cannot serve both: their derived spin lofts are 14.3 and 12.3 (the LPGA
-#       driver's dynamic loft minus attack angle is 12.7 against a published
-#       15.0), and at the published 15.0 the same factor would give 2460 rpm
-#       against 2506. Other rows that miss 10 percent: PGA 5w -11.9, LPGA 3w
-#       +30.2, LPGA 5w -10.7, LPGA hybrid +12.2.
-#   spin_axis = axis_c * atan2(face-to-path, vertical spin loft)   (D-plane normal tilt)
-#       axis_c is one constant, fitted with the spin trims below applied, so
-#       the eight Anchor 5(b) face-to-path examples reproduce their curvature
-#       through flight.simulate (largest miss 13 percent, or 1.5 yd on the PGA
-#       6 iron; all inside max(20 percent, 3 yd)). It absorbs the flight
-#       model's own curvature per degree of axis. Each example takes a spin
-#       trim from its own 2019 row: 2019 spin over model spin at path 0 and
-#       face 0, held fixed as the face opens. Before trims, a constant c fit
-#       only while the driver had no spin factor (0.968), and the driver
-#       factor forced a slope (1.68 - 0.0283 SL).
+#       extrapolating it, so smash holds at the floor for larger spin loft. The
+#       driver uses this law too: against the 60 chart rows it leaves ball
+#       speed within 1.4 percent.
+#   spin = factor * spin_a * ball_speed_mph * SL^spin_b   (not the driver)
+#       factor is spin_f_wood for the 3-wood and 5-wood and 1 for hybrids,
+#       irons and wedges. a, b and f_wood come from the 23-row soft-L1 fit on
+#       relative error made in task 004.3 (with a driver factor that the
+#       driver law below replaced), and are unchanged. MODELED, no per-tour
+#       factor. Rationale for the wood factor, kept modest: fairway woods are
+#       low-CG heads and give less spin per degree of spin loft than an iron.
+#       The published evidence that strike location moves spin loft, and so
+#       spin, is Anchor 5(c) Source 3: a 10 mm low strike makes a driver's
+#       dynamic loft 2 degrees lower. The log holds no spin-by-strike-height
+#       data, so the size of the factor is a fit and not a measurement. Rows
+#       that miss 10 percent: PGA 5w -11.9, LPGA 3w +30.2, LPGA 5w -10.7, LPGA
+#       hybrid +12.2.
+#
+# Driver (fitted second, task 004.3 chart refit). Calibration evidence: the 60
+# rows of the TrackMan 2010 Driver Fitting Chart above (TRACKMAN_CARRY_2010 and
+# TRACKMAN_TOTAL_2010, "TrackMan 2010 chart (TrackMan model output)": club speed
+# 75 to 120, attack angle -5, 0 and +5, spin loft 6.3 to 23.2), plus the PGA and
+# LPGA published driver rows. The iron laws above extrapolated badly there:
+# below spin loft 12.7 they held k and let spin fall to 1086 rpm at PGA driver
+# loft and +6 deg attack, and at equal spin loft ran 20 to 37 percent under the
+# chart.
+#
+#   k_driver(SL) = k0_driver + k1_driver * clamp(SL, k_sl_lo_driver, k_sl_hi_driver)
+#       Weighted line through the exact k of the 60 chart rows (about 0.85 at
+#       every spin loft, rms 0.003 around a line) and the two published driver
+#       triples (0.824 PGA, 0.771 LPGA), each published triple weighted as 15
+#       chart rows (calibrate_launch.PUBLISHED_DRIVER_K_WEIGHT, MODELED): at
+#       weight 1 the LPGA driver's inverted loft leaves the published 15.5 by
+#       1.1 deg, over the 1 deg check. Result: chart launch rms 0.22 deg, worst
+#       0.30. The range is the chart's spin loft range, 6.3 to 23.2.
+#   spin_driver = spin_a_driver * ball_speed_mph * SL^spin_b_driver
+#       Soft-L1 on relative error over the 60 chart rows and the PGA and LPGA
+#       driver rows. The chart law is almost linear in spin loft (exponent
+#       1.04) with 0.76 percent rms and 1.7 percent worst error on the chart
+#       (delivered end to end with the model's own ball speed). The Tour rows
+#       carry strike-location offsets the chart does not: at its own inverted
+#       spin loft the law puts the PGA driver 35 percent over its table
+#       (trim 0.74) and the LPGA driver within 0.5 percent. Presets restore
+#       published spin through the spin trim below.
+#
+#   spin_axis = (axis_c0 + axis_c1 * SL) * atan2(face-to-path, vertical spin loft)
+#       (D-plane normal tilt), SL held to axis_sl_lo..axis_sl_hi, the spin
+#       lofts of the eight examples (12.4 to 26.9). Fitted so the eight
+#       Anchor 5(b) face-to-path examples reproduce their curvature through
+#       flight.simulate (worst miss 0.39 of tolerance, 1.5 yd on the PGA 6
+#       iron). It absorbs the flight model's own curvature per degree of axis.
+#       Each example takes a spin trim from its own 2019 row: 2019 spin over
+#       model spin at path 0 and face 0, held fixed as the face opens. A
+#       constant c (1.046) fits all eight too, with a worst miss of 0.64 of
+#       tolerance and 2.6 yd on the PGA 6 iron at -5. The slope (c falls from
+#       1.11 at spin loft 12.4 to 0.98 at 26.9) cuts both and is the shipped
+#       form.
 #
 # Spin trim (MODELED, presets.py, not stored here). Each preset carries
 # spin_trim = published spin / model spin at the preset delivery (path 0,
@@ -391,6 +420,10 @@ LAUNCH_MODEL = {
     "k1": -0.00516972,
     "k_sl_lo": 12.7,
     "k_sl_hi": 25.9,
+    "k0_driver": 0.825055,
+    "k1_driver": 0.000432686,
+    "k_sl_lo_driver": 6.3,
+    "k_sl_hi_driver": 23.2,
     "smash_a": 1.56883,
     "smash_b": -0.00539408,
     "smash_c": -8.19501e-05,
@@ -398,9 +431,13 @@ LAUNCH_MODEL = {
     "smash_floor": 1.16015,
     "spin_a": 0.778695,
     "spin_b": 1.30445,
-    "spin_f_driver": 0.646101,
     "spin_f_wood": 0.878791,
-    "axis_c": 1.0739,
+    "spin_a_driver": 1.33518,
+    "spin_b_driver": 1.04096,
+    "axis_c0": 1.21767,
+    "axis_c1": -0.00883498,
+    "axis_sl_lo": 12.4304,
+    "axis_sl_hi": 26.8865,
 }
 
 # ---------------------------------------------------------------------------
@@ -415,7 +452,7 @@ LAUNCH_MODEL = {
 # ---------------------------------------------------------------------------
 
 TOUR_DYN_LOFT = {
-    ("PGA", "driver"): 13.378,
+    ("PGA", "driver"): 12.685,
     ("PGA", "3w"): 12.396,
     ("PGA", "5w"): 13.039,
     ("PGA", "hybrid"): 13.707,
@@ -427,7 +464,7 @@ TOUR_DYN_LOFT = {
     ("PGA", "8i"): 25.749,
     ("PGA", "9i"): 28.738,
     ("PGA", "pw"): 33.813,
-    ("LPGA", "driver"): 15.060,
+    ("LPGA", "driver"): 14.596,
     ("LPGA", "3w"): 15.022,
     ("LPGA", "5w"): 16.385,
     ("LPGA", "hybrid"): 18.925,
@@ -560,6 +597,10 @@ IDEAL_TOL = {
 }
 
 # Anchor 4 Source 1: TrackMan Driver Fitting Chart (2010), CARRY Optimizer.
+# Label: "TrackMan 2010 chart (TrackMan model output)". These are TrackMan's own
+# launch-model outputs for a driver delivery (club speed, attack angle, dynamic
+# loft), so whatever the optimizer objective, each row is a valid launch and spin
+# calibration point. Parsed from the log table by script.
 # Rows: (club speed mph, attack angle deg, ball speed mph, launch deg, spin rpm,
 # carry yd, total yd, dynamic loft deg). Club speed 75 to 120 in 5 mph steps,
 # attack angle -5, 0, +5. Values as printed in the log. The log flags the total
@@ -598,6 +639,43 @@ TRACKMAN_CARRY_2010 = (
     (120, -5, 176, 6.1, 3433, 281, 305, 8.1),
     (120, 0, 178, 9.3, 2890, 296, 321, 11.0),
     (120, 5, 179, 12.6, 2343, 310, 350, 14.0),
+)
+# Anchor 4 Source 1, TOTAL Optimizer (2010), same fields, same label. Parsed
+# from the log table (### TrackMan TOTAL Optimizer (2010)) by script, 30 rows.
+# With the CARRY rows these give 60 driver deliveries at attack angle -5, 0 and
+# +5 and club speed 75 to 120 mph. Spin loft (dynamic loft minus attack angle)
+# runs 6.3 to 23.2 deg.
+TRACKMAN_TOTAL_2010 = (
+    (75, -5, 107, 11.8, 3214, 140, 182, 14.9),
+    (75, 0, 109, 13.0, 2506, 147, 195, 15.3),
+    (75, 5, 111, 15.3, 1976, 156, 206, 17.1),
+    (80, -5, 115, 10.1, 3078, 154, 188, 12.8),
+    (80, 0, 117, 12.1, 2494, 163, 199, 14.3),
+    (80, 5, 118, 14.8, 2005, 174, 209, 16.5),
+    (85, -5, 123, 9.3, 3110, 169, 215, 11.9),
+    (85, 0, 125, 11.7, 2568, 180, 228, 13.8),
+    (85, 5, 126, 14.0, 1964, 189, 241, 15.6),
+    (90, -5, 131, 8.5, 3122, 185, 231, 11.0),
+    (90, 0, 132, 10.8, 2517, 196, 245, 12.8),
+    (90, 5, 134, 13.8, 2021, 207, 259, 15.3),
+    (95, -5, 138, 7.9, 3144, 201, 247, 10.2),
+    (95, 0, 140, 10.5, 2565, 213, 262, 12.3),
+    (95, 5, 141, 13.0, 1948, 223, 276, 14.4),
+    (100, -5, 146, 7.2, 3118, 216, 262, 9.3),
+    (100, 0, 148, 10.0, 2570, 230, 278, 11.7),
+    (100, 5, 149, 12.4, 1887, 239, 293, 13.7),
+    (105, -5, 154, 6.4, 3071, 231, 278, 8.4),
+    (105, 0, 156, 9.1, 2461, 243, 294, 10.7),
+    (105, 5, 157, 11.7, 1810, 254, 309, 12.9),
+    (110, -5, 162, 5.6, 3005, 245, 293, 7.5),
+    (110, 0, 163, 8.7, 2471, 260, 310, 10.2),
+    (110, 5, 165, 11.1, 1716, 268, 326, 12.2),
+    (115, -5, 170, 5.3, 3030, 261, 307, 7.1),
+    (115, 0, 171, 8.0, 2396, 274, 325, 9.5),
+    (115, 5, 172, 10.7, 1681, 285, 342, 11.7),
+    (120, -5, 178, 4.5, 2929, 273, 322, 6.2),
+    (120, 0, 179, 7.7, 2382, 290, 340, 9.0),
+    (120, 5, 180, 10.3, 1636, 300, 358, 11.3),
 )
 # Anchor 4 Source 2: PING Optimal Launch & Spin Chart (2019). Rows are driver
 # ball speed (mph, 80 to 180), columns are angle of attack (PING_2019_AOA_DEG,

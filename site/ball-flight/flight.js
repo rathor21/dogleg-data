@@ -24,8 +24,9 @@
  *                _angle_between()       -> angleBetween
  *                dplane_tilt_deg()      -> dplaneTiltDeg
  *                launch_vector()        -> model.launchVector
- *                k_of, smash_of, spin_class_factor, spin_of
- *                                       -> kOf, smashOf, spinClassFactor, spinOf (axis_scale is LM.axis_c)
+ *                k_of, smash_of, spin_of, axis_scale
+ *                                       -> kOf, smashOf, spinOf, axisScale (the driver has its own k line
+ *                                          and spin law; k_of and spin_of take the club)
  *                swing_path()           -> model.swingPath
  *                _no_negative_zero()    -> noNegZero
  *   classify.py  classify()             -> model.classify (with startOf, shapeOf, nameOf, finishText)
@@ -191,8 +192,9 @@ const REQUIRED_KEYS = [
     "ball.radius_m", "air.density_kg_m3", "air.viscosity_pa_s", "aero.re_pivot", "aero.re_unit",
     "aero.spin_decay_coef", ...["d0", "d1", "d2", "d3", "l0", "l1", "l2"].map((k) => "aero.quad." + k),
     "flight.dt", "flight.max_flight_s", "flight.v_floor_ms", "roll.k", "roll.cos_power", "roll.max_yd",
-    ...["k0", "k1", "k_sl_lo", "k_sl_hi", "smash_a", "smash_b", "smash_c", "smash_cap", "smash_floor", "spin_a",
-      "spin_b", "spin_f_driver", "spin_f_wood", "axis_c"].map((k) => "launch_model." + k),
+    ...["k0", "k1", "k_sl_lo", "k_sl_hi", "k0_driver", "k1_driver", "k_sl_lo_driver", "k_sl_hi_driver", "smash_a",
+      "smash_b", "smash_c", "smash_cap", "smash_floor", "spin_a", "spin_b", "spin_f_wood", "spin_a_driver",
+      "spin_b_driver", "axis_c0", "axis_c1", "axis_sl_lo", "axis_sl_hi"].map((k) => "launch_model." + k),
     "spin_class", ...["club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg", "swing_plane_deg",
       "min_spin_loft_deg"].map((k) => "domain." + k),
     ...["start_straight_deg", "axis_straight_deg", "curve_hook_frac", "on_target_frac", "on_line_yd"].map(
@@ -565,7 +567,15 @@ export function createModel(json) {
   // launch.py
   // -------------------------------------------------------------------------
 
-  function kOf(sl) {
+  function spinClassOf(club) {
+    return club === null || club === undefined ? undefined : SPIN_CLASS[club];
+  }
+
+  function kOf(sl, club) {
+    if (spinClassOf(club) === "driver") {
+      const sd = Math.min(Math.max(sl, LM.k_sl_lo_driver), LM.k_sl_hi_driver);
+      return LM.k0_driver + LM.k1_driver * sd;
+    }
     const sc = Math.min(Math.max(sl, LM.k_sl_lo), LM.k_sl_hi);
     return LM.k0 + LM.k1 * sc;
   }
@@ -576,13 +586,17 @@ export function createModel(json) {
     return Math.max(Math.min(raw, LM.smash_cap), LM.smash_floor);
   }
 
-  function spinClassFactor(club) {
-    const cls = club === null || club === undefined ? undefined : SPIN_CLASS[club];
-    return cls === undefined ? 1.0 : LM["spin_f_" + cls];
+  function spinOf(ballSpeed, sl, club) {
+    const s = Math.max(sl, 0.0);
+    const cls = spinClassOf(club);
+    if (cls === "driver") return LM.spin_a_driver * ballSpeed * Math.pow(s, LM.spin_b_driver);
+    const factor = cls === undefined ? 1.0 : LM["spin_f_" + cls];
+    return factor * LM.spin_a * ballSpeed * Math.pow(s, LM.spin_b);
   }
 
-  function spinOf(ballSpeed, sl, club) {
-    return spinClassFactor(club) * LM.spin_a * ballSpeed * Math.pow(Math.max(sl, 0.0), LM.spin_b);
+  function axisScale(sl) {
+    const s = Math.min(Math.max(sl, LM.axis_sl_lo), LM.axis_sl_hi);
+    return LM.axis_c0 + LM.axis_c1 * s;
   }
 
   function checkRange(name, value, key) {
@@ -620,11 +634,11 @@ export function createModel(json) {
   }
 
   /** launch.py launch_vector: launch angle, launch direction and spin loft in degrees. No input checks, like Python. */
-  function launchVector(path, attack, face, dynLoft) {
+  function launchVector(path, attack, face, dynLoft, club) {
     const d = clubDirection(path, attack);
     const n = faceNormal(face, dynLoft);
     const sl = angleBetween(d, n);
-    const u = blend(d, n, kOf(sl));
+    const u = blend(d, n, kOf(sl, club));
     return {
       launchDeg: Math.atan2(u[2], Math.sqrt(u[0] * u[0] + u[1] * u[1])) * DEG,
       launchDirDeg: Math.atan2(u[1], u[0]) * DEG,
@@ -634,7 +648,7 @@ export function createModel(json) {
 
   /**
    * launch.py deliver. Club delivery to launch conditions. `club` picks the
-   * spin class factor. opts.spinTrim multiplies spin_rpm and nothing else.
+   * driver line and spin law, the wood factor, or the iron laws. opts.spinTrim multiplies spin_rpm and nothing else.
    */
   function deliver(clubSpeed, attack, path, face, dynLoft, club, opts) {
     const spinTrim = opts && opts.spinTrim !== undefined ? opts.spinTrim : 1.0;
@@ -642,13 +656,13 @@ export function createModel(json) {
     const d = clubDirection(path, attack);
     const n = faceNormal(face, dynLoft);
     const sl = angleBetween(d, n);
-    const u = blend(d, n, kOf(sl));
+    const u = blend(d, n, kOf(sl, club));
     const launchDeg = Math.atan2(u[2], Math.sqrt(u[0] * u[0] + u[1] * u[1])) * DEG;
     const launchDir = Math.atan2(u[1], u[0]) * DEG;
     const smash = smashOf(sl);
     const ball = smash * clubSpeed;
     const spin = spinOf(ball, sl, club) * spinTrim;
-    const axis = LM.axis_c * dplaneTiltDeg(d, n);
+    const axis = axisScale(sl) * dplaneTiltDeg(d, n);
     return {
       ballSpeedMph: noNegZero(ball),
       smash: noNegZero(smash),

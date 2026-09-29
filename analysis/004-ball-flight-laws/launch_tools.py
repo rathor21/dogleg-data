@@ -11,7 +11,7 @@ import data
 import launch
 
 
-def derive_dyn_loft(launch_deg, attack_deg, *, params=None):
+def derive_dyn_loft(launch_deg, attack_deg, club=None, *, params=None):
     """Dynamic loft that makes path = face = 0 launch at `launch_deg` for the
     given attack angle, by bisection on the launch vector model. The search
     runs from attack angle plus the domain's spin loft floor up to the domain's
@@ -21,7 +21,7 @@ def derive_dyn_loft(launch_deg, attack_deg, *, params=None):
     hi_dl = data.DOMAIN["dyn_loft_deg"][1]
 
     def gap(dl):
-        return launch.launch_vector(0.0, attack_deg, 0.0, dl, params=params)[0] - launch_deg
+        return launch.launch_vector(0.0, attack_deg, 0.0, dl, club, params=params)[0] - launch_deg
 
     if gap(lo_dl) > 0.0 or gap(hi_dl) < 0.0:
         raise ValueError(
@@ -37,11 +37,11 @@ def derive_dyn_loft(launch_deg, attack_deg, *, params=None):
     return 0.5 * (lo_dl + hi_dl)
 
 
-def horizontal_face_share(attack_deg, dyn_loft_deg, *, params=None):
+def horizontal_face_share(attack_deg, dyn_loft_deg, club=None, *, params=None):
     """Weight of the face angle in launch direction for a small face-to-path,
     k cos(L) / ((1 - k) cos(A) + k cos(L)). Compare with the unverified
     85 / 75 and 87 / 81 shares in Anchor 5(a); this is model output, not a fit
     to them."""
-    k = launch.k_of(dyn_loft_deg - attack_deg, params)
+    k = launch.k_of(dyn_loft_deg - attack_deg, club, params=params)
     cos_loft, cos_attack = cos(radians(dyn_loft_deg)), cos(radians(attack_deg))
     return k * cos_loft / ((1.0 - k) * cos_attack + k * cos_loft)

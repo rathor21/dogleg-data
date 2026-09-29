@@ -72,7 +72,7 @@ def tour_dyn_loft(tour, club, params=None):
     if params is None:
         return data.TOUR_DYN_LOFT[(tour, club)]
     r = data.TOURS[tour][club]
-    return launch_tools.derive_dyn_loft(r["launch_deg"], r["attack_deg"], params=params)
+    return launch_tools.derive_dyn_loft(r["launch_deg"], r["attack_deg"], club, params=params)
 
 
 def g3_row(tour, club, params=None):
@@ -145,7 +145,7 @@ def curvature_delivery(tour, club, f2p, params=None):
     over the model's spin at path 0 and face 0, held fixed as the face opens,
     like a preset's trim."""
     r = data.SUPERSEDED_2019[(tour, club)]
-    dl = launch_tools.derive_dyn_loft(r["launch_deg"], r["attack_deg"], params=params)
+    dl = launch_tools.derive_dyn_loft(r["launch_deg"], r["attack_deg"], club, params=params)
     base = launch.deliver(r["club_speed_mph"], r["attack_deg"], 0.0, 0.0, dl, club, params=params)
     trim = r["spin_rpm"] / base.spin_rpm
     return (r["club_speed_mph"], r["attack_deg"], 0.0, f2p, dl, club), {"params": params, "spin_trim": trim}

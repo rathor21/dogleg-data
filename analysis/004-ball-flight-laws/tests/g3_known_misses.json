@@ -1,10 +1,10 @@
 {
   "g3": {
+    "PGA/driver": {
+      "spin_pct": 35.0
+    },
     "PGA/5w": {
       "spin_pct": -11.9
-    },
-    "LPGA/driver": {
-      "spin_pct": -24.5
     },
     "LPGA/3w": {
       "spin_pct": 30.2
@@ -26,7 +26,6 @@
   },
   "presets": {
     "amateur/driver": {
-      "launch_deg": -1.25,
       "ball_pct": 2.78
     },
     "amateur/6i": {

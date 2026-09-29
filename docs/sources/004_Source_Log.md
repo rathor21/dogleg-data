@@ -213,6 +213,8 @@ These are what TrackMan's optimizer says a golfer at that club speed should prod
 
 **Status: TWO complete numeric charts exist. TrackMan's Driver Fitting Chart (2010) gives optimal ball speed, launch, spin and dynamic loft by club speed and attack angle. PING's Optimal Launch & Spin Chart (2019) gives optimal launch and spin by ball speed and attack angle. The two disagree by a few degrees of launch and a few hundred rpm. No numeric optimum for irons was found.**
 
+**Use in the model (task 004.3).** Both TrackMan tables below (CARRY and TOTAL, 60 rows in all) are TrackMan's own launch-model output for a driver delivery, so whatever the optimizer objective they are valid calibration data for driver launch and spin across attack angles and speeds. They are stored as `data.TRACKMAN_CARRY_2010` and `data.TRACKMAN_TOTAL_2010` (the TOTAL rows parsed from the table below by script) and labeled "TrackMan 2010 chart (TrackMan model output)". See ADR 0004 decision 3c and Gaps item 9.
+
 **Source 1 (primary, TrackMan, dated 2010):** TrackMan "Driver Fitting Chart" PDF, four pages, footer "www.trackman.dk", PDF metadata creation date 2010-02-10, hosted at [wishongolf.com](https://wishongolf.com/wp-content/uploads/2012/07/TrackMan-Driver-Optimization_2010.pdf) (a fitter's site, not TrackMan). Retrieved 2026-09-28. Read: RAW (PDF text layer). Two charts: "CARRY Optimizer" (optimizes carry) and "TOTAL Optimizer" (optimizes total distance). Attack angles tabulated: -5, 0 and +5 degrees. Club speeds 75 to 120 mph in 5 mph steps. The PDF gives no ball model, air conditions or launch monitor generation, and it predates the 2023 Tour dataset by 13 years.
 
 ### TrackMan CARRY Optimizer (2010)
@@ -458,6 +460,7 @@ Two flags. (1) The workbook's separate "Cd-Cl" sheet also holds an unlabeled col
 6. **Aerodynamics.** Nathan's fit is the only complete set, is fit to driver through 5 iron, and disagrees with Bearman and Harvey's numbers by a wide margin at S = 0.15. The Smits and Smith equations are unread. The wedge S range (0.45 and up) is outside the best-supported fit.
 7. **Club path and face angle by club.** TrackMan does not publish Tour or amateur averages for either. The ideal tile for those two must come from shot-shape targets, not from a table.
 8. **Bounce and roll.** No source read here covers it. TrackMan's Tour table gives landing angle but no roll-out. Total-distance numbers stay `modeled`.
+9. **Driver launch and spin at low spin loft and positive attack angle.** The Tour tables have one positive attack angle row (LPGA driver, +2.8) and no driver row below spin loft 12.7, yet the tool lets a student raise attack angle to +10 at Tour loft. The only source below that is the 2010 TrackMan Driver Fitting Chart (Anchor 4 Source 1, CARRY and TOTAL optimizers, 60 rows, spin loft 6.3 to 23.2, attack angle -5, 0 and +5), used from task 004.3 as launch and spin calibration for the driver. It is TrackMan model output from 2010 and not measurement, it carries no strike-location offset (the PGA Tour driver average spins about 26 percent under it at the same delivery), and nothing here covers spin loft under 6.3 or attack angle above +5. Driver numbers past those edges are extrapolation.
 
 **Assumptions the model must state.**
 

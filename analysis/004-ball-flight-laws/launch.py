@@ -19,13 +19,15 @@ Model:
      and dynamic loft (azimuth = face, elevation = dynamic loft). Spin loft is
      the 3D angle between d and n. It equals dynamic loft minus attack angle when
      path and face are both zero.
-  2. Launch vector u = normalize((1 - k) d + k n), with k linear in spin loft.
+  2. Launch vector u = normalize((1 - k) d + k n), with k linear in spin loft
+     (one line for the driver, one for every other club).
      Launch angle and launch direction both come from u. u lies in the plane of d
      and n, so that plane is the D-plane and its normal is the spin axis.
   3. Smash factor and spin rate are functions of spin loft (and ball speed).
-     Spin also takes a club-class factor for the driver and fairway woods.
-  4. Spin axis is the tilt of the D-plane normal times one constant c. The
-     constant is calibrated so face-to-path maps to TrackMan's published
+     The driver has its own spin law, the 3-wood and 5-wood a factor on the
+     iron law.
+  4. Spin axis is the tilt of the D-plane normal times c(spin loft), linear. The
+     scale is calibrated so face-to-path maps to TrackMan's published
      curvature (see calibrate_launch.py and ADR 0004).
 
 Input contract. deliver raises ValueError, naming the argument, on a non-finite
@@ -121,10 +123,16 @@ def _params(params):
     return data.LAUNCH_MODEL if params is None else params
 
 
-def k_of(sl, params=None):
-    """Weight of the face normal in the launch vector. Linear in spin loft,
-    held flat outside the spin loft range of the four fitting points."""
+def k_of(sl, club=None, *, params=None):
+    """Weight of the face normal in the launch vector. Linear in spin loft and
+    held flat outside the spin loft range it was fitted on. The driver has its
+    own line and range (fitted to the TrackMan 2010 chart and the published
+    driver rows, down to spin loft 6.3); every other club uses the line fitted
+    to the four published triples (12.7 to 25.9)."""
     m = _params(params)
+    if SPIN_CLASS.get(club) == "driver":
+        s = min(max(sl, m["k_sl_lo_driver"]), m["k_sl_hi_driver"])
+        return m["k0_driver"] + m["k1_driver"] * s
     s = min(max(sl, m["k_sl_lo"]), m["k_sl_hi"])
     return m["k0"] + m["k1"] * s
 
@@ -142,24 +150,27 @@ def smash_of(sl, params=None):
 SPIN_CLASS = {"driver": "driver", "3w": "wood", "5w": "wood"}  # every other club is an iron class
 
 
-def spin_class_factor(club, *, params=None):
-    """MODELED club-class multiplier on spin: f_driver for the driver, f_wood
-    for the 3-wood and 5-wood, 1 for hybrids, irons and wedges (and when the
-    club is not given)."""
-    m = _params(params)
-    cls = SPIN_CLASS.get(club)
-    return 1.0 if cls is None else m["spin_f_" + cls]
-
-
 def spin_of(ball_speed_mph, sl, club=None, *, params=None):
+    """Spin rate from ball speed and spin loft. The driver has its own power law
+    (spin_a_driver, spin_b_driver), fitted to the TrackMan 2010 chart and the
+    published driver rows. The 3-wood and 5-wood take the iron law times
+    spin_f_wood. Hybrids, irons, wedges and an unnamed club take the iron law."""
     m = _params(params)
-    return spin_class_factor(club, params=m) * m["spin_a"] * ball_speed_mph * max(sl, 0.0) ** m["spin_b"]
+    s = max(sl, 0.0)
+    cls = SPIN_CLASS.get(club)
+    if cls == "driver":
+        return m["spin_a_driver"] * ball_speed_mph * s ** m["spin_b_driver"]
+    factor = 1.0 if cls is None else m["spin_f_" + cls]
+    return factor * m["spin_a"] * ball_speed_mph * s ** m["spin_b"]
 
 
-def axis_scale(params=None):
-    """One constant on the D-plane tilt, calibrated to the eight curvature
-    examples (data.LAUNCH_MODEL["axis_c"])."""
-    return _params(params)["axis_c"]
+def axis_scale(sl, params=None):
+    """Scale on the D-plane tilt: axis_c0 + axis_c1 * spin loft, held flat outside
+    the spin loft range of the eight curvature examples it was calibrated on
+    (axis_sl_lo to axis_sl_hi)."""
+    m = _params(params)
+    s = min(max(sl, m["axis_sl_lo"]), m["axis_sl_hi"])
+    return m["axis_c0"] + m["axis_c1"] * s
 
 
 def dplane_tilt_deg(d, n):
@@ -183,13 +194,13 @@ def dplane_tilt_deg(d, n):
     return degrees(atan2(-m_up, m_right))
 
 
-def launch_vector(path_deg, attack_deg, face_deg, dyn_loft_deg, *, params=None):
+def launch_vector(path_deg, attack_deg, face_deg, dyn_loft_deg, club=None, *, params=None):
     """(launch angle deg, launch direction deg, spin loft deg). No input checks:
     the fitters and launch_tools call this outside the domain."""
     d = club_direction(path_deg, attack_deg)
     n = face_normal(face_deg, dyn_loft_deg)
     sl = _angle_between(d, n)
-    u = blend(d, n, k_of(sl, params))
+    u = blend(d, n, k_of(sl, club, params=params))
     return degrees(atan2(u[2], sqrt(u[0] * u[0] + u[1] * u[1]))), degrees(atan2(u[1], u[0])), sl
 
 
@@ -238,13 +249,13 @@ def deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=N
     d = club_direction(path_deg, attack_deg)
     n = face_normal(face_deg, dyn_loft_deg)
     sl = _angle_between(d, n)
-    u = blend(d, n, k_of(sl, m))
+    u = blend(d, n, k_of(sl, club, params=m))
     launch_deg = degrees(atan2(u[2], sqrt(u[0] * u[0] + u[1] * u[1])))
     launch_dir = degrees(atan2(u[1], u[0]))
     smash = smash_of(sl, m)
     ball = smash * club_speed_mph
     spin = spin_of(ball, sl, club, params=m) * spin_trim
-    axis = axis_scale(m) * dplane_tilt_deg(d, n)
+    axis = axis_scale(sl, m) * dplane_tilt_deg(d, n)
     return Launch(
         ball_speed_mph=_no_negative_zero(ball),
         smash=_no_negative_zero(smash),

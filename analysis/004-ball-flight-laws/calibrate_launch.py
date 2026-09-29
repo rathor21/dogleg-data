@@ -153,8 +153,78 @@ def fit_spin(params):
 
     sol = least_squares(residuals, [0.4, 1.5, 1.0, 1.0], loss="soft_l1", f_scale=0.1)
     _require(sol, "spin")
-    return dict(spin_a=float(sol.x[0]), spin_b=float(sol.x[1]),
-                spin_f_driver=float(sol.x[2]), spin_f_wood=float(sol.x[3]))
+    # The driver factor stays a nuisance parameter here: the driver has its own
+    # law since the TrackMan 2010 chart refit (stage B below).
+    return dict(spin_a=float(sol.x[0]), spin_b=float(sol.x[1]), spin_f_wood=float(sol.x[3]))
+
+
+# ---------------------------------------------------------------------------
+# Stage B: the driver, fitted to the TrackMan 2010 chart
+# ---------------------------------------------------------------------------
+
+# Each published driver triple (PGA, LPGA) counts as this many chart rows in
+# the driver k fit. MODELED weighting: with weight 1 the chart (k about 0.85
+# at every spin loft) wins and the LPGA driver's inverted dynamic loft leaves
+# the published 15.5 by 1.1 deg, over the 1 deg check. At 15 both published
+# checks hold and the chart's launch stays within 0.3 deg.
+PUBLISHED_DRIVER_K_WEIGHT = 15.0
+
+
+def chart_arrays():
+    """(club speed, attack, ball speed, launch, spin, dynamic loft, spin loft) for the 60 chart rows."""
+    rows60 = np.array(data.TRACKMAN_CARRY_2010 + data.TRACKMAN_TOTAL_2010, dtype=float)
+    club_speed, attack, ball, launch_deg, spin, _carry, _total, dyn_loft = rows60.T
+    return club_speed, attack, ball, launch_deg, spin, dyn_loft, dyn_loft - attack
+
+
+def fit_k_driver():
+    """k(SL) for the driver: a straight line, weighted least squares on the exact
+    k of the 60 chart rows plus the two published driver triples. The range is
+    the chart's spin loft range."""
+    _cs, attack, _ball, launch_deg, _spin, dyn_loft, sl = chart_arrays()
+    k_chart = [exact_k(a, d, l) for a, d, l in zip(attack, dyn_loft, launch_deg)]
+    xs, ys, ws = list(sl), list(k_chart), [1.0] * len(sl)
+    for tour in ("PGA", "LPGA"):
+        r = data.TOURS[tour]["driver"]
+        dl = data.DYNAMIC_LOFT_DEG[(tour, "driver")]
+        xs.append(dl - r["attack_deg"])
+        ys.append(exact_k(r["attack_deg"], dl, r["launch_deg"]))
+        ws.append(PUBLISHED_DRIVER_K_WEIGHT)
+    k1, k0 = np.polyfit(xs, ys, 1, w=np.sqrt(ws))
+    return dict(k0_driver=float(k0), k1_driver=float(k1), k_sl_lo_driver=float(sl.min()), k_sl_hi_driver=float(sl.max()))
+
+
+def fit_spin_driver(params):
+    """spin = a * ball_speed * SL^b for the driver. Soft-L1 on relative error over
+    the 60 chart rows (their own ball speed and dynamic loft minus attack angle)
+    and the PGA and LPGA driver rows (table ball speed, spin loft from the
+    inverted loft). The chart rows carry no strike-location offset; the Tour rows
+    do (the PGA driver spins 30 percent under the chart law), and a preset spin
+    trim restores them."""
+    _cs, _attack, ball, _launch, spin, _dl, sl = chart_arrays()
+    vs, sls, spins = list(ball), list(sl), list(spin)
+    for tour in ("PGA", "LPGA"):
+        r = data.TOURS[tour]["driver"]
+        dl = launch_tools.derive_dyn_loft(r["launch_deg"], r["attack_deg"], "driver", params=params)
+        vs.append(float(r["ball_speed_mph"]))
+        sls.append(dl - r["attack_deg"])
+        spins.append(float(r["spin_rpm"]))
+    v, s, y = np.array(vs), np.array(sls), np.array(spins)
+    sol = least_squares(lambda x: x[0] * v * s ** x[1] / y - 1.0, [1.3, 1.05], loss="soft_l1", f_scale=0.1)
+    _require(sol, "driver spin")
+    return dict(spin_a_driver=float(sol.x[0]), spin_b_driver=float(sol.x[1]))
+
+
+def chart_errors(params):
+    """Per chart row, deliver() at path 0 and face 0 against the chart:
+    [(club speed, attack, launch err deg, spin err percent, ball speed err percent)]."""
+    cs, attack, ball, launch_deg, spin, dyn_loft, _sl = chart_arrays()
+    out = []
+    for i in range(len(cs)):
+        ln = launch.deliver(float(cs[i]), float(attack[i]), 0.0, 0.0, float(dyn_loft[i]), "driver", params=params)
+        out.append((cs[i], attack[i], ln.launch_deg - launch_deg[i],
+                    100.0 * (ln.spin_rpm / spin[i] - 1.0), 100.0 * (ln.ball_speed_mph / ball[i] - 1.0)))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -163,16 +233,22 @@ def fit_spin(params):
 
 
 def fit_axis(params, dt=FIT_DT):
-    """One constant c on the D-plane tilt, fitted to the eight examples with
-    the spin trims applied. Returns the fit and the normalized residuals."""
+    """c(spin loft) = c0 + c1 * SL on the D-plane tilt, fitted to the eight
+    examples with the spin trims applied, held flat outside the spin lofts of
+    the examples themselves. Returns the fit and the normalized residuals. A
+    constant c fits too (worst error 0.64 of tolerance against 0.39 here), and
+    the slope also trims the 6 iron's over-curve."""
+    probe = dict(params, axis_c0=1.0, axis_c1=0.0, axis_sl_lo=0.0, axis_sl_hi=90.0)
+    lofts = [gl.curvature_example(t, cl, f, probe, dt)[0].spin_loft_deg for t, cl, f, _pub in data.CURVATURE_EXAMPLES]
+    lo, hi = float(min(lofts)), float(max(lofts))
 
     def residuals(x):
-        candidate = dict(params, axis_c=x[0])
+        candidate = dict(params, axis_c0=x[0], axis_c1=x[1], axis_sl_lo=lo, axis_sl_hi=hi)
         return [err for *_rest, err in gl.curvature_errors(candidate, dt)]
 
-    sol = least_squares(residuals, [1.0], diff_step=1e-3)
+    sol = least_squares(residuals, [1.2, -0.009], diff_step=1e-3)
     _require(sol, "axis")
-    return dict(axis_c=float(sol.x[0])), list(sol.fun)
+    return dict(axis_c0=float(sol.x[0]), axis_c1=float(sol.x[1]), axis_sl_lo=lo, axis_sl_hi=hi), list(sol.fun)
 
 
 def fit_all(verbose=True):
@@ -186,7 +262,11 @@ def fit_all(verbose=True):
     diag["k: launch residual (deg)"] = resid_k
     params.update(fit_smash(params))
     params.update(fit_spin(params))
-    params["axis_c"] = 1.0
+    params.update(fit_k_driver())
+    params.update(fit_spin_driver(params))
+    params.update(axis_c0=1.0, axis_c1=0.0, axis_sl_lo=0.0, axis_sl_hi=90.0)  # placeholder: axis is not scored on the chart
+    diag["driver chart: launch error (deg)"] = [e[2] for e in chart_errors(params)]
+    diag["driver chart: spin error (percent)"] = [e[3] for e in chart_errors(params)]
     fit, resid_axis = fit_axis(params, FIT_DT)
     params.update(fit)
     diag["axis: normalized curve error"] = resid_axis
@@ -199,11 +279,11 @@ def fit_all(verbose=True):
     diag["smash: ball speed error (fraction)"] = ball
     diag["spin: spin error (fraction)"] = spin
     check, _ = fit_axis(params, STABILITY_DT)
-    rel = abs(check["axis_c"] - params["axis_c"]) / params["axis_c"]
-    diag["axis c at dt 0.005"] = [check["axis_c"], rel]
+    rel = max(abs(check[k] - params[k]) / abs(params[k]) for k in ("axis_c0", "axis_c1"))
+    diag["axis c0 at dt 0.005"] = [check["axis_c0"], rel]
     if rel > STABILITY_TOL:
-        raise RuntimeError(f"axis fit depends on the step size: c {params['axis_c']:.4f} at dt {FIT_DT}, "
-                           f"{check['axis_c']:.4f} at dt {STABILITY_DT}")
+        raise RuntimeError(f"axis fit depends on the step size: {params['axis_c0']:.4f}, {params['axis_c1']:.5f} at dt "
+                           f"{FIT_DT}, {check['axis_c0']:.4f}, {check['axis_c1']:.5f} at dt {STABILITY_DT}")
     return params, diag
 
 
@@ -214,38 +294,39 @@ def fit_all(verbose=True):
 
 def print_params(params):
     print("\nLAUNCH_MODEL (paste into data.py, MODELED):")
-    for key in ("k0", "k1", "k_sl_lo", "k_sl_hi", "smash_a", "smash_b", "smash_c", "smash_cap", "smash_floor",
-                "spin_a", "spin_b", "spin_f_driver", "spin_f_wood", "axis_c"):
+    for key in ("k0", "k1", "k_sl_lo", "k_sl_hi", "k0_driver", "k1_driver", "k_sl_lo_driver", "k_sl_hi_driver",
+                "smash_a", "smash_b", "smash_c", "smash_cap", "smash_floor",
+                "spin_a", "spin_b", "spin_f_wood", "spin_a_driver", "spin_b_driver", "axis_c0", "axis_c1", "axis_sl_lo", "axis_sl_hi"):
         print(f"    {key!r}: {params[key]:.6g},")
 
 
 def print_diagnostics(diag):
     print("\nFit quality (rms and largest absolute error):")
     for name, vals in diag.items():
-        if name.startswith("axis c at"):
-            print(f"  {name}: c = {vals[0]:.4f}, relative change {vals[1]:.4%}")
+        if name.startswith("axis c0 at"):
+            print(f"  {name}: c0 = {vals[0]:.4f}, largest relative change in c0 or c1 {vals[1]:.4%}")
             continue
         arr = np.array(vals, dtype=float)
         print(f"  {name}: rms {np.sqrt(np.mean(arr ** 2)):.4f}, max {np.abs(arr).max():.4f}")
 
 
 def print_k(params):
-    print("\nk per published triple (exact) against the line k0 + k1 * spin loft:")
+    print("\nk per published triple (exact) against the line for its club (driver line for the driver rows):")
     print(f"{'row':<12}{'SL':>7}{'k exact':>9}{'k line':>9}{'launch err':>12}")
     for tour, club, sl, k in k_points():
         r = data.TOURS[tour][club]
         dl = data.DYNAMIC_LOFT_DEG[(tour, club)]
-        err = launch.launch_vector(0.0, r["attack_deg"], 0.0, dl, params=params)[0] - r["launch_deg"]
-        print(f"{tour + '/' + club:<12}{sl:>7.1f}{k:>9.3f}{launch.k_of(sl, params):>9.3f}{err:>+12.2f}")
+        err = launch.launch_vector(0.0, r["attack_deg"], 0.0, dl, club, params=params)[0] - r["launch_deg"]
+        print(f"{tour + '/' + club:<12}{sl:>7.1f}{k:>9.3f}{launch.k_of(sl, club, params=params):>9.3f}{err:>+12.2f}")
     print("\nimplied horizontal face share (small face-to-path), against the unverified claims")
     print("  85 / 75 (PGA Academy, unattributed) and 87 / 81 (forum, driver / 6 iron or PW):")
     for (tour, club), dl in data.DYNAMIC_LOFT_DEG.items():
         a = data.TOURS[tour][club]["attack_deg"]
-        print(f"  {tour}/{club}: {100 * launch_tools.horizontal_face_share(a, dl, params=params):.1f} percent")
+        print(f"  {tour}/{club}: {100 * launch_tools.horizontal_face_share(a, dl, club, params=params):.1f} percent")
     for tour, club, r in gl.rows():
         if club in ("pw", "7i"):
             dl = gl.tour_dyn_loft(tour, club, params)
-            share = launch_tools.horizontal_face_share(r["attack_deg"], dl, params=params)
+            share = launch_tools.horizontal_face_share(r["attack_deg"], dl, club, params=params)
             print(f"  {tour}/{club} (derived dynamic loft {dl:.1f}): {100 * share:.1f} percent")
 
 
@@ -352,7 +433,7 @@ def write_tour_dyn_loft():
     """Print data.TOUR_DYN_LOFT: the live inversion for every Tour row with the shipped model."""
     print("TOUR_DYN_LOFT = {")
     for tour, club, r in gl.rows():
-        dl = launch_tools.derive_dyn_loft(r["launch_deg"], r["attack_deg"])
+        dl = launch_tools.derive_dyn_loft(r["launch_deg"], r["attack_deg"], club)
         print(f'    ("{tour}", "{club}"): {dl:.3f},')
     print("}")
     return 0
