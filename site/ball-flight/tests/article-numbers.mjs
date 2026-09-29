@@ -17,7 +17,11 @@ for (const n of ["model", "presets", "ideals", "windows", "camera"]) {
   json[n] = JSON.parse(fs.readFileSync(path.join(root, "data", `${n}.json`), "utf8"));
 }
 const nums = computeNumbers(createModel(json));
-const html = fs.readFileSync(path.join(root, "index.html"), "utf8").replace(/<!--[\s\S]*?-->/g, "");
+// Drop HTML comments: keep the text before each "<!--" and after its "-->".
+const html = fs.readFileSync(path.join(root, "index.html"), "utf8")
+  .split("<!--")
+  .map((part, i) => (i === 0 ? part : part.slice(part.indexOf("-->") + 3)))
+  .join("");
 const found = [...html.matchAll(/<span data-num="([^"]+)">([^<]*)<\/span>/g)];
 let bad = 0;
 const used = new Set();
