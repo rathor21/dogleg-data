@@ -9,6 +9,8 @@
 import { METRICS, fmt } from "./tiles.js";
 
 const ROWS = ["carry_yd", "max_height_yd", "curve_yd", "side_yd", "launch_deg", "spin_rpm"];
+// On a short screen the table keeps carry, curve, side and the shot name, so it fits above the fold.
+const MORE = new Set(["max_height_yd", "launch_deg", "spin_rpm"]);
 
 export function createCompare({ model, store, range, hooks }) {
   const $ = (s) => document.querySelector(s);
@@ -71,7 +73,7 @@ export function createCompare({ model, store, range, hooks }) {
       const d = Number((b - a).toFixed(dec));
       const same = d === 0;
       const unit = M.unit === "°" ? "°" : M.unit ? " " + M.unit : "";
-      return `<tr><th scope="row">${M.label}</th><td>${fmt(a, dec, M.signed, M.grouped)}${unit}</td><td>${fmt(b, dec, M.signed, M.grouped)}${unit}</td>`
+      return `<tr${MORE.has(m) ? ' class="cmp-more"' : ""}><th scope="row">${M.label}</th><td>${fmt(a, dec, M.signed, M.grouped)}${unit}</td><td>${fmt(b, dec, M.signed, M.grouped)}${unit}</td>`
         + `<td class="cmp-d${same ? " zero" : ""}">${same ? "same" : fmt(d, dec, true, M.grouped) + unit}</td></tr>`;
     });
     rows.push(`<tr><th scope="row">Shot</th><td>${pinned.name}</td><td>${bName}</td><td class="cmp-d${pinned.name === bName ? " zero" : ""}">${pinned.name === bName ? "same" : "changed"}</td></tr>`);

@@ -435,7 +435,9 @@ export function createRange({ root, canvas, model, avoidEl }) {
     // settles for a spot clear of other plates that the tracer crosses, and
     // last for its first choice.
     let r = rects.find((c) => !blocked(c) && !crossed(c));
-    if (!r && required) r = rects.find((c) => !blocked(c)) || rects[0];
+    // A required plate never settles under the shot label: it takes a spot the tracer crosses before one the label covers.
+    const underLabel = (c) => !!avoidRect && overlaps(c, avoidRect);
+    if (!r && required) r = rects.find((c) => !blocked(c)) || rects.find((c) => !underLabel(c)) || rects[0];
     if (!r) return null;
     taken.push(r);
     return { r, text, fs };

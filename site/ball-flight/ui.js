@@ -218,7 +218,10 @@ async function main() {
     $("#windows").hidden = state.mode !== "w";
     $("#compare").hidden = state.mode !== "c";
     $("#mode-hint").textContent = MODE_HINT[state.mode];
-    document.body.dataset.mode = state.mode; // tool.css budgets the first screen per mode
+    if (document.body.dataset.mode !== state.mode) {
+      document.body.dataset.mode = state.mode; // tool.css budgets the first screen per mode
+      scheduleFit(0);
+    }
   }
   function setMode(m) {
     if (m === state.mode) return;
@@ -362,6 +365,7 @@ async function main() {
     onChange(on) {
       announceMode(on ? "Presentation mode on. Press Escape to exit." : "Presentation mode off.");
       applyDrawer();
+      scheduleFit(0);
       range.redraw();
       views.redraw();
     },
@@ -382,6 +386,7 @@ async function main() {
     const open = !isDrawer() || drawerOpen || presenter.on;
     swing.dataset.open = String(open);
     toggle.setAttribute("aria-expanded", String(open));
+    document.body.dataset.drawer = isDrawer() && drawerOpen && !presenter.on ? "open" : "closed";
     body.inert = !open;
   }
   function setDrawer(open, refocus) {
@@ -405,6 +410,70 @@ async function main() {
   narrow.addEventListener("change", applyDrawer);
   shortLandscape.addEventListener("change", applyDrawer);
   applyDrawer();
+
+  // ---- fit to the fold -----------------------------------------------------------------
+  // The numbers a mode teaches with sit under the range: the key tiles, the nine
+  // windows, the compare card. This measures how much room they need and gives the
+  // rest to the range, so they end above the fixed bar instead of running under it.
+  // If the range would get too short, body[data-fit="1"] trims detail (see tool.css).
+  const rootStyle = document.body.style; // on body, so it beats the body[data-mode] fallbacks in tool.css
+  const MAX_RANGE_ASPECT = 2.4;
+  function fitFirstScreen() {
+    const bs = document.body.dataset;
+    if (presenter.on || shortLandscape.matches) {
+      rootStyle.removeProperty("--reserve");
+      rootStyle.removeProperty("--range-min");
+      $("#views").style.marginTop = "";
+      delete bs.fit;
+      return;
+    }
+    const target = state.mode === "w" ? $("#windows") : state.mode === "c" ? $("#compare") : $("#key-tiles");
+    const cs = getComputedStyle(document.documentElement);
+    const rem = parseFloat(cs.fontSize) || 16;
+    const drawerH = parseFloat(cs.getPropertyValue("--drawer-h")) || 0;
+    const barH = parseFloat(getComputedStyle(document.body).paddingBottom) || 0; // drawer and the safe area
+    // The range never gets flatter than about 2.4 to 1: the picture's crop stops working past that.
+    const minRange = Math.max((window.innerWidth < 560 ? 14 : 16) * rem, rangeRoot.getBoundingClientRect().width / MAX_RANGE_ASPECT);
+    const pad = 16;
+    let reserve = null;
+    for (const level of ["0", "1"]) {
+      bs.fit = level;
+      const tr = target.getBoundingClientRect(); // forces layout
+      if (!tr.height) { reserve = null; break; }
+      const rr = rangeRoot.getBoundingClientRect();
+      const top = document.documentElement.getBoundingClientRect().top; // -scrollY, read in the same layout
+      const fixed = tr.bottom - top - rr.height; // everything above the range plus everything under it
+      reserve = fixed + pad + (barH - drawerH);
+      if (window.innerHeight - drawerH - reserve >= minRange) break;
+    }
+    const setVar = (name, px) => {
+      if (px === null) rootStyle.removeProperty(name);
+      else if (Math.abs(px - (parseFloat(rootStyle.getPropertyValue(name)) || 0)) > 0.5) rootStyle.setProperty(name, px.toFixed(1) + "px");
+    };
+    setVar("--reserve", reserve);
+    setVar("--range-min", reserve === null ? null : minRange);
+    // The layout ends cleanly at the fold: if the next section would show only its top edge above
+    // the fixed bar, it starts below the fold instead. A section that shows more than a sliver stays put.
+    const next = $("#views");
+    next.style.marginTop = "0px";
+    const visible = window.innerHeight - barH - (next.getBoundingClientRect().top);
+    next.style.marginTop = visible > 0 && visible < 110 ? Math.ceil(visible + 8) + "px" : "";
+  }
+  // Debounced: a slider drag can change a tile's wrapping on every step, and the fit only needs to settle when it stops.
+  let fitTimer = 0;
+  function scheduleFit(delay = 90) {
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(() => requestAnimationFrame(fitFirstScreen), delay);
+  }
+  const fitObserver = new ResizeObserver(() => scheduleFit());
+  for (const el of ["#key-tiles", "#windows", "#compare", ".page-head", ".modebar"]) {
+    const node = $(el);
+    if (node) fitObserver.observe(node);
+  }
+  window.addEventListener("resize", () => scheduleFit());
+  narrow.addEventListener("change", () => scheduleFit(0));
+  shortLandscape.addEventListener("change", () => scheduleFit(0));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => scheduleFit(0));
 
   // ---- go ------------------------------------------------------------------------
   store.loadFromSearch(location.search, (key) => windows.applyWindow(key));

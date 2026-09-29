@@ -176,10 +176,13 @@ nav.tabs .tab-btn.active{background:var(--clay-text);color:var(--card);border-co
 .key-tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.6rem;margin-top:.9rem;}
 .key-tiles .tile-info,.key-tiles .badge-modeled,.key-tiles .tile-src{display:none;}
 .key-tiles .tile-val .v{font-size:1.4rem;}
+/* A key tile keeps label, value, direction word, bar and status. The ideal range lives in the bar's tooltip and in Every number. */
+.key-tiles .tile-cap .ideal{display:none;}
+.key-tiles .tile-label{letter-spacing:.03em;}
 .tile-groups{display:flex;flex-direction:column;gap:1.4rem;}
 .tile-group h3{font-family:var(--mono);font-size:.75rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--clay-text);padding-bottom:.4rem;border-bottom:1px solid var(--line);margin-bottom:.7rem;display:flex;align-items:baseline;gap:.75rem;flex-wrap:wrap;}
 .tile-group h3 small{font-family:var(--sans);font-size:.78rem;letter-spacing:0;text-transform:none;font-weight:400;color:var(--muted);}
-.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(10.5rem,1fr));gap:.6rem;align-items:start;}
+.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(11.5rem,1fr));gap:.6rem;align-items:start;}
 .tile{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:.6rem .7rem .55rem;display:flex;flex-direction:column;gap:.05rem;min-width:0;transition:background .25s,border-color .25s;}
 .tile.in{background:var(--green-tint);border-color:var(--green-line);}
 .tile.out{background:var(--clay-tint);border-color:var(--clay-line);}
@@ -207,6 +210,7 @@ nav.tabs .tab-btn.active{background:var(--clay-text);color:var(--card);border-co
 .tile.in .status{color:var(--green-text);}
 .tile.out .status{color:var(--clay-text);}
 .tile-cap .ideal{color:var(--muted);}
+.tile-cap .nw,.tile-cap .status{white-space:nowrap;}
 .tile-src{font-size:.78rem;line-height:1.5;color:var(--ink-soft);margin-top:.5rem;padding-top:.5rem;border-top:1px dashed var(--muted);}
 
 /* ---------- footer ---------- */
@@ -214,6 +218,9 @@ footer{background:var(--card);border:1px solid var(--line);border-radius:var(--r
 footer .signoff{font-family:var(--mono);font-size:.75rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--clay-text);padding-bottom:.75rem;border-bottom:3px double var(--line);margin-bottom:.9rem;}
 footer h3{font-family:var(--serif);font-weight:600;font-size:.95rem;margin:.6rem 0;}
 footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:1.65;max-width:110ch;}
+
+/* Six tiles in a row (laptop) and three narrow columns (phone) wrap "Launch direction" onto two lines, so every tile keeps two label lines and the values line up. */
+@media (min-width:1200px){.key-tiles .tile-top{min-height:2.4rem;align-items:flex-start;}}
 
 /* ---------- key tiles narrow down ---------- */
 @media (max-width:1199px) and (min-width:901px){
@@ -233,7 +240,7 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
   .setup{order:3;}
   .all-tiles{order:4;}
   .swing{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0 auto;max-width:52rem;border-radius:14px 14px 0 0;border-width:1px 0 0;border-top:3px double var(--line);padding:0 max(1rem,var(--safe-r)) var(--safe-b) max(1rem,var(--safe-l));box-shadow:0 -8px 24px var(--shadow-ink);}
-  .swing-head{border-bottom:0;margin:0;padding:.35rem 0;min-height:var(--drawer-h);}
+  .swing-head{border-bottom:0;margin:0;padding:.35rem 0;min-height:calc(var(--drawer-h) - 3px);} /* the 3px is the drawer's top rule, so the closed drawer is exactly --drawer-h */
   .swing-title,#reset-btn{display:none;}
   .swing-toggle{flex:1;display:flex;align-items:center;gap:.6rem;background:none;border:0;text-align:left;cursor:pointer;min-width:0;min-height:2.75rem;padding:0;}
   .swing-chev{flex:none;width:.65rem;height:.65rem;border-left:2px solid var(--ink);border-top:2px solid var(--ink);transform:rotate(45deg) translate(2px,2px);transition:transform .25s var(--ease);margin-right:.2rem;}
@@ -270,6 +277,7 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
   .tile-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .tile-val .v{font-size:1.45rem;}
   .card{padding:1rem .95rem;}
+  .swing{padding:0 max(.95rem,var(--safe-r)) var(--safe-b) max(.95rem,var(--safe-l));} /* the drawer keeps no top or bottom padding, or it grows taller than --drawer-h and covers the last tile row */
   .copy-status{min-width:0;}
 }
 
@@ -421,12 +429,12 @@ svg.pv{display:block;max-width:100%;}
    before they fall below the fold. --reserve is what the range leaves free. */
 body[data-mode="w"]{--reserve:32rem;}
 body[data-mode="c"]{--reserve:32rem;}
+/* The tool switcher sits under the lab at every width, so the lab starts higher on the screen. */
+.wrap{display:flex;flex-direction:column;}
+.wrap > main{order:1;}
+.wrap > footer{order:3;}
+.wrap > nav.tabs{order:2;margin:var(--gap) 0 0;}
 @media (max-width:900px){
-  .wrap{display:flex;flex-direction:column;}
-  .wrap > main{order:1;}
-  .wrap > footer{order:3;}
-  /* The tool switcher moves under the lab so the lab starts higher on the screen. */
-  .wrap > nav.tabs{order:2;margin:var(--gap) 0 0;}
   body[data-mode="w"] .key-tiles,body[data-mode="c"] .key-tiles{display:none;}
   .windows,.compare{margin-top:.8rem;}
 }
@@ -490,6 +498,47 @@ body[data-mode="c"]{--reserve:32rem;}
   .swing-head{padding:.1rem 0 .3rem;}
   .swing .btn-mini{min-height:2.2rem;padding:.2rem .8rem;}
   .swing{padding:.5rem .8rem;}
+}
+
+/* 9 Windows and Compare teach with the recipe and the table, so the key tiles step aside at every width. */
+body[data-mode="w"] .key-tiles,body[data-mode="c"] .key-tiles{display:none;}
+
+/* ---------- fit to the fold ---------- */
+/* ui.js measures what sits under the range (key tiles, the nine windows, the
+   compare card) and sets --reserve so all of it ends above the fixed bar. When
+   the range would fall under its minimum, it sets body[data-fit="1"], which
+   drops the detail a coach can do without: the tile status line, the extra
+   compare rows and the roomy padding. Nothing is left half visible at the fold. */
+body[data-fit="1"] .key-tiles .tile-cap{display:none;}
+body[data-fit="1"] .key-tiles .tile-top{min-height:1.5rem;}
+body[data-fit="1"] .cmp-more{display:none;}
+body[data-fit="1"] .cmp-table th,body[data-fit="1"] .cmp-table td{padding:.15rem .5rem;}
+body[data-fit="1"] .windows,body[data-fit="1"] .compare{padding-top:.7rem;padding-bottom:.7rem;}
+body[data-fit="1"] .win-btn{min-height:2.75rem;}
+body[data-fit="1"] .win-btn .wb-peak,body[data-fit="1"] .windows h2,body[data-fit="1"] .compare h2{display:none;}
+body[data-fit="1"] .win-layout{gap:.5rem 1.2rem;}
+body[data-fit="1"] .win-actions{margin-top:.6rem;}
+body[data-fit="1"] .win-note{display:none;}
+body[data-fit="1"] .win-dl{grid-template-columns:repeat(4,minmax(0,1fr));gap:.3rem .5rem;}
+body[data-fit="1"] .win-dl > div:nth-child(n+5){display:none;} /* launch, spin, peak height and shot name show elsewhere on the screen */
+body[data-fit="1"] .win-recipe h3{margin-bottom:.3rem;}
+@media (max-width:559px){
+  /* A phone that is too short for six tiles keeps the four that are not extra, as a 2 by 2 without the direction words. */
+  body[data-fit="1"] .key-tiles{grid-template-columns:repeat(2,minmax(0,1fr));}
+  body[data-fit="1"] .key-extra{display:none;}
+  body[data-fit="1"] .key-tiles .tile-word{display:none;}
+  body[data-fit="1"] .key-tiles .tile-top{min-height:0;}
+  /* The 9 Windows recipe keeps its four numbers and drops the words under them. */
+  body[data-fit="1"] .win-dl small,body[data-fit="1"] .win-adj{display:none;}
+  body[data-fit="1"] .win-btn{min-height:2.4rem;}
+  body[data-fit="1"] .windows,body[data-fit="1"] .compare{padding-top:.5rem;padding-bottom:.5rem;}
+}
+/* With the drawer open, what sits behind it is hidden, so no strip of a card or tile peeks out above it. */
+@media (max-width:900px){
+  body[data-drawer="open"] .stage > :not(.range-wrap),body[data-drawer="open"] .range-bar{visibility:hidden;}
+}
+@media (max-width:559px){
+  body[data-drawer="open"] .shot-label{visibility:hidden;}
 }
 
 /* ---------- presentation mode (TV) ---------- */

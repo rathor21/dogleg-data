@@ -1,0 +1,332 @@
+diff --git a/site/ball-flight/compare.js b/site/ball-flight/compare.js
+index c62381e..121d292 100644
+--- a/site/ball-flight/compare.js
++++ b/site/ball-flight/compare.js
+@@ -9,6 +9,8 @@
+ import { METRICS, fmt } from "./tiles.js";
+ 
+ const ROWS = ["carry_yd", "max_height_yd", "curve_yd", "side_yd", "launch_deg", "spin_rpm"];
++// On a short screen the table keeps carry, curve, side and the shot name, so it fits above the fold.
++const MORE = new Set(["max_height_yd", "launch_deg", "spin_rpm"]);
+ 
+ export function createCompare({ model, store, range, hooks }) {
+   const $ = (s) => document.querySelector(s);
+@@ -71,7 +73,7 @@ export function createCompare({ model, store, range, hooks }) {
+       const d = Number((b - a).toFixed(dec));
+       const same = d === 0;
+       const unit = M.unit === "°" ? "°" : M.unit ? " " + M.unit : "";
+-      return `<tr><th scope="row">${M.label}</th><td>${fmt(a, dec, M.signed, M.grouped)}${unit}</td><td>${fmt(b, dec, M.signed, M.grouped)}${unit}</td>`
++      return `<tr${MORE.has(m) ? ' class="cmp-more"' : ""}><th scope="row">${M.label}</th><td>${fmt(a, dec, M.signed, M.grouped)}${unit}</td><td>${fmt(b, dec, M.signed, M.grouped)}${unit}</td>`
+         + `<td class="cmp-d${same ? " zero" : ""}">${same ? "same" : fmt(d, dec, true, M.grouped) + unit}</td></tr>`;
+     });
+     rows.push(`<tr><th scope="row">Shot</th><td>${pinned.name}</td><td>${bName}</td><td class="cmp-d${pinned.name === bName ? " zero" : ""}">${pinned.name === bName ? "same" : "changed"}</td></tr>`);
+diff --git a/site/ball-flight/range.js b/site/ball-flight/range.js
+index c691396..b6d55ba 100644
+--- a/site/ball-flight/range.js
++++ b/site/ball-flight/range.js
+@@ -435,7 +435,9 @@ export function createRange({ root, canvas, model, avoidEl }) {
+     // settles for a spot clear of other plates that the tracer crosses, and
+     // last for its first choice.
+     let r = rects.find((c) => !blocked(c) && !crossed(c));
+-    if (!r && required) r = rects.find((c) => !blocked(c)) || rects[0];
++    // A required plate never settles under the shot label: it takes a spot the tracer crosses before one the label covers.
++    const underLabel = (c) => !!avoidRect && overlaps(c, avoidRect);
++    if (!r && required) r = rects.find((c) => !blocked(c)) || rects.find((c) => !underLabel(c)) || rects[0];
+     if (!r) return null;
+     taken.push(r);
+     return { r, text, fs };
+diff --git a/site/ball-flight/tiles.js b/site/ball-flight/tiles.js
+index d835034..07424c9 100644
+--- a/site/ball-flight/tiles.js
++++ b/site/ball-flight/tiles.js
+@@ -55,7 +55,7 @@ export const METRICS = {
+   smash: { label: "Smash factor", unit: "", dec: 2 },
+   launch_deg: { label: "Launch angle", unit: DEG, dec: 1 },
+   launch_dir_deg: { label: "Launch direction", unit: DEG, dec: 1, signed: true, lateral: true,
+-    words: (rh, d) => (isZero(d, 0.05) ? "on the target line" : `starts ${dirWord(d)}`) },
++    words: (rh, d) => (isZero(d, 0.05) ? "on target line" : `starts ${dirWord(d)}`) },
+   spin_rpm: { label: "Spin rate", unit: "rpm", dec: 0, grouped: true },
+   spin_axis_deg: { label: "Spin axis", unit: DEG, dec: 1, signed: true, lateral: true,
+     words: (rh, d) => (isZero(d, 0.05) ? "no side spin" : `tilts ${dirWord(d)}`) },
+@@ -144,12 +144,17 @@ export function statusOf(band, value) {
+ 
+ const unitText = (m) => (m.unit === DEG ? DEG : m.unit ? " " + m.unit : "");
+ 
+-function idealText(m, band) {
++/** The band as {lead, range}: "ideal" and the unbreakable range, so a note wraps after "ideal" or not at all. */
++function idealParts(m, band) {
+   const f = (x) => fmt(x, m.dec, m.signed, m.grouped);
+   const u = unitText(m);
+-  if (band.lo !== null && band.hi !== null) return `ideal ${f(band.lo)} to ${f(band.hi)}${u}`;
+-  if (band.lo !== null) return `ideal ${f(band.lo)}${u} or more`;
+-  return `ideal up to ${f(band.hi)}${u}`;
++  if (band.lo !== null && band.hi !== null) return { lead: "ideal", range: `${f(band.lo)} to ${f(band.hi)}${u}` };
++  if (band.lo !== null) return { lead: "ideal", range: `${f(band.lo)}${u} or more` };
++  return { lead: "ideal", range: `up to ${f(band.hi)}${u}` };
++}
++function idealText(m, band) {
++  const p = idealParts(m, band);
++  return `${p.lead} ${p.range}`;
+ }
+ 
+ /** Source strings from ideals.json read like data. Clean them for display. */
+@@ -198,7 +203,7 @@ export function createTile(metric, prefix, extraClass) {
+     <div class="tile-val"><span class="v"></span><span class="u${m.unit === DEG ? " deg" : ""}">${m.unit}</span></div>
+     <div class="tile-word"></div>
+     <div class="bar" aria-hidden="true"><i class="band"></i><i class="mark"></i></div>
+-    <div class="tile-cap"><span class="status"></span><span class="ideal"></span></div>
++    <div class="tile-cap"><span class="status"></span><span class="ideal"><span class="il"></span> <span class="nw"></span></span></div>
+     <p class="tile-src" id="${id}-src" hidden></p>`;
+   const $ = (s) => el.querySelector(s);
+   const vEl = $(".v");
+@@ -207,7 +212,9 @@ export function createTile(metric, prefix, extraClass) {
+   const bandEl = $(".band");
+   const markEl = $(".mark");
+   const statusEl = $(".status");
+-  const idealEl = $(".ideal");
++  let lastIdeal = "";
++  const idealLead = $(".ideal .il");
++  const idealRange = $(".ideal .nw");
+   const capEl = $(".tile-cap");
+   const srcEl = $(".tile-src");
+   const badge = $(".badge-modeled");
+@@ -247,7 +254,15 @@ export function createTile(metric, prefix, extraClass) {
+       markEl.classList.toggle("edge", g.edge);
+       const statusText = st === "in" ? "In band" : st === "above" ? "Above band" : "Below band";
+       statusEl.textContent = (st === "in" ? "✓ " : st === "above" ? "▲ " : "▼ ") + statusText;
+-      idealEl.textContent = idealText(m, band);
++      // The band moves only when the club, player, speed or attack changes, so most drag steps skip this.
++      const ip = idealParts(m, band);
++      const ideal = ip.lead + " " + ip.range;
++      if (ideal !== lastIdeal) {
++        lastIdeal = ideal;
++        idealLead.textContent = ip.lead;
++        idealRange.textContent = ip.range;
++        bar.title = ideal; // the key tiles drop the note, the bar keeps it
++      }
+       badge.hidden = !band.modeled;
+       srcEl.textContent = sourceText(metric, band, exception);
+       info.title = srcEl.textContent;
+diff --git a/site/ball-flight/tool.css b/site/ball-flight/tool.css
+index ae50326..5dadab5 100644
+--- a/site/ball-flight/tool.css
++++ b/site/ball-flight/tool.css
+@@ -176,10 +176,13 @@ nav.tabs .tab-btn.active{background:var(--clay-text);color:var(--card);border-co
+ .key-tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.6rem;margin-top:.9rem;}
+ .key-tiles .tile-info,.key-tiles .badge-modeled,.key-tiles .tile-src{display:none;}
+ .key-tiles .tile-val .v{font-size:1.4rem;}
++/* A key tile keeps label, value, direction word, bar and status. The ideal range lives in the bar's tooltip and in Every number. */
++.key-tiles .tile-cap .ideal{display:none;}
++.key-tiles .tile-label{letter-spacing:.03em;}
+ .tile-groups{display:flex;flex-direction:column;gap:1.4rem;}
+ .tile-group h3{font-family:var(--mono);font-size:.75rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--clay-text);padding-bottom:.4rem;border-bottom:1px solid var(--line);margin-bottom:.7rem;display:flex;align-items:baseline;gap:.75rem;flex-wrap:wrap;}
+ .tile-group h3 small{font-family:var(--sans);font-size:.78rem;letter-spacing:0;text-transform:none;font-weight:400;color:var(--muted);}
+-.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(10.5rem,1fr));gap:.6rem;align-items:start;}
++.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(11.5rem,1fr));gap:.6rem;align-items:start;}
+ .tile{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:.6rem .7rem .55rem;display:flex;flex-direction:column;gap:.05rem;min-width:0;transition:background .25s,border-color .25s;}
+ .tile.in{background:var(--green-tint);border-color:var(--green-line);}
+ .tile.out{background:var(--clay-tint);border-color:var(--clay-line);}
+@@ -207,6 +210,7 @@ nav.tabs .tab-btn.active{background:var(--clay-text);color:var(--card);border-co
+ .tile.in .status{color:var(--green-text);}
+ .tile.out .status{color:var(--clay-text);}
+ .tile-cap .ideal{color:var(--muted);}
++.tile-cap .nw,.tile-cap .status{white-space:nowrap;}
+ .tile-src{font-size:.78rem;line-height:1.5;color:var(--ink-soft);margin-top:.5rem;padding-top:.5rem;border-top:1px dashed var(--muted);}
+ 
+ /* ---------- footer ---------- */
+@@ -215,6 +219,9 @@ footer .signoff{font-family:var(--mono);font-size:.75rem;font-weight:500;letter-
+ footer h3{font-family:var(--serif);font-weight:600;font-size:.95rem;margin:.6rem 0;}
+ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:1.65;max-width:110ch;}
+ 
++/* Six tiles in a row (laptop) and three narrow columns (phone) wrap "Launch direction" onto two lines, so every tile keeps two label lines and the values line up. */
++@media (min-width:1200px){.key-tiles .tile-top{min-height:2.4rem;align-items:flex-start;}}
++
+ /* ---------- key tiles narrow down ---------- */
+ @media (max-width:1199px) and (min-width:901px){
+   .key-tiles{grid-template-columns:repeat(3,minmax(0,1fr));}
+@@ -233,7 +240,7 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
+   .setup{order:3;}
+   .all-tiles{order:4;}
+   .swing{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0 auto;max-width:52rem;border-radius:14px 14px 0 0;border-width:1px 0 0;border-top:3px double var(--line);padding:0 max(1rem,var(--safe-r)) var(--safe-b) max(1rem,var(--safe-l));box-shadow:0 -8px 24px var(--shadow-ink);}
+-  .swing-head{border-bottom:0;margin:0;padding:.35rem 0;min-height:var(--drawer-h);}
++  .swing-head{border-bottom:0;margin:0;padding:.35rem 0;min-height:calc(var(--drawer-h) - 3px);} /* the 3px is the drawer's top rule, so the closed drawer is exactly --drawer-h */
+   .swing-title,#reset-btn{display:none;}
+   .swing-toggle{flex:1;display:flex;align-items:center;gap:.6rem;background:none;border:0;text-align:left;cursor:pointer;min-width:0;min-height:2.75rem;padding:0;}
+   .swing-chev{flex:none;width:.65rem;height:.65rem;border-left:2px solid var(--ink);border-top:2px solid var(--ink);transform:rotate(45deg) translate(2px,2px);transition:transform .25s var(--ease);margin-right:.2rem;}
+@@ -270,6 +277,7 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
+   .tile-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+   .tile-val .v{font-size:1.45rem;}
+   .card{padding:1rem .95rem;}
++  .swing{padding:0 max(.95rem,var(--safe-r)) var(--safe-b) max(.95rem,var(--safe-l));} /* the drawer keeps no top or bottom padding, or it grows taller than --drawer-h and covers the last tile row */
+   .copy-status{min-width:0;}
+ }
+ 
+@@ -421,12 +429,12 @@ svg.pv{display:block;max-width:100%;}
+    before they fall below the fold. --reserve is what the range leaves free. */
+ body[data-mode="w"]{--reserve:32rem;}
+ body[data-mode="c"]{--reserve:32rem;}
++/* The tool switcher sits under the lab at every width, so the lab starts higher on the screen. */
++.wrap{display:flex;flex-direction:column;}
++.wrap > main{order:1;}
++.wrap > footer{order:3;}
++.wrap > nav.tabs{order:2;margin:var(--gap) 0 0;}
+ @media (max-width:900px){
+-  .wrap{display:flex;flex-direction:column;}
+-  .wrap > main{order:1;}
+-  .wrap > footer{order:3;}
+-  /* The tool switcher moves under the lab so the lab starts higher on the screen. */
+-  .wrap > nav.tabs{order:2;margin:var(--gap) 0 0;}
+   body[data-mode="w"] .key-tiles,body[data-mode="c"] .key-tiles{display:none;}
+   .windows,.compare{margin-top:.8rem;}
+ }
+@@ -492,6 +500,47 @@ body[data-mode="c"]{--reserve:32rem;}
+   .swing{padding:.5rem .8rem;}
+ }
+ 
++/* 9 Windows and Compare teach with the recipe and the table, so the key tiles step aside at every width. */
++body[data-mode="w"] .key-tiles,body[data-mode="c"] .key-tiles{display:none;}
++
++/* ---------- fit to the fold ---------- */
++/* ui.js measures what sits under the range (key tiles, the nine windows, the
++   compare card) and sets --reserve so all of it ends above the fixed bar. When
++   the range would fall under its minimum, it sets body[data-fit="1"], which
++   drops the detail a coach can do without: the tile status line, the extra
++   compare rows and the roomy padding. Nothing is left half visible at the fold. */
++body[data-fit="1"] .key-tiles .tile-cap{display:none;}
++body[data-fit="1"] .key-tiles .tile-top{min-height:1.5rem;}
++body[data-fit="1"] .cmp-more{display:none;}
++body[data-fit="1"] .cmp-table th,body[data-fit="1"] .cmp-table td{padding:.15rem .5rem;}
++body[data-fit="1"] .windows,body[data-fit="1"] .compare{padding-top:.7rem;padding-bottom:.7rem;}
++body[data-fit="1"] .win-btn{min-height:2.75rem;}
++body[data-fit="1"] .win-btn .wb-peak,body[data-fit="1"] .windows h2,body[data-fit="1"] .compare h2{display:none;}
++body[data-fit="1"] .win-layout{gap:.5rem 1.2rem;}
++body[data-fit="1"] .win-actions{margin-top:.6rem;}
++body[data-fit="1"] .win-note{display:none;}
++body[data-fit="1"] .win-dl{grid-template-columns:repeat(4,minmax(0,1fr));gap:.3rem .5rem;}
++body[data-fit="1"] .win-dl > div:nth-child(n+5){display:none;} /* launch, spin, peak height and shot name show elsewhere on the screen */
++body[data-fit="1"] .win-recipe h3{margin-bottom:.3rem;}
++@media (max-width:559px){
++  /* A phone that is too short for six tiles keeps the four that are not extra, as a 2 by 2 without the direction words. */
++  body[data-fit="1"] .key-tiles{grid-template-columns:repeat(2,minmax(0,1fr));}
++  body[data-fit="1"] .key-extra{display:none;}
++  body[data-fit="1"] .key-tiles .tile-word{display:none;}
++  body[data-fit="1"] .key-tiles .tile-top{min-height:0;}
++  /* The 9 Windows recipe keeps its four numbers and drops the words under them. */
++  body[data-fit="1"] .win-dl small,body[data-fit="1"] .win-adj{display:none;}
++  body[data-fit="1"] .win-btn{min-height:2.4rem;}
++  body[data-fit="1"] .windows,body[data-fit="1"] .compare{padding-top:.5rem;padding-bottom:.5rem;}
++}
++/* With the drawer open, what sits behind it is hidden, so no strip of a card or tile peeks out above it. */
++@media (max-width:900px){
++  body[data-drawer="open"] .stage > :not(.range-wrap),body[data-drawer="open"] .range-bar{visibility:hidden;}
++}
++@media (max-width:559px){
++  body[data-drawer="open"] .shot-label{visibility:hidden;}
++}
++
+ /* ---------- presentation mode (TV) ---------- */
+ /* The range fills the screen. Shot label and the six key tiles are large. The
+    controls collapse to one slim bar at the bottom. */
+diff --git a/site/ball-flight/ui.js b/site/ball-flight/ui.js
+index 2b03c07..8aeae67 100644
+--- a/site/ball-flight/ui.js
++++ b/site/ball-flight/ui.js
+@@ -218,7 +218,10 @@ async function main() {
+     $("#windows").hidden = state.mode !== "w";
+     $("#compare").hidden = state.mode !== "c";
+     $("#mode-hint").textContent = MODE_HINT[state.mode];
+-    document.body.dataset.mode = state.mode; // tool.css budgets the first screen per mode
++    if (document.body.dataset.mode !== state.mode) {
++      document.body.dataset.mode = state.mode; // tool.css budgets the first screen per mode
++      scheduleFit(0);
++    }
+   }
+   function setMode(m) {
+     if (m === state.mode) return;
+@@ -362,6 +365,7 @@ async function main() {
+     onChange(on) {
+       announceMode(on ? "Presentation mode on. Press Escape to exit." : "Presentation mode off.");
+       applyDrawer();
++      scheduleFit(0);
+       range.redraw();
+       views.redraw();
+     },
+@@ -382,6 +386,7 @@ async function main() {
+     const open = !isDrawer() || drawerOpen || presenter.on;
+     swing.dataset.open = String(open);
+     toggle.setAttribute("aria-expanded", String(open));
++    document.body.dataset.drawer = isDrawer() && drawerOpen && !presenter.on ? "open" : "closed";
+     body.inert = !open;
+   }
+   function setDrawer(open, refocus) {
+@@ -406,6 +411,70 @@ async function main() {
+   shortLandscape.addEventListener("change", applyDrawer);
+   applyDrawer();
+ 
++  // ---- fit to the fold -----------------------------------------------------------------
++  // The numbers a mode teaches with sit under the range: the key tiles, the nine
++  // windows, the compare card. This measures how much room they need and gives the
++  // rest to the range, so they end above the fixed bar instead of running under it.
++  // If the range would get too short, body[data-fit="1"] trims detail (see tool.css).
++  const rootStyle = document.body.style; // on body, so it beats the body[data-mode] fallbacks in tool.css
++  const MAX_RANGE_ASPECT = 2.4;
++  function fitFirstScreen() {
++    const bs = document.body.dataset;
++    if (presenter.on || shortLandscape.matches) {
++      rootStyle.removeProperty("--reserve");
++      rootStyle.removeProperty("--range-min");
++      $("#views").style.marginTop = "";
++      delete bs.fit;
++      return;
++    }
++    const target = state.mode === "w" ? $("#windows") : state.mode === "c" ? $("#compare") : $("#key-tiles");
++    const cs = getComputedStyle(document.documentElement);
++    const rem = parseFloat(cs.fontSize) || 16;
++    const drawerH = parseFloat(cs.getPropertyValue("--drawer-h")) || 0;
++    const barH = parseFloat(getComputedStyle(document.body).paddingBottom) || 0; // drawer and the safe area
++    // The range never gets flatter than about 2.4 to 1: the picture's crop stops working past that.
++    const minRange = Math.max((window.innerWidth < 560 ? 14 : 16) * rem, rangeRoot.getBoundingClientRect().width / MAX_RANGE_ASPECT);
++    const pad = 16;
++    let reserve = null;
++    for (const level of ["0", "1"]) {
++      bs.fit = level;
++      const tr = target.getBoundingClientRect(); // forces layout
++      if (!tr.height) { reserve = null; break; }
++      const rr = rangeRoot.getBoundingClientRect();
++      const top = document.documentElement.getBoundingClientRect().top; // -scrollY, read in the same layout
++      const fixed = tr.bottom - top - rr.height; // everything above the range plus everything under it
++      reserve = fixed + pad + (barH - drawerH);
++      if (window.innerHeight - drawerH - reserve >= minRange) break;
++    }
++    const setVar = (name, px) => {
++      if (px === null) rootStyle.removeProperty(name);
++      else if (Math.abs(px - (parseFloat(rootStyle.getPropertyValue(name)) || 0)) > 0.5) rootStyle.setProperty(name, px.toFixed(1) + "px");
++    };
++    setVar("--reserve", reserve);
++    setVar("--range-min", reserve === null ? null : minRange);
++    // The layout ends cleanly at the fold: if the next section would show only its top edge above
++    // the fixed bar, it starts below the fold instead. A section that shows more than a sliver stays put.
++    const next = $("#views");
++    next.style.marginTop = "0px";
++    const visible = window.innerHeight - barH - (next.getBoundingClientRect().top);
++    next.style.marginTop = visible > 0 && visible < 110 ? Math.ceil(visible + 8) + "px" : "";
++  }
++  // Debounced: a slider drag can change a tile's wrapping on every step, and the fit only needs to settle when it stops.
++  let fitTimer = 0;
++  function scheduleFit(delay = 90) {
++    clearTimeout(fitTimer);
++    fitTimer = setTimeout(() => requestAnimationFrame(fitFirstScreen), delay);
++  }
++  const fitObserver = new ResizeObserver(() => scheduleFit());
++  for (const el of ["#key-tiles", "#windows", "#compare", ".page-head", ".modebar"]) {
++    const node = $(el);
++    if (node) fitObserver.observe(node);
++  }
++  window.addEventListener("resize", () => scheduleFit());
++  narrow.addEventListener("change", () => scheduleFit(0));
++  shortLandscape.addEventListener("change", () => scheduleFit(0));
++  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => scheduleFit(0));
++
+   // ---- go ------------------------------------------------------------------------
+   store.loadFromSearch(location.search, (key) => windows.applyWindow(key));
+   render();
