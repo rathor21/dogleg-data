@@ -1,6 +1,6 @@
 """Draw a QA overlay for a fitted camera.
 
-Usage: python overlay_fit.py camera_final.json out.png
+Usage: python overlay_fit.py camera_final.json out.jpg
 """
 import json
 import sys
@@ -70,7 +70,7 @@ def main():
     vp = project((1e6, 0, 0), cam)
     dr.line((0, vp[1], W, vp[1]), fill=(255, 128, 0, 200), width=1)
     dr.text((8, vp[1] - 22), "horizon", fill=(255, 160, 0, 255), font=font)
-    im.save(out)
+    im.convert("RGB").save(out, quality=82)
     top_v = min(p[1] for p in straight if p)
     print(out, "apex row (straight):", round(top_v, 1), "of", H,
           "| 300yd ground row:", round(P(300, 0)[1], 1), "horizon:", round(vp[1], 1),

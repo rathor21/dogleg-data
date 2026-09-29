@@ -3,7 +3,7 @@
 Candidates for the driving-range view behind the ball-flight tracer. Full prompt text for each image lives in `prompts/`. Images live in `candidates/`. Rebuild the contact sheet with:
 
 ```
-analysis/002-tee-shot-distance/.venv/bin/python contact_sheet.py "candidates/r1_[0-9].png" candidates/r1_contact.png
+analysis/002-tee-shot-distance/.venv/bin/python contact_sheet.py "candidates/r1_[0-9].png" candidates/r1_contact.jpg
 ```
 
 Generator: Nano Banana through the Gemini CLI (`/generate`, one image per call). Output size is 1376x768 (about 16:9).
@@ -66,7 +66,7 @@ Sunny first picked r1_5, then switched to **r1_8** (sunset dusk, bay frame, whit
 | `range_final.png` | 1376x768 (16:9) | `candidates/r2_w_edit_b.png`, a nano-banana edit of r1_8 |
 | `range_final_mobile.png` | 768x1376 (9:16) | `candidates/r2_m_edit.png`, a nano-banana edit of r1_8 |
 
-Contact sheet of all round 2 candidates: `candidates/r2_contact.png`.
+Contact sheet of all round 2 candidates: `candidates/r2_contact.jpg`.
 
 **Recommended wide image: `r2_w_edit_b`.** It is r1_8 with two changes (prompt in `prompts/r2_wide_edit_b.txt`): the metal-railed bay dividers shrink to low corner panels (they now stop below row 580 instead of row 440), and two more greens step back along the range (a large green right of the line, a small one on the line). The sunset, the trees, the floodlights, the center line and the mat stay as in r1_8. The faithful version is `r2_w_upscale.png`.
 
@@ -167,7 +167,7 @@ With a 1.8 yd eye height the painting reads as a short, narrow field: greens lan
 
 ### QA overlays
 
-`range_final_fit_overlay.png` and `range_final_mobile_fit_overlay.png` (made by `overlay_fit.py`) draw the 50 to 300 yd ground lines (yellow, y from -30 to +30), the center line (magenta), y = +-10 and +-20 lines (cyan), the back-projected greens (red circle at the painted pixel, white cross at the projected ground point), the horizon (orange), a straight driver tracer with apex 35 yd at x = 165 (white), and the same with a 25 yd draw toward -y (green), both ending at x = 280.
+`range_final_fit_overlay.jpg` and `range_final_mobile_fit_overlay.jpg` (made by `overlay_fit.py`) draw the 50 to 300 yd ground lines (yellow, y from -30 to +30), the center line (magenta), y = +-10 and +-20 lines (cyan), the back-projected greens (red circle at the painted pixel, white cross at the projected ground point), the horizon (orange), a straight driver tracer with apex 35 yd at x = 165 (white), and the same with a 25 yd draw toward -y (green), both ending at x = 280.
 
 - The 300 yd line sits below the horizon in both images (wide 304.8 vs 300.4, portrait 555.4 vs 547.5).
 - The driver tracer stays inside the frame. Its highest pixel is row 68 of 768 (wide) and row 131 of 1376 (portrait). The highest point on screen is near the ball, not at the 165 yd apex: a ball 15 yd downrange and 6 yd up is 18 yd from a camera at 1.8 yd, so it climbs high in the image. The true apex projects at row 152 (wide). The page can keep the full 35 yd apex without scaling.
@@ -183,7 +183,7 @@ With a 1.8 yd eye height the painting reads as a short, narrow field: greens lan
 
 ## Round 3: art camera
 
-The pinhole camera above stays as the documented baseline (`fit_camera.py`, `camera_final*.json`, `range_final*_fit_overlay.png`). It squeezes 50 to 300 yd into about 20 px because the painting is not perspective-consistent. Round 3 fits a 2.5D mapping to the painting's own ground instead, the way Release 003 fitted its model to the art.
+The pinhole camera above stays as the documented baseline (`fit_camera.py`, `camera_final*.json`, `range_final*_fit_overlay.jpg`). It squeezes 50 to 300 yd into about 20 px because the painting is not perspective-consistent. Round 3 fits a 2.5D mapping to the painting's own ground instead, the way Release 003 fitted its model to the art.
 
 ### Mapping
 
@@ -210,8 +210,8 @@ v = row(x) - z * s(x)
 Landmarks are in `landmarks_art.json` and `landmarks_art_mobile.json` (same pixel measurements as the pinhole fit, plus a tree base row and the yardage ranges; the portrait adds the clipped green K at the left edge). Run with the 002 venv, which has Pillow (the release venv has numpy only), from the release folder:
 
 ```
-python art/art_overlay.py art/landmarks_art.json art/art_camera_final.json art/range_final_art_overlay.png
-python art/art_overlay.py art/landmarks_art_mobile.json art/art_camera_final_mobile.json art/range_final_mobile_art_overlay.png
+python art/art_overlay.py art/landmarks_art.json art/art_camera_final.json art/range_final_art_overlay.jpg
+python art/art_overlay.py art/landmarks_art_mobile.json art/art_camera_final_mobile.json art/range_final_mobile_art_overlay.jpg
 ```
 
 `h` comes from the green rows, not from the center-line taper. The taper and the stripes point to a vanishing row of about 340 to 390 in the wide image, but the far green sits at row 313, so a ground `h` that low is impossible on screen. The fit lands at h = 303 (wide) and 563 (portrait).
@@ -283,4 +283,4 @@ In the driver view the driver arc is 153.5 px tall on screen (112.0 px times 1.3
 - `art_camera.py`: mapping, `ArtCamera.project`, row-curve fit.
 - `art_overlay.py`: yardage assignment, z_eff selection against `flight.py`, checks, views, JSON and overlay.
 - `art_camera_final.json`, `art_camera_final_mobile.json`: params, formula text, greens with assigned yardages and pixels, checks, per-flight rows, views.
-- `range_final_art_overlay.png`, `range_final_mobile_art_overlay.png`: yardage ground lines at 50 to 300 yd (yellow), y = +-10 and +-20 (cyan), the driver (white), 7-iron (orange), PW (blue), 7-iron draw (green) and fade (magenta), the 300 yd driver (white dots), the tree base, the 30 px margin and (wide) the five view rectangles.
+- `range_final_art_overlay.jpg`, `range_final_mobile_art_overlay.jpg`: yardage ground lines at 50 to 300 yd (yellow), y = +-10 and +-20 (cyan), the driver (white), 7-iron (orange), PW (blue), 7-iron draw (green) and fade (magenta), the 300 yd driver (white dots), the tree base, the 30 px margin and (wide) the five view rectangles.

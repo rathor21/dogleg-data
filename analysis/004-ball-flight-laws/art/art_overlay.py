@@ -1,8 +1,8 @@
 """Choose the art camera against real flights, write the JSON and draw the overlay.
 
 Usage (from the release folder, with the release venv so flight.py imports):
-    .venv/bin/python art/art_overlay.py art/landmarks_art.json art/art_camera_final.json art/range_final_art_overlay.png
-    .venv/bin/python art/art_overlay.py art/landmarks_art_mobile.json art/art_camera_final_mobile.json art/range_final_mobile_art_overlay.png
+    .venv/bin/python art/art_overlay.py art/landmarks_art.json art/art_camera_final.json art/range_final_art_overlay.jpg
+    .venv/bin/python art/art_overlay.py art/landmarks_art_mobile.json art/art_camera_final_mobile.json art/range_final_mobile_art_overlay.jpg
 
 Steps
 -----
@@ -273,7 +273,7 @@ def draw(cam, lm, fl, greens, assign, out_png, views=None):
             l, t, r, b = vw["rect"]
             dr.rectangle((l, t, r, b), outline=(180, 180, 255, 140), width=1)
             dr.text((l + 4, t + 4), name, fill=(190, 190, 255, 255), font=small)
-    im.save(out_png)
+    im.convert("RGB").save(out_png, quality=82)
 
 
 def main():

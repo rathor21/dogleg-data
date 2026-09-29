@@ -1,6 +1,6 @@
 """Build a labeled contact sheet (2 columns) from a glob of candidate images.
 
-Usage: contact_sheet.py "candidates/r1_[0-9].png" candidates/r1_contact.png
+Usage: contact_sheet.py "candidates/r1_[0-9].png" candidates/r1_contact.jpg
 """
 import glob
 import os
@@ -52,7 +52,7 @@ def main():
         box = draw.textbbox((x + 14, y + 10), label, font=font)
         draw.rectangle((box[0] - 8, box[1] - 6, box[2] + 8, box[3] + 6), fill=(0, 0, 0))
         draw.text((x + 14, y + 10), label, font=font, fill=(255, 255, 255))
-    sheet.save(out)
+    sheet.convert("RGB").save(out, quality=82)
     print(f"wrote {out} ({sheet.width}x{sheet.height}, {len(thumbs)} images)")
 
 
