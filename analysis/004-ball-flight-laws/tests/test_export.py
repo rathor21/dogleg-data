@@ -6,6 +6,7 @@ import re
 
 import pytest
 
+import chart
 import classify
 import data
 import export
@@ -141,6 +142,18 @@ def test_presets_json(built):
                 assert got[new] == pytest.approx(live[old], rel=1e-5, abs=1e-9), (player, club, new)
                 assert old not in got
             assert got["at_preset"]["flight"]["total_yd"] > got["at_preset"]["flight"]["carry_yd"]
+            ideal = got["ideal"]
+            live_i = live["ideal"]
+            assert ideal["label"] == live_i["label"] and ideal["modeled"] is live_i["modeled"]
+            assert ideal["speed_clamped"] is live_i["speed_clamped"]
+            for old, new in export.DELIVERY_NAMES.items():
+                assert ideal[new] == pytest.approx(live_i[old], rel=1e-5, abs=1e-9), (player, club, "ideal", new)
+            assert ideal["at_ideal"]["flight"]["total_yd"] > ideal["at_ideal"]["flight"]["carry_yd"]
+    assert p["driver_ideal"] == data.DRIVER_IDEAL
+    for player in presets.PLAYERS:
+        drv = p["presets"][player]["driver"]["ideal"]
+        assert drv["attack_deg"] == 4.0 and drv["spin_trim"] == 1.0
+        assert drv["at_ideal"]["flight"]["carry_yd"] > p["presets"][player]["driver"]["at_preset"]["flight"]["carry_yd"]
     assert "4-iron" in p["presets"]["lpga"]["3i"]["note"]
     assert set(p["published"]) == {"pga", "lpga", "amateur"}  # nested {player: {club: row}}, lowercase
     assert p["published"]["pga"]["7i"]["carry_yd"] == 176
@@ -166,7 +179,7 @@ def test_windows_json(built):
 def test_ideals_json(built):
     i = json.loads(built["ideals.json"])
     assert set(i["bands"]) == {"pga", "lpga", "amateur"}
-    assert len(i["metrics"]) == 18 and "club_speed_mph" in i["metrics"] and "path_deg" in i["metrics"]
+    assert len(i["metrics"]) == 19 and "total_yd" in i["metrics"] and "club_speed_mph" in i["metrics"] and "path_deg" in i["metrics"]
     assert "club_speed" not in i["metrics"] and "club_path_deg" not in i["metrics"]
     for player in i["bands"]:
         for club, bands in i["bands"][player].items():
@@ -176,7 +189,15 @@ def test_ideals_json(built):
     assert i["bands"]["pga"]["7i"]["smash"]["hi"] is None
     assert i["bands"]["pga"]["driver"]["launch_deg"]["source_id"] == "launch_deg_driver"
     assert i["bands"]["pga"]["7i"]["launch_deg"]["source_id"] == "launch_deg"
-    assert set(i["sources"]) == set(i["metrics"]) | {"launch_deg_driver", "spin_rpm_driver"}
+    assert set(i["sources"]) == set(i["metrics"]) | {"attack_deg_driver", "dyn_loft_deg_driver", "launch_deg_driver",
+                                                     "spin_rpm_driver"}
+    assert i["bands"]["pga"]["driver"]["attack_deg"]["source_id"] == "attack_deg_driver"
+    assert i["bands"]["amateur"]["driver"]["dyn_loft_deg"]["source_id"] == "dyn_loft_deg_driver"
+    for player in ("pga", "lpga", "amateur"):
+        a = i["bands"][player]["driver"]["attack_deg"]
+        assert (a["lo"], a["hi"], a["target"]) == (2.0, 5.0, 4.0)
+        assert i["bands"][player]["7i"]["attack_deg"]["hi"] <= 1.0
+    assert i["driver"]["default_attack_deg"] == 4.0 and "attack_rule" in i["driver"]
     d = i["driver"]
     assert len(d["trackman_carry_2010"]["launch_deg"]) == 10 and len(d["trackman_carry_2010"]["launch_deg"][0]) == 3
     assert len(d["ping_2019"]["launch_deg"]) == 11 and len(d["ping_2019"]["launch_deg"][0]) == 11
@@ -185,9 +206,7 @@ def test_ideals_json(built):
     assert d["trackman_carry_2010"]["spin_rpm"][8][1] == 2919  # 115 mph, AoA 0
     assert "detail" in i["bands"]["pga"]["driver"]["launch_deg"]
     assert d["trackman_carry_2010"] == export.clean(ideals.optimizer_grids()["trackman_carry_2010"])
-    ex = i["known_exceptions"]
-    assert [(e["club"], e["player"], e["metric"]) for e in ex] == [("driver", "lpga", "launch_deg")]
-    assert ex[0]["value"] < ex[0]["lo"]
+    assert i["known_exceptions"] == []  # every ideal delivery sits inside its own bands
 
 
 def test_camera_json_copies_the_art_files(built):
@@ -259,6 +278,17 @@ def test_golden_round_trips_against_the_live_model(golden):
                 live = getattr(f, key)
                 assert tr[key] == pytest.approx([float(live[i]) for i in idx], rel=REL, abs=REL), (case["id"], key)
             assert tr["z"][-1] == 0.0
+
+
+def test_golden_optimal_loft_vectors(golden):
+    vecs = golden["optimal_loft_vectors"]
+    assert len(vecs) == 72
+    assert any(v["result"]["extrapolated"] for v in vecs) and any(v["result"]["speed_clamped"] for v in vecs)
+    assert any(not v["result"]["extrapolated"] and not v["result"]["speed_clamped"] for v in vecs)
+    for v in vecs:
+        live = chart.optimal_loft(*v["args"])
+        assert v["result"]["dyn_loft_deg"] == pytest.approx(live.dyn_loft_deg, rel=REL, abs=REL), v["args"]
+        assert v["result"]["extrapolated"] is live.extrapolated and v["result"]["speed_clamped"] is live.speed_clamped
 
 
 def test_golden_classify_vectors(golden):
@@ -339,7 +369,7 @@ def test_schema_names_every_exported_key(built):
     i = json.loads(built["ideals.json"])
     groups.append(("ideals", list(i["driver"]) + list(i["driver"]["ping_2019"]) + list(i["driver"]["trackman_carry_2010"])
                    + list(i["bands"]["pga"]["driver"]["launch_deg"]) + list(i["bands"]["pga"]["driver"]["launch_deg"]["detail"])
-                   + list(i["known_exceptions"][0])))
+                   + (list(i["known_exceptions"][0]) if i["known_exceptions"] else [])))
     m = json.loads(built["model.json"])
     groups.append(("model", [k for sec in ("units", "ball", "air", "aero", "roll", "flight", "launch_model", "classify", "domain")
                              for k in m[sec]]))

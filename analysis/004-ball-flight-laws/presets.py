@@ -29,11 +29,21 @@ clubs between the anchors interpolate the trim by club speed.
 
 LPGA has no 3 iron. preset("3i", "lpga") returns the 4 iron and says so in
 "note" and "club".
+
+Ideal delivery. preset()["ideal"] and ideal_delivery(club, player, club_speed)
+give the delivery the tool calls ideal. For every club but the driver it is the
+preset itself. For the driver it is data.DRIVER_IDEAL: the player's club speed,
+attack +4, dynamic loft chart.optimal_loft(speed, 4) from the TrackMan 2010
+carry chart, path 0, face 0, spin trim 1.0 (the chart's own strike, the basis
+the flight model is calibrated to). preset()["ideal"] is at the preset club
+speed. scale_speed does not move it, so call ideal_delivery(club, player,
+speed) for the ideal at another club speed.
 """
 
 import data
 import flight
 import launch
+from chart import optimal_loft
 
 # Explicit ladder, longest club first. LPGA has no 3i.
 CLUBS = ("driver", "3w", "5w", "hybrid", "3i", "4i", "5i", "6i", "7i", "8i", "9i", "pw")
@@ -105,7 +115,7 @@ def preset(club, player):
         vals["spin_trim"] = r["spin_rpm"] / _model_spin(used, vals)
         source = f"TrackMan 2023 {tour} table; dynamic loft from data.TOUR_DYN_LOFT"
         modeled = False
-    return dict(
+    out = dict(
         club_speed=vals["club_speed"],
         attack=vals["attack"],
         dyn_loft=vals["dyn_loft"],
@@ -117,14 +127,49 @@ def preset(club, player):
         modeled=modeled,
         note=note,
     )
+    out["ideal"] = _ideal(club, player, out, out["club_speed"])
+    return out
+
+
+def _check_speed(club_speed):
+    lo, hi = data.DOMAIN["club_speed_mph"]
+    if not (club_speed == club_speed and lo <= club_speed <= hi):  # NaN fails both
+        raise ValueError(f"club_speed must be within {lo:g} to {hi:g} mph, got {club_speed!r}")
+
+
+def _ideal(club, player, p, club_speed):
+    """The ideal delivery for a club, player and club speed, given the preset p."""
+    if club == "driver":
+        d = data.DRIVER_IDEAL
+        ol = optimal_loft(club_speed, d["attack_deg"])
+        return dict(
+            club_speed=float(club_speed), attack=d["attack_deg"], dyn_loft=ol.dyn_loft_deg, path=0.0, face=0.0,
+            spin_trim=d["spin_trim"], club="driver", label=d["label"],
+            source="TrackMan 2010 Driver Fitting Chart, CARRY Optimizer (model output): dynamic loft at this club "
+                   f"speed and attack +{d['attack_deg']:g}; spin trim 1.0, the chart's own strike",
+            modeled=True, speed_clamped=ol.speed_clamped,
+        )
+    return dict(
+        club_speed=float(club_speed), attack=p["attack"], dyn_loft=p["dyn_loft"], path=0.0, face=0.0,
+        spin_trim=p["spin_trim"], club=p["club"], label=p["source"], source=p["source"], modeled=p["modeled"],
+        speed_clamped=False,
+    )
+
+
+def ideal_delivery(club, player, club_speed=None):
+    """The ideal delivery for a club and player at a club speed (default the
+    preset's). Same keys as a preset's `ideal`. Raises ValueError for a speed
+    outside data.DOMAIN, or a club or player that does not exist."""
+    p = preset(club, player)
+    speed = p["club_speed"] if club_speed is None else club_speed
+    _check_speed(speed)
+    return _ideal(club, player, p, speed)
 
 
 def scale_speed(preset_dict, club_speed):
     """Copy of a preset with only the club speed changed. The spin trim stays.
     Raises ValueError for a speed outside data.DOMAIN."""
-    lo, hi = data.DOMAIN["club_speed_mph"]
-    if not (club_speed == club_speed and lo <= club_speed <= hi):  # NaN fails both
-        raise ValueError(f"club_speed must be within {lo:g} to {hi:g} mph, got {club_speed!r}")
+    _check_speed(club_speed)
     out = dict(preset_dict)
     out["club_speed"] = float(club_speed)
     return out

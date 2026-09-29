@@ -5,22 +5,26 @@ import pytest
 import os
 import re
 
+import chart
 import data
+import flight
 import ideals
 import launch
 import presets
 
 CASES = [(c, p) for p in presets.PLAYERS for c in presets.CLUBS]
 
-# Metrics where the model's own ideal preset falls outside its band. Recorded,
-# not fudged. Strict: an entry that starts passing, or a new miss, fails.
-KNOWN_EXCEPTIONS = {
-    ("driver", "lpga", "launch_deg"),  # model launch 12.60 against band 13.24 to 15.79
-}
+# Metrics where the model's own ideal delivery falls outside its band. Recorded,
+# not fudged. Strict: an entry that starts passing, or a new miss, fails. Empty
+# since the driver's ideal became the TrackMan 2010 chart delivery: the LPGA
+# Tour-average driver launch (12.6 deg against a 13.9 to 16.6 band) is no longer
+# the driver's ideal.
+KNOWN_EXCEPTIONS = set()
 
 
 def _metrics(club, player):
-    p = presets.preset(club, player)
+    """Model outputs at the ideal delivery, at the preset club speed."""
+    p = presets.preset(club, player)["ideal"]
     ln, f = presets.fly(p)
     return {
         "club_speed": p["club_speed"], "attack_deg": p["attack"], "club_path_deg": p["path"], "face_deg": p["face"],
@@ -28,7 +32,7 @@ def _metrics(club, player):
         "ball_speed_mph": ln.ball_speed_mph, "smash": ln.smash, "launch_deg": ln.launch_deg,
         "launch_dir_deg": ln.launch_dir_deg, "spin_rpm": ln.spin_rpm, "spin_axis_deg": ln.spin_axis_deg,
         "max_height_yd": f.max_height_yd, "land_angle_deg": f.land_angle_deg, "carry_yd": f.carry_yd,
-        "side_yd": f.side_yd, "curve_yd": f.curve_yd,
+        "total_yd": flight.roll(f), "side_yd": f.side_yd, "curve_yd": f.curve_yd,
     }
 
 
@@ -39,7 +43,7 @@ def _inside(band, v):
 def test_every_metric_has_a_band():
     b = ideals.ideal_bands("7i", "pga")
     assert set(b) == set(ideals.METRICS)
-    assert len(ideals.METRICS) == 18
+    assert len(ideals.METRICS) == 19
     for m, band in b.items():
         assert {"lo", "hi", "target", "source", "modeled"} <= set(band), m
         assert band["source"], m
@@ -50,8 +54,6 @@ def test_every_metric_has_a_band():
 def test_exceptions_helper_matches_the_record():
     found = {(e["club"], e["player"], e["metric"]) for e in ideals.exceptions()}
     assert found == KNOWN_EXCEPTIONS
-    e = ideals.exceptions()[0]
-    assert e["value"] == pytest.approx(12.6, abs=0.01) and e["lo"] > e["value"]
 
 
 def test_ideal_preset_sits_inside_its_own_bands():
@@ -123,8 +125,12 @@ def test_club_speed_outside_the_domain_raises():
 
 
 def test_explicit_preset_speed_and_attack_match_the_defaults():
-    p = presets.preset("driver", "pga")
-    assert ideals.ideal_bands("driver", "pga", p["club_speed"], p["attack"]) == ideals.ideal_bands("driver", "pga")
+    """The default club speed is the preset's and the default attack is the ideal's
+    (+4 for the driver, the preset's for every other club)."""
+    for club in ("driver", "7i"):
+        p = presets.preset(club, "pga")
+        assert (ideals.ideal_bands(club, "pga", p["club_speed"], p["ideal"]["attack"])
+                == ideals.ideal_bands(club, "pga"))
 
 
 # ---------------------------------------------------------------------------
@@ -168,23 +174,25 @@ def test_driver_bands_span_both_sources_with_the_margin():
 
 
 def test_driver_bands_follow_speed_and_attack():
-    base = ideals.ideal_bands("driver", "pga")
+    base = ideals.ideal_bands("driver", "pga", attack=0.0)
     higher = ideals.ideal_bands("driver", "pga", attack=3.0)
     assert higher["launch_deg"]["target"] > base["launch_deg"]["target"]  # more attack, more optimal launch
     assert higher["spin_rpm"]["target"] < base["spin_rpm"]["target"]
-    assert higher["attack_deg"] == base["attack_deg"]  # the attack band stays on the preset
+    assert higher["dyn_loft_deg"]["target"] > base["dyn_loft_deg"]["target"]  # the chart pairs more loft with more attack
+    assert higher["attack_deg"] == base["attack_deg"]  # the attack band is fixed at +2 to +5
+    base = ideals.ideal_bands("driver", "pga")
     slow = ideals.ideal_bands("driver", "pga", club_speed=90.0)
     assert slow["launch_deg"]["target"] > base["launch_deg"]["target"]  # slower swings want more launch
 
 
-def test_driver_models_against_the_optimizer_bands():
-    """Records the model's ideal driver against the optimizer bands: PGA and
-    amateur sit inside both, the LPGA driver launches 0.6 deg under the band."""
-    for player, in_launch in (("pga", True), ("lpga", False), ("amateur", True)):
+def test_driver_ideal_sits_inside_the_optimizer_bands():
+    """The ideal driver (chart delivery, trim 1) launches and spins inside both
+    optimizer bands for every player."""
+    for player in presets.PLAYERS:
         b = ideals.ideal_bands("driver", player)
         m = _metrics("driver", player)
         assert _inside(b["spin_rpm"], m["spin_rpm"]), player
-        assert _inside(b["launch_deg"], m["launch_deg"]) is in_launch, player
+        assert _inside(b["launch_deg"], m["launch_deg"]), player
 
 
 def test_nan_and_out_of_range_attack_raise():
@@ -261,3 +269,166 @@ def test_optimizer_tables_match_the_source_log():
             ping[int(m.group(1))] = tuple((float(c.split("/")[0]), int(c.split("/")[1])) for c in cells)
     assert len(ping) == 11 and all(len(v) == 11 for v in ping.values())
     assert ping == data.PING_2019
+
+
+# ---------------------------------------------------------------------------
+# Driver ideal (task 004-copy-pass): TrackMan 2010 chart delivery, attack +2 to +5
+# ---------------------------------------------------------------------------
+
+
+def test_driver_attack_band_is_plus_two_to_plus_five_and_no_other_club_reads_positive():
+    for player in presets.PLAYERS:
+        b = ideals.ideal_bands("driver", player)["attack_deg"]
+        assert (b["lo"], b["hi"], b["target"]) == (2.0, 5.0, 4.0)
+        assert "2010" in b["source"] and b["modeled"] is True
+        for club in presets.CLUBS:
+            if club == "driver":
+                continue
+            hi = ideals.ideal_bands(club, player)["attack_deg"]["hi"]
+            assert hi <= 1.0, (club, player, hi)  # downward attack: the LPGA 3-wood is the highest, at +0.7
+
+
+def test_driver_ideal_constants_are_the_stated_design_choice():
+    d = data.DRIVER_IDEAL
+    assert (d["attack_lo_deg"], d["attack_hi_deg"], d["attack_deg"]) == (2.0, 5.0, 4.0)
+    assert d["spin_trim"] == 1.0 and d["dyn_loft_half_deg"] == 1.5
+    assert "TrackMan 2010 carry optimizer" in d["label"]
+
+
+def _avg_and_ideal(player):
+    p = presets.preset("driver", player)
+    assert p["ideal"]["club_speed"] == p["club_speed"] and p["ideal"]["attack"] == 4.0 and p["ideal"]["spin_trim"] == 1.0
+    assert (p["ideal"]["path"], p["ideal"]["face"]) == (0.0, 0.0)
+    assert p["ideal"]["dyn_loft"] == pytest.approx(chart.optimal_loft(p["club_speed"], 4.0).dyn_loft_deg)
+    assert p["ideal"]["label"] == "TrackMan 2010 carry optimizer at this club speed"
+    return presets.fly(p)[1], presets.fly(p["ideal"])[1]
+
+
+@pytest.mark.parametrize("player", presets.PLAYERS)
+def test_driver_ideal_carry_beats_the_tour_average_delivery(player):
+    f_avg, f_ideal = _avg_and_ideal(player)
+    assert f_ideal.carry_yd > f_avg.carry_yd
+
+
+@pytest.mark.parametrize("player", [
+    "pga",
+    pytest.param("lpga", marks=pytest.mark.xfail(
+        strict=True, reason="LPGA Tour-average driver total 263.2 yd against the ideal's 256.0: the average launches at "
+                            "12.6 deg with 2,048 rpm left at landing and lands at 35.6 deg, rolling 36 yd, while the "
+                            "carry-optimizer delivery lands at 40.5 deg and rolls 26 yd (carry 230.4 against 227.0)")),
+    "amateur",
+])
+def test_driver_ideal_total_beats_the_tour_average_delivery(player):
+    f_avg, f_ideal = _avg_and_ideal(player)
+    assert flight.roll(f_ideal) > flight.roll(f_avg)
+
+
+def test_every_other_ideal_is_the_preset():
+    for player in presets.PLAYERS:
+        for club in presets.CLUBS:
+            if club == "driver":
+                continue
+            p = presets.preset(club, player)
+            i = p["ideal"]
+            assert (i["club_speed"], i["attack"], i["dyn_loft"], i["spin_trim"], i["club"]) == (
+                p["club_speed"], p["attack"], p["dyn_loft"], p["spin_trim"], p["club"])
+
+
+def test_ideal_delivery_follows_club_speed_and_validates():
+    a = presets.ideal_delivery("driver", "pga", 100.0)
+    b = presets.ideal_delivery("driver", "pga", 115.0)
+    assert a["club_speed"] == 100.0 and a["dyn_loft"] > b["dyn_loft"]  # slower swings want more loft
+    assert presets.ideal_delivery("driver", "pga") == presets.preset("driver", "pga")["ideal"]
+    assert presets.ideal_delivery("7i", "pga", 80.0)["dyn_loft"] == presets.preset("7i", "pga")["dyn_loft"]
+    assert presets.ideal_delivery("driver", "pga", 60.0)["speed_clamped"] is True
+    with pytest.raises(ValueError, match="club_speed"):
+        presets.ideal_delivery("driver", "pga", 39.0)
+    with pytest.raises(ValueError, match="club_speed"):
+        presets.ideal_delivery("driver", "pga", float("nan"))
+
+
+@pytest.mark.parametrize("speed", [75, 85, 94, 96, 100, 110, 115, 120])
+def test_model_carry_rises_from_attack_0_to_4_when_loft_follows_optimal_loft(speed):
+    carries = []
+    for attack in (0.0, 4.0):
+        d = dict(presets.preset("driver", "pga")["ideal"], club_speed=float(speed), attack=attack,
+                 dyn_loft=chart.optimal_loft(speed, attack).dyn_loft_deg)
+        f = presets.fly(d)[1]
+        carries.append((f.carry_yd, flight.roll(f)))
+    assert carries[1][0] > carries[0][0] and carries[1][1] > carries[0][1]
+
+
+def test_driver_bands_at_the_ideal_delivery():
+    for player in presets.PLAYERS:
+        p = presets.preset("driver", player)
+        b = ideals.ideal_bands("driver", player)
+        _, f = presets.fly(p["ideal"])
+        assert b["carry_yd"]["target"] == pytest.approx(f.carry_yd)
+        assert b["carry_yd"]["lo"] == pytest.approx(0.97 * f.carry_yd)
+        assert b["total_yd"]["target"] == pytest.approx(flight.roll(f))
+        assert b["total_yd"]["hi"] == pytest.approx(1.03 * flight.roll(f))
+        want = chart.optimal_loft(p["club_speed"], 4.0).dyn_loft_deg
+        assert (b["dyn_loft_deg"]["lo"], b["dyn_loft_deg"]["hi"]) == pytest.approx((want - 1.5, want + 1.5))
+        assert "2010" in b["dyn_loft_deg"]["source"]
+    slow = ideals.ideal_bands("driver", "pga", club_speed=100.0, attack=1.0)
+    assert slow["dyn_loft_deg"]["target"] == pytest.approx(chart.optimal_loft(100.0, 1.0).dyn_loft_deg)
+    assert slow["carry_yd"]["target"] < ideals.ideal_bands("driver", "pga")["carry_yd"]["target"]
+
+
+def test_non_driver_bands_are_unchanged_in_meaning():
+    p = presets.preset("7i", "pga")
+    b = ideals.ideal_bands("7i", "pga")
+    assert b["dyn_loft_deg"]["target"] == pytest.approx(p["dyn_loft"])
+    assert b["attack_deg"]["target"] == p["attack"]
+
+
+# ---------------------------------------------------------------------------
+# chart.optimal_loft
+# ---------------------------------------------------------------------------
+
+
+def test_optimal_loft_reads_the_chart_at_its_grid_points():
+    for row in data.TRACKMAN_CARRY_2010:
+        r = chart.optimal_loft(row[0], row[1])
+        assert r.dyn_loft_deg == pytest.approx(row[7])
+        assert not r.extrapolated and not r.speed_clamped
+
+
+def test_optimal_loft_interpolates_bilinearly():
+    r = chart.optimal_loft(112.5, 2.5)
+    corners = [row[7] for row in data.TRACKMAN_CARRY_2010 if row[0] in (110, 115) and row[1] in (0, 5)]
+    assert r.dyn_loft_deg == pytest.approx(sum(corners) / 4.0)
+    assert chart.optimal_loft(115, 4.0).dyn_loft_deg == pytest.approx(11.6 + 0.8 * (14.4 - 11.6))
+
+
+def test_optimal_loft_clamps_speed_and_flags_it():
+    for speed, edge in ((50.0, 75), (75.0, 75), (130.0, 120), (140.0, 120)):
+        r = chart.optimal_loft(speed, 0.0)
+        assert r.dyn_loft_deg == pytest.approx(chart.optimal_loft(edge, 0.0).dyn_loft_deg)
+        assert r.speed_clamped is (speed not in (75.0,))
+
+
+def test_optimal_loft_extrapolates_attack_with_the_edge_slope_and_flags_it():
+    at5, at0, atm5 = (chart.optimal_loft(105, a).dyn_loft_deg for a in (5, 0, -5))
+    up = chart.optimal_loft(105, 10.0)
+    assert up.extrapolated and up.dyn_loft_deg == pytest.approx(at5 + (at5 - at0))  # slope per degree, five degrees
+    down = chart.optimal_loft(105, -10.0)
+    assert down.extrapolated and down.dyn_loft_deg == pytest.approx(atm5 - (at0 - atm5))
+    assert not chart.optimal_loft(105, 5.0).extrapolated and not chart.optimal_loft(105, -5.0).extrapolated
+
+
+def test_optimal_loft_rises_with_attack_and_falls_with_speed():
+    for speed in range(75, 125, 5):
+        lofts = [chart.optimal_loft(speed, a).dyn_loft_deg for a in (-5, 0, 5)]
+        assert lofts == sorted(lofts)
+    for attack in (-5, 0, 5):
+        lofts = [chart.optimal_loft(s, attack).dyn_loft_deg for s in range(75, 125, 5)]
+        assert lofts == sorted(lofts, reverse=True)
+
+
+def test_optimal_loft_rejects_non_finite_input():
+    for bad in (float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="club_speed"):
+            chart.optimal_loft(bad, 0.0)
+        with pytest.raises(ValueError, match="attack"):
+            chart.optimal_loft(100.0, bad)

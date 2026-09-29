@@ -22,7 +22,8 @@ same script from its `SCHEMA` block, so it always matches the export.
   - Launch: `ball_speed_mph`, `smash`, `launch_deg`, `launch_dir_deg`,
     `spin_rpm`, `spin_axis_deg`, `spin_loft_deg`, `face_to_path_deg`.
   - Flight: `carry_yd`, `side_yd`, `curve_yd`, `max_height_yd`, `apex_x_yd`,
-    `land_angle_deg`, `flight_time_s`, `land_speed_mph`, `total_yd`.
+    `land_angle_deg`, `flight_time_s`, `land_speed_mph`, `total_yd`, and in
+    `golden.json` also `land_spin_rpm` (spin left at landing, which the roll uses).
     `curve_yd = side_yd - carry_yd * tan(launch_dir_deg)`.
     `total_yd = carry_yd + roll` (roll form in `model.json` `roll.form`).
   - Ids: player ids are lowercase everywhere (`pga`, `lpga`, `amateur`). Club ids
@@ -53,7 +54,7 @@ Everything the port needs to recompute a shot.
 | `ball` | `mass_kg`, `diameter_m`, `radius_m`. |
 | `air` | `density_kg_m3`, `viscosity_pa_s`. |
 | `aero` | `quad` (`d0 d1 d2 d3 l0 l1 l2`), `re_unit`, `re_pivot`, `spin_decay_coef`, `forms` (text of CD, CL, Re, S and spin decay). |
-| `roll` | `k`, `cos_power`, `max_yd`, `form` (text). |
+| `roll` | `k`, `cos_power`, `spin_power`, `spin_ref_rpm`, `spin_floor_rpm`, `max_yd`, `form` (text). |
 | `flight` | `dt` (0.01 s step), `max_flight_s`, `v_floor_ms`, `integrator` (`rk4`). |
 | `launch_model` | `k0 k1 k_sl_lo k_sl_hi` (iron, hybrid and wood k line), `k0_driver k1_driver k_sl_lo_driver k_sl_hi_driver` (the driver's k line and its range), `smash_a smash_b smash_c smash_cap smash_floor`, `spin_a spin_b spin_f_wood` (iron spin law and the 3-wood and 5-wood factor), `spin_a_driver spin_b_driver` (the driver's spin law), `axis_c0 axis_c1 axis_sl_lo axis_sl_hi` (spin axis scale, linear in spin loft between the two bounds). |
 | `spin_class` | Club id to spin class (`driver`, `wood`). The driver takes its own k line and spin law, a `wood` club the iron spin law times `spin_f_wood`, and every club not listed the iron laws. |
@@ -85,6 +86,7 @@ Everything the port needs to recompute a shot.
 | `groups` | Ordered list of `{id, name}`: `driver`, `wood`, `long_iron`, `short_iron`, `wedge`. |
 | `players` | Ordered list of `{id, name}`. |
 | `presets` | `presets[player][club]`, see below. |
+| `driver_ideal` | `data.DRIVER_IDEAL`: `attack_deg` (4), `attack_lo_deg` (2), `attack_hi_deg` (5), `dyn_loft_half_deg` (1.5), `spin_trim` (1.0), `label`. MODELED design choice from the TrackMan 2010 chart. |
 | `published` | `published[player][club]`, the table row, see below. |
 | `published_note` | Text. |
 
@@ -92,7 +94,19 @@ Everything the port needs to recompute a shot.
 `face_deg` (0), `dyn_loft_deg`, `spin_trim`, `club` (the club whose row was used,
 `4i` for the LPGA 3-iron), `source` (text), `modeled` (bool), `note` (text, says
 so for the LPGA 3-iron), `at_preset` (`{launch: {...launch fields}, flight:
-{...flight fields}}` from the model at the preset).
+{...flight fields}}` from the model at the preset), `ideal` (below).
+
+`presets[player][club].ideal`: the delivery the tool calls ideal, at the preset
+club speed. `club_speed_mph`, `attack_deg`, `path_deg` (0), `face_deg` (0),
+`dyn_loft_deg`, `spin_trim`, `club`, `label` (text), `source` (text), `modeled`
+(bool), `speed_clamped` (bool, the club speed is outside the chart's 75 to 120
+mph), `at_ideal` (`{launch, flight}` from the model at that delivery). For every
+club but the driver it repeats the preset. For the driver it is the player's club
+speed, attack `driver_ideal.attack_deg`, dynamic loft `optimal_loft(club speed,
+attack)`, path 0, face 0, spin trim `driver_ideal.spin_trim` (1.0, the chart's own
+strike). For the ideal at another club speed, take the same rule at that speed:
+the driver's loft moves with speed (`optimal_loft`), every other club keeps its
+preset values.
 
 `published[player][club]`: TrackMan table row with `club_speed_mph`,
 `attack_deg`, `ball_speed_mph`, `smash`, `launch_deg`, `spin_rpm`,
@@ -128,13 +142,13 @@ Window: `player`, `club`, `height`, `shape`, `modeled`, `height_lever_deg` (h:
 
 | Key | Contents |
 |---|---|
-| `metrics` | Ordered list of the 18 band names, the same names as everywhere else: `club_speed_mph attack_deg path_deg face_deg face_to_path_deg dyn_loft_deg spin_loft_deg ball_speed_mph smash launch_deg launch_dir_deg spin_rpm spin_axis_deg max_height_yd land_angle_deg carry_yd side_yd curve_yd`. |
+| `metrics` | Ordered list of the 19 band names, the same names as everywhere else: `club_speed_mph attack_deg path_deg face_deg face_to_path_deg dyn_loft_deg spin_loft_deg ball_speed_mph smash launch_deg launch_dir_deg spin_rpm spin_axis_deg max_height_yd land_angle_deg carry_yd total_yd side_yd curve_yd`. |
 | `tolerances` | The half-widths and fractions the bands use (`data.IDEAL_TOL`), for example `spin_frac`, `carry_frac`, `driver_launch_margin_deg`. |
-| `sources` | `source_id` to text. The id is the metric name, plus `launch_deg_driver` and `spin_rpm_driver`. |
+| `sources` | `source_id` to text. The id is the metric name, plus `attack_deg_driver`, `dyn_loft_deg_driver`, `launch_deg_driver` and `spin_rpm_driver`. |
 | `bands` | `bands[player][club][metric]`, see below. |
-| `known_exceptions` | List of `{club, player, metric, value, lo, hi, note}`: the model's ideal preset falls outside its own band (LPGA driver launch). |
+| `known_exceptions` | List of `{club, player, metric, value, lo, hi, note}`: the model's ideal preset falls outside its own band (none today: every club's ideal delivery sits inside its own bands, the LPGA Tour-average driver launch that used to be recorded here is no longer the driver's ideal). |
 | `scaling` | Text rules for the bands that move with club speed. |
-| `driver` | `rule`, `launch_margin_deg`, `spin_margin_rpm`, `trackman_carry_2010`, `ping_2019` (the grids below). |
+| `driver` | `rule`, `attack_rule`, `default_attack_deg` (4), `launch_margin_deg`, `spin_margin_rpm`, `trackman_carry_2010`, `ping_2019` (the grids below). |
 
 Band: `lo`, `hi` (either may be `null`, open), `target`, `modeled` (bool),
 `source_id`, `published` (only where a table value exists), `detail` (driver
@@ -142,17 +156,31 @@ Band: `lo`, `hi` (either may be `null`, open), `target`, `modeled` (bool),
 `{launch_deg, spin_rpm}`, and `inputs` `{club_speed_mph, ball_speed_mph,
 attack_deg}`).
 
-Bands are computed at the preset club speed and attack angle. To recompute live
-at club speed `v`:
+Bands are computed at the preset club speed, and for the driver at the ideal
+attack angle (`default_attack_deg`). To recompute live at club speed `v` and
+attack angle `a`:
 - `ball_speed_mph`: target `smash * v` (`smash` from `presets[..].at_preset.launch`),
   `lo = target * (1 - ball_speed_frac)`, `hi = target * (1 + ball_speed_frac)`.
-- `carry_yd`: fly the preset at speed `v` (same `spin_trim`), band `carry *
-  (1 -/+ carry_frac)`. `side_yd` is `+- side_frac * carry`, `curve_yd` is
+- `carry_yd`: fly the ideal delivery at speed `v` (`presets[..].ideal`; for the
+  driver the loft is `optimal_loft(v, ideal attack)` and the trim is 1.0, for every other
+  club the preset with its `spin_trim`), band `carry * (1 -/+ carry_frac)`.
+  `total_yd` is the same flight with the roll added, band `total * (1 -/+
+  total_frac)`. `side_yd` is `+- side_frac * carry`, `curve_yd` is
   `+- curve_frac * carry`, both on that scaled carry.
+- Driver `attack_deg`: `lo` `driver_ideal.attack_lo_deg`, `hi` `attack_hi_deg`,
+  `target` `attack_deg`, fixed. Driver `dyn_loft_deg`: target `optimal_loft(v,
+  a).dyn_loft_deg`, half-width `dyn_loft_half_deg`.
 - Driver `launch_deg` and `spin_rpm`: read both grids (below) at the current
   club speed, ball speed and attack angle, then `lo = min(sources) - margin`,
   `hi = max(sources) + margin`, `target` the mean of the two.
-- Every other band keeps its preset-speed value.
+- Every other band keeps its value at the preset club speed.
+
+`optimal_loft(club_speed, attack)`: the dynamic loft column of the
+`trackman_carry_2010` grid below (`dyn_loft_deg`). Clamp club speed to 75 to 120
+mph (`speed_clamped`). Interpolate linearly across the two nearest club speeds
+for the loft at attack -5, 0 and +5, then linearly in attack angle between those
+three. For an attack angle beyond -5 or +5, extend the nearest segment's slope
+(`extrapolated`). `golden.json` `optimal_loft_vectors` carries test vectors.
 
 Driver grids (`driver.trackman_carry_2010`, `driver.ping_2019`). Each has
 `source`, `layout` (text), a row axis and `attack_deg` as the column axis, both
@@ -189,11 +217,12 @@ The JS parity fixture. Rounded to 9 significant digits.
 | `dt` | Time step used for every case, 0.01. |
 | `cases` | 40 cases, see below. |
 | `classify_vectors` | 560 `{args: [launch_dir_deg, spin_axis_deg, curve_yd, side_yd, carry_yd], result: classification}` on a 200 yd carry. |
+| `optimal_loft_vectors` | 72 `{args: [club_speed_mph, attack_deg], result: {dyn_loft_deg, extrapolated, speed_clamped}}`: club speeds 60 to 135 and attack angles -8 to +10, inside, on and outside the chart. |
 | `windows_pga_7i` | `windows_pga_7i["{height}_{shape}"]`, the PGA 7-iron windows in the `windows.json` window format. |
 
 Case: `id`, `delivery` (`club_speed_mph`, `attack_deg`, `path_deg`, `face_deg`,
 `dyn_loft_deg`, `club`, `spin_trim`), `launch` (launch fields from `deliver`),
-`flight` (flight fields from `simulate` at `dt`, plus `total_yd`),
+`flight` (flight fields from `simulate` at `dt`, plus `land_spin_rpm` and `total_yd`),
 `classification` (or `null` when `carry_yd` is 0), and for 12 cases `trajectory`:
 `stride` (10), `indices` (step numbers 0, 10, 20 and the final landing step),
 `t`, `x`, `y`, `z` (arrays aligned with `indices`, yards and seconds, `y`

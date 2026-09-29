@@ -30,6 +30,10 @@ POINTS = [
     ("driver", "pga", 105.0, -2.0), ("driver", "pga", 110.5, 1.5), ("driver", "amateur", 88.0, -3.0),
     ("driver", "amateur", 100.0, 4.0), ("driver", "lpga", 85.0, 2.0), ("driver", "lpga", 96.0, None),
     ("driver", "pga", None, 3.0), ("driver", "pga", 120.0, -5.0),
+    # driver at and around the ideal attack (+4, band +2 to +5), default attack, chart edges
+    ("driver", "pga", None, None), ("driver", "amateur", None, None), ("driver", "pga", 100.0, 4.0),
+    ("driver", "lpga", 90.0, 2.0), ("driver", "amateur", 80.0, 5.0), ("driver", "pga", 118.0, 6.5),
+    ("driver", "lpga", 105.0, 0.0),
     # driver, clamped: speed below and above the TrackMan grid, attack past both grids
     ("driver", "amateur", 60.0, -1.0), ("driver", "amateur", 45.0, -9.0), ("driver", "pga", 135.0, 0.0),
     ("driver", "pga", 140.0, 10.0), ("driver", "lpga", 70.0, -10.0), ("driver", "pga", 115.0, 8.0),

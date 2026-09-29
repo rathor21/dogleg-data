@@ -631,9 +631,38 @@ IDEAL_TOL = {
     "smash_below": 0.03,  # lower edge only, upper edge open
     "ball_speed_frac": 0.03,
     "carry_frac": 0.03,
+    "total_frac": 0.03,  # total distance (carry plus roll), same width as carry
     "club_speed_frac": 0.05,
     "driver_launch_margin_deg": 1.0,
     "driver_spin_margin_rpm": 200.0,
+}
+
+# Driver ideal delivery (task 004-copy-pass). MODELED design choice, with chart
+# evidence. The driver's "ideal" used to be the Tour average (PGA attack -0.9), and
+# its attack band was preset +-1.5, so the ideal read negative. TrackMan's own
+# 2010 Driver Fitting Chart (TRACKMAN_CARRY_2010 and TRACKMAN_TOTAL_2010, "TrackMan
+# 2010 chart (TrackMan model output)") says the opposite: carry rises from attack
+# -5 to 0 to +5 at every club speed from 75 to 120 mph in both charts (at 115 mph
+# 266, 281, 295 yd on the carry rows and 261, 274, 285 on the total rows), and
+# total rises with it at every speed on the total rows and on the carry rows
+# except at 100 mph, where the log flags a likely printing error (0 and +5 both
+# 272). +5 is the chart's top row. The ideal attack is +4, inside the chart's
+# range and just under its top row, and the band is +2 to +5 (the top edge is the
+# chart's edge). Where +2 sits is a design choice: about two fifths of the way
+# from the chart's 0 row to its +5 row. Loft comes from the same chart:
+# presets.optimal_loft(club_speed, attack) reads the dynamic loft column. The
+# chart is the calibration basis of the flight model (chart carry within 3
+# percent on all 60 rows), so the ideal delivery takes spin trim 1.0, the chart's
+# own strike, instead of a player group's trim. This applies to the driver only.
+# Fairway woods, hybrids, irons and wedges keep their downward-attack presets and
+# bands (attack preset +-1.5, so a tour or amateur value from -0.8 to -4.7).
+DRIVER_IDEAL = {
+    "attack_deg": 4.0,
+    "attack_lo_deg": 2.0,
+    "attack_hi_deg": 5.0,
+    "dyn_loft_half_deg": 1.5,  # dynamic loft band half-width around optimal_loft
+    "spin_trim": 1.0,
+    "label": "TrackMan 2010 carry optimizer at this club speed",
 }
 
 # Anchor 4 Source 1: TrackMan Driver Fitting Chart (2010), CARRY Optimizer.
