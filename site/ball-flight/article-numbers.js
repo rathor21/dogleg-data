@@ -11,7 +11,7 @@
  */
 import {
   faceShare, startDirection, shotAt, exampleCheck, publishedRatio, attackSweep, couplingShot,
-  driverWindows, nineWindows, coachingExample, chartGains, driverIdeals, TRACKMAN_TOTAL_2010, OPTIMIZER_DEFAULT_DRIVER,
+  driverWindows, nineWindows, coachingExample, chartGains, driverIdeals, idealTotalReversal, TRACKMAN_TOTAL_2010, OPTIMIZER_DEFAULT_DRIVER,
 } from "./article-data.js";
 
 const MINUS = "−";
@@ -119,6 +119,11 @@ export function computeNumbers(model) {
   const pgaKeep = model.shot({ ...di.pga.ideal, spinTrim: di.pga.avg.spinTrim });
   put("id-pga-carry-tt", "PGA driver ideal carry if the Tour spin trim is kept (yd)", "flight.carry at model.idealDelivery with the preset's spin trim", grp(pgaKeep.flight.carry));
   put("id-pga-gain-tt", "That carry over the average delivery's (yd)", "carry with the Tour trim minus av-pga-carry (unrounded)", grp(pgaKeep.flight.carry - di.pga.avg.carry));
+  const rv = idealTotalReversal(model);
+  put("slow-pga-lo", "Lowest club speed at which the PGA driver ideal gives less total than the average delivery (mph)", "5 mph scan of the lab's club speed range, ideal at that speed against the preset at that speed", String(rv.pga.lo));
+  put("slow-pga-hi", "Highest such club speed, PGA (mph)", "same scan", String(rv.pga.hi));
+  put("slow-lpga-lo", "Lowest club speed at which the LPGA driver ideal gives less total than the average delivery (mph)", "same scan", String(rv.lpga.lo));
+  put("slow-lpga-hi", "Highest such club speed, LPGA (mph)", "same scan", String(rv.lpga.hi));
 
   // Chapter 4
   const [pg, lp, am] = driverWindows(model);
@@ -180,6 +185,7 @@ export function computeNumbers(model) {
   put("cx-curve", "Curve of that shot (yd right)", "flight.curve", Math.abs(ce.a.flight.curve).toFixed(0));
   put("cx-finish", "Where it finishes (yd right)", "flight.side", Math.abs(ce.a.flight.side).toFixed(0));
   put("cx-curve2", "Curve with the path moved to -2 (yd right)", "flight.curve", Math.abs(ce.b.flight.curve).toFixed(0));
+  put("cx-spin", "Spin of the amateur example shot at the lab's spin trim of 1.0 (rpm)", "launch.spinRpm of the example; the published amateur average is 3,275", grp(ce.a.launch.spinRpm));
 
   // Method and limits
   const pgaDrv = shotAt(model, "driver", "pga");

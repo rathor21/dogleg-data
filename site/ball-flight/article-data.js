@@ -331,3 +331,25 @@ export function coachingExample(model) {
   const b = shotAt(model, "driver", "amateur", { path: -2, face: 0, spinTrim: trim });
   return { a, b };
 }
+
+/**
+ * Method and limits. Club speeds at which the lab's driver ideal gives less total distance than the average delivery.
+ * Both are flown at the same club speed (the average is the preset with its club speed changed, the ideal is
+ * model.idealDelivery at that speed), scanned over the lab's whole club speed range in 5 mph steps. Returns the lowest
+ * and highest such speed for each Tour player, or null when the ideal never loses total.
+ */
+export function idealTotalReversal(model) {
+  const [lo, hi] = model.domain.club_speed_mph;
+  const out = {};
+  for (const pl of ["pga", "lpga"]) {
+    const p = model.preset("driver", pl);
+    const hits = [];
+    for (let s = Math.ceil(lo / 5) * 5; s <= hi; s += 5) {
+      const a = model.shot(model.scaleSpeed(p, s));
+      const i = model.shot(model.idealDelivery("driver", pl, s));
+      if (i.total < a.total) hits.push(s);
+    }
+    out[pl] = hits.length ? { lo: hits[0], hi: hits[hits.length - 1] } : null;
+  }
+  return out;
+}
