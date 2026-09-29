@@ -7,11 +7,12 @@ Internal frame (right-handed, SI): x downrange, y LEFT, z up. The public
 output flips y so that lateral distance is positive to the RIGHT of the target
 line, as seen from behind a right-handed golfer (TrackMan convention).
 
-Forces on the ball (Anchor 7, Nathan's model, see data.py):
+Forces on the ball (Anchor 7, see data.py):
     gravity, drag along -v, Magnus lift along normalize(omega_hat x v_hat).
     S  = R * omega / |v|                 spin factor, omega is the decayed spin
-    CD = (Cd0(Re) + CdS * S) * DRAG_MULT
-    CL = ClAmp * S^0.4 * LIFT_MULT
+    CD = cd(S, Re), CL = cl(S, Re)       pluggable Aero model
+        shipped: quadratic family (data.QUAD), CD = d0 + d1 S + d2 S^2 + d3 (Re - pivot)
+        baseline: Nathan's workbook forms (nathan_model)
     d(omega)/dt = -SPIN_DECAY_COEF * v * omega / R   (tau = R / (2.0e-5 v))
 
 The spin axis is fixed in space at launch (drag torque only shrinks omega).
@@ -20,6 +21,7 @@ right (fade or slice for a right-hander).
 """
 
 from dataclasses import dataclass
+from typing import Callable
 from math import atan, atan2, cos, exp, hypot, pi, radians, sin, sqrt, tan, degrees
 
 import numpy as np
@@ -83,37 +85,76 @@ def _lift_dir_launch(vhat, spin_axis_deg):
     )
 
 
-def _drag_cd0(re):
-    """Cd0 as a function of Reynolds number (Anchor 7, Source 1)."""
-    if not data.RE_DEPENDENT_DRAG:
-        return data.CD_HIGH_RE
-    r = re / data.RE_UNIT
-    if r <= data.RE_LOW:
-        return data.CD_LOW_RE
-    if r >= data.RE_HIGH:
-        return data.CD_HIGH_RE
-    f = (r - data.RE_LOW) / (data.RE_HIGH - data.RE_LOW)
-    return data.CD_LOW_RE + (data.CD_HIGH_RE - data.CD_LOW_RE) * f
+@dataclass(frozen=True)
+class Aero:
+    """Coefficient model: cd(S, re) and cl(S, re). S is the spin factor
+    R*omega/v; re is the Reynolds number in units of 1e5."""
+
+    name: str
+    cd: Callable[[float, float], float]
+    cl: Callable[[float, float], float]
 
 
-def _make_deriv(air, omega_hat):
+def nathan_model(p=None, name="nathan"):
+    """Nathan's workbook forms (Anchor 7 Source 1) with optional multipliers."""
+    p = data.NATHAN if p is None else p
+    lo, hi = p["re_low"], p["re_high"]
+    cdl, cdh, cds = p["cd_low_re"], p["cd_high_re"], p["cd_spin"]
+    amp, ex = p["cl_amp"], p["cl_exp"]
+    branch, lm, dm = p["re_branch"], p["lift_mult"], p["drag_mult"]
+
+    def cd(spin, re):
+        if not branch or re >= hi:
+            cd0 = cdh
+        elif re <= lo:
+            cd0 = cdl
+        else:
+            cd0 = cdl + (cdh - cdl) * (re - lo) / (hi - lo)
+        return (cd0 + cds * spin) * dm
+
+    def cl(spin, re):
+        return amp * spin**ex * lm
+
+    return Aero(name, cd, cl)
+
+
+def quad_model(p=None, name="quad"):
+    """Quadratic family (Anchor 7 Source 4 form), parameters from data.QUAD."""
+    p = data.QUAD if p is None else p
+    d0, d1, d2, d3 = p["d0"], p["d1"], p["d2"], p["d3"]
+    l0, l1, l2 = p["l0"], p["l1"], p["l2"]
+    piv = data.RE_PIVOT
+
+    def cd(spin, re):
+        return d0 + d1 * spin + d2 * spin * spin + d3 * (re - piv)
+
+    def cl(spin, re):
+        return l0 + l1 * spin + l2 * spin * spin
+
+    return Aero(name, cd, cl)
+
+
+DEFAULT_AERO = quad_model()
+
+
+def _make_deriv(air, omega_hat, aero):
     m = data.BALL_MASS_KG
     d = data.BALL_DIAMETER_M
     r = data.BALL_RADIUS_M
     area = pi * r * r
     kf = 0.5 * air.density * area / m
-    re_per_v = air.density * d / air.viscosity
+    re_per_v = air.density * d / air.viscosity / data.RE_UNIT
     g = data.G
-    lift_mult = data.LIFT_MULT
-    drag_mult = data.DRAG_MULT
     decay = data.SPIN_DECAY_COEF
+    cd_fn, cl_fn = aero.cd, aero.cl
 
     def deriv(s):
         vx, vy, vz, w = s[3], s[4], s[5], s[6]
         v = sqrt(vx * vx + vy * vy + vz * vz)
         spin = r * w / v
-        cd = (_drag_cd0(re_per_v * v) + data.CD_SPIN_SLOPE * spin) * drag_mult
-        cl = data.CL_AMP * spin**data.CL_EXPONENT * lift_mult
+        re = re_per_v * v
+        cd = cd_fn(spin, re)
+        cl = cl_fn(spin, re)
         vh = (vx / v, vy / v, vz / v)
         lx, ly, lz = _unit(_cross(omega_hat, vh))
         ad = kf * cd * v  # drag: -ad * v_vec
@@ -147,13 +188,16 @@ def simulate(
     spin_axis_deg,
     air=STANDARD,
     dt=0.01,
+    aero=None,
 ):
     """Fly one shot. Angles in degrees, spin in rpm, output in yards.
 
     launch_deg: vertical launch angle. launch_dir_deg: horizontal start
     direction, positive right of the target line. spin_axis_deg: positive
-    curves the ball right.
+    curves the ball right. aero: an Aero coefficient model (default
+    DEFAULT_AERO, the shipped quadratic fit).
     """
+    aero = DEFAULT_AERO if aero is None else aero
     v0 = ball_speed_mph * data.MPH_TO_MS
     gam = radians(launch_deg)
     psi = radians(launch_dir_deg)
@@ -162,7 +206,7 @@ def simulate(
     omega_hat = _cross(vhat, lhat)  # for omega perp v: v x (omega x v) = omega
     w0 = spin_rpm * data.RPM_TO_RADS
 
-    deriv = _make_deriv(air, omega_hat)
+    deriv = _make_deriv(air, omega_hat, aero)
     s = [0.0, 0.0, 0.0, v0 * vhat[0], v0 * vhat[1], v0 * vhat[2], w0]
     ts = [0.0]
     states = [s]

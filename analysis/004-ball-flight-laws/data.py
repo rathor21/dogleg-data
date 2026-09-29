@@ -131,41 +131,45 @@ BALL_RADIUS_M = BALL_DIAMETER_M / 2.0  # 0.021335 m; Anchor 7 quotes 0.02134 m
 
 # ---------------------------------------------------------------------------
 # Anchor 7, Source 1: Alan Nathan's Trajectory Calculator, Golf Version (2025-02-15
-# update), parameters as written in the workbook.
+# update), parameters as written in the workbook (re-read at task 004.2).
 #   Re in units of 1e5.
 #   Cd0 = CdL for Re <= ReLow; linear from CdL to CdH between ReLow and ReHigh;
 #   CdH for Re >= ReHigh.
 #   CD = Cd0 + CdS * S ;  CL = ClAmp * S^0.4 ;  S = R * omega / v.
+# NATHAN is the published set: multipliers 1.0 and the Re branch on. Checked
+# against the workbook: 160 mph, 11 deg, 3000 rpm, 70 F, sea level gives
+# 259.0 yd and 4.97 s here against 259.3 yd and 4.99 s in the sheet.
 # ---------------------------------------------------------------------------
 
-CD_LOW_RE = 1.9451114  # CdL
-CD_HIGH_RE = 0.13248  # CdH
-CD_SPIN_SLOPE = 0.2087217  # CdS
-CL_AMP = 0.2294096  # ClAmp
-CL_EXPONENT = 0.4
-RE_LOW = 0.5  # ReLow, units of 1e5
-RE_HIGH = 1.0  # ReHigh, units of 1e5
 RE_UNIT = 1.0e5
 
-# MODELED switch. True reproduces Nathan's Re-dependent Cd0 exactly (checked
-# against his workbook: 160 mph, 11 deg, 3000 rpm, 70 F, sea level gives
-# 259.0 yd and 4.97 s here against 259.3 yd and 4.99 s in the sheet). False
-# holds Cd0 at CdH for every Re, so CD = 0.13248 + 0.2087 * S at all speeds.
-# The Tour tables cannot be met with the branch on. Below about 81 mph Cd0
-# climbs linearly toward CdL = 1.945 (it is about 1.1 at 60 mph), so every
-# iron loses its speed near the end of the flight, lands at 60 to 70 degrees
-# and comes up 30 to 40 yd short whatever two global multipliers are used
-# (calibrate.py --nathan-re: best rms 5.4 in units of the G2 tolerances,
-# against 1.3 with the branch off). Anchor 7 Source 2 reports Bearman and
-# Harvey's CD and CL as independent of Re over 126,000 to 238,000, and Source
-# 3 reports spin-down as independent of Re for 1.0e5 to 2.5e5. Nothing read
-# supports a drag climb of that size. A ball at 60 mph has Re near 75,000.
-RE_DEPENDENT_DRAG = False
+NATHAN = {
+    "cd_low_re": 1.9451114,  # CdL
+    "cd_high_re": 0.13248,  # CdH
+    "cd_spin": 0.2087217,  # CdS
+    "cl_amp": 0.2294096,  # ClAmp
+    "cl_exp": 0.4,
+    "re_low": 0.5,  # ReLow, units of 1e5
+    "re_high": 1.0,  # ReHigh, units of 1e5
+    "re_branch": True,  # MODELED switch: False holds Cd0 at CdH for every Re
+    "lift_mult": 1.0,  # MODELED multipliers, 1.0 = as published
+    "drag_mult": 1.0,
+}
 
 # Anchor 7, Source 1: the sheet computes Re = 123,638 at 100 mph for the
 # default ball and air. Used below only to back out an air viscosity.
 RE_AT_100MPH_DATUM = 123638.0
 RE_DATUM_SPEED_MPH = 100.0
+
+# MODELED baseline, kept reproducible behind `calibrate.py --nathan` and
+# `--nathan-re`. Two global multipliers on Nathan's forms, fitted to the Tour
+# tables. With the Re branch on (`--nathan-re`) the best fit passes 0 of 23 G2
+# rows (rms 5.4 in units of the G2 tolerances): below about 81 mph Cd0 climbs
+# toward 1.945, every iron dives to 60 to 70 degrees and lands 30 to 40 yd
+# short. Anchor 7 Sources 2 and 3 report CD, CL and spin-down as independent
+# of Re over the tested range, so `--nathan` holds Cd0 flat at CdH and refits.
+# That gives rms 1.3 and passes 3 of 23 rows, with a 2.3x lift multiplier.
+NATHAN_FLAT_FIT = dict(NATHAN, re_branch=False, lift_mult=2.309, drag_mult=1.721)
 
 # Anchor 7, Source 3: spin decay d(omega)/dt = -2.0e-5 * (v^2 / R^2) * S in SI
 # units, i.e. omega(t) = omega0 * exp(-t/tau) with tau = R / (2.0e-5 * v).
@@ -192,22 +196,44 @@ AIR_VISCOSITY_PA_S = (
 )
 
 # ---------------------------------------------------------------------------
-# Global aero multipliers. MODELED: at most two, shared by every club and both
-# tours (task rule: no per-club fudge factors). Fit by calibrate.py by least
-# squares on normalized carry, max height and land angle errors over all PGA
-# and LPGA rows. 1.0 means Nathan's coefficients as published.
+# Quadratic family, Anchor 7 Source 4: McNally, Lambeth and Brekke (Dunlop, 2023,
+# 90,233 TrackMan shots) write CL = p1 + p2 S + p3 S^2 and CD = p4 + p5 S +
+# p6 S^2. The paper prints no fitted values, so every number below is MODELED:
+# fitted here by calibrate.py to the Tour tables, shared by all clubs and both
+# tours, no per-club factors.
+#   CD = d0 + d1 S + d2 S^2 + d3 (Re/1e5 - RE_PIVOT)
+#   CL = l0 + l1 S + l2 S^2
+# The Re term is the one speed term the coordinator allowed on drag.
 # ---------------------------------------------------------------------------
 
-# Fit by `calibrate.py --fit` (RE_DEPENDENT_DRAG = False, dt = 0.02 for the fit,
-# checked at 0.01). rms of the G2-normalized residuals (1.0 = on the gate):
-# carry 1.26, height 0.93, land angle 1.57. The two-parameter point-mass model
-# passes G2 on only a few rows: it runs long on driver height (about +5 yd),
-# short on PGA wedge carry (-16 yd for PW), and shallow on landing angle for
-# the long PGA clubs (-4 to -6 deg). A four-parameter fit (free Cd0, CdS,
-# lift, lift exponent) only reaches rms 1.21, so the misses are not a
-# two-multiplier limitation alone. See tests/test_flight.py for the row list.
-LIFT_MULT = 2.309  # on CL. MODELED, fitted.
-DRAG_MULT = 1.721  # on CD. MODELED, fitted.
+RE_PIVOT = 1.5  # MODELED, units of 1e5. Re/1e5 is 1.24 at 100 mph.
+
+# Constraints the fit must respect (MODELED design choices, task 004.2):
+# CD and CL positive and CL non-decreasing in S over [S_MIN, S_MAX]; CD inside
+# [CD_BAND] and CL at most CL_MAX over the Re and S ranges a shot visits.
+# S_MAX is 0.50, not 0.40, because Tour wedge launches sit at S = 0.45 to 0.48
+# (Anchor 7 spin factor range), so 0.40 would leave the wedges unconstrained.
+S_MIN = 0.05
+S_MAX = 0.50
+CD_BAND = (0.15, 0.45)
+CL_MAX = 0.40
+RE_RANGE = (0.5, 2.3)  # units of 1e5, about 40 to 185 mph
+
+# MODELED, fitted by `calibrate.py --fit` to all 23 PGA and LPGA rows (rms of
+# the G2-normalized residuals: carry 0.81, height 0.95, land angle 1.24; 1.0
+# sits on the gate). Constraints hold on S in [0.05, 0.50] and Re in [0.5,
+# 2.3]. Effective CD at Re 1.5: 0.26 at S = 0.15, 0.31 at S = 0.30. CL: 0.23
+# at S = 0.15, 0.34 at S = 0.30. The lift multiplier of 2.3 on Nathan's power
+# law is gone; the fitted lift is concave in S and bends toward its cap.
+QUAD = {
+    "d0": 0.19877,
+    "d1": 0.52450,
+    "d2": -0.50182,
+    "d3": -0.09224,  # per unit of Re/1e5 above the pivot: drag falls as the ball speeds up
+    "l0": 0.05635,
+    "l1": 1.36147,
+    "l2": -1.34813,
+}
 
 # ---------------------------------------------------------------------------
 # Bounce and roll. Gaps section, item 8: no source read covers it; the Tour
@@ -215,6 +241,6 @@ DRAG_MULT = 1.721  # on CD. MODELED, fitted.
 # no fitting claim. See flight.roll for the form.
 # ---------------------------------------------------------------------------
 
-ROLL_K = 2.6  # MODELED, yd per (mph of landing speed) at zero landing angle
-ROLL_COS_POWER = 6  # MODELED
+ROLL_K = 8.5  # MODELED, yd per (mph of landing speed) at zero landing angle
+ROLL_COS_POWER = 10  # MODELED; retuned at 004.2 for the quadratic fit's landing speeds and angles
 ROLL_MAX_YD = 40.0  # MODELED bound
