@@ -136,7 +136,7 @@ export function createWindows({ model, store, range, hooks }) {
     layoutColumns();
     const isSeven = state.club === "7i";
     clubNote.textContent = isSeven
-      ? `Club set to the 7-iron, ${model.players.find((p) => p.id === state.player).name}. The windows are 7-iron recipes.`
+      ? "" // the mode hint already says these are 7-iron recipes
       : "The windows are 7-iron recipes. Tap a window to switch back to the 7-iron.";
     for (const key of WINDOW_KEYS) {
       const w = rec(key);

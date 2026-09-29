@@ -218,6 +218,7 @@ async function main() {
     $("#windows").hidden = state.mode !== "w";
     $("#compare").hidden = state.mode !== "c";
     $("#mode-hint").textContent = MODE_HINT[state.mode];
+    document.body.dataset.mode = state.mode; // tool.css budgets the first screen per mode
   }
   function setMode(m) {
     if (m === state.mode) return;

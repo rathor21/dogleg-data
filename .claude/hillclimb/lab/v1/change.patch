@@ -1,0 +1,223 @@
+diff --git a/site/ball-flight/tool.css b/site/ball-flight/tool.css
+index 7957691..ae50326 100644
+--- a/site/ball-flight/tool.css
++++ b/site/ball-flight/tool.css
+@@ -15,6 +15,8 @@
+   --gap:1.1rem; --radius:4px;
+   --ease:cubic-bezier(.22,1,.36,1);
+   --thumb:2.75rem;
++  --range-min:16rem; /* the shortest the range gets when the budget below runs out */
++  --reserve:28rem; /* height the first screen keeps for everything but the range: header, mode bar, bar under the range, key tiles */
+   --drawer-h:0px; /* the drawer's collapsed height. 0 outside drawer layouts. Set in the drawer media query. */
+   --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px); --safe-b:env(safe-area-inset-bottom,0px);
+   --shadow-ink:rgba(28,27,24,.18);
+@@ -46,18 +48,19 @@ button{font:inherit;color:inherit;}
+ .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+ 
+ /* ---------- header ---------- */
+-.page-head{padding:.15rem .15rem .8rem;border-bottom:4px double var(--line);margin-bottom:1rem;}
+-.brand{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.55rem;}
++.page-head{padding:.15rem .15rem .55rem;border-bottom:4px double var(--line);margin-bottom:.7rem;}
++.brand{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.3rem;}
+ .brand .mark{width:2.1rem;height:2.1rem;flex:none;}
+ .brand .wordmark{font-family:var(--serif);font-weight:900;font-size:2.1rem;line-height:1;letter-spacing:-.02em;}
+ .brand .tagline{font-family:var(--mono);font-size:.75rem;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--clay-text);margin-left:.25rem;position:relative;top:.25rem;}
+ .home-link{font-family:var(--mono);font-size:.75rem;color:var(--ink-soft);text-decoration:none;margin-left:auto;padding:.5rem .15rem;border-bottom:1px solid transparent;}
+ .home-link:hover{color:var(--clay-text);border-bottom-color:var(--clay);}
+-.head-copy h1{font-family:var(--serif);font-weight:600;font-size:1.3rem;line-height:1.25;margin-bottom:.25rem;}
+-.head-copy p{font-size:.9rem;color:var(--ink-soft);max-width:104ch;}
++.head-copy h1{font-family:var(--serif);font-weight:600;font-size:1.15rem;line-height:1.25;}
++/* The intro paragraph is gone from the tool page. The mode hint says what to do next, and the article explains the rest. */
++.head-copy p{display:none;}
+ 
+-nav.tabs{display:flex;gap:.5rem;margin-bottom:var(--gap);flex-wrap:wrap;}
+-nav.tabs .tab-btn{border:1px solid var(--line);color:var(--ink-soft);padding:.55rem 1.1rem;border-radius:999px;font-size:.85rem;font-weight:500;text-decoration:none;display:inline-block;}
++nav.tabs{display:flex;gap:.5rem;margin-bottom:.7rem;flex-wrap:wrap;}
++nav.tabs .tab-btn{border:1px solid var(--line);color:var(--ink-soft);padding:.4rem 1rem;border-radius:999px;font-size:.85rem;font-weight:500;text-decoration:none;display:inline-block;}
+ nav.tabs a.tab-btn:hover{border-color:var(--clay);color:var(--clay-text);}
+ nav.tabs .tab-btn.active{background:var(--clay-text);color:var(--card);border-color:var(--clay-text);font-weight:600;}
+ 
+@@ -90,13 +93,13 @@ nav.tabs .tab-btn.active{background:var(--clay-text);color:var(--card);border-co
+ 
+ /* ---------- range ---------- */
+ .range-wrap{position:relative;container-type:inline-size;}
+-.range{position:relative;width:100%;aspect-ratio:1376 / 768;background:var(--dusk);border:1px solid var(--ink);box-shadow:0 0 0 5px var(--card),0 0 0 6px var(--line);overflow:hidden;}
++.range{position:relative;width:100%;aspect-ratio:1376 / 768;max-height:max(var(--range-min),calc(100dvh - var(--drawer-h) - var(--reserve)));background:var(--dusk);border:1px solid var(--ink);box-shadow:0 0 0 5px var(--card),0 0 0 6px var(--line);overflow:hidden;}
+ .range canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;}
+ .range-loading{position:absolute;inset:0;display:grid;place-items:center;padding:1rem;text-align:center;color:var(--plate-dark-ink);font-family:var(--mono);font-size:.85rem;pointer-events:none;}
+ .range-loading.done{display:none;}
+ .range-loading.failed{place-items:end end;text-align:right;padding:.9rem;font-size:.75rem;}
+ 
+-.shot-label{position:absolute;top:.9rem;left:.9rem;z-index:2;max-width:min(52cqi,26rem);background:var(--plate-bg);border:3px double var(--line);border-radius:var(--radius);padding:.55rem .95rem .65rem;display:flex;flex-direction:column;gap:.1rem;box-shadow:0 2px 0 var(--shadow-ink);}
++.shot-label{position:absolute;top:.9rem;left:.9rem;z-index:2;max-width:min(42cqi,26rem);background:var(--plate-bg);border:3px double var(--line);border-radius:var(--radius);padding:.55rem .95rem .65rem;display:flex;flex-direction:column;gap:.1rem;box-shadow:0 2px 0 var(--shadow-ink);}
+ .sl-kicker{font-family:var(--mono);font-size:.75rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--clay-text);}
+ .sl-name{font-family:var(--serif);font-weight:900;font-size:clamp(1.3rem,4cqi,2.6rem);line-height:1.05;letter-spacing:-.015em;min-height:1.05em;}
+ .sl-finish{font-family:var(--mono);font-size:clamp(.75rem,1.7cqi,.95rem);font-weight:500;color:var(--ink);margin-top:.15rem;}
+@@ -214,8 +217,7 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
+ 
+ /* ---------- key tiles narrow down ---------- */
+ @media (max-width:1199px) and (min-width:901px){
+-  .key-tiles{grid-template-columns:repeat(4,minmax(0,1fr));}
+-  .key-extra{display:none;}
++  .key-tiles{grid-template-columns:repeat(3,minmax(0,1fr));}
+ }
+ 
+ /* ---------- single column with a bottom drawer (tablet portrait and phone) ---------- */
+@@ -323,16 +325,18 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
+ /* ---------- 9 Windows and Compare ---------- */
+ .windows,.compare{margin:1.1rem 0 0;}
+ .win-club{font-size:.85rem;color:var(--ink-soft);margin:-.2rem 0 .9rem;}
++.win-club:empty{display:none;}
+ .win-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1rem 1.6rem;align-items:start;}
+ .win-grid{display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));gap:.4rem;align-items:stretch;}
+ .win-colhead,.win-rowhead{font-family:var(--mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);align-self:center;}
+ .win-colhead{text-align:center;white-space:nowrap;letter-spacing:.04em;}
+ .win-rowhead{grid-column:1;padding-right:.4rem;}
+-.win-btn{min-height:3.6rem;border:1px solid var(--line);background:var(--bg);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.1rem;padding:.35rem .3rem;cursor:pointer;transition:border-color .15s,background .15s,color .15s;}
++.win-btn{min-height:3.6rem;border:1px solid var(--line);background:var(--bg);border-radius:var(--radius);display:grid;grid-template-columns:auto auto;align-items:center;justify-content:center;column-gap:.4rem;row-gap:0;padding:.35rem .3rem;text-align:left;cursor:pointer;transition:border-color .15s,background .15s,color .15s;}
+ .win-btn .wb-name{font-weight:600;font-size:.85rem;line-height:1.2;}
+-.win-btn .wb-peak{font-family:var(--mono);font-size:.75rem;color:var(--muted);}
++.win-btn .wb-name{grid-column:2;}
++.win-btn .wb-peak{grid-column:2;font-family:var(--mono);font-size:.75rem;color:var(--muted);}
+ .win-btn{position:relative;}
+-.win-btn .wb-n{position:absolute;top:.25rem;left:.3rem;width:1.15rem;height:1.15rem;border-radius:50%;background:var(--ink);color:var(--card);font-family:var(--mono);font-size:.75rem;line-height:1.15rem;text-align:center;}
++.win-btn .wb-n{grid-row:1 / 3;grid-column:1;width:1.15rem;height:1.15rem;border-radius:50%;background:var(--ink);color:var(--card);font-family:var(--mono);font-size:.75rem;line-height:1.15rem;text-align:center;}
+ .win-btn[aria-pressed="true"] .wb-n{background:var(--card);color:var(--clay-text);}
+ .win-btn:hover{border-color:var(--clay);}
+ #fly-all[aria-pressed="true"]{background:var(--ink);}
+@@ -347,10 +351,13 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
+ .win-dl dd small{display:block;font-size:.75rem;color:var(--muted);}
+ .win-actions{margin-top:1rem;}
+ .win-note{margin-top:.9rem;font-size:.8rem;color:var(--ink-soft);}
+-.cmp-actions{display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:.7rem;}
+-.cmp-status{font-size:.85rem;color:var(--ink-soft);margin-bottom:.6rem;}
++.compare{display:flex;flex-wrap:wrap;align-items:center;gap:0 .9rem;}
++.compare h2{flex:1 0 100%;}
++.cmp-actions{display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:.5rem;}
++.cmp-status{flex:1 1 12rem;font-size:.85rem;color:var(--ink-soft);margin-bottom:.5rem;}
++.cmp-table{flex:1 0 100%;}
+ .cmp-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.875rem;}
+-.cmp-table th,.cmp-table td{padding:.4rem .5rem;text-align:right;border-bottom:1px solid var(--line);}
++.cmp-table th,.cmp-table td{padding:.3rem .5rem;text-align:right;border-bottom:1px solid var(--line);}
+ .cmp-table th[scope="row"]{text-align:left;color:var(--ink-soft);font-weight:500;}
+ .cmp-table thead th{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;}
+ .cmp-table thead th:nth-child(2){color:var(--blue-text);}
+@@ -407,6 +414,84 @@ svg.pv{display:block;max-width:100%;}
+ @media (pointer:coarse){.view-tab,.win-btn{min-height:2.75rem;}}
+ @media (max-width:899px){#present-btn{display:none;}}
+ 
++
++/* ---------- first-screen budget ---------- */
++/* The numbers a mode teaches with (key tiles, the nine windows, the compare table)
++   and the controls must sit on the first screen, so the range gives up height
++   before they fall below the fold. --reserve is what the range leaves free. */
++body[data-mode="w"]{--reserve:32rem;}
++body[data-mode="c"]{--reserve:32rem;}
++@media (max-width:900px){
++  .wrap{display:flex;flex-direction:column;}
++  .wrap > main{order:1;}
++  .wrap > footer{order:3;}
++  /* The tool switcher moves under the lab so the lab starts higher on the screen. */
++  .wrap > nav.tabs{order:2;margin:var(--gap) 0 0;}
++  body[data-mode="w"] .key-tiles,body[data-mode="c"] .key-tiles{display:none;}
++  .windows,.compare{margin-top:.8rem;}
++}
++@media (min-width:560px) and (max-width:900px){
++  :root{--reserve:31rem;}
++  body[data-mode="w"],body[data-mode="c"]{--reserve:36rem;}
++}
++@media (max-width:559px){
++  :root{--reserve:33rem;--range-min:14rem;}
++  body[data-mode="w"],body[data-mode="c"]{--reserve:38rem;--range-min:14rem;}
++  .wrap{padding-top:.7rem;}
++  .page-head{padding-bottom:.4rem;margin-bottom:.5rem;}
++  .brand{margin-bottom:.15rem;}
++  .brand .mark{width:1.8rem;height:1.8rem;}
++  .brand .wordmark{font-size:1.5rem;}
++  .head-copy h1{font-size:.95rem;}
++  .modebar{gap:.4rem;}
++  .modebar .seg button{min-height:2.5rem;}
++  .mode-hint{display:none;} /* the mode names and the panel under the range say what to do */
++  body[data-mode="w"] .range-bar,body[data-mode="c"] .range-bar{display:none;}
++  .range{aspect-ratio:1;}
++  .shot-label{margin-top:.6rem;padding:.4rem .8rem .5rem;}
++  .sl-kicker,.sl-line{display:none;}
++  .sl-name{font-size:1.6rem;}
++  .range-bar{margin-top:.5rem;gap:.4rem .6rem;flex-wrap:nowrap;}
++  .range-bar #hit-btn{display:none;} /* the drawer bar has Hit */
++  .range-bar .check span{white-space:nowrap;}
++  .copy-status{display:none;}
++  .key-tiles{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:.6rem;gap:.4rem;}
++  .key-extra{display:flex;}
++  .key-tiles .tile{padding:.4rem .5rem .35rem;}
++  .key-tiles .tile-top{min-height:2.2rem;align-items:flex-start;}
++  .key-tiles .tile-val .v{font-size:1.25rem;}
++  .key-tiles .bar,.key-tiles .tile-cap{display:none;}
++  .key-tiles .tile-val{margin-top:0;}
++  .windows,.compare{padding:.7rem .8rem;}
++  .windows h2,.compare h2,.win-club,.win-note{display:none;}
++  .win-layout{display:flex;flex-direction:column-reverse;gap:.6rem;}
++  .win-grid{gap:.3rem;}
++  .win-btn{min-height:2.6rem;padding:.2rem .2rem;}
++  .win-btn .wb-peak{display:none;}
++  .win-btn{column-gap:.3rem;}
++  .win-btn .wb-n{width:1.05rem;height:1.05rem;line-height:1.05rem;}
++  .win-recipe h3{font-size:.95rem;margin-bottom:.3rem;}
++  .win-dl{grid-template-columns:repeat(4,minmax(0,1fr));gap:.3rem .5rem;}
++  .win-dl > div:nth-child(n+5){display:none;} /* launch, spin, peak and shot name show elsewhere on the screen */
++  .win-dl dd{font-size:.95rem;}
++  .win-actions{margin-top:.6rem;}
++  .cmp-actions{margin-bottom:.4rem;}
++  .cmp-status{margin-bottom:.3rem;}
++}
++@media (max-height:500px) and (min-width:560px) and (max-width:900px){
++  :root{--thumb:2.25rem;--reserve:0px;--range-min:0px;}
++  .modebar{grid-column:1;}
++  .side{grid-column:2;grid-row:1 / 3;}
++  .range{max-height:none;}
++  .wrap > nav.tabs{margin-top:.6rem;flex-wrap:wrap;overflow:visible;}
++  .modebar .mode-hint{display:none;}
++  .slider{padding:.1rem 0;}
++  .slider-head .val{font-size:1rem;}
++  .swing-head{padding:.1rem 0 .3rem;}
++  .swing .btn-mini{min-height:2.2rem;padding:.2rem .8rem;}
++  .swing{padding:.5rem .8rem;}
++}
++
+ /* ---------- presentation mode (TV) ---------- */
+ /* The range fills the screen. Shot label and the six key tiles are large. The
+    controls collapse to one slim bar at the bottom. */
+@@ -421,7 +506,7 @@ body.presenting .setup .field-label,body.presenting .slider-hint{display:none;}
+ body.presenting .lab{display:flex;flex-direction:column;align-items:stretch;height:100vh;height:100dvh;gap:0;}
+ body.presenting .stage{flex:1 1 auto;min-height:0;position:relative;}
+ body.presenting .range-wrap{position:absolute;inset:0;}
+-body.presenting .range{height:100%;aspect-ratio:auto;border:0;box-shadow:none;}
++body.presenting .range{height:100%;max-height:none;aspect-ratio:auto;border:0;box-shadow:none;}
+ body.presenting .shot-label{top:1.2rem;left:1.2rem;max-width:min(42cqi,44rem);padding:.8rem 1.4rem 1rem;}
+ body.presenting .sl-kicker{font-size:.85rem;}
+ body.presenting .sl-name{font-size:clamp(2.4rem,6.5cqi,8rem);}
+diff --git a/site/ball-flight/ui.js b/site/ball-flight/ui.js
+index 1dcda4e..2b03c07 100644
+--- a/site/ball-flight/ui.js
++++ b/site/ball-flight/ui.js
+@@ -218,6 +218,7 @@ async function main() {
+     $("#windows").hidden = state.mode !== "w";
+     $("#compare").hidden = state.mode !== "c";
+     $("#mode-hint").textContent = MODE_HINT[state.mode];
++    document.body.dataset.mode = state.mode; // tool.css budgets the first screen per mode
+   }
+   function setMode(m) {
+     if (m === state.mode) return;
+diff --git a/site/ball-flight/windows.js b/site/ball-flight/windows.js
+index 93e0d8a..2a7b2bd 100644
+--- a/site/ball-flight/windows.js
++++ b/site/ball-flight/windows.js
+@@ -136,7 +136,7 @@ export function createWindows({ model, store, range, hooks }) {
+     layoutColumns();
+     const isSeven = state.club === "7i";
+     clubNote.textContent = isSeven
+-      ? `Club set to the 7-iron, ${model.players.find((p) => p.id === state.player).name}. The windows are 7-iron recipes.`
++      ? "" // the mode hint already says these are 7-iron recipes
+       : "The windows are 7-iron recipes. Tap a window to switch back to the 7-iron.";
+     for (const key of WINDOW_KEYS) {
+       const w = rec(key);
