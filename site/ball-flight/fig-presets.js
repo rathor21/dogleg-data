@@ -10,6 +10,6 @@ export function drawPresets(fig, model) {
     html("tbody", {}, T.rows.map((r) => html("tr", { class: r.player === "pga" ? "group-start" : null },
       html("th", { scope: "row", class: "l" }, r.label),
       ...r.cells.map((c) => html("td", { class: "r" }, fmt(c),
-        c.kind === "modeled" ? html("span", { class: "badge-modeled" }, "modeled") : c.kind === "default" ? html("span", { class: "badge-modeled" }, "default") : null))))));
+        c.kind === "modeled" ? html("span", { class: "badge-modeled", title: "Dogleg Data model output" }, "modeled") : c.kind === "default" ? html("span", { class: "badge-modeled", title: "TrackMan Optimizer default" }, "default") : null))))));
   fig.querySelector(".tbl-wrap").replaceChildren(table);
 }

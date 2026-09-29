@@ -137,7 +137,9 @@ export function fillTable(details, headers, rows, note) {
     html("thead", {}, html("tr", {}, headers.map((h, i) => html("th", { scope: "col", class: i === 0 ? "l" : "r" }, h)))),
     html("tbody", {}, rows.map((r) => html("tr", {}, r.map((c, i) => html(i === 0 ? "th" : "td", i === 0 ? { scope: "row", class: "l" } : { class: "r" }, c))))),
   );
-  body.replaceChildren(html("div", { class: "tbl-wrap" }, table));
+  body.replaceChildren(
+    html("p", { class: "scroll-hint" }, "Scroll the table sideways to see every column."),
+    html("div", { class: "tbl-wrap", tabindex: 0, role: "region", "aria-label": "Data table, scrolls sideways" }, table));
   if (note) body.append(html("p", { class: "tbl-note" }, note));
 }
 

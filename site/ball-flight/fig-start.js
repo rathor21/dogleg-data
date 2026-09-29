@@ -25,9 +25,9 @@ export function drawStart(fig, model) {
     const barH = 16, pitch = 27, titleH = 26, axisH = 24, gap = 10;
     const panelH = titleH + 4 * pitch + axisH;
     const H = data.length * panelH + (data.length - 1) * gap + 22;
-    const root = svg("svg", { width: w, height: H, viewBox: `0 0 ${w} ${H}`, role: "img", "aria-labelledby": "fig1-t fig1-d" });
+    const root = svg("svg", { width: w, height: H, viewBox: `0 0 ${w} ${H}`, role: "group", "aria-labelledby": "fig1-t fig1-d" });
     root.append(svg("title", { id: "fig1-t" }, "Start direction from face and path changes"),
-      svg("desc", { id: "fig1-d" }, "Horizontal bars for the Tour driver and 7-iron. Four degrees of open or closed face moves the start line about 3 degrees for the driver. Four degrees of path moves it about 1 degree. The data table lists each value."));
+      svg("desc", { id: "fig1-d" }, `Horizontal bars for the Tour driver and 6-iron. Four degrees of face moves the driver's start line ${Math.abs(data[0].rows[1].deg).toFixed(1)} degrees. Four degrees of path moves it ${Math.abs(data[0].rows[3].deg).toFixed(1)} degrees. The data table lists each value.`));
 
     data.forEach((c, pi) => {
       const y0 = pi * (panelH + gap);

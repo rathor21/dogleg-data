@@ -35,6 +35,8 @@
 }
 .post .cta-card.cta-top{margin:0 0 32px;max-width:72ch;}
 .post .cta-card .kicker{display:block;margin-bottom:10px;}
+.post .cta-card .cta-title{display:block;color:var(--ink);font-size:22px;}
+.post .cta-card .cta-title,
 .post .cta-card h3{
   font-family:var(--serif);
   font-weight:600;
@@ -160,7 +162,7 @@
 .post table.data{
   border-collapse:collapse;
   width:100%;
-  min-width:520px;
+  min-width:560px;
   font-family:var(--mono);
   font-size:12px;
   color:var(--ink);
@@ -191,12 +193,21 @@
 .post table.data.presets tbody tr:first-child th,
 .post table.data.presets tbody tr:first-child td{border-top:0;}
 .post table.data .badge-modeled{
-  display:block;
-  width:max-content;
-  margin:3px 0 0 auto;
+  display:inline-block;
+  margin:0 0 0 6px;
   font-size:9.5px;
-  padding:0 7px;
+  padding:0 6px;
 }
+.post .scroll-hint{
+  display:none;
+  font-family:var(--mono);
+  font-size:11px;
+  color:var(--ink-soft);
+  margin:0 0 6px;
+  max-width:none;
+}
+.post .tbl-wrap:focus-visible{outline:2px solid var(--clay);outline-offset:2px;}
+@media (max-width:760px){.post .scroll-hint{display:block;}}
 .post figure.fig-table-first .tbl-wrap{margin-top:4px;}
 .post table.data.presets tbody th{position:sticky;left:0;z-index:1;}
 
@@ -230,8 +241,7 @@
 .post .win-grid{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:14px 10px;
-  max-width:780px;
+  gap:14px 12px;
 }
 .post .win{
   border:1px solid var(--line);

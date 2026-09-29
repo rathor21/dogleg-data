@@ -26,7 +26,7 @@ export function drawCurve(fig, model) {
     const H = narrow ? 300 : 360;
     const x = scaleLin(-6, 6, m.l, w - m.r);
     const y = scaleLin(55, -55, m.t, H - m.b);
-    const root = svg("svg", { width: w, height: H, viewBox: `0 0 ${w} ${H}`, role: "img", "aria-labelledby": "fig2-t fig2-d" });
+    const root = svg("svg", { width: w, height: H, viewBox: `0 0 ${w} ${H}`, role: "group", "aria-labelledby": "fig2-t fig2-d" });
     root.append(svg("title", { id: "fig2-t" }, "Curve against face-to-path for the driver, 6-iron and wedge"),
       svg("desc", { id: "fig2-d" }, "Line chart from minus 6 to plus 6 degrees of face-to-path. The driver curves most, up to about 50 yards at 6 degrees. The 6-iron reaches about 30 yards and the wedge about 9. Dots mark TrackMan's eight published examples. The data table lists every value."));
 
