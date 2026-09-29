@@ -119,6 +119,70 @@ SPIN_LOFT_DEG = {
 }
 
 # ---------------------------------------------------------------------------
+# Anchor 1 and 2, SUPERSEDED 2019 rows (TrackMan PDFs dated 2019-01-04).
+# Used ONLY to calibrate face-to-path curvature: TrackMan's worked examples on
+# the Face to Path page use these carries (275, 183, 218, 152), not the 2023
+# set (log, Anchor 5(b)). Nothing else in the codebase reads them. Same field
+# order as FIELDS.
+# ---------------------------------------------------------------------------
+
+_SUPERSEDED_2019_ROWS = {
+    ("PGA", "driver"): (113, -1.3, 167, 1.48, 10.9, 2686, 32, 38, 275),
+    ("PGA", "6i"): (92, -4.1, 127, 1.38, 14.1, 6231, 30, 50, 183),
+    ("LPGA", "driver"): (94, 3.0, 140, 1.48, 13.2, 2611, 25, 37, 218),
+    ("LPGA", "6i"): (78, -2.3, 109, 1.41, 17.1, 5943, 25, 46, 152),
+}
+SUPERSEDED_2019 = {key: dict(zip(FIELDS, vals)) for key, vals in _SUPERSEDED_2019_ROWS.items()}
+
+# ---------------------------------------------------------------------------
+# Anchor 5(b) Source 1: TrackMan "What is Face to Path?" worked examples,
+# centered contact. (tour, club, face-to-path deg, curvature yd). Curvature is
+# signed here, positive right: "19 left" is -19. Each runs from the 2019 row
+# of the same tour and club above (carry 275, 183, 218, 152).
+# ---------------------------------------------------------------------------
+
+CURVATURE_EXAMPLES = (
+    ("PGA", "driver", -2.0, -19.0),
+    ("PGA", "driver", 5.0, 44.0),
+    ("PGA", "6i", 2.0, 8.0),
+    ("PGA", "6i", -5.0, -20.0),
+    ("LPGA", "driver", 2.0, 14.0),
+    ("LPGA", "driver", -5.0, -32.0),
+    ("LPGA", "6i", -2.0, -6.0),
+    ("LPGA", "6i", 5.0, 14.0),
+)
+
+# ---------------------------------------------------------------------------
+# Anchor 3: average amateur delivery anchors.
+# Driver: TrackMan Combine, male, "Average golfer (14.5)" column (measured
+# averages): club speed 94 mph, attack angle -1.8, dynamic loft 15.1. The same
+# column gives launch 12.6 deg, spin loft 18.3 deg (which does not equal
+# 15.1 - (-1.8) = 16.9, as with the Tour rows), spin 3275 rpm, smash 1.44.
+# 6 iron and PW: TrackMan OPTIMIZER DEFAULTS for the average male golfer
+# (Anchor 3 Source 2), model outputs and NOT measurements. Club speed 80 and
+# 72 mph, attack angle -3.2 and -3.9, dynamic loft 22.4 and 36.7.
+# ---------------------------------------------------------------------------
+
+AMATEUR_ANCHORS = {
+    "driver": dict(club_speed_mph=94, attack_deg=-1.8, dyn_loft_deg=15.1, source="TrackMan Combine, average golfer (14.5 HCP)"),
+    "6i": dict(club_speed_mph=80, attack_deg=-3.2, dyn_loft_deg=22.4, source="TrackMan Optimizer default"),
+    "pw": dict(club_speed_mph=72, attack_deg=-3.9, dyn_loft_deg=36.7, source="TrackMan Optimizer default"),
+}
+
+# Anchor 3 Source 2 Optimizer defaults, launch and spin columns. Held-out
+# checks for the launch model, never fit targets:
+# (club, club speed, attack, dynamic loft, ball speed, launch, spin rpm, spin loft).
+OPTIMIZER_DEFAULTS = (
+    ("6i", 80, -3.2, 22.4, 110, 16.9, 5956, 25.5),
+    ("pw", 72, -3.9, 36.7, 86, 26.7, 8408, 40.6),
+)
+
+# Anchor 5(c) Source 2 and Anchor 3: swing plane of the Combine average golfer
+# with a driver, 49.0 deg (TrackMan puts a driver between 45 and 50). Used only
+# by launch.swing_path for the "hold swing direction" toggle.
+SWING_PLANE_DEG = 49.0
+
+# ---------------------------------------------------------------------------
 # Ball. Gaps section of the log, "Ball" entry: USGA Rules of Golf equipment
 # standards, ball weight limit 1.620 oz (45.93 g) and minimum diameter
 # 1.680 in (42.67 mm). Anchor 7 quotes the same mass (0.04593 kg) and a radius
@@ -257,3 +321,48 @@ QUAD = {
 ROLL_K = 8.5  # MODELED, yd per (mph of landing speed) at zero landing angle
 ROLL_COS_POWER = 10  # MODELED; retuned at 004.2 for the quadratic fit's landing speeds and angles
 ROLL_MAX_YD = 40.0  # MODELED bound
+
+# ---------------------------------------------------------------------------
+# Delivery-to-launch model (task 004.3, gate G3). Every number is MODELED: a
+# fit made by `calibrate_launch.py --fit` to the published tables above. Forms
+# are in launch.py; ADR 0004 records the choices.
+#
+#   k(SL) = k0 + k1 * clamp(SL, k_sl_lo, k_sl_hi)   weight of the face normal
+#       Fitted to the four published (dynamic loft, attack angle, launch)
+#       triples: PGA and LPGA driver and 6 iron. Exact k per row is 0.824,
+#       0.738 (PGA driver, 6i), 0.771, 0.730 (LPGA driver, 6i). The line leaves
+#       launch residuals of -0.42, +0.07, +0.35 and 0.00 deg. The clamp bounds
+#       are the spin lofts of those rows (dynamic loft minus attack angle:
+#       12.7 to 25.9). Outside that range k stays flat rather than
+#       extrapolating a line fitted through four points.
+#   smash(SL) = min(smash_a + smash_b SL + smash_c SL^2, smash_cap)
+#       Fitted to ball speed over club speed on all 23 rows against the derived
+#       spin loft (rms 1.0 percent of ball speed, largest miss 2.3 percent).
+#       Monotone decreasing over SL 0 to 45. The cap is the largest published
+#       smash (1.49), so a low spin loft cannot buy speed no Tour row shows.
+#   spin = spin_a * ball_speed_mph * SL^spin_b
+#       Soft-L1 fit on relative error, all 23 rows (rms 13.9 percent). Three
+#       rows miss 10 percent: PGA driver +48, PGA hybrid -14 and LPGA 3w +34.
+#       The table's own spin ladder is not one smooth curve (the PGA driver
+#       spins 1100 rpm below the 3-wood at the same spin loft).
+#   spin_axis = axis_c * atan2(face-to-path, vertical spin loft)   (D-plane normal)
+#       axis_c is one constant, fitted so the eight Anchor 5(b) face-to-path
+#       examples reproduce their curvature through flight.simulate (largest
+#       miss 14 percent, all inside max(20 percent, 3 yd)). It absorbs the
+#       flight model's own curvature per degree of axis. A linear c(SL) fitted
+#       no better (slope -0.0003 per degree).
+# ---------------------------------------------------------------------------
+
+LAUNCH_MODEL = {
+    "k0": 0.864266,
+    "k1": -0.00516972,
+    "k_sl_lo": 12.7,
+    "k_sl_hi": 25.9,
+    "smash_a": 1.56883,
+    "smash_b": -0.00539408,
+    "smash_c": -8.19501e-05,
+    "smash_cap": 1.49,
+    "spin_a": 0.452127,
+    "spin_b": 1.46572,
+    "axis_c": 0.967585,
+}

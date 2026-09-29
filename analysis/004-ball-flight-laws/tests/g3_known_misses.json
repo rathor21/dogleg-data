@@ -1,0 +1,21 @@
+{
+  "g3": {
+    "PGA/driver": {
+      "spin_pct": 48.4
+    },
+    "PGA/hybrid": {
+      "spin_pct": -13.7
+    },
+    "LPGA/3w": {
+      "spin_pct": 34.3
+    },
+    "LPGA/8i": {
+      "ball_pct": -2.3
+    }
+  },
+  "published": {
+    "LPGA/driver": {
+      "spin_loft_deg": -2.3
+    }
+  }
+}
