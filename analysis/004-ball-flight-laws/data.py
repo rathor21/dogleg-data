@@ -340,17 +340,33 @@ ROLL_MAX_YD = 40.0  # MODELED bound
 #       spin loft (rms 1.0 percent of ball speed, largest miss 2.3 percent).
 #       Monotone decreasing over SL 0 to 45. The cap is the largest published
 #       smash (1.49), so a low spin loft cannot buy speed no Tour row shows.
-#   spin = spin_a * ball_speed_mph * SL^spin_b
-#       Soft-L1 fit on relative error, all 23 rows (rms 13.9 percent). Three
-#       rows miss 10 percent: PGA driver +48, PGA hybrid -14 and LPGA 3w +34.
-#       The table's own spin ladder is not one smooth curve (the PGA driver
-#       spins 1100 rpm below the 3-wood at the same spin loft).
-#   spin_axis = axis_c * atan2(face-to-path, vertical spin loft)   (D-plane normal)
-#       axis_c is one constant, fitted so the eight Anchor 5(b) face-to-path
-#       examples reproduce their curvature through flight.simulate (largest
-#       miss 14 percent, all inside max(20 percent, 3 yd)). It absorbs the
-#       flight model's own curvature per degree of axis. A linear c(SL) fitted
-#       no better (slope -0.0003 per degree).
+#   spin = class_factor * spin_a * ball_speed_mph * SL^spin_b
+#       class_factor is spin_f_driver for the driver, spin_f_wood for the 3-wood
+#       and 5-wood, and 1 for hybrids, irons and wedges. a, b, f_driver and
+#       f_wood are fitted together, soft-L1 loss on relative error, all 23 rows
+#       (rms 9.5 percent). MODELED, no per-tour factor.
+#       Rationale, kept modest: tour players strike the driver above center,
+#       and vertical gear effect cuts spin, and fairway woods are low-CG heads.
+#       Both give less spin per degree of spin loft than an iron. The published
+#       evidence that strike location moves spin loft, and so spin, is
+#       Anchor 5(c) Source 3: a 10 mm low strike makes a driver's dynamic loft
+#       2 degrees lower. The log holds no spin-by-strike-height data, so the
+#       size of each factor is a fit and not a measurement. Without the factors
+#       the PGA driver read 3777 rpm against 2545 (+48 percent).
+#       Result: PGA driver +7.6 percent, LPGA driver -24.5 percent. One factor
+#       cannot serve both: their derived spin lofts are 14.3 and 12.3 (the LPGA
+#       driver's dynamic loft minus attack angle is 12.7 against a published
+#       15.0), and at the published 15.0 the same factor would give 2460 rpm
+#       against 2506. Other rows that miss 10 percent: PGA 5w -11.9, LPGA 3w
+#       +30.2, LPGA 5w -10.7, LPGA hybrid +12.2.
+#   spin_axis = (axis_c0 + axis_c1 * SL) * atan2(face-to-path, vertical spin loft)
+#       (D-plane normal tilt). SL is held to 12.7 to 25.9 like k. c is linear
+#       in spin loft (1.32 at 12.7, 0.95 at 25.9), fitted so the eight Anchor
+#       5(b) face-to-path examples reproduce their curvature through
+#       flight.simulate (largest miss 15 percent, all inside max(20 percent,
+#       3 yd)). It absorbs the flight model's own curvature per degree of
+#       axis. A constant c fits when the driver has no spin factor (0.968) and
+#       fails both LPGA driver examples once it has one (-24 and +22 percent).
 # ---------------------------------------------------------------------------
 
 LAUNCH_MODEL = {
@@ -362,7 +378,10 @@ LAUNCH_MODEL = {
     "smash_b": -0.00539408,
     "smash_c": -8.19501e-05,
     "smash_cap": 1.49,
-    "spin_a": 0.452127,
-    "spin_b": 1.46572,
-    "axis_c": 0.967585,
+    "spin_a": 0.778695,
+    "spin_b": 1.30445,
+    "spin_f_driver": 0.646101,
+    "spin_f_wood": 0.878791,
+    "axis_c0": 1.68377,
+    "axis_c1": -0.0283407,
 }

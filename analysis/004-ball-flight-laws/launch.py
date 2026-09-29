@@ -19,8 +19,9 @@ Model:
      Launch angle and launch direction both come from u. u lies in the plane of d
      and n, so that plane is the D-plane and its normal is the spin axis.
   3. Smash factor and spin rate are functions of spin loft (and ball speed).
-  4. Spin axis is the tilt of the D-plane normal times one constant c. The
-     constant is calibrated so face-to-path maps to TrackMan's published curvature
+     Spin also takes a club-class factor for the driver and fairway woods.
+  4. Spin axis is the tilt of the D-plane normal times c(spin loft), linear. The
+     scale is calibrated so face-to-path maps to TrackMan's published curvature
      (see calibrate_launch.py and ADR 0004).
 """
 
@@ -105,14 +106,30 @@ def smash_of(sl, p=None):
     return min(p["smash_a"] + p["smash_b"] * s + p["smash_c"] * s * s, p["smash_cap"])
 
 
-def spin_of(ball_speed_mph, sl, p=None):
-    p = data.LAUNCH_MODEL if p is None else p
-    return p["spin_a"] * ball_speed_mph * max(sl, 0.0) ** p["spin_b"]
+SPIN_CLASS = {"driver": "driver", "3w": "wood", "5w": "wood"}  # every other club is an iron class
 
 
-def axis_scale(p=None):
+def spin_class_factor(club, p=None):
+    """MODELED club-class multiplier on spin: f_driver for the driver, f_wood
+    for the 3-wood and 5-wood, 1 for hybrids, irons and wedges (and when the
+    club is not given)."""
     p = data.LAUNCH_MODEL if p is None else p
-    return p["axis_c"]
+    cls = SPIN_CLASS.get(club)
+    return 1.0 if cls is None else p["spin_f_" + cls]
+
+
+def spin_of(ball_speed_mph, sl, club=None, p=None):
+    p = data.LAUNCH_MODEL if p is None else p
+    return spin_class_factor(club, p) * p["spin_a"] * ball_speed_mph * max(sl, 0.0) ** p["spin_b"]
+
+
+def axis_scale(sl, p=None):
+    """Scale on the D-plane tilt: c0 + c1 * spin loft, held flat outside the
+    spin loft range of the k fit (12.7 to 25.9), where the eight curvature
+    examples sit."""
+    p = data.LAUNCH_MODEL if p is None else p
+    s = min(max(sl, p["k_sl_lo"]), p["k_sl_hi"])
+    return p["axis_c0"] + p["axis_c1"] * s
 
 
 def launch_vector(path_deg, attack_deg, face_deg, dyn_loft_deg, p=None):
@@ -150,8 +167,8 @@ def deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=N
     launch_deg, launch_dir, sl = launch_vector(path_deg, attack_deg, face_deg, dyn_loft_deg, p)
     smash = smash_of(sl, p)
     ball = smash * club_speed_mph
-    spin = spin_of(ball, sl, p)
-    axis = axis_scale(p) * dplane_tilt_deg(path_deg, attack_deg, face_deg, dyn_loft_deg)
+    spin = spin_of(ball, sl, club, p)
+    axis = axis_scale(sl, p) * dplane_tilt_deg(path_deg, attack_deg, face_deg, dyn_loft_deg)
     return Launch(
         ball_speed_mph=ball,
         smash=smash,

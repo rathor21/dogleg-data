@@ -14,8 +14,9 @@ Fit order (each step uses the ones before it):
   2. Default dynamic loft per row: invert the launch model so the table's
      attack angle plus that loft reproduce the table's launch angle.
   3. Smash factor vs spin loft: printed smash, all 23 rows.
-  4. Spin rate vs ball speed and spin loft: printed spin, all 23 rows.
-  5. Spin axis scale c, one constant: the eight Anchor 5(b) curvature
+  4. Spin rate vs ball speed and spin loft: printed spin, all 23 rows, with
+     club-class factors for the driver and the 3-wood and 5-wood.
+  5. Spin axis scale c(spin loft), linear: the eight Anchor 5(b) curvature
      examples, flown through flight.simulate from the 2019 rows they quote.
 
 Step 5 runs the flight model, so it absorbs that model's own curvature per
@@ -132,17 +133,27 @@ def fit_smash(p):
 
 
 def fit_spin(p):
-    """spin = a * ball_speed * spin_loft^b on printed speeds, spin and derived
-    spin loft. Soft-L1 loss on relative error: the tables hold driver and 3-wood
-    rows whose spin sits far off the club ladder (PGA driver 2545 against 3663
-    for the 3-wood at the same spin loft), and a plain fit lets those rows drag
-    every iron."""
+    """spin = class_factor * a * ball_speed * spin_loft^b on printed speeds, spin
+    and derived spin loft. Four parameters fitted together: a, b, f_driver (the
+    driver rows) and f_wood (3-wood and 5-wood rows); every other row has
+    factor 1. Soft-L1 loss on relative error, as the tables hold rows whose spin
+    sits off the club ladder and a plain fit lets them drag every iron."""
     dv = derived(p)
-    sl = np.array([dv[(t, c)][1] for t, c, r in rows()])
-    v = np.array([r["ball_speed_mph"] for t, c, r in rows()], dtype=float)
-    sp = np.array([r["spin_rpm"] for t, c, r in rows()], dtype=float)
-    sol = least_squares(lambda x: x[0] * v * sl ** x[1] / sp - 1.0, [0.4, 1.5], loss="soft_l1", f_scale=0.1)
-    return dict(spin_a=float(sol.x[0]), spin_b=float(sol.x[1]))
+    rs = list(rows())
+    sl = np.array([dv[(t, c)][1] for t, c, r in rs])
+    v = np.array([r["ball_speed_mph"] for t, c, r in rs], dtype=float)
+    sp = np.array([r["spin_rpm"] for t, c, r in rs], dtype=float)
+    cls = [launch.SPIN_CLASS.get(c) for t, c, r in rs]
+    is_d = np.array([k == "driver" for k in cls])
+    is_w = np.array([k == "wood" for k in cls])
+
+    def res(x):
+        f = np.where(is_d, x[2], np.where(is_w, x[3], 1.0))
+        return f * x[0] * v * sl ** x[1] / sp - 1.0
+
+    sol = least_squares(res, [0.4, 1.5, 1.0, 1.0], loss="soft_l1", f_scale=0.1)
+    return dict(spin_a=float(sol.x[0]), spin_b=float(sol.x[1]),
+                spin_f_driver=float(sol.x[2]), spin_f_wood=float(sol.x[3]))
 
 
 # ---------------------------------------------------------------------------
@@ -165,19 +176,21 @@ def curve_tol(published):
 
 
 def fit_axis(p):
-    """One constant c. A linear c(spin loft) was tried and fits no better
-    (slope -0.0003 per degree, cost unchanged), so the model keeps one number."""
+    """c(spin loft) = c0 + c1 * SL, two parameters. With the driver spin factor
+    in place a single constant fails the two LPGA driver examples (the LPGA
+    driver's low derived spin loft leaves it 1900 rpm and under-curved), so c
+    takes a slope."""
 
     def res(x):
-        q = dict(p, axis_c=x[0])
+        q = dict(p, axis_c0=x[0], axis_c1=x[1])
         out = []
         for tour, club, f2p, pub in data.CURVATURE_EXAMPLES:
             _, f = curvature_example(tour, club, f2p, q)
             out.append((f.curve_yd - pub) / curve_tol(pub))
         return out
 
-    sol = least_squares(res, [1.0], diff_step=1e-3)
-    return dict(axis_c=float(sol.x[0]))
+    sol = least_squares(res, [1.6, -0.026], diff_step=1e-3)
+    return dict(axis_c0=float(sol.x[0]), axis_c1=float(sol.x[1]))
 
 
 def fit_all(verbose=True):
@@ -185,7 +198,7 @@ def fit_all(verbose=True):
     p.update(fit_k())
     p.update(fit_smash(p))
     p.update(fit_spin(p))
-    p.update(axis_c=1.0)
+    p.update(axis_c0=1.0, axis_c1=0.0)
     p.update(fit_axis(p))
     return p
 
@@ -259,7 +272,7 @@ def published_misses(p=None):
 def print_params(p):
     print("\nLAUNCH_MODEL (paste into data.py, MODELED):")
     for key in ("k0", "k1", "k_sl_lo", "k_sl_hi", "smash_a", "smash_b", "smash_c", "smash_cap",
-                "spin_a", "spin_b", "axis_c"):
+                "spin_a", "spin_b", "spin_f_driver", "spin_f_wood", "axis_c0", "axis_c1"):
         print(f"    {key!r}: {p[key]:.6g},")
 
 

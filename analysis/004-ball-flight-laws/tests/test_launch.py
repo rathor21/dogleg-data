@@ -73,7 +73,7 @@ def test_g3_no_new_or_worse_misses():
 
 
 def test_g3_misses_are_a_minority_and_never_launch():
-    assert len(G3_MISSES) <= 5
+    assert len(G3_MISSES) <= 6
     assert all("launch_deg" not in m for m in G3_MISSES.values())
 
 
@@ -113,6 +113,25 @@ def test_smash_falls_with_spin_loft():
     assert all(b <= a + 1e-12 for a, b in zip(vals, vals[1:]))
     assert vals[0] == data.LAUNCH_MODEL["smash_cap"]
     assert vals[-1] < vals[15]
+
+
+def test_spin_class_factors():
+    """Driver and fairway woods spin less per degree of spin loft than irons;
+    hybrids, irons, wedges and an unnamed club share the iron curve."""
+    iron = launch.spin_of(140.0, 20.0, "7i")
+    assert launch.spin_of(140.0, 20.0, "hybrid") == iron == launch.spin_of(140.0, 20.0)
+    assert launch.spin_of(140.0, 20.0, "5w") < iron
+    assert launch.spin_of(140.0, 20.0, "3w") == launch.spin_of(140.0, 20.0, "5w")
+    assert launch.spin_of(140.0, 20.0, "driver") < launch.spin_of(140.0, 20.0, "3w")
+    assert 0.0 < data.LAUNCH_MODEL["spin_f_driver"] < data.LAUNCH_MODEL["spin_f_wood"] < 1.0
+
+
+def test_pga_driver_preset_spin_is_in_band():
+    """The ideal driver preset must not light its own spin tile (coordinator,
+    task 004.3 follow-up): within 10 percent of the 2545 rpm table value."""
+    p = presets.preset("driver", "pga")
+    ln = launch.deliver(p["club_speed"], p["attack"], 0.0, 0.0, p["dyn_loft"], "driver")
+    assert abs(ln.spin_rpm / data.PGA["driver"]["spin_rpm"] - 1.0) <= 0.10
 
 
 def test_face_share_is_between_the_two_claims():

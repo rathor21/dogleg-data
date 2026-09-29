@@ -55,38 +55,53 @@ Six more rows miss only the original G2 tolerance: PGA 7 iron (carry -5.6 yd, la
 - Fit of k. The exact k per published (dynamic loft, attack angle, launch) triple is 0.824 (PGA driver), 0.738 (PGA 6 iron), 0.771 (LPGA driver) and 0.730 (LPGA 6 iron). The line is k = 0.8643 - 0.005170 SL and leaves launch residuals of -0.42, +0.07, +0.35 and 0.00 degrees.
 - Default dynamic loft. `derive_dyn_loft` inverts the launch model so the tour attack angle and that loft reproduce the table's launch at path 0 and face 0. For the four published rows the inverted loft sits within 0.6 degrees of TrackMan's (PGA driver 13.4 against 12.8, PGA 6 iron 20.1 against 20.2, LPGA driver 15.1 against 15.5, LPGA 6 iron 23.6 against 23.6). Other clubs have no published loft, so their derived loft is MODELED. It runs from 12.4 (PGA 3-wood) to 35.3 degrees (LPGA PW).
 - Smash. smash = 1.5688 - 0.005394 SL - 0.0000820 SL^2, capped at 1.49 (the largest published smash). It is monotone decreasing from 0 to 45 degrees of spin loft. It is fitted to ball speed over club speed on all 23 rows, because the gate tests ball speed. The printed smash column differs from that ratio by up to 0.03 (log, Anchor 2). A fit to the printed column misses ball speed on 3 rows and the ratio fit misses 1 (LPGA 8 iron, -2.3 percent). No extra smash penalty for face-to-path was added, since the 3D spin loft already falls as face-to-path grows.
-- Spin. spin = 0.4521 x ball speed x SL^1.4657, a soft-L1 fit on relative error across all 23 rows (rms 13.9 percent). A plain fit lets the driver and wood rows drag every iron. The table's spin ladder is not one smooth curve: the PGA driver spins 1,100 rpm below the 3-wood at the same spin loft.
-- Spin axis. The D-plane normal tilts by about atan2(face-to-path, vertical spin loft). The shipped axis is that tilt times one constant c (decision 4).
+- Spin. spin = f x 0.7787 x ball speed x SL^1.3045, where f is a club-class factor: 0.6461 for the driver, 0.8788 for the 3-wood and 5-wood, and 1 for hybrids, irons and wedges. The four numbers (a, b, f_driver, f_wood) are fitted together by a soft-L1 fit on relative error across all 23 rows (rms 9.5 percent), with no per-tour factor. The table's spin ladder is not one smooth curve: the PGA driver spins 1,100 rpm below the 3-wood at the same spin loft, and a single iron curve put the PGA driver at 3,777 rpm against 2,545 (+48 percent), so the driver's own spin tile would have read out of band on the tool's ideal preset. The reason for a class factor is modest. Tour players strike the driver above center, and vertical gear effect cuts spin. Fairway woods are low-CG heads. Both give less spin per degree of spin loft than an iron. The published evidence that strike location moves spin loft, and so spin, is Anchor 5(c) Source 3: a 10 mm low strike makes a driver's dynamic loft 2 degrees lower. The log holds no spin-by-strike-height data, so the size of each factor is a fit and not a measurement. The factors are MODELED.
+- Spin axis. The D-plane normal tilts by about atan2(face-to-path, vertical spin loft). The shipped axis is that tilt times c(SL) = 1.6838 - 0.02834 SL, held flat outside SL 12.7 to 25.9 (decision 4).
 
-G3 result. Launch passes on all 23 rows because dynamic loft is derived from launch, so launch checks the inversion and the fit of k, and the published-loft rows above test it independently. Spin and ball speed are the working tests, and 19 of 23 rows pass all three. The misses, all recorded in `tests/g3_known_misses.json`:
+G3 result. Launch passes on all 23 rows because dynamic loft is derived from launch, so launch checks the inversion and the fit of k, and the published-loft rows above test it as a separate check. Spin and ball speed are the working tests, and 17 of 23 rows pass all three. The misses, all recorded in `tests/g3_known_misses.json`:
 
 | Row | Miss |
 |---|---|
-| PGA driver | spin +48.4 percent (model 3,777 rpm, table 2,545) |
-| PGA hybrid | spin -13.7 percent |
-| LPGA 3-wood | spin +34.3 percent |
+| PGA 5-wood | spin -11.9 percent |
+| LPGA driver | spin -24.5 percent (model 1,892 rpm, table 2,506) |
+| LPGA 3-wood | spin +30.2 percent |
+| LPGA 5-wood | spin -10.7 percent |
+| LPGA hybrid | spin +12.2 percent |
 | LPGA 8 iron | ball speed -2.3 percent |
 | LPGA driver, published spin loft | spin loft at the published dynamic loft is 12.7 against 15.0 (-2.3 degrees) |
 
-The LPGA driver spin loft gap is in the source log as unexplained on TrackMan's page. The PGA driver spin loft lands 1.0 degree from the published value, on the line. Held out and never fitted: the TrackMan Optimizer 6 iron reads launch 15.6 against 16.9 degrees and PW reads 26.1 against 26.7, and the Combine average driver reads launch 11.4 against 12.6 and spin 3,897 against 3,275 rpm.
+Spin for the driver and woods, after the class factors (model against table, rpm):
+
+| Row | Model | Table | Error |
+|---|---|---|---|
+| PGA driver | 2,738 | 2,545 | +7.6 percent |
+| PGA 3-wood | 3,690 | 3,663 | +0.7 percent |
+| PGA 5-wood | 3,807 | 4,322 | -11.9 percent |
+| PGA hybrid | 4,355 | 4,587 | -5.1 percent |
+| LPGA driver | 1,892 | 2,506 | -24.5 percent |
+| LPGA 3-wood | 3,378 | 2,595 | +30.2 percent |
+| LPGA 5-wood | 3,859 | 4,320 | -10.7 percent |
+| LPGA hybrid | 5,052 | 4,504 | +12.2 percent |
+
+The PGA driver now reads within 10 percent. The LPGA driver cannot, with one factor for both tours. The two drivers ask for different factors: the PGA driver wants a factor near 0.7 and the LPGA driver near 1.0, a ratio near 1.4, and one factor can cover a ratio of 1.22 at most for both to sit inside 10 percent. The cause is the LPGA driver's derived spin loft. Dynamic loft minus attack angle is 12.7 degrees against a published 15.0 (the gap the source log calls unexplained), and the inversion gives 12.3. At the published 15.0 the shipped factor would give 2,461 rpm against 2,506. A per-tour factor would close it and is ruled out, so the LPGA driver preset shows spin 24.5 percent under its table. The LPGA 3-wood misses the other way (+30.2), because the table's LPGA 3-wood spin (2,595) sits with the driver and far below the LPGA 5-wood (4,320), and the 3-wood and 5-wood share one factor. The PGA driver spin loft lands 1.0 degree from the published value, on the line. Held out and never fitted: the TrackMan Optimizer 6 iron reads launch 15.6 against 16.9 degrees and PW reads 26.1 against 26.7, and the Combine average driver reads launch 11.4 against 12.6 and spin 2,749 against 3,275 rpm (-16 percent).
 
 **4. Curvature calibration and the flight model's over-curve.**
-The face-to-path to curve mapping is what students see, so it follows TrackMan's eight examples (Anchor 5b) and not the flight model's own curve per degree of spin axis. `flight.py` gives a 6 iron more curve than a 3-wood at the same axis (14.0 against 12.1 yd at 10 degrees), the wrong order against TrackMan's 11 and 15 yd, and `test_flight.py` records that as an xfail. That over-curve of short irons per degree of axis is a known limit of the flight model. The single constant c in the spin axis absorbs it.
+The face-to-path to curve mapping is what students see, so it follows TrackMan's eight examples (Anchor 5b) and not the flight model's own curve per degree of spin axis. `flight.py` gives a 6 iron more curve than a 3-wood at the same axis (14.0 against 12.1 yd at 10 degrees), the wrong order against TrackMan's 11 and 15 yd, and `test_flight.py` records that as an xfail. That over-curve of short irons per degree of axis is a known limit of the flight model. The scale c(SL) on the spin axis absorbs it.
 
-Each example runs from the 2019 row of the same tour and club, path 0 and face equal to face-to-path, with the loft inverted from that row's launch. Those rows are SUPERSEDED in the log and sit in `data.SUPERSEDED_2019` for this purpose only, because TrackMan's examples quote 2019 carries (PGA driver 275, PGA 6 iron 183, LPGA driver 218, LPGA 6 iron 152). The fit gives c = 0.9676. Results against the published curvature (positive is right):
+Each example runs from the 2019 row of the same tour and club, path 0 and face equal to face-to-path, with the loft inverted from that row's launch. Those rows are SUPERSEDED in the log and sit in `data.SUPERSEDED_2019` for this purpose only, because TrackMan's examples quote 2019 carries (PGA driver 275, PGA 6 iron 183, LPGA driver 218, LPGA 6 iron 152). The fit gives c = 1.6838 - 0.02834 SL, which is 1.32 at SL 12.7 and 0.95 at 25.9, held flat outside that range. Results against the published curvature (positive is right):
 
 | Example | Model | Published | Error |
 |---|---|---|---|
-| PGA driver, -2 | -20.2 yd | -19 | -6 percent |
-| PGA driver, +5 | +48.7 | +44 | +11 percent |
-| PGA 6 iron, +2 | +8.6 | +8 | +7 percent |
-| PGA 6 iron, -5 | -20.9 | -20 | -5 percent |
-| LPGA driver, +2 | +12.3 | +14 | -12 percent |
-| LPGA driver, -5 | -29.7 | -32 | +7 percent |
-| LPGA 6 iron, -2 | -5.2 | -6 | +14 percent |
-| LPGA 6 iron, +5 | +12.7 | +14 | -10 percent |
+| PGA driver, -2 | -20.6 yd | -19 | -8 percent |
+| PGA driver, +5 | +47.9 | +44 | +9 percent |
+| PGA 6 iron, +2 | +8.8 | +8 | +9 percent |
+| PGA 6 iron, -5 | -21.1 | -20 | -6 percent |
+| LPGA driver, +2 | +12.6 | +14 | -10 percent |
+| LPGA driver, -5 | -28.4 | -32 | +11 percent |
+| LPGA 6 iron, -2 | -5.1 | -6 | +15 percent |
+| LPGA 6 iron, +5 | +12.4 | +14 | -11 percent |
 
-All eight sit inside the larger of 20 percent and 3 yd. The D-plane tilt supplies most of the driver-to-iron ordering, because a lofted club has less tilt per degree of face-to-path. The absorbed error is small: with c = 1 all eight still pass, the worst at 0.70 of its tolerance. A c that varies linearly with spin loft fitted no better (slope -0.0003 per degree), so the model keeps one number. Two limits follow. The model carries in these examples run 2 to 11 percent under the quoted carries (the PGA driver flies 244 to 256 yd against 275, since its spin reads high), so c also carries a share of that gap. The published driver examples are asymmetric (9.5 yd per degree left, 8.8 right), and the model is symmetric.
+All eight sit inside the larger of 20 percent and 3 yd. The D-plane tilt supplies most of the driver-to-iron ordering, because a lofted club has less tilt per degree of face-to-path. The scale c did not need a slope until the driver spin factor went in. With one shared spin curve a constant c = 0.968 fit all eight (worst error 14 percent). With the factor, the LPGA driver's low spin (about 1,900 rpm) under-curves it, and a constant c (1.10) missed both LPGA driver examples (-24 and +22 percent) while the PGA driver, PGA 6 iron and LPGA 6 iron passed. Letting c fall with spin loft fixes that, at the cost of one parameter. The slope is the LPGA driver's low spin loft showing up again, and it rests on one row. Two limits follow. The model carries in these examples run 2 to 12 percent under the quoted carries (the PGA driver flies 248 to 261 yd against 275, the LPGA driver 192 to 203 against 218), so c also carries a share of that gap. The published driver examples are asymmetric (9.5 yd per degree left, 8.8 right), and the model is symmetric.
 
 **5. Start direction shares stay unverified.**
 The model does not take the 85 / 75 (PGA Academy, unattributed) or 87 / 81 (forum, attributed to TrackMan Academy) shares as inputs. The horizontal face share follows from the fitted k and the lofts: k cos(L) / ((1 - k) cos(A) + k cos(L)). It reads 78.9 percent for the PGA driver, 79.3 for the LPGA driver, 72.9 for the PGA 6 iron and 71.3 for the LPGA 6 iron, falling to about 69 percent at the PW. That is 6 points under the 85 claim for the driver and 2 under the 75 claim for a 6 iron, and lower than the 87 and 81 claims. The comparison checks plausibility and cannot favor either set. A human should read Tuxen's "TRACKMAN Ball Flight Laws" (log, Anchor 5a) and refit k if its table differs.
@@ -99,8 +114,8 @@ One deviation from the brief. Scaling PGA club speed by 94 / 115 for the other c
 ## Consequences
 
 - G2 for release 004 is the teaching tolerance. The 11 rows above, and the six that miss only the original tolerance, ship as documented xfails. Any UI number for those rows is a model output and can sit outside the table by the sizes listed.
-- The PGA driver preset shows model spin near 3,800 rpm against a 2,545 table value. The spin tile for that preset needs either the table value as its ideal band with a visible gap, or the modeled badge. The same holds, in smaller size, for the PGA hybrid and LPGA 3-wood.
-- Curvature follows TrackMan's published examples within 14 percent for both tours on the driver and 6 iron. Curvature for the other clubs is extrapolation through spin loft and the flight model, with no published check. The 10-degree spin axis examples in `test_flight.py` remain a separate check on the flight model.
+- The PGA driver preset now shows 2,738 rpm against a 2,545 table value (+7.6 percent), inside the 10 percent band, so the ideal driver preset does not light its own spin tile. The LPGA driver preset shows 1,892 rpm against 2,506 (-24.5 percent) and the LPGA 3-wood 3,378 against 2,595 (+30.2). Those two tiles read out of band on their own presets. The tool needs the table value as the ideal band with a visible gap, or the modeled badge, on those rows. The amateur driver preset shows 2,749 rpm against the Combine average of 3,275, since the factor was fitted to Tour rows.
+- Curvature follows TrackMan's published examples within 15 percent for both tours on the driver and 6 iron, using a c that varies with spin loft. Curvature for the other clubs is extrapolation through spin loft and the flight model, with no published check. The 10-degree spin axis examples in `test_flight.py` remain a separate check on the flight model.
 - The launch model has no test against a published start direction share. The golfer cases test signs, the face = path identity and symmetry, none of which depend on the share.
-- Every value in `data.LAUNCH_MODEL` is regenerated by `calibrate_launch.py --fit` and pasted by hand. `--write-misses` regenerates `tests/g3_known_misses.json`. A refit of k, smash or spin needs a rerun of both, and of `--fit` for c, since c depends on the spin and smash fits.
+- Every value in `data.LAUNCH_MODEL` is regenerated by `calibrate_launch.py --fit` and pasted by hand. `--write-misses` regenerates `tests/g3_known_misses.json`. `--fit` refits every parameter in order, and c depends on the k, smash and spin fits, so a change to any of them needs the whole fit rerun.
 - Open items for Sunny: accept the G2 retarget, decide how the tool shows the PGA driver spin gap, and decide whether a human reading of Tuxen's document (start direction shares, D-plane equations) is worth doing before the article states a share.
