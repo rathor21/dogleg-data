@@ -25,8 +25,9 @@ Every trial stays inside data.DOMAIN (bounds on the unknowns, and dynamic loft
 minus attack angle above the spin loft floor).
 
 A draw that finishes on the line has to start right of it by about
-atan(curve_frac). At the default 5 percent that is 2.9 deg, so classify() reads
-such a window as "Push draw" (TrackMan's plus or minus 2 deg start guidance).
+atan(curve_frac). At the default 5 percent that is 2.9 deg, past TrackMan's plus
+or minus 2 deg start guidance, but the ball is worked back to the target, so
+classify() names the window "Draw" (and the mirror "Fade").
 """
 
 import numpy as np

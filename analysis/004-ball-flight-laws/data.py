@@ -477,12 +477,19 @@ DOMAIN = {
 #       275 yd carry (16 percent), which reads as a slice; a PGA 6 iron with
 #       face-to-path +2 curves 8 yd on 183 (4.4 percent), which reads as a
 #       fade. 8 percent sits between them.
+#   on_target_frac: a ball that finishes within this fraction of its carry of
+#       the target line counts as on target. MODELED design choice, an
+#       instructor can adjust it. It decides whether a ball that starts on one
+#       side and curves back the other way was "worked back" (a Draw that
+#       starts right, a Fade that starts left) or missed (Push draw, Pull
+#       fade, Push hook, Pull slice). 4 percent of a 170 yd carry is 6.8 yd.
 # ---------------------------------------------------------------------------
 
 CLASSIFY = {
     "start_straight_deg": 2.0,
     "axis_straight_deg": 2.0,
     "curve_hook_frac": 0.08,
+    "on_target_frac": 0.04,
 }
 
 # ---------------------------------------------------------------------------

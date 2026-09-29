@@ -39,12 +39,8 @@ def test_targets_come_from_the_preset(all_windows):
 @pytest.mark.parametrize("player,height,shape", CASES)
 def test_window_shape_classifies(all_windows, player, height, shape):
     c = all_windows[player][(height, shape)]["classification"]
-    if shape == "draw":
-        assert c["shape"] in ("draw", "hook")
-    elif shape == "fade":
-        assert c["shape"] in ("fade", "slice")
-    else:
-        assert c["name"] == "Straight"
+    assert c["name"] == shape.capitalize()  # Draw, Straight or Fade
+    assert c["shape"] == shape
 
 
 def test_windows_are_labeled_modeled(all_windows):
@@ -87,10 +83,19 @@ def test_draws_and_fades_mirror_at_equal_height(all_windows):
             assert d["delivery"]["face_deg"] == pytest.approx(-f["delivery"]["face_deg"], abs=0.02)
 
 
-def test_on_target_draw_starts_right_of_the_line(all_windows):
+def test_on_target_draw_starts_right_and_reads_draw(all_windows):
     """Finishing on the line with a 5 percent draw needs a start about 2.9 deg
-    right, so classify() names it a push draw (TrackMan's +-2 deg start line)."""
-    w = all_windows["pga"][("mid", "draw")]
-    assert w["launch"]["launch_dir_deg"] > classify.START_STRAIGHT_DEG
-    assert w["classification"]["name"] == "Push draw"
-    assert all_windows["pga"][("mid", "fade")]["classification"]["name"] == "Pull fade"
+    right, past TrackMan's +-2 deg start line. The ball was worked back to the
+    target, so it reads Draw, and a fade reads Fade."""
+    for player in presets.PLAYERS:
+        for height in windows.HEIGHTS:
+            d = all_windows[player][(height, "draw")]
+            f = all_windows[player][(height, "fade")]
+            assert d["launch"]["launch_dir_deg"] > classify.START_STRAIGHT_DEG
+            assert d["classification"]["start"] == "push" and d["classification"]["name"] == "Draw"
+            assert d["classification"]["worked_back"] is True
+            assert f["launch"]["launch_dir_deg"] < -classify.START_STRAIGHT_DEG
+            assert f["classification"]["start"] == "pull" and f["classification"]["name"] == "Fade"
+            assert f["classification"]["worked_back"] is True
+            s = all_windows[player][(height, "straight")]["classification"]
+            assert s["name"] == "Straight" and s["worked_back"] is False

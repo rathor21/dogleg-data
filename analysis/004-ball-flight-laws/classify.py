@@ -1,7 +1,7 @@
 """Shot classifier for release 004: launch and flight numbers in, ball flight name out.
 
     classify(launch_dir_deg, spin_axis_deg, curve_yd, side_yd, carry_yd)
-        -> dict(start, shape, name, finish_yd, finish_text)
+        -> dict(start, shape, name, worked_back, finish_yd, finish_text)
 
 Right-handed frame, positive is right. A lefty display is a mirror done by the
 page, so nothing here knows about handedness.
@@ -18,13 +18,27 @@ Rules (thresholds live in data.CLASSIFY):
           PGA driver example (face-to-path +5, 44 yd on 275 carry, 16 percent)
           reads as a slice and the PGA 6 iron example (+2, 8 yd on 183, 4.4
           percent) reads as a fade.
-  name    the start word (pull or push) followed by the shape word, first word
-          capitalized. A straight start drops the start word, and a straight
-          shape after a pull or push is just "Pull" or "Push".
+  on target  |side| is at most ON_TARGET_FRAC of the carry. MODELED and
+          instructor adjustable.
+  name    follows how instructors talk about the finish:
+            straight start          the shape alone: Draw, Fade, Hook, Slice.
+            straight shape          Straight, or Pull or Push after a bad start.
+            start and curve oppose  (starts right and curves left, or the
+                                    reverse) and the ball finishes on target:
+                                    the shape alone. The ball was worked back
+                                    to the target, and worked_back is True.
+            start and curve oppose  and it finishes off target, either crossed
+                                    over the target line or short on the start
+                                    side: start plus shape, "Push hook",
+                                    "Pull slice", "Push draw", "Pull fade".
+            start and curve agree   start plus shape: "Push slice", "Pull hook".
+          The first word is capitalized.
   finish  where the ball ends, side_yd, and a sentence for it.
 
-The boundaries are inclusive on the straight side: a start of 2.0 deg and a
-spin axis of 2.0 deg both read as straight, matching "between -2 and 2".
+The boundaries are inclusive on the straight side and on the on-target side: a
+start of 2.0 deg and a spin axis of 2.0 deg both read as straight, matching
+"between -2 and 2", and a finish at ON_TARGET_FRAC of the carry is on
+target.
 """
 
 import data
@@ -32,6 +46,7 @@ import data
 START_STRAIGHT_DEG = data.CLASSIFY["start_straight_deg"]
 AXIS_STRAIGHT_DEG = data.CLASSIFY["axis_straight_deg"]
 CURVE_HOOK_FRAC = data.CLASSIFY["curve_hook_frac"]
+ON_TARGET_FRAC = data.CLASSIFY["on_target_frac"]
 ON_LINE_YD = 1.0  # finish inside this many yards of the target line reads "on line"
 
 STARTS = ("pull", "straight", "push")
@@ -56,12 +71,19 @@ def _shape(spin_axis_deg, curve_yd, carry_yd):
     return "slice" if sharp else "fade"
 
 
-def _name(start, shape):
+_SHAPE_SIDE = {"draw": "left", "hook": "left", "fade": "right", "slice": "right"}
+_START_SIDE = {"pull": "left", "push": "right"}
+
+
+def _name(start, shape, on_target):
+    """(name, worked_back)."""
     if start == "straight":
-        return shape.capitalize()
+        return shape.capitalize(), False
     if shape == "straight":
-        return start.capitalize()
-    return f"{start.capitalize()} {shape}"
+        return start.capitalize(), False
+    if _START_SIDE[start] != _SHAPE_SIDE[shape] and on_target:
+        return shape.capitalize(), True  # started one side, curved back to the target
+    return f"{start.capitalize()} {shape}", False
 
 
 def _finish_text(side_yd):
@@ -74,10 +96,13 @@ def _finish_text(side_yd):
 def classify(launch_dir_deg, spin_axis_deg, curve_yd, side_yd, carry_yd):
     start = _start(launch_dir_deg)
     shape = _shape(spin_axis_deg, curve_yd, carry_yd)
+    on_target = abs(side_yd) <= ON_TARGET_FRAC * carry_yd
+    name, worked_back = _name(start, shape, on_target)
     return {
         "start": start,
         "shape": shape,
-        "name": _name(start, shape),
+        "name": name,
+        "worked_back": worked_back,
         "finish_yd": side_yd,
         "finish_text": _finish_text(side_yd),
     }

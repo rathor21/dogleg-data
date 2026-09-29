@@ -21,8 +21,8 @@ Files:
                 driver the two optimizer grids so the page can interpolate live.
   camera.json   the fitted art cameras, "wide" and "mobile".
   golden.json   the JS parity fixture: tests/golden_launch.json cases with
-                classify() output, sampled trajectories for 12 of them, and the
-                PGA 7 iron windows.
+                classify() output, sampled trajectories for 12 of them, pure
+                classify() vectors and the PGA 7 iron windows.
 """
 
 import inspect
@@ -307,6 +307,21 @@ def _trajectory(f):
     }
 
 
+def _classify_vectors():
+    """Pure classify() vectors on a 200 yd carry for the JS classifier: every
+    start, shape and finish (on target and off) plus the threshold edges."""
+    shapes = ((0.0, 0.0), (-5.0, -10.0), (5.0, 10.0), (-10.0, -32.0), (10.0, 32.0), (1.9, 40.0), (-2.0, -10.0), (2.0001, 10.0))
+    starts = (-3.0, -2.0001, -2.0, 0.0, 2.0, 2.0001, 3.0)
+    sides = (-40.0, -8.5, -8.0, -2.0, 0.0, 0.9, 1.0, 8.0, 8.5, 40.0)
+    out = []
+    for start in starts:
+        for axis, curve in shapes:
+            for side in sides:
+                args = [start, axis, curve, side, 200.0]
+                out.append({"args": args, "result": classify.classify(*args)})
+    return out
+
+
 def build_golden(all_windows):
     with open(gl.GOLDEN_PATH, encoding="utf-8") as fh:
         base = json.load(fh)
@@ -325,10 +340,12 @@ def build_golden(all_windows):
     return {
         "note": "JS parity fixture. cases: tests/golden_launch.json (deliver args and outputs, flight summaries) "
                 "plus classify() output for every case and sampled trajectories (steps 0, 10, 20 and the landing "
-                "step) for 12. Rounded to 9 significant digits. windows_pga_7i: the nine PGA 7-iron recipes.",
+                "step) for 12. classify_vectors: pure classify() inputs (launch dir, spin axis, curve, side, carry) "
+                "and outputs. Rounded to 9 significant digits. windows_pga_7i: the nine PGA 7-iron recipes.",
         "sig_digits": GOLDEN_SIG,
         "dt": base["dt"],
         "cases": cases,
+        "classify_vectors": _classify_vectors(),
         "windows_pga_7i": {f"{w['height']}_{w['shape']}": w for w in all_windows["pga"]},
     }
 

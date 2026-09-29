@@ -177,6 +177,7 @@ def test_golden_round_trips_against_the_live_model(golden):
         cls = classify.classify(ln.launch_dir_deg, ln.spin_axis_deg, f.curve_yd, f.side_yd, f.carry_yd)
         stored = case["classification"]
         assert stored["name"] == cls["name"] and stored["start"] == cls["start"] and stored["shape"] == cls["shape"], case["id"]
+        assert stored["worked_back"] is cls["worked_back"], case["id"]
         assert stored["finish_yd"] == pytest.approx(cls["finish_yd"], rel=REL, abs=REL)
         assert stored["finish_text"] == cls["finish_text"], case["id"]
         if "trajectory" in case:
@@ -188,6 +189,23 @@ def test_golden_round_trips_against_the_live_model(golden):
                 live = getattr(f, key)
                 assert tr[key] == pytest.approx([float(live[i]) for i in idx], rel=REL, abs=REL), (case["id"], key)
             assert tr["z"][-1] == 0.0
+
+
+def test_golden_classify_vectors(golden):
+    vecs = golden["classify_vectors"]
+    assert len(vecs) == 7 * 8 * 10
+    for v in vecs:
+        live = classify.classify(*v["args"])
+        got = v["result"]
+        assert {k: got[k] for k in ("start", "shape", "name", "worked_back", "finish_text")} == \
+            {k: live[k] for k in ("start", "shape", "name", "worked_back", "finish_text")}, v["args"]
+    names = {v["result"]["name"] for v in vecs}
+    assert {"Draw", "Push draw", "Pull fade", "Push slice", "Pull hook", "Straight"} <= names
+    assert any(v["result"]["worked_back"] for v in vecs)
+
+
+def test_model_json_carries_the_on_target_threshold(built):
+    assert json.loads(built["model.json"])["classify"]["on_target_frac"] == 0.04
 
 
 def test_golden_pga_7i_windows(golden):
