@@ -62,6 +62,12 @@ export function createRange({ root, canvas, model, avoidEl }) {
     plateInk: token("--plate-ink", "#1C1B18"),
     plateDarkBg: token("--plate-dark-bg", "rgba(28,27,24,.74)"),
     plateDarkInk: token("--plate-dark-ink", "#F4EDE0"),
+    mapBg: token("--map-bg", "rgba(28,27,24,.78)"),
+    mapEdge: token("--map-edge", "rgba(244,237,224,.26)"),
+    mapGrid: token("--map-grid", "rgba(244,237,224,.13)"),
+    mapInk: token("--map-ink", "#F4EDE0"),
+    mapMuted: token("--map-muted", "rgba(244,237,224,.72)"),
+    mapTarget: token("--map-target", "rgba(244,237,224,.6)"),
     skyTop: token("--fallback-sky-top", "#2B2450"),
     skyLow: token("--fallback-sky-low", "#B4573A"),
     ground: token("--fallback-ground", "#26351F"),
@@ -242,7 +248,9 @@ export function createRange({ root, canvas, model, avoidEl }) {
     const n = s.x.length;
     let ai = 0;
     for (let i = 1; i < n; i++) if (s.z[i] > s.z[ai]) ai = i;
-    return { ...s, n, apexIdx: ai, topIdx: ai, key: null, pj: null, gr: null, guide: null };
+    let lat = 0;
+    for (let i = 0; i < n; i++) { const a = Math.abs(s.y[i]); if (a > lat) lat = a; }
+    return { ...s, n, apexIdx: ai, topIdx: ai, maxLat: lat, key: null, pj: null, gr: null, guide: null };
   }
 
   function ensureProj(s) {
@@ -404,6 +412,8 @@ export function createRange({ root, canvas, model, avoidEl }) {
   // green plates fill in around them) and drawn last, on top of the tracer.
   let taken = [];
   let linePts = [];
+  let curTT = 0;      // seconds of flight drawn for the live shot, so the shot map keeps pace with the tracer
+  let mapCorner = ""; // the corner the shot map sits in, kept until the tracer crosses it
   const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   const fontFor = (fs) => `500 ${fs}px "IBM Plex Mono", ui-monospace, Menlo, monospace`;
 
@@ -573,6 +583,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
       tt = clamp(p, 0, s.flightTime);
       if (p >= s.flightTime && landedAt === null) landedAt = now;
     }
+    curTT = tt;
     const landed = tt >= s.flightTime;
     const ai = s.apexIdx, ti = s.topIdx;
     const topShown = tt >= Math.max(s.t[ai], s.t[ti]);
@@ -655,6 +666,223 @@ export function createRange({ root, canvas, model, avoidEl }) {
     return { settled, landed, topShown, heightPlate, carryPlate };
   }
 
+
+  // ---- shot map: a top-down inset in a corner of the range --------------------------------
+  // Carry runs up the panel and the sideways axis is stretched so a draw or a fade
+  // reads at a glance. The stretch is on the face of the panel: the sideways ticks
+  // ("15 yd L", "15 yd R") are the scale. Shots are in the display frame already, so
+  // a left-handed shot sits on the same side here as on the range.
+  const MAP_ASPECT = 0.8; // width over height
+  const LAT_STEPS = [6, 10, 15, 20, 30, 40, 50, 65, 80, 100, 130, 160, 200];
+
+  const shotsOnMap = () => {
+    const list = [];
+    if (ghostVisible() && ghostShot !== cur && !pinned) list.push({ s: ghostShot, kind: "ghost" });
+    for (const s of collection) list.push({ s, kind: "seq" });
+    if (pinned) list.push({ s: pinned, kind: "pin" });
+    if (cur) list.push({ s: cur, kind: "cur" });
+    return list;
+  };
+
+  /** Size, corner and scales of the map, or null when the range is too small to hold one. */
+  function layoutMap(items) {
+    if (!items.length || W < 230 || H < 170) return null;
+    const m = Math.round(10 * uiScale);
+    let h = clamp(H * 0.46, 124, 360 * uiScale);
+    h = Math.min(h, H - 2 * m, H * 0.6);
+    let w = h * MAP_ASPECT;
+    if (w > W * 0.36) { w = W * 0.36; h = w / MAP_ASPECT; }
+    w = Math.round(w); h = Math.round(h);
+    if (h < 100) return null;
+    const tf = clamp(fs0() * 0.85, MIN_FONT_PX, 20 * uiScale);
+    const presenting = document.body.classList.contains("presenting");
+    const spots = {
+      br: { x: W - w - m, y: H - h - m },
+      bl: { x: m, y: H - h - m },
+      tr: { x: W - w - m, y: m },
+    };
+    const order = presenting ? ["bl"] : ["br", "bl", "tr"];
+    const rectOf = (c) => ({ x: spots[c].x, y: spots[c].y, w, h });
+    const hits = (r) => linePts.some((p) => p[0] > r.x - 6 && p[0] < r.x + r.w + 6 && p[1] > r.y - 6 && p[1] < r.y + r.h + 6);
+    const free = (c) => { const r = rectOf(c); return !hits(r) && !(avoidRect && overlaps(r, avoidRect)); };
+    let corner = mapCorner && order.includes(mapCorner) && free(mapCorner) ? mapCorner : order.find(free) || order[0];
+    mapCorner = corner;
+    const r = rectOf(corner);
+
+    // scales: carry up, sideways stretched to fit the widest shot in one of a few steps
+    let carry = 0, lat = 0;
+    for (const it of items) { if (it.s.carry > carry) carry = it.s.carry; if (it.s.maxLat > lat) lat = it.s.maxLat; }
+    const yStep = carry <= 100 ? 25 : carry <= 200 ? 50 : 100;
+    const yMax = Math.max(yStep, Math.ceil((carry * 1.04) / yStep) * yStep);
+    const latMax = LAT_STEPS.find((v) => v >= lat * 1.12) || Math.ceil(lat * 1.12 / 50) * 50;
+    const padX = Math.round(tf * 0.7);
+    const head = h >= 132 ? Math.round(tf * 1.7) : Math.round(tf * 0.55);
+    const foot = Math.round(tf * 1.7);
+    const px = r.x + padX, pw = r.w - 2 * padX;
+    const py = r.y + head, ph = r.h - head - foot;
+    return { r, tf, yStep, yMax, latMax, px, pw, py, ph, title: h >= 132, cx: px + pw / 2, y0: py + ph, kx: pw / 2 / latMax, ky: ph / yMax };
+  }
+  const fs0 = () => clamp(W / 80, MIN_FONT_PX, 17 * uiScale);
+
+  function drawMap(M, items) {
+    const { r, tf, cx, y0, kx, ky } = M;
+    const X = (lat) => cx + lat * kx;
+    const Y = (d) => y0 - d * ky;
+    const ui = clamp(uiScale, 1, 2.5);
+
+    roundRect(r.x, r.y, r.w, r.h, 6 * ui);
+    ctx.fillStyle = COL.mapBg; ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = COL.mapEdge; ctx.stroke();
+
+    ctx.save();
+    roundRect(r.x, r.y, r.w, r.h, 6 * ui);
+    ctx.clip();
+    ctx.font = fontFor(tf);
+    ctx.textBaseline = "alphabetic";
+
+    // title
+    if (M.title) {
+      ctx.textAlign = "left";
+      ctx.fillStyle = COL.mapMuted;
+      ctx.fillText("SHOT MAP", M.px, r.y + tf * 1.3);
+    }
+
+    // distance rungs. The labels sit on the side the live shot is not heading for.
+    const endLat = cur ? cur.y[cur.n - 1] : 0;
+    const labelRight = endLat < -0.3 * M.latMax;
+    ctx.lineWidth = 1; ctx.strokeStyle = COL.mapGrid; ctx.setLineDash([]);
+    const rungPx = M.yStep * ky;
+    const stride = Math.max(1, Math.ceil((tf * 1.4) / rungPx));
+    ctx.textAlign = labelRight ? "right" : "left";
+    let n = 0;
+    const rungLabels = [];
+    for (let d = M.yStep; d <= M.yMax + 0.01; d += M.yStep, n++) {
+      const yy = Math.round(Y(d)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(M.px, yy); ctx.lineTo(M.px + M.pw, yy); ctx.stroke();
+      if ((n + 1) % stride === 0 || d + M.yStep > M.yMax + 0.01) {
+        rungLabels.push([d === M.yMax && M.pw >= tf * 9 && !items.some((it) => it.kind === "seq") ? `${d} yd` : String(d), labelRight ? M.px + M.pw - 3 : M.px + 3, yy + tf * 0.95]);
+      }
+    }
+    // sideways guides at half and full scale
+    for (const f of [-1, -0.5, 0.5, 1]) {
+      const xx = Math.round(cx + f * (M.pw / 2)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(xx, M.py); ctx.lineTo(xx, y0); ctx.stroke();
+    }
+    // sideways scale labels
+    ctx.fillStyle = COL.mapMuted;
+    const wide = M.pw >= tf * 9;
+    ctx.textAlign = "left";
+    ctx.fillText(`${M.latMax}${wide ? " yd" : ""} L`, M.px, r.y + r.h - tf * 0.55);
+    ctx.textAlign = "right";
+    ctx.fillText(`${M.latMax}${wide ? " yd" : ""} R`, M.px + M.pw, r.y + r.h - tf * 0.55);
+
+    // target line
+    ctx.strokeStyle = COL.mapTarget; ctx.lineWidth = Math.max(1, ui);
+    ctx.beginPath(); ctx.moveTo(cx, y0); ctx.lineTo(cx, M.py); ctx.stroke();
+
+    // paths
+    const lw = Math.max(1.6, 1.7 * ui);
+    const pathTo = (s, tt) => {
+      const i = indexAt(s, tt);
+      ctx.beginPath();
+      ctx.moveTo(X(s.y[0]), Y(s.x[0]));
+      for (let j = 1; j <= i; j++) ctx.lineTo(X(s.y[j]), Y(s.x[j]));
+      let hx = X(s.y[i]), hy = Y(s.x[i]);
+      if (i < s.n - 1 && tt > s.t[i]) {
+        const f = (tt - s.t[i]) / (s.t[i + 1] - s.t[i]);
+        hx = X(s.y[i] + f * (s.y[i + 1] - s.y[i]));
+        hy = Y(s.x[i] + f * (s.x[i + 1] - s.x[i]));
+        ctx.lineTo(hx, hy);
+      }
+      return [hx, hy];
+    };
+    const dot = (x, y, rad, fill, ring) => {
+      ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2);
+      ctx.fillStyle = fill; ctx.fill();
+      ctx.lineWidth = Math.max(1.4, 1.4 * ui); ctx.strokeStyle = ring; ctx.stroke();
+    };
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    const tag = [];
+    for (const it of items) {
+      const s = it.s;
+      const full = it.kind !== "cur" || mode !== "playing";
+      const tt = full ? s.flightTime : curTT;
+      if (it.kind === "cur") {
+        // the start line, faint, from the tee to the carry distance
+        const tan = Math.tan((s.launchDir * Math.PI) / 180);
+        ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(s.carry * tan), Y(s.carry));
+        ctx.setLineDash([lw * 2, lw * 2]); ctx.lineWidth = Math.max(1, lw * 0.6);
+        ctx.strokeStyle = "rgba(244,237,224,.5)"; ctx.stroke(); ctx.setLineDash([]);
+      }
+      const pal = it.kind === "pin" ? PAL.cool : PAL.warm;
+      let w1 = lw, core = pal.core, under = pal.inner;
+      if (it.kind === "ghost") { w1 = lw * 0.8; core = COL.ghost; under = null; }
+      if (it.kind === "seq") w1 = lw * 0.8;
+      const head = pathTo(s, tt);
+      if (under) { ctx.strokeStyle = under; ctx.lineWidth = w1 * 3.2; ctx.stroke(); }
+      ctx.strokeStyle = core; ctx.lineWidth = w1; ctx.stroke();
+      const landed = tt >= s.flightTime;
+      const rad = Math.max(3, 3.2 * ui);
+      const ex = X(s.y[s.n - 1]), ey = Y(s.x[s.n - 1]);
+      if (it.kind === "cur" && !landed) dot(head[0], head[1], rad * 0.8, COL.ball, COL.halo);
+      else if (it.kind === "ghost") dot(ex, ey, rad * 0.75, "rgba(255,238,215,.45)", "rgba(20,10,24,.3)");
+      else dot(ex, ey, rad, it.kind === "pin" ? PAL.cool.core : COL.ball, it.kind === "pin" ? PAL.cool.outer : PAL.warm.halo);
+      if (landed || it.kind !== "cur") {
+        if (it.kind === "pin") tag.push({ t: "A", x: ex, y: ey, s });
+        else if (it.kind === "seq" || (it.kind === "cur" && s.label)) {
+          // a numbered window sits at the widest point of its curve so the nine spread out
+          let wi = s.n - 1;
+          if (s.maxLat > 0.6) { for (let j = 0; j < s.n; j++) if (Math.abs(s.y[j]) >= s.maxLat - 1e-9) { wi = j; break; } }
+          tag.push({ t: s.label || "", x: X(s.y[wi]), y: Y(s.x[wi]), s });
+        }
+        else if (it.kind === "cur" && pinned) tag.push({ t: "B", x: ex, y: ey, s });
+      }
+    }
+    // distance labels go on top of the paths, with a dark edge so a line never scratches through them
+    ctx.textAlign = labelRight ? "right" : "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.lineJoin = "round"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(28,27,24,.9)";
+    ctx.fillStyle = COL.mapMuted;
+    for (const [txt, lx, ly] of rungLabels) { ctx.strokeText(txt, lx, ly); ctx.fillText(txt, lx, ly); }
+    // tee mark
+    dot(X(0), Y(0), Math.max(2.5, 2.4 * ui), COL.mapInk, COL.mapEdge);
+
+    // letters at the landing dots: A and B in Compare, 1 to 9 in Fly all nine (wide panels only)
+    if (tag.length && (tag.length <= 2 || M.pw >= tf * 9)) {
+      ctx.font = `600 ${tf}px "IBM Plex Mono", ui-monospace, Menlo, monospace`;
+      ctx.textBaseline = "middle";
+      const pinTag = tag.find((t) => t.t === "A"), liveTag2 = tag.find((t) => t.t === "B");
+      const off = Math.max(6, 5 * ui) + 2;
+      const put = [];
+      const box = (t, dx, dy, side) => {
+        const tw = ctx.measureText(t.t).width;
+        const x0 = side > 0 ? t.x + dx : t.x + dx - tw;
+        return { x: x0 - 1, y: t.y + dy - tf * 0.6, w: tw + 2, h: tf * 1.2, tx: side > 0 ? t.x + dx : t.x + dx, side };
+      };
+      for (const t of tag) {
+        if (!t.t) continue;
+        let side = t.x >= cx ? 1 : -1;
+        if (pinTag && liveTag2) side = t.t === "A" ? (pinTag.x <= liveTag2.x ? -1 : 1) : (liveTag2.x < pinTag.x ? -1 : 1);
+        const tries = tag.length <= 2
+          ? [[side * off, 0, side]]
+          : [[side * off, 0, side], [-side * off, 0, -side], [0, -tf * 1.1, 1], [0, tf * 1.1, 1]];
+        let spot = null;
+        for (const [dx, dy, sd] of tries) {
+          const bx = box(t, dx, dy, sd);
+          if (bx.x < M.px || bx.x + bx.w > M.px + M.pw || bx.y < M.py || bx.y + bx.h > y0) continue;
+          if (put.some((q) => overlaps(bx, q))) continue;
+          spot = bx; break;
+        }
+        if (!spot) { if (tag.length <= 2) spot = box(t, tries[0][0], 0, tries[0][2]); else continue; }
+        put.push(spot);
+        ctx.textAlign = spot.side > 0 ? "left" : "right";
+        ctx.fillStyle = t.t === "A" ? PAL.cool.core : COL.core;
+        ctx.fillText(t.t, spot.tx, spot.y + tf * 0.6);
+      }
+    }
+    ctx.restore();
+  }
+
   // ---- frame loop --------------------------------------------------------------------------
   let raf = 0;
   function request() { if (!raf) raf = requestAnimationFrame(frame); }
@@ -680,6 +908,9 @@ export function createRange({ root, canvas, model, avoidEl }) {
     const fs = clamp(W / 80, MIN_FONT_PX, 17 * uiScale);
     taken = avoidRect ? [avoidRect] : [];
     linePts = collectLinePts();
+    const mapItems = shotsOnMap();
+    const M = layoutMap(mapItems);
+    if (M) taken.push(M.r);
 
     if (ghostVisible() && ghostShot !== cur) drawGhost(lw);
     const restingPlates = [];
@@ -718,6 +949,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
       if (shotState.topShown && shotState.heightPlate) drawPlate(shotState.heightPlate, false);
       if (shotState.landed && shotState.carryPlate) drawPlate(shotState.carryPlate, false);
     }
+    if (M) drawMap(M, mapItems);
     if (busy) request();
   }
 
