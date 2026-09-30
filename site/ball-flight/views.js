@@ -171,15 +171,16 @@ export function createViews({ root, onLineYd = 0.5 }) {
       label(svg, X(d), y0 + 15, String(d), "muted", "middle");
     }
     label(svg, X(0), y0 + 15, "0", "muted", "middle");
-    const hStep = hMax > 60 ? 40 : 20;
-    for (let h = hStep; Y(h) > plotTop + 6; h += hStep) {
-      add(svg, "line", { x1: ml, x2: ml + pw, y1: Y(h), y2: Y(h) }, "pv-grid");
-      label(svg, ml - 6, Y(h) + 4, String(h), "muted", "end");
+    // Height reads in feet. The plot itself stays in yards on both axes, so the angles stay true.
+    const hStepFt = hMax * 3 > 180 ? 100 : 50;
+    for (let ft = hStepFt; Y(ft / 3) > plotTop + 6; ft += hStepFt) {
+      add(svg, "line", { x1: ml, x2: ml + pw, y1: Y(ft / 3), y2: Y(ft / 3) }, "pv-grid");
+      label(svg, ml - 6, Y(ft / 3) + 4, String(ft), "muted", "end");
     }
     label(svg, ml - 6, y0 + 4, "0", "muted", "end");
     add(svg, "line", { x1: ml, x2: ml + pw, y1: y0, y2: y0 }, "pv-target");
     label(svg, ml + pw, H - 4, "yd downrange", "muted", "end");
-    label(svg, ml, plotTop - 2 < 12 ? 12 : plotTop - 2, "yd high", "muted");
+    label(svg, ml, plotTop - 2 < 12 ? 12 : plotTop - 2, "ft high", "muted");
 
     const path = (s, cls) => add(svg, "polyline", { points: pts(samples(s).map((q) => [X(q[0]), Y(q[2])])) }, cls);
     if (c.ghost) path(c.ghost, "pv-path ghost");
@@ -211,7 +212,7 @@ export function createViews({ root, onLineYd = 0.5 }) {
     for (let i = 1; i < s.z.length; i++) if (s.z[i] > s.z[ai]) ai = i;
     add(svg, "line", { x1: X(s.x[ai]), x2: X(s.x[ai]), y1: Y(s.z[ai]), y2: y0 }, "pv-start");
     add(svg, "circle", { cx: X(s.x[ai]), cy: Y(s.z[ai]), r: 5 }, "pv-dot");
-    placeLabel(`${Math.round(s.maxHeight)} yd`, [[X(s.x[ai]), Y(s.z[ai]) - 10, "middle"], [X(s.x[ai]) - 10, Y(s.z[ai]) - 8, "end"], [X(s.x[ai]) + 10, Y(s.z[ai]) - 8, "start"]], "ink");
+    placeLabel(`${Math.round(s.maxHeight * 3)} ft`, [[X(s.x[ai]), Y(s.z[ai]) - 10, "middle"], [X(s.x[ai]) - 10, Y(s.z[ai]) - 8, "end"], [X(s.x[ai]) + 10, Y(s.z[ai]) - 8, "start"]], "ink");
     // landing angle, true
     const lx = X(s.carry);
     const wr = 30;
@@ -220,14 +221,14 @@ export function createViews({ root, onLineYd = 0.5 }) {
     add(svg, "circle", { cx: lx, cy: y0, r: 4.5 }, "pv-dot");
     placeLabel(`${land.toFixed(0)}${DEG}`, [[lx - wr - 6, y0 - 5, "end"], [lx - wr - 6, y0 - 22, "end"], [lx + 8, y0 - 14, "start"]], "ink");
     // readout in the space above the plot, where the flat profile leaves room
-    const rows = [["launch", `${launch.toFixed(1)}${DEG}`], ["land", `${land.toFixed(1)}${DEG}`], ["peak", `${Math.round(s.maxHeight)} yd`], ["carry", `${Math.round(s.carry)} yd`]];
+    const rows = [["launch", `${launch.toFixed(1)}${DEG}`], ["land", `${land.toFixed(1)}${DEG}`], ["peak", `${Math.round(s.maxHeight * 3)} ft`], ["carry", `${Math.round(s.carry)} yd`]];
     const oneColumn = W < 300; // two columns of label and value do not fit a narrow panel
     rows.forEach(([k, val], i) => {
       const rx = oneColumn ? ml : ml + (i % 2) * (pw / 2), ry = oneColumn ? 26 + i * 15 : 30 + Math.floor(i / 2) * 20;
       label(svg, rx, ry, k, "muted");
       label(svg, rx + 52, ry, val, "ink strong");
     });
-    svg.setAttribute("aria-label", `Side view. Launch angle ${launch.toFixed(1)} degrees, peak height ${Math.round(s.maxHeight)} yards, lands at ${land.toFixed(1)} degrees after ${Math.round(s.carry)} yards.`);
+    svg.setAttribute("aria-label", `Side view. Launch angle ${launch.toFixed(1)} degrees, peak height ${Math.round(s.maxHeight * 3)} feet, lands at ${land.toFixed(1)} degrees after ${Math.round(s.carry)} yards.`);
   }
 
   // ---- impact diagram ---------------------------------------------------------------

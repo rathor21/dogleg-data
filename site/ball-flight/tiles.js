@@ -14,6 +14,8 @@
  */
 
 export const MINUS = "−";
+/** Heights show in feet. The model and the data stay in yards. */
+export const FT_PER_YD = 3;
 export const DEG = "°";
 
 // The "on the line" distance for Side. The page sets it from the model's classify
@@ -72,7 +74,7 @@ export const METRICS = {
   spin_rpm: { label: "Spin rate", unit: "rpm", dec: 0, grouped: true },
   spin_axis_deg: { label: "Spin axis", unit: DEG, dec: 1, signed: true, lateral: true,
     words: (rh, d) => (isZero(d, 0.05) ? "no side spin" : `tilts ${dirWord(d)}`) },
-  max_height_yd: { label: "Height", unit: "yd", dec: 1 },
+  max_height_yd: { label: "Height", unit: "ft", dec: 0 }, // value and band are converted to feet by state.compute
   land_angle_deg: { label: "Land angle", unit: DEG, dec: 1 },
   carry_yd: { label: "Carry", unit: "yd", dec: 0 },
   side_yd: { label: "Side", unit: "yd", dec: 1, signed: true, lateral: true,
@@ -95,14 +97,14 @@ export const TILE_GROUPS = [
     items: ["max_height_yd", "land_angle_deg", "carry_yd", "side_yd", "curve_yd", "total_yd"] },
 ];
 
-// The six tiles beside the range. The phone shows the four that are not extra:
-// start line, curve, carry, height.
+// The six tiles beside the range. Narrower layouts and the phone show the four that are not
+// extra: curve, carry, total, height (the shot label already gives the start line).
 export const KEY_TILES = [
   { metric: "face_to_path_deg", extra: true },
-  { metric: "launch_dir_deg" },
-  { metric: "spin_axis_deg", extra: true },
+  { metric: "launch_dir_deg", extra: true },
   { metric: "curve_yd" },
   { metric: "carry_yd" },
+  { metric: "total_yd" },
   { metric: "max_height_yd" },
 ];
 
@@ -183,7 +185,10 @@ export function humanize(text, hasDetail) {
 /** The text behind a tile's i button: band, source, and for driver launch and spin the live source values. */
 export function sourceText(metric, band, exception) {
   const m = METRICS[metric];
-  let text = `Ideal band, ${idealText(m, band).replace(/^ideal /, "")}. ${humanize(band.source, !!band.detail)}`;
+  let src = humanize(band.source, !!band.detail);
+  // The band's own source text quotes yards. Say feet, like the tile.
+  if (metric === "max_height_yd") src = src.replace(/(\d+(?:\.\d+)?) yd/g, (_m, n) => `${Math.round(Number(n) * FT_PER_YD)} ft`);
+  let text = `Ideal band, ${idealText(m, band).replace(/^ideal /, "")}. ${src}`;
   if (band.detail && band.detail.trackman_carry_2010 && band.detail.ping_2019) {
     const key = metric === "launch_deg" ? "launch_deg" : "spin_rpm";
     const f = (x) => fmt(x, m.dec, false, m.grouped) + unitText(m);

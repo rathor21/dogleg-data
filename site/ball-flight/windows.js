@@ -9,7 +9,7 @@
  * sides, so a lefty draw sits on the right, where it curves.
  */
 import { WINDOW_KEYS, WINDOW_HEIGHTS, WINDOW_SHAPES } from "./state.js";
-import { METRICS, DEG, fmt, loftNote } from "./tiles.js";
+import { METRICS, DEG, fmt, loftNote, FT_PER_YD } from "./tiles.js";
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 export const windowName = (key) => {
@@ -141,7 +141,7 @@ export function createWindows({ model, store, range, hooks }) {
       : "The windows are 7-iron recipes. Tap a window to switch back to the 7-iron.";
     for (const key of WINDOW_KEYS) {
       const w = rec(key);
-      buttons[key].querySelector(".wb-peak").textContent = `${Math.round(w.flight.max_height_yd)} yd high`;
+      buttons[key].querySelector(".wb-peak").textContent = `${Math.round(w.flight.max_height_yd * FT_PER_YD)} ft high`;
       buttons[key].setAttribute("aria-pressed", String(state.window === key));
     }
     if (!grid.contains(document.activeElement)) setTabStop(state.window || keyAt(0, 0));
@@ -158,7 +158,7 @@ export function createWindows({ model, store, range, hooks }) {
       ["Path", `${fmt(d.path, 1, true)}${DEG}`, words("path_deg", w.delivery.path_deg)],
       ["Face", `${fmt(d.face, 1, true)}${DEG}`, words("face_deg", w.delivery.face_deg)],
       ["Attack", `${fmt(d.attack, 1, true)}${DEG}`, words("attack_deg", w.delivery.attack_deg)],
-      ["Peak height", `${fmt(w.flight.max_height_yd, 1)} yd`, ""], // peak defines high, mid and low, so it stays in the first four rows a small screen keeps
+      ["Peak height", `${Math.round(w.flight.max_height_yd * FT_PER_YD)} ft`, ""], // peak defines high, mid and low, so it stays in the first four rows a small screen keeps
       ["Dynamic loft", `${fmt(w.launch.dyn_loft_deg, 1)}${DEG}`, loftNote(w.launch.dyn_loft_deg, { input: w.launch.dyn_loft_input_deg, faceToPathRh: w.launch.face_to_path_deg })],
       ["Launch", `${fmt(w.launch.launch_deg, 1)}${DEG}`, ""],
       ["Spin", `${fmt(w.launch.spin_rpm, 0, false, true)} rpm`, ""],
