@@ -16,6 +16,7 @@
  *                roll()                 -> model.roll          (uses landSpin, the spin state at the landing step)
  *   launch.py    deliver()              -> model.deliver       (face-to-loft coupling: effectiveLoft, couplingKappa)
  *                effective_loft(), coupling_kappa() -> effectiveLoft, couplingKappa
+ *   presets.py   loft_for_attack()      -> model.loftForAttack (loft follows attack angle, MODELED)
  *                check_delivery()       -> checkDelivery
  *                _check_range()         -> checkRange
  *                check_club()           -> checkClub
@@ -213,7 +214,7 @@ const REQUIRED_KEYS = [
     ...["k0", "k1", "k_sl_lo", "k_sl_hi", "k0_driver", "k1_driver", "k_sl_lo_driver", "k_sl_hi_driver", "smash_a",
       "smash_b", "smash_c", "smash_cap", "smash_floor", "spin_a", "spin_b", "spin_f_wood", "spin_a_driver",
       "spin_b_driver", "axis_c0", "axis_c1", "axis_sl_lo", "axis_sl_hi"].map((k) => "launch_model." + k),
-    "coupling.kappa",
+    "coupling.kappa", "coupling.loft_per_attack", "coupling.driver_natural_slope",
     "spin_class", ...["club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg", "swing_plane_deg",
       "min_spin_loft_deg"].map((k) => "domain." + k),
     ...["start_straight_deg", "axis_straight_deg", "curve_hook_frac", "on_target_frac", "on_line_yd"].map(
@@ -362,6 +363,7 @@ export function createModel(json) {
   const CLS = M.classify;
   const ROLL = M.roll;
   const KAPPA = M.coupling.kappa;
+  const LOFT_PER_ATTACK = M.coupling.loft_per_attack;
   const DRIVER_IDEAL = PRE.driver_ideal;
   const TOL = IDL.tolerances;
   const FROZEN_DOMAIN = deepFreeze(clone(DOMAIN)); // what model.domain exposes
@@ -870,6 +872,26 @@ export function createModel(json) {
   }
 
   /**
+   * presets.loft_for_attack: the input dynamic loft when the loft follows the attack angle (MODELED).
+   * Hybrids, fairway woods, irons and wedges: preset dynLoft + coupling.loft_per_attack * (attack -
+   * preset attack), so hitting up adds loft. The driver: optimalLoft at the preset club speed. Held to
+   * at least attack + the domain's spin loft floor and at most the domain's largest dynamic loft.
+   * Throws ValueError for an unknown club or player, or an attack outside the domain.
+   */
+  function loftForAttack(club, player, attack) {
+    const p = preset(club, player);
+    const loA = DOMAIN.attack_deg[0];
+    const hiA = DOMAIN.attack_deg[1];
+    if (!(isFiniteNumber(attack) && loA <= attack && attack <= hiA)) {
+      throw new ValueError(`attack must be within ${pyG(loA)} to ${pyG(hiA)} deg, got ${pyRepr(attack)}`);
+    }
+    const dl = club === "driver"
+      ? optimalLoft(p.clubSpeed, attack).dynLoft
+      : p.dynLoft + LOFT_PER_ATTACK * (attack - p.attack);
+    return Math.min(Math.max(dl, attack + DOMAIN.min_spin_loft_deg), DOMAIN.dyn_loft_deg[1]);
+  }
+
+  /**
    * presets.ideal_delivery: the ideal delivery for a club and player at a club speed
    * (default the preset's). Same fields as preset().ideal. The driver's is the player's
    * club speed, attack driver_ideal.attack_deg, dynamic loft optimalLoft(speed, attack),
@@ -1115,6 +1137,7 @@ export function createModel(json) {
     couplingKappa,
     effectiveLoft,
     idealDelivery,
+    loftForAttack,
     optimalLoft,
     idealBands,
     trackmanCarry2010,

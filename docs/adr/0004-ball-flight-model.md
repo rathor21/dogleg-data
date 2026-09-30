@@ -387,3 +387,50 @@ The five golfer cases on the PGA 7 iron preset, carry, curve, total (before the 
 - The tool's draw and fade, and hook and slice, no longer share a distance, and the sizes rest on a MODELED kappa at the top of the geometric range. The slider `dyn_loft_deg` is the loft with the face square to the path and the loft tile shows the effective loft, which reads differently from the slider whenever face-to-path is not 0.
 - Curvature past about 5 degrees of face-to-path on a closed driver face saturates (the axis passes 25 degrees as the loft falls, so lift turns sideways and carry drops), and the monotone-curve test is limited to 5 degrees.
 - The spin axis scale c is now one constant near 1, and the earlier statement that c falls from 1.11 to 0.98 with spin loft (decision 4) no longer holds. The 2023 preset lines against TrackMan's examples show a worst gap of 29 percent (5.9 yd), so the article's statement of that gap needs the new number.
+
+## Addendum 4 (2026-09-29, branch 004-physics): loft follows attack angle for irons, wedges, hybrids and fairway woods
+
+**Problem.** The attack angle and dynamic loft sliders were independent. Hitting up at a fixed loft cut spin loft, so an iron gained carry, lost spin and gained smash. That contradicts the owner's claim, which the evidence supports for full swings: hitting up with an iron adds loft, loses compression and flies shorter. The Foresight 7 iron chart (Anchor 9) drops 21.7 yd at 100 mph and 13.9 yd at 90 mph going from attack -6 to +2, is near flat at 70 to 80 mph, and reverses at 60 mph. The cause is the loft that comes with the attack angle, not the upward motion alone (docs/sources/004_Physics_Research.md, topic 13).
+
+**Decision.** `presets.loft_for_attack(club, player, attack)` gives the input dynamic loft when the loft follows the attack angle:
+
+dyn_loft = preset dyn_loft + LOFT_PER_ATTACK x (attack - preset attack), LOFT_PER_ATTACK = 1.4
+
+for the hybrid, both fairway woods, every iron and the PW (`data.LOFT_FOLLOWS_ATTACK_CLUBS`). MODELED. The result is held to at least attack + 1 degree (the spin loft floor) and at most 65 degrees, so `deliver` always accepts it, and it returns the preset loft at the preset attack. Evidence for 1.4 (`data.py` comment): a floor of 1.0 from arc geometry and TrackMan's rule that dynamic loft is static loft plus attack angle plus a shaft adjustment (Anchor 11), and Suzuki et al. 2021 (Anchor 10), whose within-player driver slopes are 0.85 for 42 professionals and 1.23 for 25 amateurs; the Foresight chart (Anchor 9) gives 1.25 to 1.73 from launch across head speeds (median about 1.4) and about 1.5 from spin. No source measures the slope for wedges, hybrids or fairway woods, so 1.4 there extends the 7 iron result. The range is 1.0 (pure arc) to about 1.5. The driver keeps the chart's optimal loft rule (`chart.optimal_loft` at the preset club speed, addendum 2), and `loft_for_attack("driver", ...)` returns it. `data.DRIVER_NATURAL_SLOPE` = 1.0 (the arc value, Suzuki's amateurs at 1.23 and professionals at 0.85 bracket it) is exported for the page's information only. The independent-slider path (fixed loft, moving attack angle) stays and behaves as before. Presets, their ideal deliveries and every band are unchanged: they sit at the preset attack, where the rule returns the preset loft. Non-driver attack bands stay downward.
+
+**What it does.** Each degree of upward attack adds 0.4 degree of spin loft (loft rises 1.4, attack 1.0), about 115 rpm of spin and a loss of about 0.004 of smash for a Tour 7 iron, and launch rises about 1.3 degrees, so carry and total fall. Carry and total change per degree of attack from the preset attack to +3, coupling on (yd per degree, carry / total; preset attack in brackets):
+
+| Club | PGA | LPGA | Amateur |
+|---|---|---|---|
+| 3-wood | -1.93 / -3.86 (-2.3) | +2.03 / -3.11 (-0.8) | -0.16 / -2.77 (-2.5) |
+| 5-wood | -2.46 / -3.77 (-2.5) | -1.08 / -2.82 (-1.6) | -0.02 / -2.64 (-2.6) |
+| Hybrid | -2.33 / -3.55 (-2.4) | -1.19 / -2.62 (-1.9) | -0.55 / -2.52 (-2.5) |
+| 3 iron | -1.96 / -3.38 (-2.5) | -0.78 / -2.39 (-1.7) | -0.46 / -2.46 (-2.6) |
+| 4 iron | -2.10 / -3.23 (-2.9) | -0.78 / -2.39 (-1.7) | -0.64 / -2.37 (-2.8) |
+| 5 iron | -2.20 / -3.03 (-3.4) | -0.99 / -2.30 (-2.0) | -0.97 / -2.26 (-3.0) |
+| 6 iron | -2.25 / -2.77 (-3.7) | -1.38 / -2.21 (-2.3) | -1.30 / -2.15 (-3.2) |
+| 7 iron | -2.15 / -2.54 (-3.9) | -1.39 / -2.03 (-2.5) | -1.39 / -2.01 (-3.3) |
+| 8 iron | -1.86 / -2.20 (-4.2) | -1.33 / -1.84 (-2.8) | -1.31 / -1.87 (-3.5) |
+| 9 iron | -1.68 / -1.98 (-4.3) | -1.31 / -1.77 (-3.2) | -1.27 / -1.75 (-3.6) |
+| PW | -1.54 / -1.81 (-4.7) | -1.13 / -1.55 (-3.2) | -1.17 / -1.58 (-3.9) |
+
+Total falls for every club and player. Carry falls for every iron for the PGA and LPGA (the tests hold it for all eight irons, six sample attacks each) and for the PGA woods and hybrid. For slow players the long clubs sit near their carry peak, so carry is flat or rises a little from the preset (the LPGA 3-wood, +2.0 yd per degree, and the amateur 3-wood and 5-wood, about 0), and total still falls. The amateur 7 iron carry peaks at attack -6.5 (142.7 yd, flat from -7 to -5) over a scan from -8 to +6 and falls from 0 to +3.
+
+**Check against the Foresight chart** (a check, not a fit): the PGA 7 iron scaled to 90 mph loses 1.82 yd of carry per degree from attack -6 to +2 (171.2 yd to 156.7), against the chart's 1.7 (183.4 to 169.5 at 90 mph). The chart's absolute carry runs higher (its club and method are unknown, and the model's Tour 7 iron sits at spin loft 27 where its launch and spin fits stop at 26). The slope, not the absolute carry, is the transferable result. At 60 to 80 mph the chart's carry is flat or reversed, where the model still falls, about 1.4 yd per degree for the amateur 7 iron against about 0.5 in the chart at 80 mph. Foresight's slow-swing rows reward the higher descent angle a neutral or positive attack gives, which the model captures only in part.
+
+**PGA 7 iron (92 mph, preset attack -3.9) and PGA 5-wood (106 mph, preset attack -2.5), coupling on, straight shots, carry / total in yd:**
+
+| Attack | 7 iron loft | 7 iron carry / total | 7 iron smash, spin | 5-wood loft | 5-wood carry / total | 5-wood smash, spin |
+|---|---|---|---|---|---|---|
+| -6 | 20.4 | 174.8 / 183.2 | 1.369, 6,880 | 8.1 | 238.6 / 266.9 | 1.476, 3,850 |
+| -3 | 24.6 | 170.1 / 176.4 | 1.357, 7,228 | 12.3 | 242.1 / 257.7 | 1.467, 4,254 |
+| preset | 23.4 | 171.7 / 178.5 | 1.361, 7,124 | 13.0 | 241.7 / 256.1 | 1.465, 4,322 |
+| 0 | 28.8 | 163.9 / 169.0 | 1.345, 7,573 | 16.5 | 237.4 / 247.3 | 1.457, 4,663 |
+| +3 | 33.0 | 156.8 / 161.0 | 1.333, 7,914 | 20.7 | 228.2 / 235.3 | 1.447, 5,074 |
+
+(The preset row sits between -6 and -3 for the 7 iron, at -3.9, and between -3 and 0 for the 5-wood, at -2.5.) The 5-wood's carry peaks near -3 (242.1) because delofting it a long way at -6 leaves 8 degrees of loft, launch 5.2 degrees and a low flight. Its total peaks at -6, where the low launch runs out.
+
+**Consequences.**
+- The lab has two ways to move attack angle: the independent slider (loft fixed, so hitting up cuts spin loft) and loft-follows-attack (`loft_for_attack`, hitting up adds loft). The tool chooses, and the choice is a teaching claim: with loft following, hitting up shortens an iron.
+- The 1.4 slope is MODELED from one manufacturer chart with an unknown method plus the arc floor. The wedge, hybrid and fairway wood values are extension, and a slope of 1.0 gives carry changes of about -0.6 yd per degree for the PGA 7 iron.
+- `model.json` carries `coupling.loft_per_attack`, `loft_per_attack_clubs` and `driver_natural_slope`, `flight.js` has `loftForAttack`, and `golden.json` carries 252 test vectors.

@@ -356,6 +356,24 @@ for (let i = 0; i < 500; i++) {
   exact("helpers", "shot total >= carry", s.total >= s.flight.carry, true);
 }
 
+// loft follows attack angle
+for (const v of golden.loft_for_attack_vectors) {
+  const [club, player, attack] = v.args;
+  near("loftForAttack", `${club} ${player} ${attack}`, model.loftForAttack(club, player, attack), v.result, 1e-5, true); // presets.json holds 6 significant digits
+}
+{
+  const m = json.model.coupling.loft_per_attack;
+  const pr = model.preset("7i", "pga");
+  near("loftForAttack", "slope is loft_per_attack", model.loftForAttack("7i", "pga", pr.attack + 2) - model.loftForAttack("7i", "pga", pr.attack), 2 * m, 1e-9);
+  near("loftForAttack", "preset attack gives the preset loft", model.loftForAttack("7i", "pga", pr.attack), pr.dynLoft, 1e-9);
+  near("loftForAttack", "driver uses the chart", model.loftForAttack("driver", "pga", 3), model.optimalLoft(model.preset("driver", "pga").clubSpeed, 3).dynLoft, 1e-12);
+  exact("loftForAttack", "driver natural slope exported", json.model.coupling.driver_natural_slope, 1);
+  throwsWith("invalid input", "loftForAttack attack NaN", () => model.loftForAttack("7i", "pga", NaN), "attack");
+  throwsWith("invalid input", "loftForAttack attack high", () => model.loftForAttack("7i", "pga", 10.5), "attack");
+  throwsWith("invalid input", "loftForAttack club", () => model.loftForAttack("2i", "pga", 0), "club");
+  throwsWith("invalid input", "loftForAttack player", () => model.loftForAttack("7i", "scratch", 0), "player");
+}
+
 // face-to-loft coupling: effective loft = input + kappa * (face - path), kappa = cot(lie)
 {
   const kappa = json.model.coupling.kappa;

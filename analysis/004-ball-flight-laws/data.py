@@ -578,6 +578,32 @@ LIE_DEG = {
 # named (club=None in launch.deliver) has no coupling.
 KAPPA = {club: 1.0 / tan(radians(lie)) for club, lie in LIE_DEG.items()}
 
+# ---------------------------------------------------------------------------
+# Loft follows attack angle (task 004-physics). MODELED. Off the ground, dynamic loft
+# rises with attack angle: the club turns with its velocity vector (arc geometry,
+# one degree per degree, Anchor 11) and a release that flips or scoops adds more.
+# Hitting up with an iron adds loft, so spin loft, spin and launch rise and smash
+# falls, and the ball flies shorter (compression is lost). For hybrids, fairway
+# woods, irons and wedges:
+#   dyn_loft = preset dyn_loft + LOFT_PER_ATTACK * (attack - preset attack)
+# 1.4 degrees of loft per degree of attack. Evidence: the floor is 1.0 (TrackMan's
+# rule dynamic loft = static loft + attack angle + shaft adjustment, Anchor 11, the
+# arc geometry, and Suzuki et al. 2021, Anchor 10, whose within-player driver
+# slopes are 0.85 for 42 professionals and 1.23 for 25 amateurs with spin loft
+# steady within 0.5 degree). The Foresight 7 iron chart (Anchor 9) puts iron
+# slopes from launch at 1.25 to 1.73 across head speeds 60 to 100 mph (median about
+# 1.4), and 1.5 from spin at 90 and 100 mph. No source measures the slope for
+# wedges, hybrids or fairway woods, so 1.4 there extends the 7 iron result. Range
+# 1.0 (pure arc) to 1.5 or so. The driver off a tee keeps the chart's optimal loft
+# rule (chart.optimal_loft), and DRIVER_NATURAL_SLOPE, the arc value 1.0, is
+# exported for information only. The independent-slider path (dynamic loft and
+# attack angle as separate inputs) stays.
+# ---------------------------------------------------------------------------
+
+LOFT_PER_ATTACK = 1.4  # MODELED, degrees of dynamic loft per degree of attack angle
+LOFT_FOLLOWS_ATTACK_CLUBS = ("3w", "5w", "hybrid", "3i", "4i", "5i", "6i", "7i", "8i", "9i", "pw")
+DRIVER_NATURAL_SLOPE = 1.0  # arc geometry, Anchor 11: information for the UI, the driver toggle uses optimal_loft
+
 DOMAIN = {
     "club_speed_mph": (40.0, 140.0),
     "attack_deg": (-10.0, 10.0),

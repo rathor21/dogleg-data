@@ -122,6 +122,9 @@ def test_model_json_carries_the_constants(built):
     assert m["swing_plane_default_deg"] == data.SWING_PLANE_DEG
     assert m["coupling"]["kappa"] == pytest.approx(data.KAPPA, rel=1e-11)
     assert m["coupling"]["lie_deg"] == data.LIE_DEG and "MODELED" in m["coupling"]["form"]
+    assert m["coupling"]["loft_per_attack"] == 1.4 and m["coupling"]["driver_natural_slope"] == 1.0
+    assert m["coupling"]["loft_per_attack_clubs"] == list(data.LOFT_FOLLOWS_ATTACK_CLUBS)
+    assert "driver toggle uses the chart" in m["coupling"]["loft_follows_attack"]
 
 
 def test_presets_json(built):
@@ -298,6 +301,13 @@ def test_golden_optimal_loft_vectors(golden):
         for k in ("dyn_loft_deg", "carry_loft_deg", "total_loft_deg"):
             assert v["result"][k] == pytest.approx(getattr(live, k), rel=REL, abs=REL), (k, v["args"])
         assert v["result"]["extrapolated"] is live.extrapolated and v["result"]["speed_clamped"] is live.speed_clamped
+
+
+def test_golden_loft_for_attack_vectors(golden):
+    vecs = golden["loft_for_attack_vectors"]
+    assert len(vecs) == 3 * 12 * 7
+    for v in vecs:
+        assert v["result"] == pytest.approx(presets.loft_for_attack(*v["args"]), rel=REL, abs=REL), v["args"]
 
 
 def test_golden_classify_vectors(golden):
