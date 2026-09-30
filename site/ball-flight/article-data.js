@@ -426,3 +426,19 @@ export function ironFlip(model) {
     amateurPeak: best,
   };
 }
+
+/**
+ * Chapter 2. The Tour driver with the face closing against a path of 0: the face-to-path at which the hook curves
+ * most (scanned from -15 to -1 in half degrees) and that curve, and the draw and fade at the chart's strike
+ * (spin trim 1.0) for the carry ordering.
+ */
+export function hookPeak(model) {
+  let best = null;
+  for (let f = -15; f <= -1.0001; f += 0.5) {
+    const c = Math.abs(shotAt(model, "driver", "pga", { face: f, path: 0 }).flight.curve);
+    if (!best || c > best.curve) best = { f2p: f, curve: c };
+  }
+  const at1 = (path) => shotAt(model, "driver", "pga", { path, face: 0, spinTrim: 1 });
+  const draw = at1(4), fade = at1(-4);
+  return { ...best, drawCarry: draw.flight.carry, fadeCarry: fade.flight.carry, drawTotal: draw.total, fadeTotal: fade.total };
+}

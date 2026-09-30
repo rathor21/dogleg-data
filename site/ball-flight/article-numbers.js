@@ -11,7 +11,7 @@
  */
 import {
   faceShare, startDirection, shotAt, exampleCheck, publishedRatio, attackSweep, couplingShot,
-  driverWindows, nineWindows, coachingExample, chartGains, driverIdeals, idealTotalReversal, couplingDemo, drawFadeCheck, ironFlip, TRACKMAN_TOTAL_2010, OPTIMIZER_DEFAULT_DRIVER,
+  driverWindows, nineWindows, coachingExample, chartGains, driverIdeals, idealTotalReversal, couplingDemo, drawFadeCheck, ironFlip, hookPeak, TRACKMAN_TOTAL_2010, OPTIMIZER_DEFAULT_DRIVER,
 } from "./article-data.js";
 
 const MINUS = "−";
@@ -73,6 +73,11 @@ export function computeNumbers(model) {
   }
   put("cp-drv-carry-gap", "Tour driver: fade carry over draw carry (yd)", "cp-drv-fade-carry minus cp-drv-draw-carry (unrounded)", (cpd.driver.fade.carry - cpd.driver.draw.carry).toFixed(1));
   put("cp-drv-total-gap", "Tour driver: draw total over fade total (yd)", "cp-drv-draw-total minus cp-drv-fade-total (unrounded)", (cpd.driver.draw.total - cpd.driver.fade.total).toFixed(1));
+  const hp = hookPeak(model);
+  put("hook-peak-f2p", "Face-to-path at which a closed Tour driver face curves the ball most, path 0 (degrees)", "hookPeak: scan of face -15 to -1 in half degrees", `${hp.f2p < 0 ? MINUS : "+"}${Math.abs(hp.f2p).toFixed(0)}`);
+  put("hook-peak-yd", "That largest curve (yd)", "flight.curve at the peak", hp.curve.toFixed(0));
+  put("t1-draw-carry", "Tour driver draw (path +4, face 0) at the chart's strike, spin trim 1.0: carry (yd)", "flight.carry with spinTrim 1", r0(hp.drawCarry));
+  put("t1-fade-carry", "Same, fade (path -4): carry (yd)", "flight.carry with spinTrim 1", r0(hp.fadeCarry));
   const dfc = drawFadeCheck(model);
   put("df-spin-gap", "Model check: spin of the fade over the draw when the loft gap is TrackMan's 4.5 degrees (rpm)", "drawFadeCheck; TrackMan's gap is 1,125", grp(dfc.spinGap));
   put("df-run-gap", "Model check: run-out of the draw over the fade (yd)", "drawFadeCheck; TrackMan says about 20", dfc.runGap.toFixed(0));
