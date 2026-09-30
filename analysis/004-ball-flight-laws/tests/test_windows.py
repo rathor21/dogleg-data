@@ -81,13 +81,21 @@ def test_low_is_lower_and_steeper_high_is_higher(all_windows):
         assert low["flight"]["carry_yd"] > mid["flight"]["carry_yd"] > high["flight"]["carry_yd"]
 
 
-def test_draws_and_fades_mirror_at_equal_height(all_windows):
-    """Same height, opposite curve: face and path flip sign, launch and spin agree."""
+def test_draws_and_fades_are_not_mirrors_but_flip_path_and_face(all_windows):
+    """Same height, opposite curve: path and face flip sign and stay close, the draw's closed
+    face delofts the club and the fade's open face adds loft (effective loft), and the draw
+    carries and totals more."""
     for player in presets.PLAYERS:
         for height in windows.HEIGHTS:
             d, f = all_windows[player][(height, "draw")], all_windows[player][(height, "fade")]
-            assert d["delivery"]["path_deg"] == pytest.approx(-f["delivery"]["path_deg"], abs=0.02)
-            assert d["delivery"]["face_deg"] == pytest.approx(-f["delivery"]["face_deg"], abs=0.02)
+            assert d["delivery"]["path_deg"] > 0.0 > f["delivery"]["path_deg"]
+            assert d["delivery"]["face_deg"] > 0.0 > f["delivery"]["face_deg"]
+            assert d["delivery"]["path_deg"] == pytest.approx(-f["delivery"]["path_deg"], abs=1.5)
+            assert d["launch"]["dyn_loft_deg"] < f["launch"]["dyn_loft_deg"]  # at the same height the fade flies the higher loft
+            assert d["launch"]["dyn_loft_deg"] < d["launch"]["dyn_loft_input_deg"]  # closed face delofts
+            assert f["launch"]["dyn_loft_deg"] > f["launch"]["dyn_loft_input_deg"]  # open face adds loft
+            assert d["flight"]["carry_yd"] > f["flight"]["carry_yd"]
+            assert d["flight"]["total_yd"] > f["flight"]["total_yd"]
 
 
 def test_on_target_draw_starts_right_and_reads_draw(all_windows):

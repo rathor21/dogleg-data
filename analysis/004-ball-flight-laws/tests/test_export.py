@@ -120,6 +120,11 @@ def test_model_json_carries_the_constants(built):
     assert m["roll"]["cap_frac"] == data.ROLL_CAP_FRAC and "cap_frac" in m["roll"]["form"]
     assert "total_yd" in m["roll"]["form"]
     assert m["swing_plane_default_deg"] == data.SWING_PLANE_DEG
+    assert m["coupling"]["kappa"] == pytest.approx(data.KAPPA, rel=1e-11)
+    assert m["coupling"]["lie_deg"] == data.LIE_DEG and "MODELED" in m["coupling"]["form"]
+    assert m["coupling"]["loft_per_attack"] == 1.4 and m["coupling"]["driver_natural_slope"] == 1.0
+    assert m["coupling"]["loft_per_attack_clubs"] == list(data.LOFT_FOLLOWS_ATTACK_CLUBS)
+    assert "driver toggle uses the chart" in m["coupling"]["loft_follows_attack"]
 
 
 def test_presets_json(built):
@@ -298,6 +303,13 @@ def test_golden_optimal_loft_vectors(golden):
         assert v["result"]["extrapolated"] is live.extrapolated and v["result"]["speed_clamped"] is live.speed_clamped
 
 
+def test_golden_loft_for_attack_vectors(golden):
+    vecs = golden["loft_for_attack_vectors"]
+    assert len(vecs) == 3 * 12 * 7
+    for v in vecs:
+        assert v["result"] == pytest.approx(presets.loft_for_attack(*v["args"]), rel=REL, abs=REL), v["args"]
+
+
 def test_golden_classify_vectors(golden):
     vecs = golden["classify_vectors"]
     assert len(vecs) == 7 * 8 * 10
@@ -378,7 +390,7 @@ def test_schema_names_every_exported_key(built):
                    + list(i["bands"]["pga"]["driver"]["launch_deg"]) + list(i["bands"]["pga"]["driver"]["launch_deg"]["detail"])
                    + (list(i["known_exceptions"][0]) if i["known_exceptions"] else [])))
     m = json.loads(built["model.json"])
-    groups.append(("model", [k for sec in ("units", "ball", "air", "aero", "roll", "flight", "launch_model", "classify", "domain")
+    groups.append(("model", [k for sec in ("units", "ball", "air", "aero", "roll", "flight", "launch_model", "coupling", "classify", "domain")
                              for k in m[sec]]))
     g = json.loads(built["golden.json"])
     c = next(c for c in g["cases"] if "trajectory" in c)

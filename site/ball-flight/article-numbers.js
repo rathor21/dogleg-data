@@ -11,7 +11,7 @@
  */
 import {
   faceShare, startDirection, shotAt, exampleCheck, publishedRatio, attackSweep, couplingShot,
-  driverWindows, nineWindows, coachingExample, chartGains, driverIdeals, idealTotalReversal, TRACKMAN_TOTAL_2010, OPTIMIZER_DEFAULT_DRIVER,
+  driverWindows, nineWindows, coachingExample, chartGains, driverIdeals, idealTotalReversal, couplingDemo, drawFadeCheck, ironFlip, hookPeak, TRACKMAN_TOTAL_2010, OPTIMIZER_DEFAULT_DRIVER,
 } from "./article-data.js";
 
 const MINUS = "−";
@@ -55,11 +55,32 @@ export function computeNumbers(model) {
   put("sl-pw", "Spin loft, Tour PW preset (degrees, model-derived)", "launch.spinLoftDeg", sl("pw").toFixed(0));
   const ex = exampleCheck(model);
   const worstYd = ex.reduce((a, e) => (Math.abs(e.miss) > Math.abs(a.miss) ? e : a));
-  const worstPct = ex.reduce((a, e) => (Math.abs(e.pct) > Math.abs(a.pct) ? e : a));
   put("ex-miss-yd", "Largest gap between a preset line and a TrackMan example (yd)", "max |model - published| over the eight examples", Math.abs(worstYd.miss).toFixed(1));
   put("ex-miss-yd-pct", "That gap as percent of the example's published curve", "|miss| / |published|", Math.abs(worstYd.pct).toFixed(0));
-  put("ex-pct-max", "Largest percent gap between a preset line and an example", "max |miss| / |published|", Math.abs(worstPct.pct).toFixed(0));
-  put("ex-pct-yd", "That gap in yards", "|miss| of that example", Math.abs(worstPct.miss).toFixed(1));
+
+  // Chapter 2, loft from face-to-path
+  const cpd = couplingDemo(model);
+  const r0 = (v) => Math.round(v).toString();
+  put("kappa-drv", "Loft added per degree of face-to-path, driver (cotangent of the 58.5 degree lie)", "model.couplingKappa", cpd.driver.kappa.toFixed(2));
+  put("kappa-7i", "Same, 7-iron (63.0 degree lie)", "model.couplingKappa", cpd["7i"].kappa.toFixed(2));
+  for (const [club, id] of [["driver", "drv"], ["7i", "7i"]]) {
+    for (const [shot, k] of [["draw", "draw"], ["fade", "fade"], ["hook", "hook"], ["slice", "slice"]]) {
+      if (club === "driver" && (shot === "hook" || shot === "slice")) continue;
+      const name = `${club === "driver" ? "Tour driver" : "Tour 7-iron"} ${shot === "hook" ? "pull hook (path -2, face -6)" : shot === "slice" ? "push slice (path +2, face +6)" : shot === "draw" ? "draw (path +4, face 0)" : "fade (path -4, face 0)"}`;
+      put(`cp-${id}-${k}-carry`, `${name}: carry (yd)`, "flight.carry", r0(cpd[club][shot].carry));
+      put(`cp-${id}-${k}-total`, `${name}: total (yd)`, "carry plus model.roll", r0(cpd[club][shot].total));
+    }
+  }
+  put("cp-drv-carry-gap", "Tour driver: fade carry over draw carry (yd)", "cp-drv-fade-carry minus cp-drv-draw-carry (unrounded)", (cpd.driver.fade.carry - cpd.driver.draw.carry).toFixed(1));
+  put("cp-drv-total-gap", "Tour driver: draw total over fade total (yd)", "cp-drv-draw-total minus cp-drv-fade-total (unrounded)", (cpd.driver.draw.total - cpd.driver.fade.total).toFixed(1));
+  const hp = hookPeak(model);
+  put("hook-peak-f2p", "Face-to-path at which a closed Tour driver face curves the ball most, path 0 (degrees)", "hookPeak: scan of face -15 to -1 in half degrees", `${hp.f2p < 0 ? MINUS : "+"}${Math.abs(hp.f2p).toFixed(0)}`);
+  put("hook-peak-yd", "That largest curve (yd)", "flight.curve at the peak", hp.curve.toFixed(0));
+  put("t1-draw-carry", "Tour driver draw (path +4, face 0) at the chart's strike, spin trim 1.0: carry (yd)", "flight.carry with spinTrim 1", r0(hp.drawCarry));
+  put("t1-fade-carry", "Same, fade (path -4): carry (yd)", "flight.carry with spinTrim 1", r0(hp.fadeCarry));
+  const dfc = drawFadeCheck(model);
+  put("df-spin-gap", "Model check: spin of the fade over the draw when the loft gap is TrackMan's 4.5 degrees (rpm)", "drawFadeCheck; TrackMan's gap is 1,125", grp(dfc.spinGap));
+  put("df-run-gap", "Model check: run-out of the draw over the fade (yd)", "drawFadeCheck; TrackMan says about 20", dfc.runGap.toFixed(0));
 
   // Chapter 3
   const sw = attackSweep(model);
@@ -89,6 +110,22 @@ export function computeNumbers(model) {
   put("couple-start", "Start direction of that shot (degrees)", "launch.launchDirDeg", Math.abs(cp2.shot.launch.launchDirDeg).toFixed(1));
   put("couple-launch", "Launch of that shot (degrees)", "launch.launchDeg", cp2.shot.launch.launchDeg.toFixed(1));
   put("couple-spin", "Spin of that shot (rpm)", "launch.spinRpm", grp(cp2.shot.launch.spinRpm));
+
+  // Chapter 3, the iron flip
+  const irf = ironFlip(model);
+  put("ir-slope", "Loft added per degree of attack for irons, wedges, hybrids and fairway woods (MODELED)", "model.json coupling.loft_per_attack", irf.slope.toFixed(1));
+  put("ir-atk-dn", "Tour 7-iron preset attack angle (degrees)", "model.preset", signed1(irf.attackDn));
+  put("ir-loft-dn", "Tour 7-iron loft at the preset attack (degrees)", "model.loftForAttack", model.loftForAttack("7i", "pga", irf.attackDn).toFixed(1));
+  put("ir-loft-up", "Tour 7-iron loft at attack +3 with loft following (degrees)", "model.loftForAttack", model.loftForAttack("7i", "pga", 3).toFixed(1));
+  put("ir-carry-dn", "Tour 7-iron carry at the preset attack (yd)", "flight.carry", r0(irf.dn.flight.carry));
+  put("ir-carry-up", "Tour 7-iron carry at attack +3, loft following (yd)", "flight.carry", r0(irf.up.flight.carry));
+  put("ir-total-dn", "Tour 7-iron total at the preset attack (yd)", "carry plus model.roll", r0(irf.dn.total));
+  put("ir-total-up", "Tour 7-iron total at attack +3, loft following (yd)", "carry plus model.roll", r0(irf.up.total));
+  put("ir-carry-loss", "Carry lost from the preset attack to +3 (yd)", "ir-carry-dn minus ir-carry-up (unrounded)", r0(irf.dn.flight.carry - irf.up.flight.carry));
+  put("ir-total-loss", "Total lost over the same change (yd)", "ir-total-dn minus ir-total-up (unrounded)", r0(irf.dn.total - irf.up.total));
+  put("ir-model-slope", "Model: Tour 7-iron at 90 mph, carry lost per degree of attack from -6 to +2, loft following (yd)", "flight.carry at the two attack angles over 8", irf.modelSlope.toFixed(1));
+  put("ir-chart-slope", "Foresight 7 iron chart at 90 mph: carry lost per degree from -6 to +2 (yd)", "published; (183.4 - 169.5) / 8", irf.chartSlope.toFixed(1));
+  put("ir-am-peak", "Attack angle of the average amateur 7-iron's most carry, loft following (degrees)", "scan of -8 to +6 in half degrees", signed1(irf.amateurPeak.attack));
 
   // Chapter 3, the driver and hitting up
   const cg = chartGains(model);

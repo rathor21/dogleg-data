@@ -21,6 +21,12 @@ The height lever moves dynamic loft and attack angle together:
 MODELED: a lower shot comes from a ball played further back, which delofts and
 steepens the blow at once. Club speed and spin trim stay at the preset.
 
+With the face-to-loft coupling (launch.py), a draw's closed face delofts the club
+and a fade's open face adds loft, so the recipes are not mirror images: a draw
+needs more input loft (a higher height lever) than a fade to reach the same peak
+height, and it carries and totals more. The window's `delivery.dyn_loft_deg` is
+the input loft, its `launch.dyn_loft_deg` the effective loft.
+
 Every trial stays inside data.DOMAIN (bounds on the unknowns, and dynamic loft
 minus attack angle above the spin loft floor).
 
@@ -121,6 +127,8 @@ def solve_window(club, player, height, shape):
             "spin_axis_deg": ln.spin_axis_deg,
             "spin_loft_deg": ln.spin_loft_deg,
             "face_to_path_deg": ln.face_to_path_deg,
+            "dyn_loft_input_deg": ln.dyn_loft_input_deg,
+            "dyn_loft_deg": ln.dyn_loft_deg,
         },
         "flight": {
             "carry_yd": f.carry_yd,

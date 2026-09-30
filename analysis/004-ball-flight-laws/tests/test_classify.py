@@ -207,10 +207,11 @@ def test_golfer_cases(path, face, name, worked_back):
 
 
 def test_golfer_push_slice_sits_on_the_start_boundary_at_face_4():
-    """Face +4, path -3 launches 1.997 deg right, 0.003 deg inside TrackMan's
-    2 deg line, so it reads Slice. Face +5 is the push slice case."""
+    """Face +4, path -3 launches 1.955 deg right (with the face-to-loft coupling on,
+    the open face adds loft and pulls the start line in), 0.045 deg inside
+    TrackMan's 2 deg line, so it reads Slice. Face +5 is the push slice case."""
     ln, f, out = _golfer(-3.0, 4.0)
-    assert 1.99 < ln.launch_dir_deg < classify.START_STRAIGHT_DEG
+    assert 1.9 < ln.launch_dir_deg < classify.START_STRAIGHT_DEG
     assert out["name"] == "Slice"
     assert out["shape"] == "slice"
     assert _golfer(-3.0, 5.0)[0].launch_dir_deg > classify.START_STRAIGHT_DEG

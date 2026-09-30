@@ -233,22 +233,29 @@ def chart_errors(params):
 
 
 def fit_axis(params, dt=FIT_DT):
-    """c(spin loft) = c0 + c1 * SL on the D-plane tilt, fitted to the eight
-    examples with the spin trims applied, held flat outside the spin lofts of
-    the examples themselves. Returns the fit and the normalized residuals. A
-    constant c fits too (worst error 0.64 of tolerance against 0.39 here), and
-    the slope also trims the 6 iron's over-curve."""
+    """Spin axis scale c on the D-plane tilt, one constant fitted to the eight
+    examples with the face-to-loft coupling on and the spin trims applied. The
+    fit minimizes the largest normalized error, not the sum of squares: with the
+    coupling on, a closed face flies farther and curves more than an open one
+    (loft falls with face-to-path), TrackMan's eight examples curve about the
+    same per degree either way, and a least-squares line in spin loft leaves the
+    PGA 6 iron at -5 outside its tolerance (1.07). The constant that minimizes
+    the worst error puts all eight inside it. axis_c1 stays 0 and the spin loft
+    range is the examples' own, kept so the JSON shape does not change. Returns
+    the fit and the normalized residuals."""
+    from scipy.optimize import minimize_scalar
+
     probe = dict(params, axis_c0=1.0, axis_c1=0.0, axis_sl_lo=0.0, axis_sl_hi=90.0)
-    lofts = [gl.curvature_example(t, cl, f, probe, dt)[0].spin_loft_deg for t, cl, f, _pub in data.CURVATURE_EXAMPLES]
+    lofts = [gl.curvature_example(t, cl, f, probe)[0].spin_loft_deg for t, cl, f, _pub in data.CURVATURE_EXAMPLES]
     lo, hi = float(min(lofts)), float(max(lofts))
 
-    def residuals(x):
-        candidate = dict(params, axis_c0=x[0], axis_c1=x[1], axis_sl_lo=lo, axis_sl_hi=hi)
+    def residuals(c):
+        candidate = dict(params, axis_c0=c, axis_c1=0.0, axis_sl_lo=lo, axis_sl_hi=hi)
         return [err for *_rest, err in gl.curvature_errors(candidate, dt)]
 
-    sol = least_squares(residuals, [1.2, -0.009], diff_step=1e-3)
-    _require(sol, "axis")
-    return dict(axis_c0=float(sol.x[0]), axis_c1=float(sol.x[1]), axis_sl_lo=lo, axis_sl_hi=hi), list(sol.fun)
+    sol = minimize_scalar(lambda c: max(abs(e) for e in residuals(c)), bounds=(0.6, 1.6), method="bounded",
+                          options={"xatol": 1e-7})
+    return dict(axis_c0=float(sol.x), axis_c1=0.0, axis_sl_lo=lo, axis_sl_hi=hi), residuals(sol.x)
 
 
 def fit_all(verbose=True):
@@ -279,11 +286,11 @@ def fit_all(verbose=True):
     diag["smash: ball speed error (fraction)"] = ball
     diag["spin: spin error (fraction)"] = spin
     check, _ = fit_axis(params, STABILITY_DT)
-    rel = max(abs(check[k] - params[k]) / abs(params[k]) for k in ("axis_c0", "axis_c1"))
+    rel = abs(check["axis_c0"] - params["axis_c0"]) / abs(params["axis_c0"])
     diag["axis c0 at dt 0.005"] = [check["axis_c0"], rel]
     if rel > STABILITY_TOL:
-        raise RuntimeError(f"axis fit depends on the step size: {params['axis_c0']:.4f}, {params['axis_c1']:.5f} at dt "
-                           f"{FIT_DT}, {check['axis_c0']:.4f}, {check['axis_c1']:.5f} at dt {STABILITY_DT}")
+        raise RuntimeError(f"axis fit depends on the step size: {params['axis_c0']:.4f} at dt "
+                           f"{FIT_DT}, {check['axis_c0']:.4f} at dt {STABILITY_DT}")
     return params, diag
 
 

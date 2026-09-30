@@ -14,7 +14,7 @@ club, bounce and roll), this file says so next to the value rather than
 presenting an interpretive choice as if it were sourced.
 """
 
-from math import pi
+from math import pi, radians, tan
 
 # ---------------------------------------------------------------------------
 # Unit conversions. Exact by definition, not sourced measurements.
@@ -444,17 +444,23 @@ ROLL_CAP_FRAC = 0.3592  # MODELED, 1.1 x 0.3265
 #       published spin through the spin trim below.
 #
 #   spin_axis = (axis_c0 + axis_c1 * SL) * atan2(face-to-path, vertical spin loft)
-#       (D-plane normal tilt), SL held to axis_sl_lo..axis_sl_hi, the spin
-#       lofts of the eight examples (12.4 to 26.9). Fitted so the eight
-#       Anchor 5(b) face-to-path examples reproduce their curvature through
-#       flight.simulate (worst miss 0.39 of tolerance, 1.5 yd on the PGA 6
-#       iron). It absorbs the flight model's own curvature per degree of axis.
-#       Each example takes a spin trim from its own 2019 row: 2019 spin over
-#       model spin at path 0 and face 0, held fixed as the face opens. A
-#       constant c (1.046) fits all eight too, with a worst miss of 0.64 of
-#       tolerance and 2.6 yd on the PGA 6 iron at -5. The slope (c falls from
-#       1.11 at spin loft 12.4 to 0.98 at 26.9) cuts both and is the shipped
-#       form.
+#       (D-plane normal tilt). Since the face-to-loft coupling (task 004-physics)
+#       axis_c1 is 0 and axis_c0 is one constant, 0.9986, fitted to minimize the
+#       largest normalized error over the eight Anchor 5(b) face-to-path
+#       examples flown through flight.simulate with the coupling on (worst 0.90
+#       of tolerance, 3.6 yd of 4 on the PGA 6 iron at -5, rms 0.56, all eight
+#       inside). With the coupling a closed face flies longer and curves more
+#       than an open one, TrackMan's examples curve about the same per degree
+#       either way, and the earlier line in spin loft (1.2177 - 0.008835 SL, which
+#       fitted the symmetric model) leaves one example outside once the coupling is
+#       on: the least-squares refit of that line has a worst error of 1.07 (PGA 6
+#       iron, -5). c near 1 also agrees with Tuxen's rules of thumb (axis is
+#       4 times face-to-path for a driver, 2 times for a 6 iron). axis_c1 (0) and
+#       axis_sl_lo and axis_sl_hi (the examples' spin lofts with the coupling, 10.5 to
+#       29.4) are INFORMATIONAL ONLY: with c1 = 0 the scale does not depend on spin loft,
+#       and they are kept so the shape of the dict does not change. Each example takes a spin
+#       trim from its own 2019 row: 2019 spin over model spin at path 0 and face
+#       0, held fixed as the face opens.
 #
 # Spin trim (MODELED, presets.py, not stored here). Each preset carries
 # spin_trim = published spin / model spin at the preset delivery (path 0,
@@ -486,10 +492,10 @@ LAUNCH_MODEL = {
     "spin_f_wood": 0.878791,
     "spin_a_driver": 1.33518,
     "spin_b_driver": 1.04096,
-    "axis_c0": 1.21767,
-    "axis_c1": -0.00883498,
-    "axis_sl_lo": 12.4304,
-    "axis_sl_hi": 26.8865,
+    "axis_c0": 0.998642,
+    "axis_c1": 0.0,
+    "axis_sl_lo": 10.4554,
+    "axis_sl_hi": 29.4446,
 }
 
 # ---------------------------------------------------------------------------
@@ -540,6 +546,80 @@ TOUR_DYN_LOFT = {
 # open interval swing_path accepts.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Face-to-loft coupling (task 004-physics). MODELED. Rotating the head about the
+# shaft to close or open the face also delofts or adds loft, because the shaft
+# leans at the lie angle: opening adds loft, closing removes it, cot(lie) degrees
+# of loft per degree of face rotation (docs/sources/004_Physics_Research.md,
+# Topic 1; TrackMan's Dynamic Loft page names the open or closed face to path as
+# a mover of dynamic loft and prints no coefficient). The rotation-about-the-shaft
+# reading, with no shaft lean and no yaw of the whole club, is MODELED and is the
+# upper end of the range: a pure yaw gives 0.
+#   dyn_loft_effective = dyn_loft_input + kappa(club) * (face - path)
+# LIE_DEG is the manufacturer standard lie angle per club id, Anchor 8 of the
+# source log (Titleist custom options PDF 2025, PING G430 pages as a cross-check,
+# retrieved 2026-09-29). Static lie at address, at standard length.
+# ---------------------------------------------------------------------------
+
+LIE_DEG = {
+    "driver": 58.5,  # Anchor 8 Source 1, GT2 to GT4 drivers (GT1 59.0)
+    "3w": 56.5,  # GT2 fairway, 15 deg
+    "5w": 57.5,  # GT2 fairway, 18 deg
+    "hybrid": 57.0,  # GT2 hybrid, 18 deg
+    "3i": 61.0,  # irons row, printed per iron number
+    "4i": 61.5,
+    "5i": 62.0,
+    "6i": 62.5,
+    "7i": 63.0,
+    "8i": 63.5,
+    "9i": 64.0,
+    "pw": 64.0,
+}
+# kappa = cot(lie): loft change per degree of (face - path). A club that is not
+# named (club=None in launch.deliver) has no coupling.
+KAPPA = {club: 1.0 / tan(radians(lie)) for club, lie in LIE_DEG.items()}
+
+# ---------------------------------------------------------------------------
+# Loft follows attack angle (task 004-physics). MODELED. Off the ground, dynamic loft
+# rises with attack angle: the club turns with its velocity vector (arc geometry,
+# one degree per degree, Anchor 11) and a release that flips or scoops adds more.
+# Hitting up with an iron adds loft, so spin loft, spin and launch rise and smash
+# falls, and the ball flies shorter (compression is lost). For hybrids, fairway
+# woods, irons and wedges:
+#   dyn_loft = preset dyn_loft + LOFT_PER_ATTACK * (attack - preset attack)
+# 1.4 degrees of loft per degree of attack. Evidence: the floor is 1.0 (TrackMan's
+# rule dynamic loft = static loft + attack angle + shaft adjustment, Anchor 11, the
+# arc geometry, and Suzuki et al. 2021, Anchor 10, whose within-player driver
+# slopes are 0.85 for 42 professionals and 1.23 for 25 amateurs with spin loft
+# steady within 0.5 degree). The Foresight 7 iron chart (Anchor 9) puts iron
+# slopes from launch at 1.25 to 1.73 across head speeds 60 to 100 mph (median about
+# 1.4), and 1.5 from spin at 90 and 100 mph. No source measures the slope for
+# wedges, hybrids or fairway woods, so 1.4 there extends the 7 iron result. Range
+# 1.0 (pure arc) to 1.5 or so. The driver off a tee keeps the chart's optimal loft
+# rule (chart.optimal_loft), and DRIVER_NATURAL_SLOPE, the arc value 1.0, is
+# exported for information only. The independent-slider path (dynamic loft and
+# attack angle as separate inputs) stays.
+# ---------------------------------------------------------------------------
+
+#
+# Steep attack. The 1.4 slope is evidence for attack from -6 to +2 (the Foresight
+# chart), and hits a cliff if it runs on below the preset attack: at attack -9 a
+# 3-wood would deliver 3 degrees of loft and fly 6 yd high, at -10 it would hit the
+# ground. A golfer can only lean the shaft and de-loft so far, so below the preset
+# attack the loft taken off follows the 1.4 slope for the first LOFT_FOLLOW_DELOFT_LINEAR
+# degrees of deloft and then rolls off smoothly (an exponential, so the slope and the
+# value are continuous) to a limit of LOFT_FOLLOW_DELOFT_MAX degrees below the preset
+# loft. MODELED: the 3 and 5 degrees are design choices. Three degrees is the deloft
+# the Foresight chart itself reaches for the 7 iron (attack -6 against a preset of
+# -3.9), and 5 degrees is about the shaft lean TrackMan coaches quote for an iron (4 to
+# 8, a search snippet, not used as a value). Above the preset attack the slope runs on
+# (hitting up adds loft, capped by the domain). Nothing above +2 has evidence.
+LOFT_PER_ATTACK = 1.4  # MODELED, degrees of dynamic loft per degree of attack angle
+LOFT_FOLLOW_DELOFT_LINEAR = 3.0  # MODELED, degrees of deloft that follow the slope exactly
+LOFT_FOLLOW_DELOFT_MAX = 5.0  # MODELED, the most loft taken off the preset loft
+LOFT_FOLLOWS_ATTACK_CLUBS = ("3w", "5w", "hybrid", "3i", "4i", "5i", "6i", "7i", "8i", "9i", "pw")
+DRIVER_NATURAL_SLOPE = 1.0  # INFORMATIONAL ONLY (no model code reads it): arc geometry, Anchor 11. The driver toggle uses optimal_loft.
+
 DOMAIN = {
     "club_speed_mph": (40.0, 140.0),
     "attack_deg": (-10.0, 10.0),
@@ -547,6 +627,10 @@ DOMAIN = {
     "face_deg": (-15.0, 15.0),
     "dyn_loft_deg": (0.0, 65.0),
     "min_spin_loft_deg": 1.0,
+    # MODELED floor on the effective dynamic loft (the loft after the face-to-loft coupling and the
+    # loft-follows-attack rule): at least 1 degree, so a steep attack with a closed face never
+    # delivers a negative loft. launch.clamp_loft applies max(attack + min_spin_loft_deg, this).
+    "min_effective_loft_deg": 1.0,
     "swing_plane_deg": (20.0, 80.0),
 }
 

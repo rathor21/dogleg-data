@@ -38,7 +38,14 @@ attack +5, dynamic loft chart.optimal_loft(speed, 5), the mean of the TrackMan
 the flight model is calibrated to). preset()["ideal"] is at the preset club
 speed. scale_speed does not move it, so call ideal_delivery(club, player,
 speed) for the ideal at another club speed.
+
+Loft follows attack. loft_for_attack(club, player, attack) is the input loft the
+lab uses when a student moves the attack angle and the loft moves with it
+(data.LOFT_PER_ATTACK, MODELED). The independent path, fly(p, attack=a) with the
+preset loft, is unchanged.
 """
+
+from math import exp
 
 import data
 import flight
@@ -164,6 +171,47 @@ def ideal_delivery(club, player, club_speed=None):
     speed = p["club_speed"] if club_speed is None else club_speed
     _check_speed(speed)
     return _ideal(club, player, p, speed)
+
+
+def _followed_change(raw):
+    """Loft change for a raw change of m * (attack - preset attack). Upward (raw >= 0) it is
+    the raw change. Downward it follows the slope for the first LOFT_FOLLOW_DELOFT_LINEAR
+    degrees of deloft, then rolls off exponentially to LOFT_FOLLOW_DELOFT_MAX (value and
+    slope continuous at the join)."""
+    if raw >= 0.0:
+        return raw
+    lin, top = data.LOFT_FOLLOW_DELOFT_LINEAR, data.LOFT_FOLLOW_DELOFT_MAX
+    deloft = -raw
+    if deloft > lin:
+        deloft = lin + (top - lin) * (1.0 - exp(-(deloft - lin) / (top - lin)))
+    return -deloft
+
+
+def loft_for_attack(club, player, attack):
+    """Input dynamic loft for a club, player and attack angle when the loft follows
+    the attack angle (MODELED, data.LOFT_PER_ATTACK).
+
+    Hybrids, fairway woods, irons and wedges: preset dynamic loft + m * (attack -
+    preset attack), m = 1.4 degrees of loft per degree of attack (hitting up adds
+    loft and loses compression). Below the preset attack the loft taken off is
+    limited: it follows the slope for the first 3 degrees of deloft and rolls off
+    to at most 5 (a golfer can only lean the shaft so far, and the slope has
+    evidence from attack -6 to +2 only), so a steep attack never turns a wood into
+    a putter. The driver keeps the TrackMan 2010 chart's optimal loft at the preset
+    club speed and this attack angle (chart.optimal_loft). The result goes through
+    launch.clamp_loft, so it is always a loft deliver() accepts. Raises ValueError
+    for a club or player that does not exist, or an attack angle that is not finite
+    or outside data.DOMAIN. At the preset attack angle a non-driver club returns
+    its preset loft."""
+    p = preset(club, player)
+    lo, hi = data.DOMAIN["attack_deg"]
+    if not (attack == attack and lo <= attack <= hi):  # NaN fails both
+        raise ValueError(f"attack must be within {lo:g} to {hi:g} deg, got {attack!r}")
+    if club == "driver":
+        dl = optimal_loft(p["club_speed"], attack).dyn_loft_deg
+    else:
+        dl = p["dyn_loft"] + _followed_change(data.LOFT_PER_ATTACK * (attack - p["attack"]))
+    return launch.clamp_loft(dl, attack)
 
 
 def scale_speed(preset_dict, club_speed):

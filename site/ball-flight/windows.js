@@ -9,7 +9,7 @@
  * sides, so a lefty draw sits on the right, where it curves.
  */
 import { WINDOW_KEYS, WINDOW_HEIGHTS, WINDOW_SHAPES } from "./state.js";
-import { METRICS, DEG, fmt } from "./tiles.js";
+import { METRICS, DEG, fmt, loftNote } from "./tiles.js";
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 export const windowName = (key) => {
@@ -49,6 +49,7 @@ export function createWindows({ model, store, range, hooks }) {
   function applyWindow(key) {
     store.switchClub("7i");
     Object.assign(state, delivery(key));
+    store.syncLoftOffset(); // the recipe's loft is the starting point for following attack
     store.selectWindow(key);
   }
 
@@ -158,7 +159,7 @@ export function createWindows({ model, store, range, hooks }) {
       ["Face", `${fmt(d.face, 1, true)}${DEG}`, words("face_deg", w.delivery.face_deg)],
       ["Attack", `${fmt(d.attack, 1, true)}${DEG}`, words("attack_deg", w.delivery.attack_deg)],
       ["Peak height", `${fmt(w.flight.max_height_yd, 1)} yd`, ""], // peak defines high, mid and low, so it stays in the first four rows a small screen keeps
-      ["Dynamic loft", `${fmt(d.dynLoft, 1)}${DEG}`, ""],
+      ["Dynamic loft", `${fmt(w.launch.dyn_loft_deg, 1)}${DEG}`, loftNote(w.launch.dyn_loft_deg, { input: w.launch.dyn_loft_input_deg, faceToPathRh: w.launch.face_to_path_deg })],
       ["Launch", `${fmt(w.launch.launch_deg, 1)}${DEG}`, ""],
       ["Spin", `${fmt(w.launch.spin_rpm, 0, false, true)} rpm`, ""],
       ["Shot", w.classification.name, w.classification.finish_text.replace(/left|right/, (m) => (state.hand === "l" ? (m === "left" ? "right" : "left") : m))],

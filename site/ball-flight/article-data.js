@@ -353,3 +353,92 @@ export function idealTotalReversal(model) {
   }
   return out;
 }
+
+/** TrackMan, "Draw or Fade to Maximize Distance in Golf" (Stickney, 2016-04-11), one driver: draw and fade delivery. */
+export const TRACKMAN_DRAW_FADE = { drawLoft: 10.5, fadeLoft: 15.0, drawSpin: 2643, fadeSpin: 3768, spinGap: 3768 - 2643, runGapYd: 20 };
+
+/**
+ * Foresight Sports 7 Iron Angle of Attack Chart (2025-01-06), 90 mph head speed, carry in yards at attack -6 and +2
+ * (Source Log Anchor 9, transcribed by eye from the image; one manufacturer chart, method unknown).
+ */
+export const FORESIGHT_7I_90 = { attackDn: -6, attackUp: 2, carryDn: 183.4, carryUp: 169.5 };
+
+/**
+ * Chapter 2. Draws and fades, hooks and slices, PGA Tour driver and 7-iron. Draw is path +4 with the face square
+ * (face-to-path -4), fade path -4 (+4), pull hook path -2 with face -6 (-4), push slice path +2 with face +6 (+4).
+ * The loft the club plays at is the slider's loft plus kappa x (face - path), kappa the cotangent of the lie angle.
+ */
+export function couplingDemo(model) {
+  const cases = { straight: [0, 0], draw: [4, 0], fade: [-4, 0], hook: [-2, -6], slice: [2, 6] };
+  const out = {};
+  for (const club of ["driver", "7i"]) {
+    out[club] = { kappa: model.couplingKappa(club) };
+    for (const [name, [path, face]] of Object.entries(cases)) {
+      const s = shotAt(model, club, "pga", { path, face });
+      out[club][name] = { carry: s.flight.carry, total: s.total, loft: s.launch.dynLoftDeg, spin: s.launch.spinRpm };
+    }
+  }
+  return out;
+}
+
+/**
+ * Chapter 2 check. TrackMan's draw and fade differ by 4.5 degrees of dynamic loft. Fly the PGA driver preset with
+ * spin trim 1.0 (the chart's own strike) at an input loft of 12.75 and a face-to-path of plus and minus
+ * (4.5 / 2) / kappa, so the effective lofts are 10.5 and 15.0, and read the spin gap and the run-out gap.
+ */
+export function drawFadeCheck(model) {
+  const k = model.couplingKappa("driver");
+  const f2p = (TRACKMAN_DRAW_FADE.fadeLoft - TRACKMAN_DRAW_FADE.drawLoft) / 2 / k;
+  const fly = (sign) => {
+    const s = shotAt(model, "driver", "pga", { spinTrim: 1, dynLoft: 12.75, path: 0, face: sign * f2p });
+    return { spin: s.launch.spinRpm, run: s.total - s.flight.carry, loft: s.launch.dynLoftDeg };
+  };
+  const draw = fly(-1), fade = fly(1);
+  return { draw, fade, spinGap: fade.spin - draw.spin, runGap: draw.run - fade.run };
+}
+
+/**
+ * Chapter 3. The iron flip. Loft follows the attack angle (model.loftForAttack, 1.4 degrees of loft per degree of
+ * attack) for the PGA 7-iron from its preset attack to +3, and the same swing scaled to 90 mph from -6 to +2
+ * for the Foresight comparison. Also the average amateur 7-iron's most carry over attack -8 to +6 in half degrees.
+ */
+export function ironFlip(model) {
+  const flown = (player, speed, a) => {
+    const p = model.preset("7i", player);
+    const base = speed ? model.scaleSpeed(p, speed) : p;
+    return model.shot({ ...base, attack: a, dynLoft: model.loftForAttack("7i", player, a) });
+  };
+  const p = model.preset("7i", "pga");
+  const dn = flown("pga", null, p.attack), up = flown("pga", null, 3);
+  const f = FORESIGHT_7I_90;
+  const m1 = flown("pga", 90, f.attackDn), m2 = flown("pga", 90, f.attackUp);
+  let best = null;
+  for (let a = -8; a <= 6.0001; a += 0.5) {
+    const s = flown("amateur", null, a);
+    if (!best || s.flight.carry > best.carry + 1e-9) best = { attack: a, carry: s.flight.carry };
+  }
+  const span = f.attackUp - f.attackDn;
+  return {
+    attackDn: p.attack, dn, up,
+    modelSlope: (m1.flight.carry - m2.flight.carry) / span,
+    chartSlope: (f.carryDn - f.carryUp) / span,
+    slope: model.data.model.coupling.loft_per_attack,
+    amateurPeak: best,
+  };
+}
+
+/**
+ * Chapter 2. The Tour driver with the face closing against a path of 0: the face-to-path at which the hook curves
+ * most (scanned from -15 to -1 in half degrees) and that curve, and the draw and fade at the chart's strike
+ * (spin trim 1.0) for the carry ordering.
+ */
+export function hookPeak(model) {
+  let best = null;
+  for (let f = -15; f <= -1.0001; f += 0.5) {
+    const c = Math.abs(shotAt(model, "driver", "pga", { face: f, path: 0 }).flight.curve);
+    if (!best || c > best.curve) best = { f2p: f, curve: c };
+  }
+  const at1 = (path) => shotAt(model, "driver", "pga", { path, face: 0, spinTrim: 1 });
+  const draw = at1(4), fade = at1(-4);
+  return { ...best, drawCarry: draw.flight.carry, fadeCarry: fade.flight.carry, drawTotal: draw.total, fadeTotal: fade.total };
+}

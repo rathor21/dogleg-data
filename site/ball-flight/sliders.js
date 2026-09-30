@@ -100,7 +100,7 @@ export function createSliders({ model, store, containers, hooks }) {
     build(metric, METRICS[metric].slider.advanced ? containers.adv : containers.main);
   }
 
-  // Driver only: the switch that lets the dynamic loft follow the attack angle. It sits
+  // The switch that lets the dynamic loft follow the attack angle, for every club. It sits
   // under the attack slider, where the golfer is looking when it matters.
   const follow = document.createElement("div");
   follow.className = "loft-follow";
@@ -110,6 +110,11 @@ export function createSliders({ model, store, containers, hooks }) {
     <p class="follow-note" id="follow-note"></p>
     <p class="follow-hint" id="follow-hint" hidden></p>`;
   sliders.attack_deg.wrap.appendChild(follow);
+  // A launch monitor reports the effective loft. Typing that reading into the slider would count the face's share twice.
+  const loftHint = document.createElement("p");
+  loftHint.className = "follow-hint loft-hint";
+  loftHint.hidden = true;
+  sliders.dyn_loft_deg.wrap.appendChild(loftHint);
   const followBox = follow.querySelector("input");
   const followNote = follow.querySelector("#follow-note");
   const followHint = follow.querySelector("#follow-hint");
@@ -129,8 +134,9 @@ export function createSliders({ model, store, containers, hooks }) {
       const entry = c.values[metric];
       const decs = m.slider.dec === undefined ? m.dec : m.slider.dec;
       const text = fmt(v, decs, m.signed) + (m.unit === DEG ? DEG : " " + m.unit);
-      let word = m.words ? m.words(entry.rh, entry.disp) : "";
-      if (metric === "dyn_loft_deg" && state.club === "driver" && state.loftFollows) word = "follows attack";
+      let word = m.words ? m.words(entry.rh, entry.disp, entry) : "";
+      // The loft slider reads the loft with the face square to the path. The face note lives on the tile.
+      if (metric === "dyn_loft_deg") word = state.loftFollows ? "follows attack" : "";
       api.val.innerHTML = "";
       api.val.append(text);
       if (word) {
@@ -140,11 +146,18 @@ export function createSliders({ model, store, containers, hooks }) {
         api.val.append(w);
       }
       api.input.setAttribute("aria-valuetext", word ? `${text}, ${word}` : text);
+      if (metric === "dyn_loft_deg") {
+        const off = Math.abs(entry.faceToPathRh) >= 0.05;
+        loftHint.hidden = !off;
+        if (off) loftHint.textContent = `TrackMan shows the effective loft: ${fmt(entry.disp, 1)}${DEG} here. Enter the loft you would have with the face square to the path.`;
+      }
       const b = c.bands[metric];
       if (b) {
         const span = api.hi - api.lo;
-        const l = b.lo === null ? api.lo : b.lo;
-        const h = b.hi === null ? api.hi : b.hi;
+        // The loft band is for the effective loft. The slider is the input loft, so shift the band by the difference.
+        const shift = metric === "dyn_loft_deg" ? state.dynLoft - entry.disp : 0;
+        const l = b.lo === null ? api.lo : b.lo + shift;
+        const h = b.hi === null ? api.hi : b.hi + shift;
         api.band.style.setProperty("--p1", clamp((l - api.lo) / span, 0, 1));
         api.band.style.setProperty("--p2", clamp((h - api.lo) / span, 0, 1));
       }
@@ -156,14 +169,16 @@ export function createSliders({ model, store, containers, hooks }) {
     }
   }
 
-  /** Show or hide the driver's loft switch and keep its notes current. */
+  const perAttack = model.data.model.coupling.loft_per_attack;
+
+  /** Keep the loft switch and its notes current. The switch shows for every club. */
+  const MODELED = ' <span class="badge-modeled">modeled</span>';
   function renderFollow() {
+    follow.hidden = false;
     const driver = state.club === "driver";
-    follow.hidden = !driver;
-    if (!driver) return;
     followBox.checked = state.loftFollows;
     const chart = store.chartLoft();
-    if (state.loftFollows) {
+    if (state.loftFollows && driver) {
       const off = state.loftOffset;
       const chartTxt = `Chart loft is ${fmt(chart.dynLoft, 1)}${DEG}`;
       let tail = ".";
@@ -173,13 +188,16 @@ export function createSliders({ model, store, containers, hooks }) {
           ? `, and you added ${fmt(off, 1, true)}${DEG}.`
           : `; this delivery sits ${fmt(Math.abs(off), 1)}${DEG} ${off > 0 ? "above" : "below"} it.`;
       }
-      followNote.textContent = `Loft ${fmt(state.dynLoft, 1)}${DEG} now. ${chartTxt}${tail}`;
+      followNote.innerHTML = `${`Loft ${fmt(state.dynLoft, 1)}${DEG} now. ${chartTxt}${tail}`}${MODELED}`;
+    } else if (state.loftFollows) {
+      const mine = state.loftOffsetIsMine && Math.abs(state.loftOffset) >= 0.05 ? ` You added ${fmt(state.loftOffset, 1, true)}${DEG}.` : "";
+      followNote.innerHTML = `${`Loft follows attack: ${perAttack}${DEG} per degree, hitting up adds loft.${mine}`}${MODELED}`;
     } else {
       followNote.textContent = `Loft is fixed at ${fmt(state.dynLoft, 1)}${DEG}.`;
     }
     const notes = [];
-    if (state.loftFollows && chart.extrapolated) notes.push(`Attack is outside the chart (${MINUS}5${DEG} to +5${DEG}), so the loft is extended along the chart's slope.`);
-    if (state.loftFollows && chart.speedClamped) notes.push("Club speed is outside the chart (75 to 120 mph), so the loft is held at the chart's edge.");
+    if (driver && state.loftFollows && chart.extrapolated) notes.push(`Attack is outside the chart (${MINUS}5${DEG} to +5${DEG}), so the loft is extended along the chart's slope.`);
+    if (driver && state.loftFollows && chart.speedClamped) notes.push("Club speed is outside the chart (75 to 120 mph), so the loft is held at the chart's edge.");
     followHint.hidden = notes.length === 0;
     followHint.textContent = notes.join(" ");
   }

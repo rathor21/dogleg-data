@@ -25,6 +25,10 @@ Pages that refused a fetch (HTTP 403, Cloudflare or bot challenge, empty body) w
 | 5 | Ball flight law relationships | PARTIAL |
 | 6 | Tiger Woods nine windows | ANCHORED for the concept; NOT FOUND for any numbers |
 | 7 | Aerodynamic coefficients | PARTIAL (one complete working model and a spin decay law; the Smits and Smith equations were not read) |
+| 8 | Club lie angle by club | ANCHORED for the static standard lie (two manufacturers' spec pages). The coupling of face rotation to loft is MODELED. |
+| 9 | Iron distance by attack angle (Foresight 7 iron chart) | PARTIAL: one manufacturer chart, method unknown, one club. IMAGE read. |
+| 10 | Dynamic loft against attack angle within a player (Suzuki 2021) | ANCHORED for the driver off a tee. RAW. |
+| 11 | TrackMan rule: dynamic loft = static loft + attack angle + shaft adjustment | ANCHORED as a statement. RAW. |
 
 ---
 
@@ -445,6 +449,63 @@ Two flags. (1) The workbook's separate "Cd-Cl" sheet also holds an unlabeled col
 **TrackMan, Rapsodo and FlightScope notes.** No technical note publishing CL or CD was found for any of the three in the search. Rapsodo publishes a comparison of its ball flight algorithm against TrackMan and Foresight and was not read for coefficients.
 
 **Verdict: PARTIAL.** ANCHORED: one complete parametric model with published constants (Source 1), a spin decay law (Source 3), the quadratic functional form and the data scale from an independent TrackMan-fitted study (Source 4), and measured ranges from the two classic papers by secondary quote (Sources 2 and 5). NOT VERIFIED: the Smits and Smith lift and drag equations and constants, Lyu et al.'s own fits (the MDPI page returned HTTP 403), and Dewhurst's parametrization (a book, not read).
+
+---
+
+## Anchor 8: Standard lie angle by club (task 004-physics, face-to-loft coupling)
+
+**Status: ANCHORED as a static spec, added 2026-09-29 for the face-to-loft coupling.** Rotating the head about the shaft to close or open the face changes loft by cot(lie angle) per degree of face rotation (docs/sources/004_Physics_Research.md, Topic 1). The model needs one lie angle per club. Published lie is the static angle at address at standard length, not the dynamic lie at impact (TrackMan's dynamic lie article was not readable, see the research file). The rotation-about-the-shaft assumption, with no shaft lean, is MODELED.
+
+**Source 1 (primary, manufacturer spec):** Titleist, ["Custom Golf Clubs Options & Specifications"](https://media.titleist.com/images/titleist/files/UK/Titleist-Clubs-Custom-Options-UK.pdf) (UK custom club options PDF, document creation date 2025-07-16). Retrieved 2026-09-29. Read: RAW (pdftotext over the file, "CLUB SPEC OPTION SUMMARY" pages). Values as printed:
+
+| Club family | Lie angle (deg) as printed |
+|---|---|
+| Drivers GT1 | 59.0 |
+| Drivers GT2, GT3, GT4 | 58.5 |
+| Fairways GT2, lofts 13.5, 15, 16.5, 18, 21 deg | 56.5, 56.5, 57, 57.5, 58 |
+| Hybrids GT2, lofts 18, 21, 24 deg | 57, 57.5, 58 |
+| Irons, numbered 1, 2, 3, 4, 5, 6, 7, 8, 9, P, W, W2 (one "Lie" row for all iron models) | 60, 60.5, 61, 61.5, 62, 62.5, 63, 63.5, 64, 64, 64, 64 |
+
+**Source 2 (primary, manufacturer spec, cross-check):** PING G430 pages on ping.com, retrieved 2026-09-29, read RAW from the page HTML: [G430 MAX 10K driver](https://ping.com/en-us/golf-clubs/drivers/g430-max-10k-driver) 58.5 ("Average lie angle"; the G430 MAX driver page reads 58.0), [G430 MAX fairway](https://ping.com/en-us/golf-clubs/fairways/g430-max-fairway) 3-wood (15 deg) 56.0 and 5-wood (18 deg) 56.5, [G430 hybrid](https://ping.com/en-us/clubs/hybrids/g430) 2H (17 deg) 57.0, 3H (19) 57.5, 4H (22) 58.0, 5H (26) 58.5, 6H (30) 59.0, 7H (34) 59.5, [G430 irons](https://ping.com/en-us/clubs/irons/g430) 4i 60.5, 5i 61.0, 6i 61.5, 7i 62.0, 8i 62.8, 9i 63.5, PW 64.1. Fairway and hybrid lies are printed as an average over the five adjustable loft positions on the hosel.
+
+**Choice for the model (MODELED mapping).** The Tour tables give a club name and no manufacturer, so the model takes one lie per club id from Source 1 (the Tour "3-wood", "5-wood" and "hybrid 15 to 18 deg" map to the GT2 fairway rows at 15 and 18 deg and the GT2 hybrid row at 18 deg): driver 58.5, 3-wood (15 deg) 56.5, 5-wood (18 deg) 57.5, hybrid (18 deg) 57.0, 3 iron 61.0, 4 iron 61.5, 5 iron 62.0, 6 iron 62.5, 7 iron 63.0, 8 iron 63.5, 9 iron 64.0, PW 64.0. Source 2 sits 0.5 to 1.5 degrees lower for woods and irons and agrees on the ordering. The lie moves kappa = cot(lie) between 0.61 (driver) and 0.49 (PW), so a one degree change in lie moves kappa by about 0.02.
+
+---
+
+## Anchor 9: Iron carry, launch and spin by attack angle (Foresight 7 iron chart)
+
+**Status: PARTIAL, added 2026-09-29 for the loft-follows-attack coupling.** One manufacturer chart for one club (a 7 iron). The method is unknown: the page does not say who or what swung the club, how the attack angle was set or the club's loft (the file name mentions Gene Parente, named elsewhere as the Golf Laboratories robot operator, so a robot is likely and unconfirmed). Not peer reviewed.
+
+**Source (manufacturer):** Foresight Sports, ["How To Optimize Iron Distance Based On Swing Speed"](https://www.foresightsports.com/blogs/golf-tips/how-to-optimize-iron-distance-based-on-swing-speed) (2025-01-06) with its "7 Iron Angle of Attack Chart" ([image](https://cdn.shopify.com/s/files/1/1796/5675/files/Gene_Parente_chart_1.png?v=1734643321)). Retrieved 2026-09-29. Read: RAW for the text, IMAGE for the chart, transcribed by eye from the picture (the 100 mph row was checked against the text's 21.7 yd carry drop). 7 irons at head speeds 60 to 100 mph and attack angles -6, -4, -2, 0 and +2. Values as transcribed (launch deg / spin rpm / carry yd / descent angle deg):
+
+| Head speed (mph) | Attack -6 | Attack +2 | Carry change (yd) |
+|---|---|---|---|
+| 100 | 14.4 / 6343 / 203.5 / 49.6 | 24.9 / 7591 / 181.8 / 56.5 | -21.7 |
+| 90 | 14.3 / 5884 / 183.4 / 45.7 | 25.0 / 6944 / 169.5 / 54.9 | -13.9 |
+| 80 | 14.6 / 5748 / 160.3 / 40.8 | 24.2 / 5915 / 156.3 / 51.5 | -4.0 |
+| 70 | 14.9 / 5091 / 131.6 / 35.1 | 25.5 / 6026 / 129.8 / 48.8 | -1.8 |
+| 60 | 14.1 / 4381 / 102.2 / 27.4 | 26.4 / 5305 / 107.7 / 44.9 | +5.5 |
+
+Carry by attack angle (-6, -4, -2, 0, +2): at 100 mph 203.5, 200.1, 195.4, 188.4, 181.8; at 90 mph 183.4, 182.6, 180.0, 173.7, 169.5; at 80 mph 160.3, 160.8, 161.0, 159.7, 156.3. At 70 mph the carry peaks at 135.5 (attack -2) and at 60 mph at 110.1 (attack -2). The drop in carry per degree of attack is 2.7 yd at 100 mph and 1.7 at 90 mph, near zero at 70 to 80 mph, and reversed at 60 mph. The ball speed column holds one value per head speed, so the chart says nothing about smash by attack angle.
+
+Reading (DERIVED, docs/sources/004_Physics_Research.md, 13.1): launch rises 10 to 12 degrees from -6 to +2 attack, more than one degree of loft per degree of attack would give (about 8), so dynamic loft rose about 1.25 to 1.7 degrees per degree of attack (median about 1.4), and the spin rise at 90 and 100 mph implies about 1.5.
+
+## Anchor 10: Dynamic loft against attack angle within a player (Suzuki et al. 2021)
+
+**Status: ANCHORED for the driver off a tee, added 2026-09-29.** Peer reviewed, open access. 42 professionals and 25 amateurs hit their own drivers off a flat tee toward a fairway rising or falling 5 degrees, told to swing in their usual way.
+
+**Source:** Suzuki, Sheahan, Miyazawa, Okuda, Ichikawa, ["Comparison of TrackMan Data between Professional and Amateur Golfers at Swinging to Uphill and Downhill Fairways"](https://opensportssciencesjournal.com/contents/volumes/V14/TOSSJ-14-137/TOSSJ-14-137.pdf), The Open Sports Sciences Journal 14:137 (2021). Retrieved 2026-09-29. Read: RAW (methods, Tables 1 and 2, discussion).
+
+| Group | Attack up / down (deg) | Dynamic loft up / down (deg) | Spin loft up / down, derived (deg) | Slope of dynamic loft on attack, derived |
+|---|---|---|---|---|
+| 42 professionals, 45 m/s head speed | +3.6 / +0.3 | 16.0 / 13.2 | 12.4 / 12.9 | 0.85 |
+| 25 amateurs, 40 m/s | +0.6 / -0.7 | 16.2 / 14.6 | 15.6 / 15.3 | 1.23 |
+
+Spin loft stayed within 0.5 degree in both groups, so the coupling ran close to the arc value of 1.0 for a driver off a tee. Amateurs delivered 2.4 to 3.2 degrees more spin loft than professionals in the same condition.
+
+## Anchor 11: TrackMan rule for dynamic loft from static loft and attack angle
+
+**Status: ANCHORED as a statement, added 2026-09-29.** TrackMan, "Data parameter sheet, Release 3.1" ([PDF hosted by Hank Haney Golf](https://hankhaney.com/app/uploads/2019/01/TrackmanTERMS.pdf)), retrieved 2026-09-29, read RAW: dynamic loft equals static loft plus attack angle, adjusted for the bent shaft, with a typical adjustment of +2 degrees for a driver. TrackMan's Dynamic Loft and Attack Angle pages (RAW, same date) say dynamic loft depends on attack angle, shaft bend, the release, whether the face is open or closed to path and strike location, and that slower golfers should take care not to hit too far down with irons because it costs distance. No coefficient is printed for irons. Arc geometry (docs/sources/004_Physics_Research.md, 13.1, DERIVED) gives 1.0 degree of dynamic loft per degree of attack angle for a club that turns with its velocity vector.
 
 ---
 

@@ -311,7 +311,14 @@ export function createViews({ root, onLineYd = 0.5 }) {
     const pv = [Math.cos(atk * RAD), -Math.sin(atk * RAD)];
     add(g2, "line", { x1: sx0 - pv[0] * R2 * 1.5, y1: sy0 - pv[1] * R2 * 1.5, x2: sx0, y2: sy0 }, "pv-arrow path");
     arrowHead(g2, sx0, sy0, Math.atan2(pv[1], pv[0]), 9, "pv-head path");
-    // face: tilted back by the dynamic loft
+    // The slider's loft (face square to the path) as a faint reference when the face has moved the effective loft off it.
+    const inputLoft = v.dyn_loft_deg.input;
+    const moved = inputLoft !== undefined && Math.abs(inputLoft - loft) > 0.05;
+    if (moved) {
+      const rd = [Math.sin(inputLoft * RAD), Math.cos(inputLoft * RAD)];
+      add(g2, "line", { x1: sx0 - rd[0] * 38, y1: sy0 - rd[1] * 38, x2: sx0 + rd[0] * 30, y2: sy0 + rd[1] * 30 }, "pv-ref");
+    }
+    // face: tilted back by the effective dynamic loft
     const fd = [Math.sin(loft * RAD), Math.cos(loft * RAD)];
     add(g2, "line", { x1: sx0 - fd[0] * 38, y1: sy0 - fd[1] * 38, x2: sx0 + fd[0] * 30, y2: sy0 + fd[1] * 30 }, "pv-face");
     const nv = [Math.cos(loft * RAD), -Math.sin(loft * RAD)];
@@ -320,7 +327,8 @@ export function createViews({ root, onLineYd = 0.5 }) {
     add(g2, "circle", { cx: sx0, cy: sy0, r: 4 }, "pv-ball");
     label(g2, 6, sy0 + 20, `attack ${f1(atk)}${DEG}`, "ink strong");
     label(g2, W - 6, sy0 + 20, `loft ${loft.toFixed(1)}${DEG}`, "clay strong", "end");
-    const slText = `spin loft ${spinLoft.toFixed(1)}${DEG}`, slNote = `(loft ${MINUS} attack)`;
+    if (moved) label(g2, W - 6, sy0 + 35, `set ${inputLoft.toFixed(1)}${DEG}`, "muted", "end");
+    const slText = `spin loft ${spinLoft.toFixed(1)}${DEG}`, slNote = "(3D)";
     if ((slText.length + slNote.length + 1) * 7.3 > W - 10) {
       label(g2, W / 2, H - 20, slText, "ink strong", "middle");
       label(g2, W / 2, H - 6, slNote, "muted", "middle");

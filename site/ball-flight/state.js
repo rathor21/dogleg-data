@@ -34,11 +34,19 @@ export function createStore(model) {
 
   const isDriver = (st = state) => st.club === "driver";
   const [LOFT_LO, LOFT_HI] = model.domain.dyn_loft_deg;
-  const chartLoft = (st = state) => model.optimalLoft(st.clubSpeed, st.attack);
+  /**
+   * The loft the switch follows for this attack angle. The driver: the TrackMan chart's
+   * optimal loft at the current club speed. Every other club: model.loftForAttack (the preset
+   * loft plus the model's degrees of loft per degree of attack). Returns {dynLoft, extrapolated, speedClamped}.
+   */
+  const chartLoft = (st = state) => {
+    if (isDriver(st)) return model.optimalLoft(st.clubSpeed, st.attack);
+    return { dynLoft: model.loftForAttack(st.club, st.player, clamp(st.attack, ...model.domain.attack_deg)), extrapolated: false, speedClamped: false };
+  };
 
   /** Driver: remember how far the loft sits from the chart loft, so following keeps that offset. */
   function syncLoftOffset(fromSlider = false) {
-    state.loftOffset = isDriver() ? round3(state.dynLoft - chartLoft().dynLoft) : 0;
+    state.loftOffset = round3(state.dynLoft - chartLoft().dynLoft);
     // Only an offset the golfer set on the loft slider is "theirs". One that comes from a loaded
     // average or a link is just how that delivery sits against the chart, and the note says so.
     state.loftOffsetIsMine = fromSlider && Math.abs(state.loftOffset) >= 0.05;
@@ -46,13 +54,12 @@ export function createStore(model) {
 
   /** Driver with the switch on: loft is the chart loft for this speed and attack, plus the golfer's own offset. */
   function followLoft() {
-    if (!isDriver() || !state.loftFollows) return;
+    if (!state.loftFollows) return;
     state.dynLoft = round3(clamp(chartLoft().dynLoft + state.loftOffset, LOFT_LO, LOFT_HI));
   }
 
   /** Call after a slider moves. The loft slider sets the offset. Attack and club speed pull the loft along. */
   function afterSliderChange(key) {
-    if (!isDriver()) return;
     if (key === "dynLoft") syncLoftOffset(true);
     else if (key === "attack" || key === "clubSpeed") followLoft();
   }
@@ -195,11 +202,9 @@ export function createStore(model) {
     selectWindow(state.mode === "w" && p.window ? p.window : null);
     if (state.window && afterPreset) afterPreset(state.window);
     Object.assign(state, p.nums);
-    if (isDriver()) {
-      // A driver link that names speed or attack but no loft gets the chart loft for them.
-      if (p.nums.dynLoft === undefined && state.loftFollows) state.dynLoft = round3(clamp(chartLoft().dynLoft, LOFT_LO, LOFT_HI));
-      syncLoftOffset();
-    }
+    // A link that names speed or attack but no loft gets the followed loft for them.
+    if (p.nums.dynLoft === undefined && state.loftFollows && !state.window) state.dynLoft = round3(clamp(chartLoft().dynLoft, LOFT_LO, LOFT_HI));
+    syncLoftOffset();
     lastClubInGroup[groupOf()] = state.club;
   }
 
@@ -210,7 +215,7 @@ export function createStore(model) {
       c: st.club, p: st.player, h: st.hand, m: st.mode,
       s: r2(st.clubSpeed), a: r2(st.attack), pa: r2(st.path), f: r2(st.face), l: r2(st.dynLoft),
     });
-    if (st.club === "driver") q.set("lf", st.loftFollows ? "1" : "0");
+    q.set("lf", st.loftFollows ? "1" : "0");
     if (st.mode === "w" && st.window) q.set("w", st.window.replace(/_/g, "-"));
     return location.pathname + "?" + q.toString();
   }
@@ -241,6 +246,9 @@ export function createStore(model) {
       const rh = model.metricValue(m, s);
       values[m] = { rh, disp: METRICS[m].lateral ? sign * rh + 0 : rh };
     }
+    // The Dynamic loft tile shows the effective loft. These let it say how the face moved it off the slider's loft.
+    values.dyn_loft_deg.input = s.launch.dynLoftInputDeg;
+    values.dyn_loft_deg.faceToPathRh = s.launch.faceToPathDeg;
     const f = s.flight;
     const n = f.x.length;
     const y = new Float64Array(n);
@@ -252,5 +260,5 @@ export function createStore(model) {
     return { norm, s, bands, values, rangeShot, group: groupOf(st.club) };
   }
 
-  return { state, lastClubInGroup, clubById, groupOf, applyPreset, applyBase, loadIdeal, loadAverage, averageDiffers, afterSliderChange, setLoftFollows, followLoft, chartLoft, switchClub, selectWindow, snapshot, parseQuery, loadFromSearch, buildUrl, compute };
+  return { state, lastClubInGroup, clubById, groupOf, applyPreset, applyBase, syncLoftOffset, loadIdeal, loadAverage, averageDiffers, afterSliderChange, setLoftFollows, followLoft, chartLoft, switchClub, selectWindow, snapshot, parseQuery, loadFromSearch, buildUrl, compute };
 }
