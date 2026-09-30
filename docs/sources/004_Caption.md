@@ -1,6 +1,6 @@
 # 004 Caption -- number-by-number ledger (issue #30, task 004.11)
 
-Every number in `site/ball-flight/index.html` (the article at `/ball-flight/`), with its source. First written 2026-09-29 at commit 5e0d46b. Refreshed 2026-09-29 against commit 8a0b302, which includes 1da750e (driver launch and spin calibrated to the TrackMan 2010 chart, ADR 0004 decision 3c, and c linear in spin loft, decision 4). Refreshed again 2026-09-29 against commit 2c9244e, which holds the flight and roll recalibration to the 2010 chart (ADR 0004 addendum 1), the hit-up driver ideal (addendum 2) and the three-source launch and spin bands. That refresh moved 26 fallbacks, removed `pga-drv-gap` and `pga-drv-gap-pct` (the PGA driver carry miss is gone), and added the driver keys in Chapter 3 and Chapter 4.
+Every number in `site/ball-flight/index.html` (the article at `/ball-flight/`), with its source. First written 2026-09-29 at commit 5e0d46b. Refreshed 2026-09-29 against commit 8a0b302, which includes 1da750e (driver launch and spin calibrated to the TrackMan 2010 chart, ADR 0004 decision 3c, and c linear in spin loft, decision 4). Refreshed a third time 2026-09-29 against commit cc5bf6a on branch 004-physics (ADR 0004 addenda 3 and 4: the face-to-loft coupling through the lie angle and loft-follows-attack for the other clubs). That refresh moved 23 fallbacks, removed `ex-pct-max` and `ex-pct-yd` (the largest gap and the largest percentage gap are now the same example), and added the `kappa-*`, `cp-*`, `df-*` and `ir-*` keys. Refreshed again 2026-09-29 against commit 2c9244e, which holds the flight and roll recalibration to the 2010 chart (ADR 0004 addendum 1), the hit-up driver ideal (addendum 2) and the three-source launch and spin bands. That refresh moved 26 fallbacks, removed `pga-drv-gap` and `pga-drv-gap-pct` (the PGA driver carry miss is gone), and added the driver keys in Chapter 3 and Chapter 4.
 
 Three kinds of number appear in the article:
 
@@ -20,9 +20,11 @@ Model delivery for each shot is the preset for that club and player (`model.pres
 | 1 degree | Chapter 1 (the share) | The share is launch direction at face +1, path 0, divided by 1, a slope. At 4 degrees the ratio (3.31 over 4) is 82.8 percent, within 0.1 point |
 | 2 degrees of face-to-path | Chapter 2 | Chosen test size, path 0, face +2 |
 | 115 mph, attack -6 to +10, 4 degrees steeper | Chapter 3 | Chosen test range at the PGA driver preset (TrackMan 2023 PGA table, Anchor 1) |
+| Path +4 face 0, path -4 face 0, path -2 face -6, path +2 face +6 | Chapter 2, `cp-*` | Chosen test deliveries on the PGA presets (draw, fade, pull hook, push slice) |
+| Attack -3.9 to +3, and -6 to +2 at 90 mph | Chapter 3, `ir-*` | The Tour 7-iron's preset attack to +3; -6 to +2 is the Foresight chart's range at its 90 mph row |
 | Attack -5 and +5 at 115 mph | Chapter 3, `ch-*` and `md-*` | The 2010 chart's own attack range at the PGA driver's club speed. 115 mph is a chart row |
 | 92 mph, 7-iron | Chapter 5 | PGA Tour 7-iron preset (`windows.json` `club`, Anchor 1) |
-| path -4 and -2, face 0, amateur driver | Chapter 6 | Chosen example. The deep link is `/ball-flight/tool.html?c=driver&p=amateur&s=94&a=-1.8&l=15.1&pa=-4&f=0`, keys from `state.js` (`c`, `p`, `s`, `a`, `l`, `pa`, `f`). The lab opens the driver on the ideal delivery, so the link names the average delivery's speed, attack and loft (Combine average golfer, Anchor 3 Source 1: 94 mph, -1.8, 15.1). The URL carries no spin trim, so the lab uses the ideal's 1.0, and `coachingExample` in `article-data.js` uses the same 1.0. With the amateur preset's own trim (0.946) the same example reads 23 and 12 yd of curve and 20 yd of finish |
+| path -4 and -2, face 0, amateur driver | Chapter 6 | Chosen example. The deep link is `/ball-flight/tool.html?c=driver&p=amateur&s=94&a=-1.8&l=15.1&pa=-4&f=0`, keys from `state.js` (`c`, `p`, `s`, `a`, `l`, `pa`, `f`). The lab opens the driver on the ideal delivery, so the link names the average delivery's speed, attack and loft (Combine average golfer, Anchor 3 Source 1: 94 mph, -1.8, 15.1). The URL carries no spin trim, so the lab uses the ideal's 1.0, and `coachingExample` in `article-data.js` uses the same 1.0. Path -4 with the face square is a face-to-path of +4, which adds 0.61 x 4 = 2.5 degrees of loft, so the spin (4,006 rpm) sits above the published average's 3,275 for that reason as well. The example numbers after the coupling are 21 yd of curve, 19 of finish, 11 after the path change |
 
 ## Modeled numbers, computed live
 
@@ -43,20 +45,43 @@ Model delivery for each shot is the preset for that club and player (`model.pres
 
 | Key (`data-num`) | Number in prose | Value now | Computed as |
 |---|---|---|---|
-| `curve2-drv` | Curve, Tour driver, face-to-path +2 (yd) | 20.1 | flight.curve |
-| `curve2-6i` | Curve, Tour 6-iron, face-to-path +2 (yd) | 9.5 | flight.curve |
-| `curve2-pw` | Curve, Tour PW, face-to-path +2 (yd) | 2.8 | flight.curve |
-| `ratio-drv-pw` | Model: driver curve over PW curve at the same face-to-path (extrapolated) | 7.3 | curve2-drv / curve2-pw |
-| `ratio-drv-6i` | Model: driver curve over 6-iron curve at the same face-to-path | 2.1 | curve2-drv / curve2-6i |
+| `curve2-drv` | Curve, Tour driver, face-to-path +2 (yd) | 18.1 | flight.curve |
+| `curve2-6i` | Curve, Tour 6-iron, face-to-path +2 (yd) | 8.9 | flight.curve |
+| `curve2-pw` | Curve, Tour PW, face-to-path +2 (yd) | 2.6 | flight.curve |
+| `ratio-drv-pw` | Model: driver curve over PW curve at the same face-to-path (extrapolated) | 7.0 | curve2-drv / curve2-pw |
+| `ratio-drv-6i` | Model: driver curve over 6-iron curve at the same face-to-path | 2.0 | curve2-drv / curve2-6i |
 | `tm-ratio` | TrackMan published: driver curve per degree over 6-iron curve per degree, both tours | 2.3 | published; mean of the two examples per club, per tour (PGA and LPGA agree to 1 decimal) |
 | `tm-ratio-pga` | TrackMan published ratio, PGA examples | 2.3 | published; 9.15 / 4.0 yd per degree |
 | `tm-ratio-lpga` | TrackMan published ratio, LPGA examples | 2.3 | published; 6.7 / 2.9 yd per degree |
 | `sl-drv` | Spin loft, Tour driver preset (degrees, model-derived) | 13.6 | launch.spinLoftDeg |
 | `sl-pw` | Spin loft, Tour PW preset (degrees, model-derived) | 39 | launch.spinLoftDeg |
-| `ex-miss-yd` | Largest gap between a preset line and a TrackMan example (yd) | 4.7 | max |model - published| over the eight examples |
-| `ex-miss-yd-pct` | That gap as percent of the example's published curve | 15 | |miss| / |published| |
-| `ex-pct-max` | Largest percent gap between a preset line and an example | 19 | max |miss| / |published| |
-| `ex-pct-yd` | That gap in yards | 1.5 | |miss| of that example |
+| `ex-miss-yd` | Largest gap between a preset line and a TrackMan example (yd) | 5.9 | max |model - published| over the eight examples |
+| `ex-miss-yd-pct` | That gap as percent of the example's published curve | 29 | |miss| / |published| |
+
+Chapter 2, loft from face-to-path (ADR 0004 addendum 3). Shots are the PGA Tour presets with the path and face named; draw is path +4 and face 0, fade path -4 and face 0, pull hook path -2 and face -6, push slice path +2 and face +6. Carry is `flight.carry`, total is carry plus `model.roll`. The numbers match ADR 0004 addendum 3 to rounding (driver draw 266.8 / 321.9, fade 273.3 / 292.8; 7-iron draw 176.5 / 184.6, fade 164.4 / 170.5, pull hook 174.2 / 182.3, push slice 162.5 / 168.6). The 7-iron draw carry and fade total print as 176 and 170 here where a round-half-up of the ADR's one-decimal values would give 177 and 171.
+
+| Key (`data-num`) | Number in prose | Value now | Computed as |
+|---|---|---|---|
+| `kappa-drv` | Loft added per degree of face-to-path, driver (cotangent of the 58.5 degree lie) | 0.61 | `model.couplingKappa("driver")`; lie angles are manufacturers' standard lies at address (Anchor 8, Titleist 2025, PING G430 cross-check) |
+| `kappa-7i` | Same, 7-iron (63.0 degree lie) | 0.51 | `model.couplingKappa("7i")` |
+| `cp-drv-draw-carry` | Tour driver draw, carry (yd) | 267 | `flight.carry` |
+| `cp-drv-draw-total` | Tour driver draw, total (yd) | 322 | carry plus `model.roll` |
+| `cp-drv-fade-carry` | Tour driver fade, carry (yd) | 273 | `flight.carry` |
+| `cp-drv-fade-total` | Tour driver fade, total (yd) | 293 | carry plus `model.roll` |
+| `cp-7i-draw-carry` | Tour 7-iron draw, carry (yd) | 176 | `flight.carry` |
+| `cp-7i-draw-total` | Tour 7-iron draw, total (yd) | 185 | carry plus `model.roll` |
+| `cp-7i-fade-carry` | Tour 7-iron fade, carry (yd) | 164 | `flight.carry` |
+| `cp-7i-fade-total` | Tour 7-iron fade, total (yd) | 170 | carry plus `model.roll` |
+| `cp-7i-hook-carry` | Tour 7-iron pull hook, carry (yd) | 174 | `flight.carry` |
+| `cp-7i-hook-total` | Tour 7-iron pull hook, total (yd) | 182 | carry plus `model.roll` |
+| `cp-7i-slice-carry` | Tour 7-iron push slice, carry (yd) | 163 | `flight.carry` |
+| `cp-7i-slice-total` | Tour 7-iron push slice, total (yd) | 169 | carry plus `model.roll` |
+| `cp-drv-carry-gap` | Tour driver: fade carry over draw carry (yd) | 6.5 | cp-drv-fade-carry minus cp-drv-draw-carry (unrounded); Chapter 6 |
+| `cp-drv-total-gap` | Tour driver: draw total over fade total (yd) | 29.1 | cp-drv-draw-total minus cp-drv-fade-total (unrounded); Chapter 6 |
+| `df-spin-gap` | Model check: spin of the fade over the draw when the loft gap is TrackMan's 4.5 degrees (rpm) | 1,065 | `drawFadeCheck` in `article-data.js`: PGA driver preset, spin trim 1.0, input loft 12.75, face-to-path plus and minus (4.5 / 2) / kappa, path 0, so the effective lofts are 10.5 and 15.0. TrackMan's gap is 1,125 (published). ADR 0004 addendum 3 table: 3,032 and 4,096 rpm |
+| `df-run-gap` | Model check: run-out of the draw over the fade (yd) | 18 | same run; draw run 29.7, fade run 11.6. TrackMan says almost 20 yd (S3, Stickney 2016) |
+
+The published draw-and-fade numbers in the prose (draw 10.5 degrees and 2,643 rpm, fade 15.0 degrees and 3,768 rpm, about 20 yd of run-out, spin gap 1,125) are TrackMan's, `docs/sources/004_Physics_Research.md` S3 and topic 1, one R15 driver at an unstated speed, plain text and not live. The largest gap between a preset line and an example is now the PGA 6-iron at -5 degrees (model -25.9 against -20, 5.9 yd, 29 percent), which the prose names as text: check it if the model moves.
 
 ### Chapter 3
 
@@ -80,10 +105,30 @@ Model delivery for each shot is the preset for that club and player (`model.pres
 | `plane` | Swing plane, Combine average driver (degrees) | 49 | model.json swing_plane_default_deg |
 | `per-deg` | Path added per degree of down attack (degrees) | 0.87 | tan(90 - plane) |
 | `couple-path` | Path after steepening by 4 degrees, swing direction held (degrees right) | 3.5 | swingPath |
-| `couple-curve` | Curve of that shot with the face square (yd left) | 29 | flight.curve |
+| `couple-curve` | Curve of that shot with the face square (yd left) | 28 | flight.curve |
 | `couple-start` | Start direction of that shot (degrees) | 0.6 | launch.launchDirDeg |
-| `couple-launch` | Launch of that shot (degrees) | 9.8 | launch.launchDeg |
-| `couple-spin` | Spin of that shot (rpm) | 3,316 | launch.spinRpm |
+| `couple-launch` | Launch of that shot (degrees) | 8.0 | launch.launchDeg |
+| `couple-spin` | Spin of that shot (rpm) | 2,950 | launch.spinRpm |
+
+Chapter 3, irons and loft from attack angle (ADR 0004 addendum 4). The Tour 7-iron with `model.loftForAttack` setting the loft (preset loft plus 1.4 degrees per degree of attack from the preset attack, floor attack plus 1.0). All MODELED except `ir-chart-slope`, which is published.
+
+| Key (`data-num`) | Number in prose | Value now | Computed as |
+|---|---|---|---|
+| `ir-slope` | Loft added per degree of attack for irons, wedges, hybrids and fairway woods | 1.4 | `model.json` `coupling.loft_per_attack`. Floor 1.0 from arc geometry, TrackMan's dynamic loft rule (Anchor 11) and Suzuki 2021 (Anchor 10); the extra 0.4 from the Foresight 7 iron chart (Anchor 9) |
+| `ir-atk-dn` | Tour 7-iron preset attack angle (degrees) | −3.9 | `model.preset` |
+| `ir-loft-dn` | Tour 7-iron loft at the preset attack (degrees) | 23.4 | `model.loftForAttack` |
+| `ir-loft-up` | Tour 7-iron loft at attack +3 (degrees) | 33.0 | `model.loftForAttack` (23.4 + 1.4 x 6.9) |
+| `ir-carry-dn` | Carry at the preset attack (yd) | 172 | `flight.carry` |
+| `ir-carry-up` | Carry at attack +3, loft following (yd) | 157 | `flight.carry` |
+| `ir-total-dn` | Total at the preset attack (yd) | 179 | carry plus `model.roll` |
+| `ir-total-up` | Total at attack +3, loft following (yd) | 161 | carry plus `model.roll` |
+| `ir-carry-loss` | Carry lost from the preset attack to +3 (yd) | 15 | ir-carry-dn minus ir-carry-up (unrounded) |
+| `ir-total-loss` | Total lost over the same change (yd) | 18 | ir-total-dn minus ir-total-up (unrounded) |
+| `ir-model-slope` | Model: Tour 7-iron scaled to 90 mph, carry lost per degree of attack from -6 to +2, loft following (yd) | 1.8 | `ironFlip` in `article-data.js`: `model.scaleSpeed` to 90 mph, carry at the two attack angles over 8 (ADR 0004 addendum 4: 171.2 to 156.7, 1.82) |
+| `ir-chart-slope` | Foresight 7 iron chart at 90 mph: carry lost per degree from -6 to +2 (yd) | 1.7 | published; (183.4 - 169.5) / 8 = 1.74 (Anchor 9, transcribed by eye from the chart image, one manufacturer, method unknown) |
+| `ir-am-peak` | Attack angle of the average amateur 7-iron's most carry, loft following (degrees) | −6.5 | scan of -8 to +6 in half degrees (ADR 0004 addendum 4: peaks at -6.5, 142.7 yd, flat from -7 to -5) |
+
+The statement that hitting up with the loft fixed gains carry for an iron is ADR 0004 addendum 4, Problem (the behavior before the coupling), not a live key. "Loft follows attack angle works for every club" is the brief's description of the lab's toggle (UI work on the same branch), not checked here.
 
 Chapter 3, the driver and hitting up. The `ch-*` keys are published TrackMan chart values read from `data/ideals.json` (they cannot drift with a refit). The `md-*`, `fx-*`, `av-*` and `id-*` keys are model output.
 
@@ -163,25 +208,25 @@ Two spin numbers differ by trim on purpose. `atk10-spin` (474 rpm at +10) uses t
 | `w-high-aoa` | Straight high: attack angle (degrees up) | 0.5 | windows.json recipe |
 | `w-high-carry` | Straight high: carry (yd) | 149 | flight.carry |
 | `w-high-h` | Straight high: peak height (yd) | 46 | flight.maxHeight |
-| `w-face-lo` | Draw windows: smallest face angle (degrees right) | 1.8 | windows.json recipes |
+| `w-face-lo` | Draw windows: smallest face angle (degrees right) | 1.9 | windows.json recipes |
 | `w-face-hi` | Draw windows: largest face angle (degrees right) | 2.4 | windows.json recipes |
 | `w-path-lo` | Draw windows: smallest path (degrees right) | 4.3 | windows.json recipes |
-| `w-path-hi` | Draw windows: largest path (degrees right) | 5.2 | windows.json recipes |
-| `w-curve-lo` | Draw windows: smallest curve (yd) | 7.4 | flight.curve |
+| `w-path-hi` | Draw windows: largest path (degrees right) | 5.0 | windows.json recipes |
+| `w-curve-lo` | Draw windows: smallest curve (yd) | 7.6 | flight.curve |
 | `w-curve-hi` | Draw windows: largest curve (yd) | 9.3 | flight.curve |
 | `w-f2p-low` | Low draw: face-to-path (degrees) | −2.0 | recipe face minus path |
-| `w-f2p-mid` | Mid draw: face-to-path (degrees) | −2.4 | recipe face minus path |
-| `w-f2p-high` | High draw: face-to-path (degrees) | −3.4 | recipe face minus path |
+| `w-f2p-mid` | Mid draw: face-to-path (degrees) | −2.3 | recipe face minus path |
+| `w-f2p-high` | High draw: face-to-path (degrees) | −3.0 | recipe face minus path |
 
 ### Chapter 6
 
 | Key (`data-num`) | Number in prose | Value now | Computed as |
 |---|---|---|---|
 | `cx-name` | Shot name, amateur driver, path -4, face 0 | slice | classification.name, lower case |
-| `cx-curve` | Curve of that shot (yd right) | 24 | flight.curve |
-| `cx-finish` | Where it finishes (yd right) | 21 | flight.side |
-| `cx-curve2` | Curve with the path moved to -2 (yd right) | 12 | flight.curve |
-| `cx-spin` | Spin of the example shot, at the lab's spin trim of 1.0 (rpm) | 3,552 | launch.spinRpm. The published amateur average is 3,275 rpm (Combine, Anchor 3 Source 1), reached with the preset trim 0.946 |
+| `cx-curve` | Curve of that shot (yd right) | 21 | flight.curve |
+| `cx-finish` | Where it finishes (yd right) | 19 | flight.side |
+| `cx-curve2` | Curve with the path moved to -2 (yd right) | 11 | flight.curve |
+| `cx-spin` | Spin of the example shot, at the lab's spin trim of 1.0 (rpm) | 4,006 | launch.spinRpm. The published amateur average is 3,275 rpm (Combine, Anchor 3 Source 1), reached with the preset trim 0.946 |
 
 ### Method and limits
 
@@ -201,7 +246,7 @@ All computed live from the model or the published rows, none typed in except the
 |---|---|
 | Figure 1 bars and data table | `launch.launchDirDeg` of `model.shot` at the four deliveries per club (driver, 6-iron). Yards off line at 200 yd is `200 x tan(launch direction)`, TrackMan's launch direction geometry (Anchor 5a Source 2) |
 | Figure 2 lines and data table | `flight.curve` of `model.shot` at face -6 to +6 in 0.5 steps, path 0, for PGA driver, 6-iron and PW and LPGA driver and 6-iron |
-| Figure 2 dots | TrackMan's eight examples, published (Anchor 5b Source 1): PGA driver -2 = 19 yd left, +5 = 44 right; PGA 6-iron +2 = 8 right, -5 = 20 left; LPGA driver +2 = 14 right, -5 = 32 left; LPGA 6-iron -2 = 6 left, +5 = 14 right. The page quotes 2019 carries (275, 183, 218, 152) and the lines use the 2023 presets. Live gaps: `ex-miss-yd` and `ex-pct-max` above |
+| Figure 2 dots | TrackMan's eight examples, published (Anchor 5b Source 1): PGA driver -2 = 19 yd left, +5 = 44 right; PGA 6-iron +2 = 8 right, -5 = 20 left; LPGA driver +2 = 14 right, -5 = 32 left; LPGA 6-iron -2 = 6 left, +5 = 14 right. The page quotes 2019 carries (275, 183, 218, 152) and the lines use the 2023 presets. Live gap: `ex-miss-yd` and `ex-miss-yd-pct` above |
 | Figure 3 | Model lines: `model.shot` for the PGA driver preset with `attack` -6 to +10, dynamic loft fixed, with the preset spin trim (0.741) and with `spinTrim: 1` (grey line). Loft-follows line (maroon): the same shot with dynamic loft `model.optimalLoft(115, attack).dynLoft` (mean of the TrackMan 2010 carry and total optimizer lofts) and the driver ideal's spin trim 1.0 (`presets.json` `driver_ideal.spin_trim`), dotted where the spin loft leaves 6.3 to 23.2 or the attack leaves the chart's -5 to +5. Carry panel: the same three lines' `flight.carry`, plus the TrackMan carry chart's `carry_yd` at 115 mph (266, 281, 295 at -5, 0, +5, published, drawn as dots at the chart's own carry-optimizer loft), and the Tour average dot at 282 yd, -0.9. Optimizer lines in the launch and spin panels: `model.trackmanCarry2010(115, attack)` (attack -5 to +5, the chart's range) and `model.ping2019(model ball speed, attack)`. Tour average dot: 10.4 degrees and 2,545 rpm at -0.9 (Anchor 1). Dotted segments and the shaded region: spin loft outside `launch_model.k_sl_lo_driver` to `k_sl_hi_driver` (6.3 to 23.2, the chart's range, ADR 0004 decision 3c) |
 | Figure 3 prose, "1,681 rpm" | Published: TrackMan Driver Fitting Chart (2010), TOTAL Optimizer row, 115 mph, attack +5, dynamic loft 11.7, spin 1,681 (Anchor 4 Source 1). Spin loft 11.7 - 5 = 6.7. Also in ADR 0004 decision 3c |
 | Figure 4 | Rows use the published club speed, ball speed and attack angle: PGA 115 mph, 171 mph, -0.9; LPGA 96, 143, +2.8; amateur 94, 133, -1.8 (Anchors 1, 2, 3). Averages: launch 10.4 / 12.6 / 12.6 deg, spin 2,545 / 2,506 / 3,275 rpm (published). Carry chart: `model.trackmanCarry2010(club speed, attack)`. PING: `model.ping2019(published ball speed, attack)`. Total-distance chart: bilinear lookup in `TRACKMAN_TOTAL_2010` (`article-data.js`). Band: the lowest to the highest of the carry chart, the total-distance chart and PING, widened by the `ideals.json` margins (1 degree, 200 rpm), the lab's rule since ADR 0004 addendum 2. The lab's own band uses the model's ball speed, so it can differ from the drawn band by a few tenths of a degree |
@@ -264,9 +309,16 @@ All computed live from the model or the published rows, none typed in except the
 | Remaining preset misses: amateur driver ball speed +2.78 percent, amateur 6-iron launch -1.28 degrees, LPGA 8-iron ball speed -2.3 percent | ADR 0004 decision 3a; `tests/g3_known_misses.json` (`presets` and `g3`) |
 | Amateur driver measured, 6-iron and PW Optimizer defaults, other clubs interpolated | ADR 0004 decision 6 |
 | Flight model over-curves short irons per degree of axis: 6-iron 13.9 yd against 3-wood 12.8 at 10 degrees, TrackMan 11 and 15 | ADR 0004 decision 4 (`test_flight.py` xfail). Values refreshed after the chart refit by running `flight.simulate` on the LPGA 6-iron and 3-wood Tour rows at 10 degrees of axis (13.91, 12.84); the ADR still prints 14.0 and 12.1 |
-| c linear in spin loft, 1.11 at 12.4 and 0.98 at 26.9; c absorbs part of the over-curve and of the 1 to 6 percent carry shortfall in the examples (seven of eight run under; the LPGA driver at +2 runs 0.7 percent over); driver examples asymmetric (9.5 yd per degree left, 8.8 right) | ADR 0004 decision 4 |
+| c a single constant, 0.9986 (`axis_c1` is 0), refit with the coupling on to minimize the largest normalized error; all eight examples pass, worst 0.90 of tolerance (PGA 6-iron at -5, LPGA 6-iron at +5), rms 0.56. Model carries in the examples run from +1.0 to -11.1 percent against the quoted 2019 carries (275, 183, 218, 152), from `gates_launch.curvature_example`. The coupling makes the model asymmetric, as TrackMan's driver examples are (9.5 yd per degree left, 8.8 right). Curve saturates past about 5 degrees of face-to-path on a closed driver | ADR 0004 addendum 3 (recalibration of c, consequences) |
 | Launch fit spans 12.7 to 25.9 degrees of spin loft for every club but the driver | ADR 0004 decision 3 (k line, spin law) |
 | Driver range 6.3 to 23.2; at the Tour preset attack angles up to +6; the tool reaches +10 where spin loft is 2.7 and no row supports the result | ADR 0004 decision 3c and Consequences; source log Gaps item 9 |
 | Nine-window height lever: `dyn_loft = preset + h`, `attack = preset + 0.4 h`; solver finds path, face and h | `windows.json` `height_lever` and `targets.attack_per_loft`; the 0.4 is a design choice, modeled |
 | Total distance modeled: roll rule fitted to the chart, see the roll row above | ADR 0004 addendum 1, decision 2; source log gaps item 8 |
 | Start-direction shares unverified | ADR 0004 decision 5; Anchor 5a |
+| Loft from face-to-path: effective loft is input loft plus kappa x (face - path), kappa the cotangent of the lie angle (driver 0.613, 7 iron 0.510, PW 0.488); rotation about the shaft, no shaft lean, the top of the geometric range; MODELED, no source measured the coefficient; lie angles are static standard lies at address (Titleist custom options 2025, PING G430 cross-check, Anchor 8) | ADR 0004 addendum 3; `docs/sources/004_Physics_Research.md` topic 1 |
+| Check against TrackMan's draw-versus-fade example (Stickney, 2016): draw 10.5 degrees and 2,643 rpm about 20 yd past a fade at 15.0 degrees and 3,768 rpm; model spin gap 1,065 against 1,125 rpm, run-out gap 18 yd against about 20; a check, not a fit | ADR 0004 addendum 3 (check table); research file S3 and topic 2 |
+| A pure pull and a pure push (face-to-path 0) stay equal in the model; no primary source separates them; a TrackMan Master says a controlled draw and fade go the same distance | ADR 0004 addendum 3 (the honest limit); research file topic 1 (S16) |
+| Loft from attack angle: preset loft plus 1.4 x (attack - preset attack) for hybrid, 3-wood, 5-wood, irons and PW, floor attack + 1.0, cap 65; MODELED. Floor from arc geometry, TrackMan's rule (Anchor 11), Suzuki 2021 driver slopes 0.85 and 1.23 (Anchor 10); the extra 0.4 from the Foresight 7 iron chart, slope 1.25 to 1.73 across head speeds, median about 1.4 (Anchor 9); no source for wedges, hybrids or fairway woods | ADR 0004 addendum 4 (Decision); research file topic 13 |
+| Slope 1.0 would cut the PGA 7 iron's carry change to about -0.6 yd per degree | ADR 0004 addendum 4 (Consequences) |
+| At 60 to 80 mph the chart's carry is flat or reversed; the model still loses about 1.4 yd per degree for the amateur 7 iron against about 0.5 in the chart at 80 mph | ADR 0004 addendum 4 (check against the Foresight chart) |
+| The driver keeps the chart's optimal loft (`optimal_loft`) as the loft that follows attack | ADR 0004 addendum 4 (Decision) |
