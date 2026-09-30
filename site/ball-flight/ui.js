@@ -161,10 +161,14 @@ async function main() {
     $("#sl-name").textContent = name;
     $("#sl-finish").textContent = finish;
     $("#sl-line").textContent = line;
+    // Carry and total together: on the label, and after the name in the phone drawer's bar.
+    const carryTotal = cl ? `${Math.round(f.carry)} yd carry · ${Math.round(c.s.total)} yd total` : "";
+    $("#sl-carry").textContent = carryTotal;
     const sum = $("#swing-summary");
     sum.querySelector("b").textContent = name;
-    sum.querySelector("span").textContent = `Path ${fmt(state.path, 1, true)}${DEG} · Face ${fmt(state.face, 1, true)}${DEG}`;
-    pendingSpeech = cl ? `${name}. Carries ${Math.round(f.carry)} yards, ${finish}. ${line}.` : "No carry. The ball goes into the ground.";
+    sum.querySelector(".ct").textContent = carryTotal;
+    sum.querySelector("span:not(.ct)").textContent = `Path ${fmt(state.path, 1, true)}${DEG} · Face ${fmt(state.face, 1, true)}${DEG}`;
+    pendingSpeech = cl ? `${name}. Carries ${Math.round(f.carry)} yards, ${Math.round(c.s.total)} yards total, ${finish}. ${line}.` : "No carry. The ball goes into the ground.";
   }
 
   let urlTimer = 0;

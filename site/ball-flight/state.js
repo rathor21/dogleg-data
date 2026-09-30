@@ -7,7 +7,7 @@
  * display and for the drawn scene. The shot name comes from classify on the
  * right-handed-frame values, so a lefty draw still reads "Draw".
  */
-import { METRICS } from "./tiles.js";
+import { METRICS, FT_PER_YD } from "./tiles.js";
 
 export const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 export const round3 = (v) => Math.round(v * 1000) / 1000 + 0;
@@ -239,13 +239,18 @@ export function createStore(model) {
       face: round3(sign * d.face),
     };
     const s = model.shot(d);
-    const bands = model.idealBands(st.club, st.player, d.clubSpeed, d.attack);
+    let bands = model.idealBands(st.club, st.player, d.clubSpeed, d.attack);
 
     const values = {};
     for (const m of Object.keys(METRICS)) {
       const rh = model.metricValue(m, s);
       values[m] = { rh, disp: METRICS[m].lateral ? sign * rh + 0 : rh };
     }
+    // Height is shown in feet. The model works in yards, so convert the value and its band here.
+    const ft = (v) => (v === null ? null : v * FT_PER_YD);
+    values.max_height_yd = { rh: ft(values.max_height_yd.rh), disp: ft(values.max_height_yd.disp) };
+    const hb = bands.max_height_yd;
+    if (hb) bands = { ...bands, max_height_yd: { ...hb, lo: ft(hb.lo), hi: ft(hb.hi), target: ft(hb.target) } };
     // The Dynamic loft tile shows the effective loft. These let it say how the face moved it off the slider's loft.
     values.dyn_loft_deg.input = s.launch.dynLoftInputDeg;
     values.dyn_loft_deg.faceToPathRh = s.launch.faceToPathDeg;
@@ -254,7 +259,7 @@ export function createStore(model) {
     const y = new Float64Array(n);
     for (let i = 0; i < n; i++) y[i] = sign * f.y[i] + 0;
     const rangeShot = {
-      t: f.t, x: f.x, y, z: f.z, flightTime: f.flightTime, carry: f.carry, maxHeight: f.maxHeight,
+      t: f.t, x: f.x, y, z: f.z, flightTime: f.flightTime, carry: f.carry, total: s.total, maxHeight: f.maxHeight,
       launchDir: sign * s.launch.launchDirDeg,
     };
     return { norm, s, bands, values, rangeShot, group: groupOf(st.club) };

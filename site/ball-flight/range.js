@@ -402,6 +402,8 @@ export function createRange({ root, canvas, model, avoidEl }) {
 
   // Plates are placed first (so the shot's plates get the best spots and the
   // green plates fill in around them) and drawn last, on top of the tracer.
+  /** "176 carry \u00B7 185 total", with a tag such as "B" in Compare. Total is left off when the shot has none. */
+  const carryText = (s, tag) => `${tag ? tag + " \u00B7 " : ""}${Math.round(s.carry)} carry${s.total !== undefined ? ` \u00B7 ${Math.round(s.total)} total` : ""}`;
   let taken = [];
   let linePts = [];
   const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
@@ -652,8 +654,8 @@ export function createRange({ root, canvas, model, avoidEl }) {
     }
 
     // plates: placed as if everything were shown so nothing jumps when it appears
-    const heightPlate = placePlate(`${Math.round(s.maxHeight)} yd high`, tu, tv, ["above", "right", "left", "right2", "left2", "below"], fs, true);
-    const carryPlate = placePlate(`${liveTag ? liveTag + " \u00B7 " : ""}${Math.round(s.carry)} yd carry`, lx, ly, ["below", "right", "left", "right2", "left2", "above"], fs, true);
+    const heightPlate = placePlate(`${Math.round(s.maxHeight * 3)} ft high`, tu, tv, ["above", "right", "left", "right2", "left2", "below"], fs, true);
+    const carryPlate = placePlate(carryText(s, liveTag), lx, ly, ["below", "right", "left", "right2", "left2", "above"], fs, true);
     return { settled, landed, topShown, heightPlate, carryPlate };
   }
 
@@ -691,7 +693,7 @@ export function createRange({ root, canvas, model, avoidEl }) {
     }
     if (pinned) {
       const [lx, ly] = drawResting(pinned, lw, PAL.cool);
-      restingPlates.push({ text: `${pinned.tag || "A"} \u00B7 ${Math.round(pinned.carry)} yd carry`, x: lx, y: ly, dirs: ["left", "above", "right", "below"], cool: true, required: true });
+      restingPlates.push({ text: carryText(pinned, pinned.tag || "A"), x: lx, y: ly, dirs: ["left", "above", "right", "below"], cool: true, required: true });
     }
     let shotState = null;
     if (cur) {
