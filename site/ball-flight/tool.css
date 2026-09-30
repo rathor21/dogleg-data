@@ -20,6 +20,8 @@
   --drawer-h:0px; /* the drawer's collapsed height. 0 outside drawer layouts. Set in the drawer media query. */
   --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px); --safe-b:env(safe-area-inset-bottom,0px);
   --shadow-ink:rgba(28,27,24,.18);
+  --sheet:color-mix(in srgb,var(--card) 82%,var(--clay-tint)); /* the phone drawer surface: card, warmed toward clay */
+  --handle:color-mix(in srgb,var(--muted) 55%,transparent);
   --track-off:rgba(28,27,24,.12);
 
   /* range.js palette */
@@ -232,8 +234,10 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
 }
 
 /* ---------- single column with a bottom drawer (tablet portrait and phone) ---------- */
+@keyframes tip-in{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+@keyframes sheet-nudge{0%{transform:translateY(0);}35%{transform:translateY(-12px);}100%{transform:translateY(0);}}
 @media (max-width:900px){
-  :root{--drawer-h:64px;}
+  :root{--drawer-h:85px;}
   body{padding-bottom:calc(var(--drawer-h) + var(--safe-b));}
   .wrap{padding:1rem max(1rem,var(--safe-r)) 1.5rem max(1rem,var(--safe-l));}
   .lab{grid-template-columns:minmax(0,1fr);}
@@ -243,15 +247,25 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
   .views{order:2;}
   .setup{order:3;}
   .all-tiles{order:4;}
-  .swing{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0 auto;max-width:52rem;border-radius:14px 14px 0 0;border-width:1px 0 0;border-top:3px double var(--line);padding:0 max(1rem,var(--safe-r)) var(--safe-b) max(1rem,var(--safe-l));box-shadow:0 -8px 24px var(--shadow-ink);}
-  .swing-head{border-bottom:0;margin:0;padding:.35rem 0;min-height:calc(var(--drawer-h) - 3px);} /* the 3px is the drawer's top rule, so the closed drawer is --drawer-h tall */
+  /* The closed drawer is a sheet: a raised, tinted surface with a clay top edge, a grab handle, and one clay pill that says what it does. */
+  .swing{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0 auto;max-width:52rem;border-radius:16px 16px 0 0;border-width:1px 0 0;border-top:3px solid var(--clay);background:var(--sheet);padding:0 max(1rem,var(--safe-r)) var(--safe-b) max(1rem,var(--safe-l));box-shadow:0 -12px 28px var(--shadow-ink),0 -1px 0 var(--line);}
+  .swing::before{content:"";position:absolute;top:.4rem;left:50%;width:2.6rem;height:.28rem;margin-left:-1.3rem;border-radius:.14rem;background:var(--handle);}
+  .swing-head{border-bottom:0;margin:0;padding:.72rem 0 .3rem;min-height:calc(var(--drawer-h) - 3px);align-items:flex-start;gap:.5rem;} /* the 3px is the drawer's top edge, so the closed drawer is --drawer-h tall */
   .swing-title,#reset-btn,#avg-btn{display:none;}
-  .swing-toggle{flex:1;display:flex;align-items:center;gap:.6rem;background:none;border:0;text-align:left;cursor:pointer;min-width:0;min-height:2.75rem;padding:0;}
-  .swing-chev{flex:none;width:.65rem;height:.65rem;border-left:2px solid var(--ink);border-top:2px solid var(--ink);transform:rotate(45deg) translate(2px,2px);transition:transform .25s var(--ease);margin-right:.2rem;}
+  .swing-toggle{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"name pill" "sets sets";align-items:center;gap:.15rem .5rem;background:none;border:0;text-align:left;cursor:pointer;padding:0;}
+  .sw-name{grid-area:name;font-family:var(--serif);font-weight:900;font-size:1.1rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  .adjust-pill{grid-area:pill;display:inline-flex;align-items:center;gap:.5rem;min-height:2.75rem;padding:0 1rem 0 1.1rem;border-radius:999px;background:var(--clay-text);color:var(--card);font-family:var(--sans);font-size:.9rem;font-weight:600;white-space:nowrap;box-shadow:0 2px 0 var(--clay-deep);}
+  .swing-toggle:active .adjust-pill{transform:translateY(1px);box-shadow:0 1px 0 var(--clay-deep);}
+  .sw-sets{grid-area:sets;font-family:var(--mono);font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .swing-chev{flex:none;width:.6rem;height:.6rem;border-left:2px solid currentColor;border-top:2px solid currentColor;transform:rotate(45deg) translate(2px,2px);transition:transform .25s var(--ease);}
   .swing[data-open="true"] .swing-chev{transform:rotate(225deg) translate(2px,2px);}
-  .swing-summary{display:flex;flex-direction:column;min-width:0;line-height:1.25;}
-  .swing-summary b{font-family:var(--serif);font-weight:900;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .swing-summary span{font-family:var(--mono);font-size:.75rem;color:var(--muted);white-space:nowrap;}
+  #hit-btn-2{margin-top:0;min-height:2.75rem;background:transparent;color:var(--ink);border-color:var(--ink);}
+  #hit-btn-2:hover{background:var(--ink);color:var(--card);}
+  .drawer-tip{position:absolute;right:max(1rem,var(--safe-r));bottom:calc(100% + .7rem);padding:.5rem .85rem;border-radius:999px;background:var(--ink);color:var(--card);font-size:.8rem;font-weight:500;white-space:nowrap;pointer-events:none;box-shadow:0 4px 14px var(--shadow-ink);animation:tip-in .35s var(--ease) both;}
+  .drawer-tip::after{content:"";position:absolute;top:100%;right:2.6rem;border:.4rem solid transparent;border-top-color:var(--ink);}
+  @media (prefers-reduced-motion:no-preference){
+    .swing.nudge{animation:sheet-nudge .8s var(--ease) both;}
+  }
   #hit-btn-2,#reset-btn-2,#avg-btn-2{display:inline-flex;}
   .swing-body{transition:grid-template-rows .3s var(--ease);}
   .swing[data-open="false"] .swing-body{grid-template-rows:0fr;}
@@ -262,6 +276,10 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
 }
 
 /* ---------- phone portrait ---------- */
+@media (max-width:359px){
+  .cs-club{display:none;}
+  .adjust-pill{padding:0 .8rem 0 .9rem;}
+}
 @media (max-width:559px){
   .brand .wordmark{font-size:1.7rem;}
   .brand .tagline{display:none;}
@@ -308,7 +326,8 @@ footer p{font-size:.78rem;color:var(--ink-soft);margin-bottom:.5rem;line-height:
   .key-tiles{grid-template-columns:repeat(4,minmax(0,1fr));}
   .side{display:flex;position:sticky;top:.5rem;max-height:calc(100vh - 1rem);overflow-y:auto;}
   .stage,.views,.setup,.all-tiles{order:0;}
-  .swing{position:static;max-width:none;margin:0;border-radius:var(--radius);border-width:1px;border-top-width:1px;border-style:solid;padding:.7rem .9rem;box-shadow:none;}
+  .swing{position:static;max-width:none;margin:0;border-radius:var(--radius);border:1px solid var(--line);background:var(--card);padding:.7rem .9rem;box-shadow:none;}
+  .swing::before,.drawer-tip{display:none;}
   .swing-head{border-bottom:3px double var(--line);margin-bottom:.4rem;min-height:0;padding:.2rem 0 .4rem;}
   .swing-title{display:block;}
   #reset-btn,#avg-btn{display:inline-flex;}
@@ -610,6 +629,7 @@ body.presenting .setup{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem 
 body.presenting .setup .field{flex-direction:row;flex-wrap:wrap;gap:.3rem;align-items:center;}
 body.presenting .setup .chips + .chips{margin-top:0;}
 body.presenting .field-row{display:flex;flex-wrap:nowrap;margin:0;gap:.4rem 1rem;}
+body.presenting .swing::before,body.presenting .drawer-tip{display:none;}
 body.presenting .swing{position:static;flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:1rem;max-width:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;}
 body.presenting .swing-head{order:2;flex:none;border:0;margin:0;padding:0;min-height:0;gap:.5rem;flex-direction:row;align-items:center;}
 body.presenting .swing-body{order:1;flex:1 1 auto;min-width:0;display:block;}

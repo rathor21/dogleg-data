@@ -134,11 +134,13 @@
 
   <aside class="side" aria-label="Shot setup">
     <section class="swing card" id="swing" aria-label="Swing controls">
+      <div class="drawer-tip" id="drawer-tip" aria-hidden="true" hidden>Tap to change the shot</div>
       <div class="swing-head">
         <h2 class="swing-title">Swing</h2>
-        <button type="button" class="swing-toggle" id="swing-toggle" aria-expanded="false" aria-controls="swing-body" aria-label="Swing controls">
-          <span class="swing-chev" aria-hidden="true"></span>
-          <span class="swing-summary" id="swing-summary" aria-hidden="true"><b></b><span></span><span class="ct"></span></span>
+        <button type="button" class="swing-toggle" id="swing-toggle" aria-expanded="false" aria-controls="swing-body" aria-label="Adjust shot">
+          <b class="sw-name" id="swing-name" aria-hidden="true"></b>
+          <span class="adjust-pill" aria-hidden="true"><span class="adj-text" id="adj-text">Adjust shot</span><span class="swing-chev"></span></span>
+          <span class="sw-sets" aria-hidden="true"><span class="cs-club">Club </span>speed · attack · path · face</span>
         </button>
         <button type="button" class="btn btn-outline btn-mini" id="reset-btn">Reset to ideal</button>
         <button type="button" class="btn btn-ghost btn-mini" id="avg-btn" hidden>Tour average</button>

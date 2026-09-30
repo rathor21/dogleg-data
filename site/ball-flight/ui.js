@@ -161,13 +161,10 @@ async function main() {
     $("#sl-name").textContent = name;
     $("#sl-finish").textContent = finish;
     $("#sl-line").textContent = line;
-    // Carry and total together: on the label, and after the name in the phone drawer's bar.
+    // Carry and total together on the label.
     const carryTotal = cl ? `${Math.round(f.carry)} yd carry · ${Math.round(c.s.total)} yd total` : "";
     $("#sl-carry").textContent = carryTotal;
-    const sum = $("#swing-summary");
-    sum.querySelector("b").textContent = name;
-    sum.querySelector(".ct").textContent = carryTotal;
-    sum.querySelector("span:not(.ct)").textContent = `Path ${fmt(state.path, 1, true)}${DEG} · Face ${fmt(state.face, 1, true)}${DEG}`;
+    $("#swing-name").textContent = name;
     pendingSpeech = cl ? `${name}. Carries ${Math.round(f.carry)} yards, ${Math.round(c.s.total)} yards total, ${finish}. ${line}.` : "No carry. The ball goes into the ground.";
   }
 
@@ -403,6 +400,7 @@ async function main() {
   const swing = $("#swing");
   const toggle = $("#swing-toggle");
   const body = $("#swing-body");
+  const adjustText = $("#adj-text");
   const narrow = window.matchMedia("(max-width: 900px)");
   const shortLandscape = window.matchMedia("(max-height: 500px) and (min-width: 560px)");
   const isDrawer = () => narrow.matches && !shortLandscape.matches;
@@ -413,11 +411,17 @@ async function main() {
     toggle.setAttribute("aria-expanded", String(open));
     document.body.dataset.drawer = isDrawer() && drawerOpen && !presenter.on ? "open" : "closed";
     body.inert = !open;
+    // One button, two jobs: Adjust shot opens the drawer and Done closes it.
+    const done = isDrawer() && drawerOpen;
+    adjustText.textContent = done ? "Done" : "Adjust shot";
+    toggle.setAttribute("aria-label", done ? "Done, close shot settings" : "Adjust shot, open shot settings");
   }
   function setDrawer(open, refocus) {
     drawerOpen = open;
     applyDrawer();
     if (open) {
+      hideTip();
+      remember("dd-drawer-opened");
       // Bring the range to the top of the screen so the drawer does not hide it.
       const top = rangeRoot.getBoundingClientRect().top + window.scrollY - 8;
       window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion() ? "auto" : "smooth" });
@@ -435,6 +439,29 @@ async function main() {
   narrow.addEventListener("change", applyDrawer);
   shortLandscape.addEventListener("change", applyDrawer);
   applyDrawer();
+
+  // ---- first-visit nudge ---------------------------------------------------------------
+  // The closed drawer is easy to miss. Once, 1.5 s after load on a phone layout, the sheet
+  // rises a little and a tip says what it does. It goes on a tap or after 6 s, and never
+  // returns once it has shown or the drawer has been opened. Reduced motion gets the tip only.
+  const tip = $("#drawer-tip");
+  let tipTimer = 0;
+  function remembered(key) { try { return localStorage.getItem(key) === "1"; } catch (e) { return false; } }
+  function remember(key) { try { localStorage.setItem(key, "1"); } catch (e) { /* storage blocked */ } }
+  function hideTip() {
+    clearTimeout(tipTimer);
+    tip.hidden = true;
+    swing.classList.remove("nudge");
+  }
+  swing.addEventListener("animationend", (e) => { if (e.animationName === "sheet-nudge") swing.classList.remove("nudge"); });
+  document.addEventListener("pointerdown", hideTip, true);
+  setTimeout(() => {
+    if (!isDrawer() || drawerOpen || presenter.on || remembered("dd-nudge") || remembered("dd-drawer-opened")) return;
+    remember("dd-nudge");
+    tip.hidden = false;
+    if (!reduceMotion()) swing.classList.add("nudge");
+    tipTimer = setTimeout(hideTip, 6000);
+  }, 1500);
 
   // ---- fit to the fold -----------------------------------------------------------------
   // The numbers a mode teaches with sit under the range: the key tiles, the nine
