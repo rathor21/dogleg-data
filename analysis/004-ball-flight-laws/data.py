@@ -14,7 +14,7 @@ club, bounce and roll), this file says so next to the value rather than
 presenting an interpretive choice as if it were sourced.
 """
 
-from math import pi
+from math import pi, radians, tan
 
 # ---------------------------------------------------------------------------
 # Unit conversions. Exact by definition, not sourced measurements.
@@ -444,17 +444,22 @@ ROLL_CAP_FRAC = 0.3592  # MODELED, 1.1 x 0.3265
 #       published spin through the spin trim below.
 #
 #   spin_axis = (axis_c0 + axis_c1 * SL) * atan2(face-to-path, vertical spin loft)
-#       (D-plane normal tilt), SL held to axis_sl_lo..axis_sl_hi, the spin
-#       lofts of the eight examples (12.4 to 26.9). Fitted so the eight
-#       Anchor 5(b) face-to-path examples reproduce their curvature through
-#       flight.simulate (worst miss 0.39 of tolerance, 1.5 yd on the PGA 6
-#       iron). It absorbs the flight model's own curvature per degree of axis.
-#       Each example takes a spin trim from its own 2019 row: 2019 spin over
-#       model spin at path 0 and face 0, held fixed as the face opens. A
-#       constant c (1.046) fits all eight too, with a worst miss of 0.64 of
-#       tolerance and 2.6 yd on the PGA 6 iron at -5. The slope (c falls from
-#       1.11 at spin loft 12.4 to 0.98 at 26.9) cuts both and is the shipped
-#       form.
+#       (D-plane normal tilt). Since the face-to-loft coupling (task 004-physics)
+#       axis_c1 is 0 and axis_c0 is one constant, 0.9986, fitted to minimize the
+#       largest normalized error over the eight Anchor 5(b) face-to-path
+#       examples flown through flight.simulate with the coupling on (worst 0.90
+#       of tolerance, 1.2 yd of 4 on the PGA 6 iron at -5, rms 0.56, all eight
+#       inside). With the coupling a closed face flies longer and curves more
+#       than an open one, TrackMan's examples curve about the same per degree
+#       either way, and the earlier line in spin loft (1.2177 - 0.008835 SL, which
+#       fitted the symmetric model) leaves one example outside once the coupling is
+#       on: the least-squares refit of that line has a worst error of 1.07 (PGA 6
+#       iron, -5). c near 1 also agrees with Tuxen's rules of thumb (axis is
+#       4 times face-to-path for a driver, 2 times for a 6 iron). axis_sl_lo and
+#       axis_sl_hi are the examples' spin lofts with the coupling (10.5 to 29.4),
+#       kept so the shape of the dict does not change. Each example takes a spin
+#       trim from its own 2019 row: 2019 spin over model spin at path 0 and face
+#       0, held fixed as the face opens.
 #
 # Spin trim (MODELED, presets.py, not stored here). Each preset carries
 # spin_trim = published spin / model spin at the preset delivery (path 0,
@@ -486,10 +491,10 @@ LAUNCH_MODEL = {
     "spin_f_wood": 0.878791,
     "spin_a_driver": 1.33518,
     "spin_b_driver": 1.04096,
-    "axis_c0": 1.21767,
-    "axis_c1": -0.00883498,
-    "axis_sl_lo": 12.4304,
-    "axis_sl_hi": 26.8865,
+    "axis_c0": 0.998642,
+    "axis_c1": 0.0,
+    "axis_sl_lo": 10.4554,
+    "axis_sl_hi": 29.4446,
 }
 
 # ---------------------------------------------------------------------------
@@ -539,6 +544,39 @@ TOUR_DYN_LOFT = {
 # D-plane normal is undefined when spin loft is zero. swing_plane_deg is the
 # open interval swing_path accepts.
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Face-to-loft coupling (task 004-physics). MODELED. Rotating the head about the
+# shaft to close or open the face also delofts or adds loft, because the shaft
+# leans at the lie angle: opening adds loft, closing removes it, cot(lie) degrees
+# of loft per degree of face rotation (docs/sources/004_Physics_Research.md,
+# Topic 1; TrackMan's Dynamic Loft page names the open or closed face to path as
+# a mover of dynamic loft and prints no coefficient). The rotation-about-the-shaft
+# reading, with no shaft lean and no yaw of the whole club, is MODELED and is the
+# upper end of the range: a pure yaw gives 0.
+#   dyn_loft_effective = dyn_loft_input + kappa(club) * (face - path)
+# LIE_DEG is the manufacturer standard lie angle per club id, Anchor 8 of the
+# source log (Titleist custom options PDF 2025, PING G430 pages as a cross-check,
+# retrieved 2026-09-29). Static lie at address, at standard length.
+# ---------------------------------------------------------------------------
+
+LIE_DEG = {
+    "driver": 58.5,  # Anchor 8 Source 1, GT2 to GT4 drivers (GT1 59.0)
+    "3w": 56.5,  # GT2 fairway, 15 deg
+    "5w": 57.5,  # GT2 fairway, 18 deg
+    "hybrid": 57.0,  # GT2 hybrid, 18 deg
+    "3i": 61.0,  # irons row, printed per iron number
+    "4i": 61.5,
+    "5i": 62.0,
+    "6i": 62.5,
+    "7i": 63.0,
+    "8i": 63.5,
+    "9i": 64.0,
+    "pw": 64.0,
+}
+# kappa = cot(lie): loft change per degree of (face - path). A club that is not
+# named (club=None in launch.deliver) has no coupling.
+KAPPA = {club: 1.0 / tan(radians(lie)) for club, lie in LIE_DEG.items()}
 
 DOMAIN = {
     "club_speed_mph": (40.0, 140.0),

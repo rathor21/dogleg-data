@@ -309,3 +309,81 @@ Iron carry falls about 2 yd and curve about 4 percent, inside the model's own re
 The wider band is the price: the launch band now spans 5.8, 5.4 and 5.3 degrees, against about 3.5 with two sources, and a launch that suits the carry optimizer sits inside it as well as one that suits the total optimizer.
 
 **Roll cap (pre-merge review).** The roll fit saw only drivers at 75 to 120 mph, and its form grew unchecked at slow club speeds: the driver ideal at 40 mph carried 46 yd and rolled 72 (total 118), at 60 mph 107 and 164, and a 7 iron at 40 mph 41 and 79. `flight.roll` now also caps roll at `ROLL_CAP_FRAC * carry`, with `ROLL_CAP_FRAC` = 0.3592 (MODELED): 1.1 times the largest (total - carry) / carry on the 60 rows of TrackMan's two 2010 charts, 0.3265 at the 75 mph, attack 0 row of the total chart (carry 147, total 195). The cap binds on no chart row (the model's largest ratio there is 0.355), no Tour row, and no preset or ideal delivery at its own club speed, so the ideal against average results above do not move. It binds only for slow swings: the PGA driver ideal at 40 mph now carries 46.4 yd and totals 63.1 (was 118.0), at 60 mph 107.2 and 145.7 (was 164.4), at 75 mph 161.4 and 199.7 (unchanged), and the PGA 7 iron at 40 mph carries 41.2 and totals 56.0 (was 79.7), at 60 mph 96.9 and 121.8 and at 75 mph 137.9 and 151.3 (both unchanged). The cap is exported in `model.json` (`roll.cap_frac`) and ported to `flight.js`.
+
+## Addendum 3 (2026-09-29, branch 004-physics): face-to-loft coupling through the lie angle
+
+**Problem.** The launch model treated face angle and dynamic loft as independent inputs, so it was mirror symmetric: a draw and a fade, a hook and a slice, gave the same carry, height, spin and total to the last digit. The physics audit (`docs/sources/004_Physics_Research.md`, topics 1 and 2) says otherwise. The shaft leans at the lie angle, so rotating the head about it to close the face also delofts the club and opening it adds loft, cot(lie) degrees of loft per degree of face rotation. TrackMan says an open or closed face to path changes dynamic loft (Dynamic Loft page) and prints no coefficient. Its draw against fade example (Stickney, 2016, one driver) shows a draw at 10.5 degrees of dynamic loft and 2,643 rpm running about 20 yd past a fade at 15.0 degrees and 3,768 rpm.
+
+**Decision.** `launch.deliver` computes an effective dynamic loft and uses it for spin loft, launch, spin and the D-plane tilt:
+
+dyn_loft_effective = dyn_loft_input + kappa(club) x (face - path), kappa = cot(lie angle)
+
+The input loft is the loft with the face square to the path (the slider). The effective loft is what TrackMan would measure, and `Launch` returns both (`dyn_loft_input_deg` and `dyn_loft_deg`). The tile and band for dynamic loft read the effective loft (`metricValue("dyn_loft_deg")`). The effective loft is held to at least attack plus 1 degree (the spin loft floor) and at most 65 degrees. A club that is not named has kappa 0. MODELED: the reading is a rotation of the head about the shaft with no shaft lean and no yaw of the whole club, which is the upper end of what the geometry allows (a pure yaw gives 0 and adding shaft lean raises it), and no source measured where real golfers sit. The lie angles are the manufacturers' static standard lies at address (Anchor 8 of the source log, Titleist custom options 2025 with PING G430 pages as a cross-check, retrieved 2026-09-29), not the dynamic lie at impact.
+
+| Club | Lie, deg | kappa | Club | Lie, deg | kappa |
+|---|---|---|---|---|---|
+| Driver | 58.5 | 0.613 | 6 iron | 62.5 | 0.521 |
+| 3-wood | 56.5 | 0.662 | 7 iron | 63.0 | 0.510 |
+| 5-wood | 57.5 | 0.637 | 8 iron | 63.5 | 0.499 |
+| Hybrid | 57.0 | 0.649 | 9 iron | 64.0 | 0.488 |
+| 3 iron | 61.0 | 0.554 | PW | 64.0 | 0.488 |
+| 4 iron | 61.5 | 0.543 | | | |
+| 5 iron | 62.0 | 0.532 | | | |
+
+`data.LIE_DEG` and `data.KAPPA` hold them and `model.json` exports them (`coupling`). PING's pages read 0.5 to 1.5 degrees flatter for woods and irons, which moves kappa by about 0.01 to 0.03.
+
+**Check against TrackMan's example, not a fit.** The 4.5 degree loft gap needs a face-to-path swing of 4.5 / 0.613 = 7.3 degrees, plus and minus 3.7. Flying the PGA driver preset (115 mph, attack -0.9) at spin trim 1.0 (the chart's own strike, the basis the model is calibrated to) with an input loft of 12.75:
+
+| | TrackMan draw | Model draw | TrackMan fade | Model fade | TrackMan gap | Model gap |
+|---|---|---|---|---|---|---|
+| Dynamic loft, deg | 10.5 | 10.5 | 15.0 | 15.0 | 4.5 | 4.5 (by construction) |
+| Spin, rpm | 2,643 | 3,032 | 3,768 | 4,096 | 1,125 | 1,065 |
+| Peak height, ft | 63.6 | 93.0 | 105.6 | 145.7 | 42.0 | 52.8 |
+| Landing angle, deg | 28.8 | 37.6 | 42.9 | 48.4 | 14.1 | 10.8 |
+| Carry, yd | 245.7 | 271.3 | 240.8 | 262.6 | draw +4.9 | draw +8.7 |
+| Run, yd | | 29.7 | | 11.6 | draw about +20 | draw +18.1 |
+
+Every difference has TrackMan's sign. The spin gap sits 5 percent under, the run-out gap matches, the landing angle gap is 3 degrees short and the height gap is 11 ft long. The absolute levels differ because the model driver is a Tour driver at 115 mph and TrackMan's is one R15 at an unstated speed. `tests/test_coupling.py::test_trackman_draw_fade_example` records these bounds. Where the previous model gave both shots the same run, the coupling supplies most of the 20 yd. The example does not say how much of the real gap came from face-to-path, so a smaller kappa would fit some rows better, and the model claims no more than direction and rough size.
+
+**Recalibration of the axis scale c (the eight Anchor 5(b) examples, coupling on).** With the coupling on, the examples' spin lofts and carries move (a closed face flies longer and curves more, an open one shorter and less), and the shipped line c = 1.2177 - 0.008835 SL no longer fits: the least-squares refit of a line leaves the PGA 6 iron at -5 outside its tolerance (1.07). TrackMan's examples curve about the same per degree either way, and the coupled model is asymmetric, so a fit that minimizes the largest normalized error replaces the sum of squares. It gives one constant, c = 0.9986 (`axis_c1` is 0), worst error 0.90 of tolerance, rms 0.56, all eight inside. c near 1 also agrees with Tuxen's rules of thumb (axis 4 times face-to-path for a driver, 2 times for a 6 iron). Curvature (positive is right) with the 2019 rows' own spin trims:
+
+| Example | F2P | Model carry | Model curve | Published | Error, yd | Fraction of tolerance |
+|---|---|---|---|---|---|---|
+| PGA driver | -2 | 272 | -17.2 | -19 | +1.8 | 0.47 |
+| PGA driver | +5 | 258 | +38.8 | +44 | -5.2 | 0.59 |
+| PGA 6 iron | +2 | 177 | +8.2 | +8 | +0.2 | 0.07 |
+| PGA 6 iron | -5 | 183 | -23.6 | -20 | -3.6 | 0.90 |
+| LPGA driver | +2 | 220 | +13.8 | +14 | -0.2 | 0.07 |
+| LPGA driver | -5 | 194 | -28.7 | -32 | +3.3 | 0.52 |
+| LPGA 6 iron | -2 | 148 | -5.6 | -6 | +0.4 | 0.13 |
+| LPGA 6 iron | +5 | 138 | +11.3 | +14 | -2.7 | 0.90 |
+
+The table is the model's own line at each example's F2P. The 2023 presets, which the article compares with TrackMan, curve 5.9 yd off the PGA 6 iron example at -5 (29 percent of its 20 yd), a wider gap than before the coupling (4.7 yd, 15 percent).
+
+**What moved.** With face = path (no face-to-path), nothing moves: G3 (17 of 23), the presets, their spin trims, the ideal deliveries and bands, the golden fixtures for such deliveries and every known-miss record are unchanged (`--write-misses` reports no change). Things that changed: the curvature examples, the golfer cases, the nine windows (recipes keep the same targets and solve to different path, face and loft: draws fly lower and carry and total more than fades) and the golden vectors with a face-to-path. `golden_launch.json` is regenerated, and `golden.json`, `model.json` (`coupling`), `presets.json`, `windows.json` and `SCHEMA.md` are exported. `flight.js` ports `effectiveLoft` and `couplingKappa`, `deliver` returns `dynLoftInputDeg` and `dynLoftDeg`, and `METRIC_FIELDS.dyn_loft_deg` now points at the effective loft (`dyn_loft_input_deg` at the slider).
+
+**Draw against fade, hook against slice, PGA (yd, rpm).** Draw is path +4 and face 0 (face-to-path -4), fade path -4 and face 0 (+4), pull hook path -2 and face -6 (-4), push slice path +2 and face +6 (+4). Straight is path 0, face 0.
+
+| Club | Shot | Effective loft | Carry | Peak height | Spin | Total | Landing angle |
+|---|---|---|---|---|---|---|---|
+| Driver | Straight | 12.7 | 282.1 | 34.8 | 2,545 | 312.9 | 39.3 |
+| Driver | Draw | 10.2 | 266.8 | 23.7 | 2,217 | 321.9 | 30.3 |
+| Driver | Fade | 15.1 | 273.3 | 42.0 | 3,071 | 292.8 | 44.2 |
+| Driver | Pull hook | 10.2 | 262.1 | 23.7 | 2,217 | 317.2 | 30.3 |
+| Driver | Push slice | 15.1 | 268.5 | 42.0 | 3,071 | 288.1 | 44.2 |
+| 7 iron | Straight | 23.4 | 171.7 | 36.6 | 7,124 | 178.5 | 49.1 |
+| 7 iron | Draw | 21.3 | 176.5 | 34.2 | 6,619 | 184.6 | 47.4 |
+| 7 iron | Fade | 25.4 | 164.4 | 37.4 | 7,782 | 170.5 | 50.0 |
+| 7 iron | Pull hook | 21.3 | 174.2 | 34.2 | 6,619 | 182.3 | 47.4 |
+| 7 iron | Push slice | 25.4 | 162.5 | 37.4 | 7,782 | 168.6 | 50.0 |
+
+The PGA driver draw totals 29.1 yd more than the fade with 6.5 yd less carry (the delofted ball flies flat and runs), and the 7 iron draw carries 12.1 yd more and totals 14.1 more. The tests hold for all 12 clubs and 3 players: the draw carries a lower peak height and lands flatter, spins less and totals more than the fade, and the pull hook totals more than the push slice.
+
+The five golfer cases on the PGA 7 iron preset, carry, curve, total (before the coupling in brackets): straight 171.7, 0.0, 178.5 (same); push draw (+5, +2) 175.9, -12.1, 183.7 (171.1, -10.9, 178.0); left, left (-3, -3) 171.4, 0.0, 178.3 (same); push slice (-3, +4) 157.1, +19.7, 162.8 (166.1, +24.2, 173.3); pull hook (+2, -4) 175.4, -25.3, 184.5 (167.3, -21.1, 174.3). Names and signs hold (Straight, Draw, Pull, Slice, Pull hook). The open face's added loft pulls the push slice case's start line in, from 1.997 to 1.955 degrees right, still inside TrackMan's 2 degree line, so it reads Slice as before (`test_classify.py` records the boundary).
+
+**The honest limit.** Pure pulls and pure pushes at equal face-to-path stay equal in the model. Path 4 with face 4 and path -4 with face -4 have face-to-path 0, no loft change, and mirror to the last digit (`test_pure_pulls_and_pushes_stay_equal`). The coupling is about the difference between face and path, so it separates draws from fades and hooks from slices and cannot separate a pull from a push. The physics agrees on the carry (a straight pull and a straight push are mirror images in the D-plane, research file topic 1), and a TrackMan Master says a controlled draw and fade go the same distance while the real gap comes from the impact conditions that usually produce them. Anything that separates a pull from a push (a strike-location control, a dynamic lie) is out of scope here.
+
+**Consequences.**
+- The tool's draw and fade, and hook and slice, no longer share a distance, and the sizes rest on a MODELED kappa at the top of the geometric range. The slider `dyn_loft_deg` is the loft with the face square to the path and the loft tile shows the effective loft, which reads differently from the slider whenever face-to-path is not 0.
+- Curvature past about 5 degrees of face-to-path on a closed driver face saturates (the axis passes 25 degrees as the loft falls, so lift turns sideways and carry drops), and the monotone-curve test is limited to 5 degrees.
+- The spin axis scale c is now one constant near 1, and the earlier statement that c falls from 1.11 to 0.98 with spin loft (decision 4) no longer holds. The 2023 preset lines against TrackMan's examples show a worst gap of 29 percent (5.9 yd), so the article's statement of that gap needs the new number.

@@ -14,7 +14,8 @@
  *   flight.py    simulate()             -> model.simulate      (deriv and rk4 inlined, MAX_FLIGHT_S, V_FLOOR_MS)
  *                _lift_dir_launch()     -> liftDirLaunch
  *                roll()                 -> model.roll          (uses landSpin, the spin state at the landing step)
- *   launch.py    deliver()              -> model.deliver
+ *   launch.py    deliver()              -> model.deliver       (face-to-loft coupling: effectiveLoft, couplingKappa)
+ *                effective_loft(), coupling_kappa() -> effectiveLoft, couplingKappa
  *                check_delivery()       -> checkDelivery
  *                _check_range()         -> checkRange
  *                check_club()           -> checkClub
@@ -45,7 +46,10 @@
  * deliver() returns a Launch object:
  *   ball_speed_mph ballSpeedMph, smash smash, launch_deg launchDeg,
  *   launch_dir_deg launchDirDeg, spin_rpm spinRpm, spin_axis_deg spinAxisDeg,
- *   spin_loft_deg spinLoftDeg, face_to_path_deg faceToPathDeg.
+ *   spin_loft_deg spinLoftDeg, face_to_path_deg faceToPathDeg,
+ *   dyn_loft_input_deg dynLoftInputDeg (the delivery's loft, face square to the path),
+ *   dyn_loft_deg dynLoftDeg (the EFFECTIVE loft after the face-to-loft coupling, the loft
+ *   TrackMan would measure; metricValue("dyn_loft_deg") reads this one).
  * simulate() returns a Flight object:
  *   t, x, y, z (Float64Array, x/y/z in yards, y positive right),
  *   carry_yd carry, side_yd side, curve_yd curve, max_height_yd maxHeight,
@@ -165,7 +169,8 @@ export const METRIC_FIELDS = deepFreeze({
   attack_deg: ["delivery", "attack"],
   path_deg: ["delivery", "path"],
   face_deg: ["delivery", "face"],
-  dyn_loft_deg: ["delivery", "dynLoft"],
+  dyn_loft_input_deg: ["delivery", "dynLoft"], // the slider: loft with the face square to the path
+  dyn_loft_deg: ["launch", "dynLoftDeg"], // the EFFECTIVE loft, what TrackMan would measure
   spin_trim: ["delivery", "spinTrim"],
   face_to_path_deg: ["launch", "faceToPathDeg"],
   spin_loft_deg: ["launch", "spinLoftDeg"],
@@ -208,6 +213,7 @@ const REQUIRED_KEYS = [
     ...["k0", "k1", "k_sl_lo", "k_sl_hi", "k0_driver", "k1_driver", "k_sl_lo_driver", "k_sl_hi_driver", "smash_a",
       "smash_b", "smash_c", "smash_cap", "smash_floor", "spin_a", "spin_b", "spin_f_wood", "spin_a_driver",
       "spin_b_driver", "axis_c0", "axis_c1", "axis_sl_lo", "axis_sl_hi"].map((k) => "launch_model." + k),
+    "coupling.kappa",
     "spin_class", ...["club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg", "swing_plane_deg",
       "min_spin_loft_deg"].map((k) => "domain." + k),
     ...["start_straight_deg", "axis_straight_deg", "curve_hook_frac", "on_target_frac", "on_line_yd"].map(
@@ -355,6 +361,7 @@ export function createModel(json) {
   const DOMAIN = M.domain;
   const CLS = M.classify;
   const ROLL = M.roll;
+  const KAPPA = M.coupling.kappa;
   const DRIVER_IDEAL = PRE.driver_ideal;
   const TOL = IDL.tolerances;
   const FROZEN_DOMAIN = deepFreeze(clone(DOMAIN)); // what model.domain exposes
@@ -674,9 +681,23 @@ export function createModel(json) {
   }
 
   /** launch.py launch_vector: launch angle, launch direction and spin loft in degrees. No input checks, like Python. */
+  /** launch.py coupling_kappa: loft change per degree of (face - path), cot(lie) for a named club, else 0. */
+  function couplingKappa(club) {
+    return club !== null && club !== undefined && Object.prototype.hasOwnProperty.call(KAPPA, club) ? KAPPA[club] : 0.0;
+  }
+
+  /**
+   * launch.py effective_loft: dynLoft + kappa(club) * (face - path), held to attack plus the
+   * domain's minimum spin loft at the low end and to the domain's largest dynamic loft at the top.
+   */
+  function effectiveLoft(dynLoft, path, face, attack, club) {
+    const dl = dynLoft + couplingKappa(club) * (face - path);
+    return Math.min(Math.max(dl, attack + DOMAIN.min_spin_loft_deg), DOMAIN.dyn_loft_deg[1]);
+  }
+
   function launchVector(path, attack, face, dynLoft, club) {
     const d = clubDirection(path, attack);
-    const n = faceNormal(face, dynLoft);
+    const n = faceNormal(face, effectiveLoft(dynLoft, path, face, attack, club));
     const sl = angleBetween(d, n);
     const u = blend(d, n, kOf(sl, club));
     return {
@@ -693,8 +714,9 @@ export function createModel(json) {
   function deliver(clubSpeed, attack, path, face, dynLoft, club, opts) {
     const spinTrim = opts && opts.spinTrim !== undefined ? opts.spinTrim : 1.0;
     checkDelivery(clubSpeed, attack, path, face, dynLoft, club, spinTrim);
+    const dlEff = effectiveLoft(dynLoft, path, face, attack, club);
     const d = clubDirection(path, attack);
-    const n = faceNormal(face, dynLoft);
+    const n = faceNormal(face, dlEff);
     const sl = angleBetween(d, n);
     const u = blend(d, n, kOf(sl, club));
     const launchDeg = Math.atan2(u[2], Math.sqrt(u[0] * u[0] + u[1] * u[1])) * DEG;
@@ -712,6 +734,8 @@ export function createModel(json) {
       spinAxisDeg: noNegZero(axis),
       spinLoftDeg: noNegZero(sl),
       faceToPathDeg: noNegZero(face - path),
+      dynLoftInputDeg: noNegZero(dynLoft),
+      dynLoftDeg: noNegZero(dlEff),
     };
   }
 
@@ -1088,6 +1112,8 @@ export function createModel(json) {
     swingPath,
     preset,
     scaleSpeed,
+    couplingKappa,
+    effectiveLoft,
     idealDelivery,
     optimalLoft,
     idealBands,

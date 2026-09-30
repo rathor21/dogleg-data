@@ -18,9 +18,15 @@ same script from its `SCHEMA` block, so it always matches the export.
   time seconds. `model.json` constants named `_kg`, `_m`, `_ms`, `_pa_s` are SI.
 - **Vocabulary.** One name per quantity in every file.
   - Delivery: `club_speed_mph`, `attack_deg`, `path_deg`, `face_deg`,
-    `dyn_loft_deg`, `spin_trim` (multiplier on spin, 1.0 when absent).
+    `dyn_loft_deg` (the loft with the face square to the path, the slider),
+    `spin_trim` (multiplier on spin, 1.0 when absent).
   - Launch: `ball_speed_mph`, `smash`, `launch_deg`, `launch_dir_deg`,
-    `spin_rpm`, `spin_axis_deg`, `spin_loft_deg`, `face_to_path_deg`.
+    `spin_rpm`, `spin_axis_deg`, `spin_loft_deg`, `face_to_path_deg`,
+    `dyn_loft_input_deg` (the delivery's loft) and `dyn_loft_deg` (the EFFECTIVE
+    loft, `dyn_loft_input_deg + kappa * face_to_path_deg`, what TrackMan would
+    measure). In a launch record `dyn_loft_deg` is the effective loft. In a
+    delivery, a preset or a window's `delivery` it is the input loft. The
+    `dyn_loft_deg` band and tile compare the effective loft.
   - Flight: `carry_yd`, `side_yd`, `curve_yd`, `max_height_yd`, `apex_x_yd`,
     `land_angle_deg`, `flight_time_s`, `land_speed_mph`, `total_yd`, and in
     `golden.json` also `land_spin_rpm` (spin left at landing, which the roll uses).
@@ -56,7 +62,8 @@ Everything the port needs to recompute a shot.
 | `aero` | `quad` (`d0 d1 d2 d3 l0 l1 l2`), `re_unit`, `re_pivot`, `spin_decay_coef`, `forms` (text of CD, CL, Re, S and spin decay). |
 | `roll` | `k`, `cos_power`, `spin_power`, `spin_ref_rpm`, `spin_floor_rpm`, `max_yd`, `cap_frac` (roll never exceeds `cap_frac * carry_yd`: 1.1 times the largest roll to carry ratio on TrackMan's 2010 charts), `form` (text). |
 | `flight` | `dt` (0.01 s step), `max_flight_s`, `v_floor_ms`, `integrator` (`rk4`). |
-| `launch_model` | `k0 k1 k_sl_lo k_sl_hi` (iron, hybrid and wood k line), `k0_driver k1_driver k_sl_lo_driver k_sl_hi_driver` (the driver's k line and its range), `smash_a smash_b smash_c smash_cap smash_floor`, `spin_a spin_b spin_f_wood` (iron spin law and the 3-wood and 5-wood factor), `spin_a_driver spin_b_driver` (the driver's spin law), `axis_c0 axis_c1 axis_sl_lo axis_sl_hi` (spin axis scale, linear in spin loft between the two bounds). |
+| `launch_model` | `k0 k1 k_sl_lo k_sl_hi` (iron, hybrid and wood k line), `k0_driver k1_driver k_sl_lo_driver k_sl_hi_driver` (the driver's k line and its range), `smash_a smash_b smash_c smash_cap smash_floor`, `spin_a spin_b spin_f_wood` (iron spin law and the 3-wood and 5-wood factor), `spin_a_driver spin_b_driver` (the driver's spin law), `axis_c0 axis_c1 axis_sl_lo axis_sl_hi` (spin axis scale, linear in spin loft between the two bounds; `axis_c1` is 0, so the scale is the constant `axis_c0`). |
+| `coupling` | Face-to-loft coupling, MODELED: `form` (text), `lie_deg` and `kappa` (each `{club id: number}`, `kappa = cot(lie_deg)`). `dyn_loft_deg` (effective) `= dyn_loft_input_deg + kappa[club] * (face_deg - path_deg)`, then held to at least `attack_deg + domain.min_spin_loft_deg` and at most `domain.dyn_loft_deg[1]`. A club that is `null` or not listed has `kappa` 0. |
 | `spin_class` | Club id to spin class (`driver`, `wood`). The driver takes its own k line and spin law, a `wood` club the iron spin law times `spin_f_wood`, and every club not listed the iron laws. |
 | `domain` | Ranges `deliver` accepts, each `[lo, hi]` inclusive: `club_speed_mph`, `attack_deg`, `path_deg`, `face_deg`, `dyn_loft_deg`, `swing_plane_deg` (open interval). `min_spin_loft_deg` is a number: `dyn_loft_deg - attack_deg` must be at least that. |
 | `classify` | Thresholds: `start_straight_deg`, `axis_straight_deg`, `curve_hook_frac`, `on_target_frac`, `on_line_yd`. |

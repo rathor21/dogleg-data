@@ -15,10 +15,23 @@ Angles are positive right, positive path is in-to-out, positive face is open to
 the target, face-to-path = face - path, positive spin axis curves the ball right.
 
 Model:
+  0. Face-to-loft coupling. The dynamic loft argument is the loft with the face
+     square to the path. The effective dynamic loft, the loft TrackMan would
+     measure, is
+         dyn_loft_effective = dyn_loft + kappa(club) * (face - path),
+     kappa = cot(lie angle) per club (data.KAPPA, data.LIE_DEG). Closing the face
+     to the path removes loft and opening it adds loft. MODELED: it reads the
+     face change as a rotation of the head about the shaft, which leans at the
+     lie angle, with no shaft lean and no yaw of the whole club (a pure yaw
+     gives kappa 0), so it is the upper end of what the geometry allows. Every
+     step below uses the effective loft. At face = path the two lofts are equal.
+     A club that is not named has kappa 0. The effective loft is held to at least
+     attack + data.DOMAIN["min_spin_loft_deg"] and at most the domain's largest
+     dynamic loft.
   1. Club direction d from path and attack angle. Face normal n from face angle
-     and dynamic loft (azimuth = face, elevation = dynamic loft). Spin loft is
-     the 3D angle between d and n. It equals dynamic loft minus attack angle when
-     path and face are both zero.
+     and effective dynamic loft (azimuth = face, elevation = effective dynamic
+     loft). Spin loft is the 3D angle between d and n. It equals dynamic loft
+     minus attack angle when path, face and their difference are all zero.
   2. Launch vector u = normalize((1 - k) d + k n), with k linear in spin loft
      (one line for the driver, one for every other club).
      Launch angle and launch direction both come from u. u lies in the plane of d
@@ -52,6 +65,8 @@ class Launch:
     spin_axis_deg: float
     spin_loft_deg: float
     face_to_path_deg: float
+    dyn_loft_input_deg: float  # the argument: loft with the face square to the path
+    dyn_loft_deg: float  # effective loft after the face-to-loft coupling, as TrackMan would measure it
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +102,19 @@ def _angle_between(a, b):
 
 def _no_negative_zero(x):
     return x + 0.0  # -0.0 + 0.0 is 0.0
+
+
+def coupling_kappa(club=None):
+    """Loft change per degree of (face - path): cot(lie angle) for a named club, 0 otherwise."""
+    return data.KAPPA.get(club, 0.0)
+
+
+def effective_loft(dyn_loft_deg, path_deg, face_deg, attack_deg, club=None):
+    """Effective dynamic loft: dyn_loft + kappa(club) * (face - path), held to
+    attack + data.DOMAIN["min_spin_loft_deg"] at the low end (the D-plane needs a
+    spin loft) and to the domain's largest dynamic loft at the high end."""
+    dl = dyn_loft_deg + coupling_kappa(club) * (face_deg - path_deg)
+    return min(max(dl, attack_deg + data.DOMAIN["min_spin_loft_deg"]), data.DOMAIN["dyn_loft_deg"][1])
 
 
 def club_direction(path_deg, attack_deg):
@@ -198,7 +226,7 @@ def launch_vector(path_deg, attack_deg, face_deg, dyn_loft_deg, club=None, *, pa
     """(launch angle deg, launch direction deg, spin loft deg). No input checks:
     the fitters and launch_tools call this outside the domain."""
     d = club_direction(path_deg, attack_deg)
-    n = face_normal(face_deg, dyn_loft_deg)
+    n = face_normal(face_deg, effective_loft(dyn_loft_deg, path_deg, face_deg, attack_deg, club))
     sl = _angle_between(d, n)
     u = blend(d, n, k_of(sl, club, params=params))
     return degrees(atan2(u[2], sqrt(u[0] * u[0] + u[1] * u[1]))), degrees(atan2(u[1], u[0])), sl
@@ -241,13 +269,16 @@ def check_delivery(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg,
 
 def deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=None, *, params=None, spin_trim=1.0):
     """Club delivery to launch conditions. `club` picks the spin class factor
-    (driver, fairway woods, everything else). `spin_trim` multiplies spin_rpm
+    (driver, fairway woods, everything else) and the coupling kappa. `dyn_loft_deg`
+    is the input loft, the loft with the face square to the path, and the Launch
+    returns both it and the effective loft. `spin_trim` multiplies spin_rpm
     and nothing else: a preset-level correction (presets.preset returns one)
     that stands for where on the face a player group strikes the ball."""
     check_delivery(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club, spin_trim)
     m = _params(params)
+    dl_eff = effective_loft(dyn_loft_deg, path_deg, face_deg, attack_deg, club)
     d = club_direction(path_deg, attack_deg)
-    n = face_normal(face_deg, dyn_loft_deg)
+    n = face_normal(face_deg, dl_eff)
     sl = _angle_between(d, n)
     u = blend(d, n, k_of(sl, club, params=m))
     launch_deg = degrees(atan2(u[2], sqrt(u[0] * u[0] + u[1] * u[1])))
@@ -265,6 +296,8 @@ def deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=N
         spin_axis_deg=_no_negative_zero(axis),
         spin_loft_deg=_no_negative_zero(sl),
         face_to_path_deg=_no_negative_zero(face_deg - path_deg),
+        dyn_loft_input_deg=_no_negative_zero(dyn_loft_deg),
+        dyn_loft_deg=_no_negative_zero(dl_eff),
     )
 
 

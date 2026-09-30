@@ -25,6 +25,7 @@ Pages that refused a fetch (HTTP 403, Cloudflare or bot challenge, empty body) w
 | 5 | Ball flight law relationships | PARTIAL |
 | 6 | Tiger Woods nine windows | ANCHORED for the concept; NOT FOUND for any numbers |
 | 7 | Aerodynamic coefficients | PARTIAL (one complete working model and a spin decay law; the Smits and Smith equations were not read) |
+| 8 | Club lie angle by club | ANCHORED for the static standard lie (two manufacturers' spec pages). The coupling of face rotation to loft is MODELED. |
 
 ---
 
@@ -445,6 +446,26 @@ Two flags. (1) The workbook's separate "Cd-Cl" sheet also holds an unlabeled col
 **TrackMan, Rapsodo and FlightScope notes.** No technical note publishing CL or CD was found for any of the three in the search. Rapsodo publishes a comparison of its ball flight algorithm against TrackMan and Foresight and was not read for coefficients.
 
 **Verdict: PARTIAL.** ANCHORED: one complete parametric model with published constants (Source 1), a spin decay law (Source 3), the quadratic functional form and the data scale from an independent TrackMan-fitted study (Source 4), and measured ranges from the two classic papers by secondary quote (Sources 2 and 5). NOT VERIFIED: the Smits and Smith lift and drag equations and constants, Lyu et al.'s own fits (the MDPI page returned HTTP 403), and Dewhurst's parametrization (a book, not read).
+
+---
+
+## Anchor 8 — Standard lie angle by club (task 004-physics, face-to-loft coupling)
+
+**Status: ANCHORED as a static spec, added 2026-09-29 for the face-to-loft coupling.** Rotating the head about the shaft to close or open the face changes loft by cot(lie angle) per degree of face rotation (docs/sources/004_Physics_Research.md, Topic 1). The model needs one lie angle per club. Published lie is the static angle at address at standard length, not the dynamic lie at impact (TrackMan's dynamic lie article was not readable, see the research file). The rotation-about-the-shaft assumption, with no shaft lean, is MODELED.
+
+**Source 1 (primary, manufacturer spec):** Titleist, ["Custom Golf Clubs Options & Specifications"](https://media.titleist.com/images/titleist/files/UK/Titleist-Clubs-Custom-Options-UK.pdf) (UK custom club options PDF, document creation date 2025-07-16). Retrieved 2026-09-29. Read: RAW (pdftotext over the file, "CLUB SPEC OPTION SUMMARY" pages). Values as printed:
+
+| Club family | Lie angle (deg) as printed |
+|---|---|
+| Drivers GT1 | 59.0 |
+| Drivers GT2, GT3, GT4 | 58.5 |
+| Fairways GT2, lofts 13.5, 15, 16.5, 18, 21 deg | 56.5, 56.5, 57, 57.5, 58 |
+| Hybrids GT2, lofts 18, 21, 24 deg | 57, 57.5, 58 |
+| Irons, numbered 1, 2, 3, 4, 5, 6, 7, 8, 9, P, W, W2 (one "Lie" row for all iron models) | 60, 60.5, 61, 61.5, 62, 62.5, 63, 63.5, 64, 64, 64, 64 |
+
+**Source 2 (primary, manufacturer spec, cross-check):** PING G430 pages on ping.com, retrieved 2026-09-29, read RAW from the page HTML: [G430 MAX 10K driver](https://ping.com/en-us/golf-clubs/drivers/g430-max-10k-driver) 58.5 ("Average lie angle"; the G430 MAX driver page reads 58.0), [G430 MAX fairway](https://ping.com/en-us/golf-clubs/fairways/g430-max-fairway) 3-wood (15 deg) 56.0 and 5-wood (18 deg) 56.5, [G430 hybrid](https://ping.com/en-us/clubs/hybrids/g430) 2H (17 deg) 57.0, 3H (19) 57.5, 4H (22) 58.0, 5H (26) 58.5, 6H (30) 59.0, 7H (34) 59.5, [G430 irons](https://ping.com/en-us/clubs/irons/g430) 4i 60.5, 5i 61.0, 6i 61.5, 7i 62.0, 8i 62.8, 9i 63.5, PW 64.1. Fairway and hybrid lies are printed as an average over the five adjustable loft positions on the hosel.
+
+**Choice for the model (MODELED mapping).** The Tour tables give a club name and no manufacturer, so the model takes one lie per club id from Source 1 (the Tour "3-wood", "5-wood" and "hybrid 15 to 18 deg" map to the GT2 fairway rows at 15 and 18 deg and the GT2 hybrid row at 18 deg): driver 58.5, 3-wood (15 deg) 56.5, 5-wood (18 deg) 57.5, hybrid (18 deg) 57.0, 3 iron 61.0, 4 iron 61.5, 5 iron 62.0, 6 iron 62.5, 7 iron 63.0, 8 iron 63.5, 9 iron 64.0, PW 64.0. Source 2 sits 0.5 to 1.5 degrees lower for woods and irons and agrees on the ordering. The lie moves kappa = cot(lie) between 0.61 (driver) and 0.49 (PW), so a one degree change in lie moves kappa by about 0.02.
 
 ---
 

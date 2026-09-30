@@ -94,6 +94,7 @@ function doesNotThrow(name, where, fn) {
 const LAUNCH_KEYS = {
   ball_speed_mph: "ballSpeedMph", smash: "smash", launch_deg: "launchDeg", launch_dir_deg: "launchDirDeg",
   spin_rpm: "spinRpm", spin_axis_deg: "spinAxisDeg", spin_loft_deg: "spinLoftDeg", face_to_path_deg: "faceToPathDeg",
+  dyn_loft_input_deg: "dynLoftInputDeg", dyn_loft_deg: "dynLoftDeg",
 };
 const FLIGHT_KEYS = {
   carry_yd: ["carry", 0.01], side_yd: ["side", 0.01], curve_yd: ["curve", 0.01],
@@ -355,6 +356,30 @@ for (let i = 0; i < 500; i++) {
   exact("helpers", "shot total >= carry", s.total >= s.flight.carry, true);
 }
 
+// face-to-loft coupling: effective loft = input + kappa * (face - path), kappa = cot(lie)
+{
+  const kappa = json.model.coupling.kappa;
+  for (const club of json.presets.clubs.map((x) => x.id)) {
+    near("coupling", `${club} kappa is cot(lie)`, model.couplingKappa(club), 1 / Math.tan(json.model.coupling.lie_deg[club] * Math.PI / 180), 1e-9, true);
+    near("coupling", `${club} kappa from json`, model.couplingKappa(club), kappa[club], 0, true);
+    const ln = model.deliver(95, -2, 3, -1, 25, club);
+    near("coupling", `${club} effective loft`, ln.dynLoftDeg, 25 + kappa[club] * -4, 1e-9);
+    exact("coupling", `${club} input loft kept`, ln.dynLoftInputDeg, 25);
+    near("coupling", `${club} effectiveLoft()`, model.effectiveLoft(25, 3, -1, -2, club), ln.dynLoftDeg, 1e-12);
+  }
+  exact("coupling", "unnamed club has no coupling", model.deliver(95, -2, 3, -1, 25, null).dynLoftDeg, 25);
+  exact("coupling", "unknown key has no coupling", model.couplingKappa("constructor"), 0);
+  const pr = model.preset("driver", "pga");
+  const draw = model.shot({ ...pr, path: 4, face: 0 });
+  const fade = model.shot({ ...pr, path: -4, face: 0 });
+  exact("coupling", "draw delofts, fade adds loft", draw.launch.dynLoftDeg < pr.dynLoft && pr.dynLoft < fade.launch.dynLoftDeg, true);
+  exact("coupling", "draw flies lower, with less spin and more total", draw.flight.maxHeight < fade.flight.maxHeight &&
+    draw.launch.spinRpm < fade.launch.spinRpm && draw.total > fade.total, true);
+  exact("coupling", "loft floor", model.deliver(95, 6, 15, -15, 8, "driver").dynLoftDeg, 6 + json.model.domain.min_spin_loft_deg);
+  exact("coupling", "metricValue is the effective loft", model.metricValue("dyn_loft_deg", draw), draw.launch.dynLoftDeg);
+  exact("coupling", "metricValue input loft", model.metricValue("dyn_loft_input_deg", draw), pr.dynLoft);
+}
+
 // ---------------------------------------------------------------------------
 // 8. ideal bands at non-preset club speeds and attack angles (Python fixture)
 // ---------------------------------------------------------------------------
@@ -405,8 +430,9 @@ for (const m of json.ideals.metrics) exact("metricValue", `${m} has a field`, Ob
 for (const id of ["preset_pga_driver", "golfer_push_slice", "curvature_lpga_6i_-2", "edge_slow_7i", "preset_amateur_pw"]) {
   const c = golden.cases.find((x) => x.id === id);
   const sh = model.shot(fromGolden(c.delivery), { dt: golden.dt });
-  for (const m of [...json.ideals.metrics, "spin_trim", "apex_x_yd", "flight_time_s", "land_speed_mph", "total_yd"]) {
-    const want = m in c.delivery ? c.delivery[m] : m in c.launch ? c.launch[m] : c.flight[m];
+  for (const m of [...json.ideals.metrics, "dyn_loft_input_deg", "spin_trim", "apex_x_yd", "flight_time_s", "land_speed_mph", "total_yd"]) {
+    // dyn_loft_deg is the EFFECTIVE loft: the launch record, not the delivery (whose dyn_loft_deg is the input)
+    const want = m in c.launch ? c.launch[m] : m in c.delivery ? c.delivery[m] : c.flight[m];
     exact("metricValue", `${id}.${m} defined in golden`, typeof want, "number");
     near("metricValue", `${id}.${m}`, model.metricValue(m, sh), want, 0.01);
   }

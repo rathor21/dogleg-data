@@ -413,14 +413,22 @@ def test_outputs_carry_no_negative_zero():
 def test_smallest_spin_loft_with_face_to_path(attack, f2p):
     """Dynamic loft = attack + 1: the D-plane normal lies close to horizontal, the
     axis tilt is large, and nothing ties or divides by zero."""
-    ln = launch.deliver(90.0, attack, 0.0, f2p, attack + 1.0, "7i")
-    mirrored = launch.deliver(90.0, attack, 0.0, -f2p, attack + 1.0, "7i")
+    # With no club named there is no face-to-loft coupling, so the pair mirrors exactly.
+    ln = launch.deliver(90.0, attack, 0.0, f2p, attack + 1.0)
+    mirrored = launch.deliver(90.0, attack, 0.0, -f2p, attack + 1.0)
     assert math.copysign(1.0, ln.spin_axis_deg) == math.copysign(1.0, f2p)
     assert 60.0 < abs(ln.spin_axis_deg) < 100.0
     assert mirrored.spin_axis_deg == pytest.approx(-ln.spin_axis_deg, abs=1e-9)
     assert ln.spin_loft_deg == pytest.approx(math.hypot(1.0, f2p), rel=0.02)
-    f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg)
-    assert f.carry_yd > 0.0
+    # A 7 iron closes or opens its loft with the face: the effective loft moves by kappa * f2p,
+    # spin loft follows it, and the axis keeps the face-to-path sign.
+    seven = launch.deliver(90.0, attack, 0.0, f2p, attack + 1.0, "7i")
+    assert math.copysign(1.0, seven.spin_axis_deg) == math.copysign(1.0, f2p)
+    assert 40.0 < abs(seven.spin_axis_deg) < 100.0
+    assert seven.dyn_loft_deg == pytest.approx(max(attack + 1.0 + data.KAPPA["7i"] * f2p, attack + 1.0))
+    for shot in (ln, seven):
+        f = flight.simulate(shot.ball_speed_mph, shot.launch_deg, shot.launch_dir_deg, shot.spin_rpm, shot.spin_axis_deg)
+        assert f.carry_yd > 0.0
 
 
 def test_dplane_normal_tie_breaks_toward_positive_ninety():
@@ -484,8 +492,11 @@ def test_face_equals_path_gives_no_curve(player, club, path):
 
 @pytest.mark.parametrize("player,club", PLAYER_CLUBS)
 def test_mirrored_deliveries_mirror_the_flight(player, club):
+    """Face = path (no face-to-path, so no loft change): a left and a right shot are
+    exact mirrors. With a face-to-path the coupling breaks the mirror on purpose (see
+    tests/test_coupling.py). With no club named, every pair mirrors."""
     p = presets.preset(club, player)
-    for path, face in ((3.0, -1.0), (-2.0, 4.0), (5.0, 2.0)):
+    for path, face in ((3.0, 3.0), (-2.0, -2.0), (5.0, 5.0)):
         a_ln, a_f = _shot(p, path=path, face=face)
         b_ln, b_f = _shot(p, path=-path, face=-face)
         assert b_ln.launch_dir_deg == pytest.approx(-a_ln.launch_dir_deg, abs=1e-9)
@@ -500,7 +511,9 @@ def test_mirrored_deliveries_mirror_the_flight(player, club):
 @pytest.mark.parametrize("player,club", PLAYER_CLUBS)
 def test_curve_rises_with_face_to_path(player, club):
     p = presets.preset(club, player)
-    f2ps = [0.0, 1.0, 2.0, 3.0, 5.0, 7.0, 9.0]
+    # Up to 5 degrees of face-to-path: past that a closed driver face (loft down 3 degrees, axis
+    # past 25 degrees) starts to lose curve as the lift turns sideways and the carry falls.
+    f2ps = [0.0, 1.0, 2.0, 3.0, 5.0]
     right = [_shot(p, path=0.0, face=x)[1].curve_yd for x in f2ps]
     left = [_shot(p, path=0.0, face=-x)[1].curve_yd for x in f2ps]
     assert all(b > a for a, b in zip(right, right[1:]))

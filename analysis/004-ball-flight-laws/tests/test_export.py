@@ -120,6 +120,8 @@ def test_model_json_carries_the_constants(built):
     assert m["roll"]["cap_frac"] == data.ROLL_CAP_FRAC and "cap_frac" in m["roll"]["form"]
     assert "total_yd" in m["roll"]["form"]
     assert m["swing_plane_default_deg"] == data.SWING_PLANE_DEG
+    assert m["coupling"]["kappa"] == pytest.approx(data.KAPPA, rel=1e-11)
+    assert m["coupling"]["lie_deg"] == data.LIE_DEG and "MODELED" in m["coupling"]["form"]
 
 
 def test_presets_json(built):
@@ -378,7 +380,7 @@ def test_schema_names_every_exported_key(built):
                    + list(i["bands"]["pga"]["driver"]["launch_deg"]) + list(i["bands"]["pga"]["driver"]["launch_deg"]["detail"])
                    + (list(i["known_exceptions"][0]) if i["known_exceptions"] else [])))
     m = json.loads(built["model.json"])
-    groups.append(("model", [k for sec in ("units", "ball", "air", "aero", "roll", "flight", "launch_model", "classify", "domain")
+    groups.append(("model", [k for sec in ("units", "ball", "air", "aero", "roll", "flight", "launch_model", "coupling", "classify", "domain")
                              for k in m[sec]]))
     g = json.loads(built["golden.json"])
     c = next(c for c in g["cases"] if "trajectory" in c)

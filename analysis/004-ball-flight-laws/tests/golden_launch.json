@@ -47,10 +47,10 @@
   "spin_f_wood": 0.878791,
   "spin_a_driver": 1.33518,
   "spin_b_driver": 1.04096,
-  "axis_c0": 1.21767,
-  "axis_c1": -0.00883498,
-  "axis_sl_lo": 12.4304,
-  "axis_sl_hi": 26.8865
+  "axis_c0": 0.998642,
+  "axis_c1": 0.0,
+  "axis_sl_lo": 10.4554,
+  "axis_sl_hi": 29.4446
  },
  "cases": [
   {
@@ -74,7 +74,9 @@
     "spin_rpm": 2545.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 13.585,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 12.685,
+    "dyn_loft_deg": 12.685
    },
    "flight": {
     "carry_yd": 282.1250939045903,
@@ -109,7 +111,9 @@
     "spin_rpm": 3663.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 14.696,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 12.396,
+    "dyn_loft_deg": 12.396
    },
    "flight": {
     "carry_yd": 258.5999211576928,
@@ -144,7 +148,9 @@
     "spin_rpm": 4782.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 17.692999999999998,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 14.793,
+    "dyn_loft_deg": 14.793
    },
    "flight": {
     "carry_yd": 214.53372697848746,
@@ -179,7 +185,9 @@
     "spin_rpm": 7124.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 27.253999999999998,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 23.354,
+    "dyn_loft_deg": 23.354
    },
    "flight": {
     "carry_yd": 171.68073765501754,
@@ -214,7 +222,9 @@
     "spin_rpm": 9316.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 38.513,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 33.813,
+    "dyn_loft_deg": 33.813
    },
    "flight": {
     "carry_yd": 130.51290314246194,
@@ -249,7 +259,9 @@
     "spin_rpm": 2506.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 11.796,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 14.596,
+    "dyn_loft_deg": 14.596
    },
    "flight": {
     "carry_yd": 226.99089480719476,
@@ -284,7 +296,9 @@
     "spin_rpm": 2595.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 15.822,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 15.022,
+    "dyn_loft_deg": 15.022
    },
    "flight": {
     "carry_yd": 204.6994979019616,
@@ -319,7 +333,9 @@
     "spin_rpm": 4608.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 20.519999999999996,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 18.82,
+    "dyn_loft_deg": 18.82
    },
    "flight": {
     "carry_yd": 169.30772541179118,
@@ -354,7 +370,9 @@
     "spin_rpm": 6630.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 28.602,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 26.102,
+    "dyn_loft_deg": 26.102
    },
    "flight": {
     "carry_yd": 141.23798482071462,
@@ -389,7 +407,9 @@
     "spin_rpm": 8465.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 38.513,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 35.313,
+    "dyn_loft_deg": 35.313
    },
    "flight": {
     "carry_yd": 109.16471533054248,
@@ -424,7 +444,9 @@
     "spin_rpm": 3275.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 16.900000000000002,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 15.1,
+    "dyn_loft_deg": 15.1
    },
    "flight": {
     "carry_yd": 212.6745523249646,
@@ -459,7 +481,9 @@
     "spin_rpm": 3639.9572747288357,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 17.599999999999998,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 15.1,
+    "dyn_loft_deg": 15.1
    },
    "flight": {
     "carry_yd": 198.48422533828423,
@@ -494,7 +518,9 @@
     "spin_rpm": 4563.017791999577,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 19.97754826515458,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 17.17754826515458,
+    "dyn_loft_deg": 17.17754826515458
    },
    "flight": {
     "carry_yd": 170.62174952308376,
@@ -529,7 +555,9 @@
     "spin_rpm": 6700.9819108668335,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 29.139650171270322,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 25.799650171270315,
+    "dyn_loft_deg": 25.799650171270315
    },
    "flight": {
     "carry_yd": 141.1706576767611,
@@ -564,7 +592,9 @@
     "spin_rpm": 8408.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 40.6,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 36.7,
+    "dyn_loft_deg": 36.7
    },
    "flight": {
     "carry_yd": 106.2570644224724,
@@ -599,7 +629,9 @@
     "spin_rpm": 7124.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 27.253999999999998,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 23.354,
+    "dyn_loft_deg": 23.354
    },
    "flight": {
     "carry_yd": 171.68073765501754,
@@ -627,25 +659,27 @@
     "spin_trim": 0.9801215016005211
    },
    "launch": {
-    "ball_speed_mph": 125.06499818980339,
-    "smash": 1.3594021542369934,
-    "launch_deg": 16.10449646668547,
-    "launch_dir_deg": 2.8588295397077146,
-    "spin_rpm": 7169.300383782077,
-    "spin_axis_deg": -5.943994398262908,
-    "spin_loft_deg": 27.41064117223884,
-    "face_to_path_deg": -3.0
+    "ball_speed_mph": 126.42851736666978,
+    "smash": 1.3742230148551062,
+    "launch_deg": 14.973593782847134,
+    "launch_dir_deg": 2.851919556484101,
+    "spin_rpm": 6728.315835568575,
+    "spin_axis_deg": -6.443390501047487,
+    "spin_loft_deg": 25.89246422111941,
+    "face_to_path_deg": -3.0,
+    "dyn_loft_input_deg": 23.354,
+    "dyn_loft_deg": 21.82542365151671
    },
    "flight": {
-    "carry_yd": 171.12979443394443,
-    "side_yd": -2.3325358042211826,
-    "curve_yd": -10.878319077077931,
-    "max_height_yd": 36.29028816258294,
-    "apex_x_yd": 111.65850025706895,
-    "land_angle_deg": 48.967008682253606,
-    "flight_time_s": 6.476847019071116,
-    "land_speed_mph": 54.58084280194027,
-    "land_spin_rpm": 6091.859089430547
+    "carry_yd": 175.86742764850894,
+    "side_yd": -3.338974264278172,
+    "curve_yd": -12.10008007524284,
+    "max_height_yd": 34.91797972477089,
+    "apex_x_yd": 115.37535208734423,
+    "land_angle_deg": 47.92152175457957,
+    "flight_time_s": 6.489885964733085,
+    "land_speed_mph": 54.17189922604734,
+    "land_spin_rpm": 5701.2535689086
    }
   },
   {
@@ -669,7 +703,9 @@
     "spin_rpm": 7124.0,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 27.253999999999998,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 23.354,
+    "dyn_loft_deg": 23.354
    },
    "flight": {
     "carry_yd": 171.44545517075215,
@@ -697,25 +733,27 @@
     "spin_trim": 0.9801215016005211
    },
    "launch": {
-    "ball_speed_mph": 124.43785811411641,
-    "smash": 1.352585414283874,
-    "launch_deg": 16.123522015880244,
-    "launch_dir_deg": 1.9973074094998144,
-    "spin_rpm": 7366.968487285754,
-    "spin_axis_deg": 13.6389837255742,
-    "spin_loft_deg": 28.096231686905412,
-    "face_to_path_deg": 7.0
+    "ball_speed_mph": 121.16654774933419,
+    "smash": 1.3170276929275455,
+    "launch_deg": 18.775020831257464,
+    "launch_dir_deg": 1.9552261292280542,
+    "spin_rpm": 8345.98311418353,
+    "spin_axis_deg": 12.189784329748905,
+    "spin_loft_deg": 31.5543300096687,
+    "face_to_path_deg": 7.0,
+    "dyn_loft_input_deg": 23.354,
+    "dyn_loft_deg": 26.920678146461
    },
    "flight": {
-    "carry_yd": 166.11080831461504,
-    "side_yd": 29.99115053839786,
-    "curve_yd": 24.198249103762244,
-    "max_height_yd": 34.95314986017622,
-    "apex_x_yd": 108.62942133509243,
-    "land_angle_deg": 48.31901384330899,
-    "flight_time_s": 6.342962552708989,
-    "land_speed_mph": 54.30092047119213,
-    "land_spin_rpm": 6275.9740440391
+    "carry_yd": 157.0750117558709,
+    "side_yd": 25.11047262259213,
+    "curve_yd": 19.748185197888084,
+    "max_height_yd": 37.20973646553751,
+    "apex_x_yd": 100.78620753237422,
+    "land_angle_deg": 50.21235367616861,
+    "flight_time_s": 6.24418149305276,
+    "land_speed_mph": 55.36159576070829,
+    "land_spin_rpm": 7153.3729254910195
    }
   },
   {
@@ -732,25 +770,27 @@
     "spin_trim": 0.9801215016005211
    },
    "launch": {
-    "ball_speed_mph": 124.64075601768886,
-    "smash": 1.3547908262792268,
-    "launch_deg": 16.117335556583768,
-    "launch_dir_deg": -2.2830598792452035,
-    "spin_rpm": 7303.37164033874,
-    "spin_axis_deg": -11.753443653104569,
-    "spin_loft_deg": 27.875269557255486,
-    "face_to_path_deg": -6.0
+    "ball_speed_mph": 127.29784176998234,
+    "smash": 1.383672193151982,
+    "launch_deg": 13.978712642316523,
+    "launch_dir_deg": -2.3409496971798083,
+    "spin_rpm": 6439.103625145738,
+    "spin_axis_deg": -13.55449790230019,
+    "spin_loft_deg": 24.903728916142796,
+    "face_to_path_deg": -6.0,
+    "dyn_loft_input_deg": 23.354,
+    "dyn_loft_deg": 20.296847303033427
    },
    "flight": {
-    "carry_yd": 167.27119789861453,
-    "side_yd": -27.73373162283283,
-    "curve_yd": -21.064961055438182,
-    "max_height_yd": 35.37748297383315,
-    "apex_x_yd": 109.4913801365628,
-    "land_angle_deg": 48.527839291023064,
-    "flight_time_s": 6.385979191015164,
-    "land_speed_mph": 54.387074474865834,
-    "land_spin_rpm": 6216.636395390085
+    "carry_yd": 175.36248629959925,
+    "side_yd": -32.46700451620538,
+    "curve_yd": -25.298180882330083,
+    "max_height_yd": 32.40954963246641,
+    "apex_x_yd": 116.12646412321811,
+    "land_angle_deg": 46.15052736015998,
+    "flight_time_s": 6.373660067882841,
+    "land_speed_mph": 53.583636023469815,
+    "land_spin_rpm": 5453.374772008634
    }
   },
   {
@@ -767,25 +807,27 @@
     "spin_trim": 0.7391763057732629
    },
    "launch": {
-    "ball_speed_mph": 166.23736249758542,
-    "smash": 1.4711271017485437,
-    "launch_deg": 10.901770459428107,
-    "launch_dir_deg": -1.6552649979471021,
-    "spin_rpm": 2709.5684759947935,
-    "spin_axis_deg": -8.353304745189325,
-    "spin_loft_deg": 14.78978948745585,
-    "face_to_path_deg": -2.0
+    "ball_speed_mph": 167.29543720472867,
+    "smash": 1.480490594732112,
+    "launch_deg": 9.872181368224675,
+    "launch_dir_deg": -1.6555778889506019,
+    "spin_rpm": 2494.396159709894,
+    "spin_axis_deg": -8.38166815380889,
+    "spin_loft_deg": 13.576700136675749,
+    "face_to_path_deg": -2.0,
+    "dyn_loft_input_deg": 13.356203849570207,
+    "dyn_loft_deg": 12.130602273290343
    },
    "flight": {
-    "carry_yd": 272.095512479055,
-    "side_yd": -26.388176887435176,
-    "curve_yd": -18.525197704300908,
-    "max_height_yd": 34.89440479670311,
-    "apex_x_yd": 180.93444774868496,
-    "land_angle_deg": 39.90072814727979,
-    "flight_time_s": 6.994084848701733,
-    "land_speed_mph": 62.52578903798428,
-    "land_spin_rpm": 2120.6790734313886
+    "carry_yd": 271.89159595838714,
+    "side_yd": -25.044262536859417,
+    "curve_yd": -17.185690071410725,
+    "max_height_yd": 30.661541546013574,
+    "apex_x_yd": 179.83671242296052,
+    "land_angle_deg": 36.663424119373445,
+    "flight_time_s": 6.646188190023988,
+    "land_speed_mph": 63.255077228243096,
+    "land_spin_rpm": 1957.2998799171078
    }
   },
   {
@@ -802,25 +844,27 @@
     "spin_trim": 0.7391763057732629
    },
    "launch": {
-    "ball_speed_mph": 165.63017724442608,
-    "smash": 1.4657537809241246,
-    "launch_deg": 10.910940558170399,
-    "launch_dir_deg": 4.140163726201795,
-    "spin_rpm": 2829.458884341382,
-    "spin_axis_deg": 20.145267215562008,
-    "spin_loft_deg": 15.472198012193378,
-    "face_to_path_deg": 5.0
+    "ball_speed_mph": 162.9322371966562,
+    "smash": 1.4418782052801433,
+    "launch_deg": 13.494513695901643,
+    "launch_dir_deg": 4.136484125330267,
+    "spin_rpm": 3332.6536275430317,
+    "spin_axis_deg": 15.475862339998436,
+    "spin_loft_deg": 18.39473172007284,
+    "face_to_path_deg": 5.0,
+    "dyn_loft_input_deg": 13.356203849570207,
+    "dyn_loft_deg": 16.420207790269867
    },
    "flight": {
-    "carry_yd": 259.3187801736216,
-    "side_yd": 62.048437423981674,
-    "curve_yd": 43.27751322910726,
-    "max_height_yd": 32.838605164893615,
-    "apex_x_yd": 173.5346395521314,
-    "land_angle_deg": 38.50706743770136,
-    "flight_time_s": 6.778134990531449,
-    "land_speed_mph": 62.11295014497205,
-    "land_spin_rpm": 2227.4383316886065
+    "carry_yd": 257.76336515764825,
+    "side_yd": 57.39355436642408,
+    "curve_yd": 38.75186021212474,
+    "max_height_yd": 43.444124590539374,
+    "apex_x_yd": 173.18935261267978,
+    "land_angle_deg": 45.4716559849975,
+    "flight_time_s": 7.567862351948937,
+    "land_speed_mph": 61.62452152636147,
+    "land_spin_rpm": 2612.82287832554
    }
   },
   {
@@ -837,25 +881,27 @@
     "spin_trim": 0.9619514143677005
    },
    "launch": {
-    "ball_speed_mph": 127.49789531685028,
-    "smash": 1.3858466882266334,
-    "launch_deg": 14.091649363182633,
-    "launch_dir_deg": 1.4487211929949664,
-    "spin_rpm": 6253.536398153502,
-    "spin_axis_deg": 4.524772579237084,
-    "spin_loft_deg": 24.673793036957495,
-    "face_to_path_deg": 2.0
+    "ball_speed_mph": 126.5887827810404,
+    "smash": 1.3759650302286999,
+    "launch_deg": 14.72984561140851,
+    "launch_dir_deg": 1.4348539273845755,
+    "spin_rpm": 6551.71650144805,
+    "spin_axis_deg": 4.324548928433067,
+    "spin_loft_deg": 25.711438465058865,
+    "face_to_path_deg": 2.0,
+    "dyn_loft_input_deg": 20.495559923463148,
+    "dyn_loft_deg": 21.53669402456664
    },
    "flight": {
-    "carry_yd": 180.07504019173916,
-    "side_yd": 13.182686047639605,
-    "curve_yd": 8.62852622601846,
-    "max_height_yd": 33.66838323717506,
-    "apex_x_yd": 118.71783359249405,
-    "land_angle_deg": 46.89102329491309,
-    "flight_time_s": 6.499008702428349,
-    "land_speed_mph": 53.89767046258811,
-    "land_spin_rpm": 5284.203184905544
+    "carry_yd": 176.83562341955317,
+    "side_yd": 12.584395773954103,
+    "curve_yd": 8.154988459567427,
+    "max_height_yd": 34.58573929449139,
+    "apex_x_yd": 116.24008463489407,
+    "land_angle_deg": 47.65379215425675,
+    "flight_time_s": 6.49981285021771,
+    "land_speed_mph": 54.08195680772257,
+    "land_spin_rpm": 5547.1180545125335
    }
   },
   {
@@ -872,25 +918,27 @@
     "spin_trim": 0.9619514143677005
    },
    "launch": {
-    "ball_speed_mph": 127.1434952973829,
-    "smash": 1.381994514101988,
-    "launch_deg": 14.04833387268325,
-    "launch_dir_deg": -3.6114575201296746,
-    "spin_rpm": 6370.579345149058,
-    "spin_axis_deg": -11.14760530933694,
-    "spin_loft_deg": 25.0805073382424,
-    "face_to_path_deg": -5.0
+    "ball_speed_mph": 129.3172657641371,
+    "smash": 1.405622453958012,
+    "launch_deg": 12.404753474898712,
+    "launch_dir_deg": -3.6944634383371735,
+    "spin_rpm": 5636.511500764671,
+    "spin_axis_deg": -12.539368656965005,
+    "spin_loft_deg": 22.53891106347836,
+    "face_to_path_deg": -5.0,
+    "dyn_loft_input_deg": 20.495559923463148,
+    "dyn_loft_deg": 17.892724670704418
    },
    "flight": {
-    "carry_yd": 175.90127275802232,
-    "side_yd": -32.02561055693072,
-    "curve_yd": -20.923525601904366,
-    "max_height_yd": 32.772217086237106,
-    "apex_x_yd": 116.35948778853044,
-    "land_angle_deg": 46.39034612611449,
-    "flight_time_s": 6.409776707784354,
-    "land_speed_mph": 53.665072424051985,
-    "land_spin_rpm": 5392.808401660777
+    "carry_yd": 182.7553968137175,
+    "side_yd": -35.3949657044838,
+    "curve_yd": -23.59443795310183,
+    "max_height_yd": 29.637768503341892,
+    "apex_x_yd": 121.91331851081303,
+    "land_angle_deg": 43.68317592804919,
+    "flight_time_s": 6.311465289783682,
+    "land_speed_mph": 53.25164602336062,
+    "land_spin_rpm": 4752.551516158756
    }
   },
   {
@@ -907,25 +955,27 @@
     "spin_trim": 1.0265757161785218
    },
    "launch": {
-    "ball_speed_mph": 139.97699263589092,
-    "smash": 1.48911694293501,
-    "launch_deg": 13.201951657084164,
-    "launch_dir_deg": 1.6510528214362847,
-    "spin_rpm": 2644.250349590335,
-    "spin_axis_deg": 10.084052245849014,
-    "spin_loft_deg": 12.430397053404027,
-    "face_to_path_deg": 2.0
+    "ball_speed_mph": 139.11985359855237,
+    "smash": 1.4799984425377912,
+    "launch_deg": 14.229771099333844,
+    "launch_dir_deg": 1.650371647086301,
+    "spin_rpm": 2895.06053996892,
+    "spin_axis_deg": 8.254718380878812,
+    "spin_loft_deg": 13.64124812720489,
+    "face_to_path_deg": 2.0,
+    "dyn_loft_input_deg": 15.273211440535118,
+    "dyn_loft_deg": 16.49881301681498
    },
    "flight": {
-    "carry_yd": 219.4370103341934,
-    "side_yd": 21.71395985103278,
-    "curve_yd": 15.388844559889048,
-    "max_height_yd": 26.701413222027377,
-    "apex_x_yd": 139.16957340260277,
-    "land_angle_deg": 36.16354226521745,
-    "flight_time_s": 5.995102714451536,
-    "land_speed_mph": 60.425112890980614,
-    "land_spin_rpm": 2172.216382325928
+    "carry_yd": 220.08119758312696,
+    "side_yd": 20.09672743664205,
+    "curve_yd": 13.75566256762941,
+    "max_height_yd": 30.150390947110296,
+    "apex_x_yd": 140.71687291834834,
+    "land_angle_deg": 39.31881852295638,
+    "flight_time_s": 6.317509483572256,
+    "land_speed_mph": 59.54036166236052,
+    "land_spin_rpm": 2372.8085762062856
    }
   },
   {
@@ -942,25 +992,27 @@
     "spin_trim": 1.0265757161785218
    },
    "launch": {
-    "ball_speed_mph": 139.41706043733055,
-    "smash": 1.48316021741841,
-    "launch_deg": 13.212027257058832,
-    "launch_dir_deg": -4.129890329289643,
-    "spin_rpm": 2809.1475580582287,
-    "spin_axis_deg": -24.022791598192303,
-    "spin_loft_deg": 13.22499350311638,
-    "face_to_path_deg": -5.0
+    "ball_speed_mph": 140.06,
+    "smash": 1.49,
+    "launch_deg": 10.649142128594224,
+    "launch_dir_deg": -4.133178399526233,
+    "spin_rpm": 2209.7255843272987,
+    "spin_axis_deg": -28.18675755565807,
+    "spin_loft_deg": 10.455413210386034,
+    "face_to_path_deg": -5.0,
+    "dyn_loft_input_deg": 15.273211440535118,
+    "dyn_loft_deg": 12.209207499835458
    },
    "flight": {
-    "carry_yd": 207.25790298286387,
-    "side_yd": -50.106674934855526,
-    "curve_yd": -35.14156082507662,
-    "max_height_yd": 24.918022419684213,
-    "apex_x_yd": 132.15738747011306,
-    "land_angle_deg": 34.69662121826612,
-    "flight_time_s": 5.760078915199964,
-    "land_speed_mph": 60.149335834326486,
-    "land_spin_rpm": 2322.15065315739
+    "carry_yd": 193.83123065821258,
+    "side_yd": -42.68622400599832,
+    "curve_yd": -28.67940491949689,
+    "max_height_yd": 16.251230390573486,
+    "apex_x_yd": 119.97863268640863,
+    "land_angle_deg": 25.394334020243345,
+    "flight_time_s": 4.704969094948736,
+    "land_speed_mph": 65.37609476377897,
+    "land_spin_rpm": 1857.0140576896474
    }
   },
   {
@@ -977,25 +1029,27 @@
     "spin_trim": 0.9973130039330904
    },
    "launch": {
-    "ball_speed_mph": 106.71899398893915,
-    "smash": 1.368192230627425,
-    "launch_deg": 17.10201123860845,
-    "launch_dir_deg": -1.4243015036303173,
-    "spin_rpm": 5960.9063736008275,
-    "spin_axis_deg": -4.093928291266345,
-    "spin_loft_deg": 26.514908795578553,
-    "face_to_path_deg": -2.0
+    "ball_speed_mph": 107.500561470806,
+    "smash": 1.3782123265487949,
+    "launch_deg": 16.387468764990544,
+    "launch_dir_deg": -1.432092370596714,
+    "spin_rpm": 5699.823757573476,
+    "spin_axis_deg": -4.342025246367523,
+    "spin_loft_deg": 25.477076165025647,
+    "face_to_path_deg": -2.0,
+    "dyn_loft_input_deg": 24.143533812520182,
+    "dyn_loft_deg": 23.10239971141669
    },
    "flight": {
-    "carry_yd": 146.14963935373228,
-    "side_yd": -8.858839455519801,
-    "curve_yd": -5.224993442691964,
-    "max_height_yd": 25.187412267512702,
-    "apex_x_yd": 92.06488185987465,
-    "land_angle_deg": 43.361616207780756,
-    "flight_time_s": 5.5441087568142455,
-    "land_speed_mph": 51.10317441963856,
-    "land_spin_rpm": 5208.752072930762
+    "carry_yd": 148.34936157893569,
+    "side_yd": -9.281226135371435,
+    "curve_yd": -5.572501976101432,
+    "max_height_yd": 24.34096891690793,
+    "apex_x_yd": 93.76710692526173,
+    "land_angle_deg": 42.344146877932445,
+    "flight_time_s": 5.517254642369649,
+    "land_speed_mph": 51.03573612066309,
+    "land_spin_rpm": 4974.402936354911
    }
   },
   {
@@ -1012,25 +1066,27 @@
     "spin_trim": 0.9973130039330904
    },
    "launch": {
-    "ball_speed_mph": 106.43580247007293,
-    "smash": 1.36456157012914,
-    "launch_deg": 17.11257519199382,
-    "launch_dir_deg": 3.5612177016390434,
-    "spin_rpm": 6054.005108564703,
-    "spin_axis_deg": 10.105110176299172,
-    "spin_loft_deg": 26.886509337221266,
-    "face_to_path_deg": 5.0
+    "ball_speed_mph": 104.43843334155578,
+    "smash": 1.3389542736096895,
+    "launch_deg": 19.043414762808432,
+    "launch_dir_deg": 3.538950318937459,
+    "spin_rpm": 6688.106009126766,
+    "spin_axis_deg": 9.303159084162196,
+    "spin_loft_deg": 29.44457401933432,
+    "face_to_path_deg": 5.0,
+    "dyn_loft_input_deg": 24.143533812520182,
+    "dyn_loft_deg": 26.746369065278913
    },
    "flight": {
-    "carry_yd": 143.50837341519474,
-    "side_yd": 21.6488597466103,
-    "curve_yd": 12.717596318508896,
-    "max_height_yd": 24.73565461404209,
-    "apex_x_yd": 90.61847559549219,
-    "land_angle_deg": 43.02427816010417,
-    "flight_time_s": 5.485809393943236,
-    "land_speed_mph": 50.99272343798961,
-    "land_spin_rpm": 5296.627084946745
+    "carry_yd": 138.14943660953975,
+    "side_yd": 19.847982914556876,
+    "curve_yd": 11.304130589996936,
+    "max_height_yd": 26.629462130651284,
+    "apex_x_yd": 86.64299890869206,
+    "land_angle_deg": 45.2440679944773,
+    "flight_time_s": 5.514591621191938,
+    "land_speed_mph": 51.36914360225523,
+    "land_spin_rpm": 5870.208587870389
    }
   },
   {
@@ -1052,7 +1108,9 @@
     "spin_rpm": 3508.896902801546,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 29.999999999999996,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 30.0,
+    "dyn_loft_deg": 30.0
    },
    "flight": {
     "carry_yd": 47.25139417044813,
@@ -1085,7 +1143,9 @@
     "spin_rpm": 4307.20444912289,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 14.0,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 12.0,
+    "dyn_loft_deg": 12.0
    },
    "flight": {
     "carry_yd": 324.25935456712347,
@@ -1118,7 +1178,9 @@
     "spin_rpm": 7895.018031303477,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 29.999999999999996,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 20.0,
+    "dyn_loft_deg": 20.0
    },
    "flight": {
     "carry_yd": 160.5422109095815,
@@ -1151,7 +1213,9 @@
     "spin_rpm": 2186.180854902441,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 10.0,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 20.0,
+    "dyn_loft_deg": 20.0
    },
    "flight": {
     "carry_yd": 250.25416686463933,
@@ -1177,25 +1241,27 @@
    ],
    "kwargs": {},
    "launch": {
-    "ball_speed_mph": 111.9931198171794,
-    "smash": 1.21731651975195,
-    "launch_deg": 18.025246759858515,
-    "launch_dir_deg": -6.44662783389157,
-    "spin_rpm": 10859.569108290207,
-    "spin_axis_deg": -44.52913460888433,
-    "spin_loft_deg": 40.386430856192426,
-    "face_to_path_deg": -30.0
+    "ball_speed_mph": 120.26326087018994,
+    "smash": 1.3072093572846732,
+    "launch_deg": 6.46820342924689,
+    "launch_dir_deg": -6.959746914921625,
+    "spin_rpm": 8775.567315184231,
+    "spin_axis_deg": -66.58046810045919,
+    "spin_loft_deg": 32.47697998316021,
+    "face_to_path_deg": -30.0,
+    "dyn_loft_input_deg": 25.0,
+    "dyn_loft_deg": 9.714236515167137
    },
    "flight": {
-    "carry_yd": 120.31208335910732,
-    "side_yd": -53.59525378289645,
-    "curve_yd": -40.00093933683959,
-    "max_height_yd": 21.16386292769904,
-    "apex_x_yd": 76.37966597042792,
-    "land_angle_deg": 40.535999663775634,
-    "flight_time_s": 4.503600271525702,
-    "land_speed_mph": 54.67599175853041,
-    "land_spin_rpm": 9617.387818924146
+    "carry_yd": 83.86084277262465,
+    "side_yd": -36.030246351160635,
+    "curve_yd": -25.79322901160318,
+    "max_height_yd": 3.9217668490660156,
+    "apex_x_yd": 52.03476840915963,
+    "land_angle_deg": 13.134772138497423,
+    "flight_time_s": 2.1848135641628024,
+    "land_speed_mph": 66.28685263634407,
+    "land_spin_rpm": 8102.944323652876
    }
   },
   {
@@ -1210,25 +1276,27 @@
    ],
    "kwargs": {},
    "launch": {
-    "ball_speed_mph": 111.9931198171794,
-    "smash": 1.21731651975195,
-    "launch_deg": 18.025246759858515,
-    "launch_dir_deg": 6.44662783389157,
-    "spin_rpm": 10859.569108290207,
-    "spin_axis_deg": 44.52913460888433,
-    "spin_loft_deg": 40.386430856192426,
-    "face_to_path_deg": 30.0
+    "ball_speed_mph": 106.7338,
+    "smash": 1.16015,
+    "launch_deg": 29.746029394173647,
+    "launch_dir_deg": 5.332694622232013,
+    "spin_rpm": 14122.513227001078,
+    "spin_axis_deg": 31.107043059397107,
+    "spin_loft_deg": 51.25293694904127,
+    "face_to_path_deg": 30.0,
+    "dyn_loft_input_deg": 25.0,
+    "dyn_loft_deg": 40.28576348483286
    },
    "flight": {
-    "carry_yd": 120.31208335910732,
-    "side_yd": 53.59525378289645,
-    "curve_yd": 40.00093933683959,
-    "max_height_yd": 21.16386292769904,
-    "apex_x_yd": 76.37966597042792,
-    "land_angle_deg": 40.535999663775634,
-    "flight_time_s": 4.503600271525702,
-    "land_speed_mph": 54.67599175853041,
-    "land_spin_rpm": 9617.387818924146
+    "carry_yd": 124.10448638790359,
+    "side_yd": 25.26602835144839,
+    "curve_yd": 13.681772414405417,
+    "max_height_yd": 32.27055120946746,
+    "apex_x_yd": 71.27555201157111,
+    "land_angle_deg": 50.6013832657921,
+    "flight_time_s": 4.709119726350444,
+    "land_speed_mph": 62.25079581856078,
+    "land_spin_rpm": 12464.960048046974
    }
   },
   {
@@ -1250,7 +1318,9 @@
     "spin_rpm": 1871.085535721921,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 10.0,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 0.0,
+    "dyn_loft_deg": 0.0
    },
    "flight": {
     "carry_yd": 0.0,
@@ -1283,7 +1353,9 @@
     "spin_rpm": 10098.314476864776,
     "spin_axis_deg": 0.0,
     "spin_loft_deg": 55.0,
-    "face_to_path_deg": 0.0
+    "face_to_path_deg": 0.0,
+    "dyn_loft_input_deg": 65.0,
+    "dyn_loft_deg": 65.0
    },
    "flight": {
     "carry_yd": 67.58546203217166,
@@ -1314,20 +1386,22 @@
     "launch_deg": 0.799104626139745,
     "launch_dir_deg": -3.9935400747273473,
     "spin_rpm": 874.2778676202873,
-    "spin_axis_deg": -87.17195752682372,
+    "spin_axis_deg": -78.57901477754639,
     "spin_loft_deg": 5.098770457699991,
-    "face_to_path_deg": -5.0
+    "face_to_path_deg": -5.0,
+    "dyn_loft_input_deg": 1.0,
+    "dyn_loft_deg": 1.0
    },
    "flight": {
-    "carry_yd": 11.23699757721905,
-    "side_yd": -0.8916326490855843,
-    "curve_yd": -0.10713835505773284,
-    "max_height_yd": 0.03978379825516216,
-    "apex_x_yd": 5.829702536362943,
-    "land_angle_deg": 0.8174620578610418,
-    "flight_time_s": 0.17503765057786203,
-    "land_speed_mph": 129.43208304891343,
-    "land_spin_rpm": 865.8705195291278
+    "carry_yd": 12.46621489137854,
+    "side_yd": -0.9997653386530713,
+    "curve_yd": -0.12945506375918048,
+    "max_height_yd": 0.04425018183341939,
+    "apex_x_yd": 6.470626713174042,
+    "land_angle_deg": 0.8220172255255218,
+    "flight_time_s": 0.194580190296526,
+    "land_speed_mph": 128.92771402373128,
+    "land_spin_rpm": 864.9551016882428
    }
   },
   {
@@ -1344,23 +1418,25 @@
    "launch": {
     "ball_speed_mph": 134.1,
     "smash": 1.49,
-    "launch_deg": 0.799104626139745,
-    "launch_dir_deg": 3.9935400747273473,
-    "spin_rpm": 874.2778676202873,
-    "spin_axis_deg": 87.17195752682372,
-    "spin_loft_deg": 5.098770457699991,
-    "face_to_path_deg": 5.0
+    "launch_deg": 2.8351251626397347,
+    "launch_dir_deg": 3.9921192637474516,
+    "spin_rpm": 1111.2811274330602,
+    "spin_axis_deg": 54.538927680767415,
+    "spin_loft_deg": 6.128106255072676,
+    "face_to_path_deg": 5.0,
+    "dyn_loft_input_deg": 1.0,
+    "dyn_loft_deg": 3.547627247472144
    },
    "flight": {
-    "carry_yd": 11.23699757721905,
-    "side_yd": 0.8916326490855843,
-    "curve_yd": 0.10713835505773284,
-    "max_height_yd": 0.03978379825516216,
-    "apex_x_yd": 5.829702536362943,
-    "land_angle_deg": 0.8174620578610418,
-    "flight_time_s": 0.17503765057786203,
-    "land_speed_mph": 129.43208304891343,
-    "land_spin_rpm": 865.8705195291278
+    "carry_yd": 56.36066534931105,
+    "side_yd": 6.430708630537383,
+    "curve_yd": 2.497376930916384,
+    "max_height_yd": 0.7729534363460143,
+    "apex_x_yd": 29.772261950005632,
+    "land_angle_deg": 3.4159527482387855,
+    "flight_time_s": 0.9536422673247845,
+    "land_speed_mph": 111.03288001347109,
+    "land_spin_rpm": 1058.4955101831872
    }
   },
   {
@@ -1380,20 +1456,22 @@
     "launch_deg": 5.802146840804432,
     "launch_dir_deg": -3.992310470600798,
     "spin_rpm": 869.2712321784899,
-    "spin_axis_deg": -87.11584232732947,
+    "spin_axis_deg": -78.52843111262243,
     "spin_loft_deg": 5.0763716281484035,
-    "face_to_path_deg": -5.0
+    "face_to_path_deg": -5.0,
+    "dyn_loft_input_deg": 6.0,
+    "dyn_loft_deg": 6.0
    },
    "flight": {
-    "carry_yd": 70.17744224925012,
-    "side_yd": -9.212716179982351,
-    "curve_yd": -4.314895684340005,
-    "max_height_yd": 1.9471579887509713,
-    "apex_x_yd": 36.688969080823455,
-    "land_angle_deg": 6.792691580776573,
-    "flight_time_s": 1.219515500964943,
-    "land_speed_mph": 106.70649004808872,
-    "land_spin_rpm": 817.9681636809546
+    "carry_yd": 75.810528809106,
+    "side_yd": -10.250673461745796,
+    "curve_yd": -4.9597088741800315,
+    "max_height_yd": 2.133425146687543,
+    "apex_x_yd": 40.10407595679443,
+    "land_angle_deg": 6.967038018479801,
+    "flight_time_s": 1.3317450598544283,
+    "land_speed_mph": 104.69550318184946,
+    "land_spin_rpm": 813.9487017504049
    }
   },
   {
@@ -1410,23 +1488,25 @@
    "launch": {
     "ball_speed_mph": 134.1,
     "smash": 1.49,
-    "launch_deg": 5.802146840804432,
-    "launch_dir_deg": 3.992310470600798,
-    "spin_rpm": 869.2712321784899,
-    "spin_axis_deg": 87.11584232732947,
-    "spin_loft_deg": 5.0763716281484035,
-    "face_to_path_deg": 5.0
+    "launch_deg": 7.838150103114528,
+    "launch_dir_deg": 3.987733671576344,
+    "spin_rpm": 1105.0132732951377,
+    "spin_axis_deg": 54.36178350912448,
+    "spin_loft_deg": 6.101591952234265,
+    "face_to_path_deg": 5.0,
+    "dyn_loft_input_deg": 6.0,
+    "dyn_loft_deg": 8.547627247472144
    },
    "flight": {
-    "carry_yd": 70.17744224925012,
-    "side_yd": 9.212716179982351,
-    "curve_yd": 4.314895684340005,
-    "max_height_yd": 1.9471579887509713,
-    "apex_x_yd": 36.688969080823455,
-    "land_angle_deg": 6.792691580776573,
-    "flight_time_s": 1.219515500964943,
-    "land_speed_mph": 106.70649004808872,
-    "land_spin_rpm": 817.9681636809546
+    "carry_yd": 118.80265940709063,
+    "side_yd": 19.94489014444224,
+    "curve_yd": 11.662957108725191,
+    "max_height_yd": 5.0499352746318875,
+    "apex_x_yd": 65.43561084529445,
+    "land_angle_deg": 11.3022473987754,
+    "flight_time_s": 2.3060992956488495,
+    "land_speed_mph": 89.08943838455026,
+    "land_spin_rpm": 995.949945242711
    }
   }
  ]
