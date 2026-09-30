@@ -109,9 +109,9 @@ Everything the port needs to recompute a shot.
 | `roll` | `k`, `cos_power`, `spin_power`, `spin_ref_rpm`, `spin_floor_rpm`, `max_yd`, `cap_frac` (roll never exceeds `cap_frac * carry_yd`: 1.1 times the largest roll to carry ratio on TrackMan's 2010 charts), `form` (text). |
 | `flight` | `dt` (0.01 s step), `max_flight_s`, `v_floor_ms`, `integrator` (`rk4`). |
 | `launch_model` | `k0 k1 k_sl_lo k_sl_hi` (iron, hybrid and wood k line), `k0_driver k1_driver k_sl_lo_driver k_sl_hi_driver` (the driver's k line and its range), `smash_a smash_b smash_c smash_cap smash_floor`, `spin_a spin_b spin_f_wood` (iron spin law and the 3-wood and 5-wood factor), `spin_a_driver spin_b_driver` (the driver's spin law), `axis_c0 axis_c1 axis_sl_lo axis_sl_hi` (spin axis scale, linear in spin loft between the two bounds; `axis_c1` is 0, so the scale is the constant `axis_c0`). |
-| `coupling` | Face-to-loft coupling, MODELED: `form` (text), `lie_deg` and `kappa` (each `{club id: number}`, `kappa = cot(lie_deg)`). Also the loft-follows-attack rule: `loft_per_attack` (1.4, degrees of dynamic loft per degree of attack angle), `loft_per_attack_clubs` (hybrid, both fairway woods, irons and wedges), `driver_natural_slope` (1.0, information only) and `loft_follows_attack` (text). `dyn_loft_deg` (effective) `= dyn_loft_input_deg + kappa[club] * (face_deg - path_deg)`, then held to at least `attack_deg + domain.min_spin_loft_deg` and at most `domain.dyn_loft_deg[1]`. A club that is `null` or not listed has `kappa` 0. |
+| `coupling` | Face-to-loft coupling, MODELED: `form` (text), `lie_deg` and `kappa` (each `{club id: number}`, `kappa = cot(lie_deg)`). Also the loft-follows-attack rule: `loft_per_attack` (1.4, degrees of dynamic loft per degree of attack angle), `loft_per_attack_clubs` (hybrid, both fairway woods, irons and wedges), `loft_follow_deloft_linear` (3) and `loft_follow_deloft_max` (5, degrees of loft taken off below the preset attack), `driver_natural_slope` (1.0, information only) and `loft_follows_attack` (text). `dyn_loft_deg` (effective) `= dyn_loft_input_deg + kappa[club] * (face_deg - path_deg)`, then held to at least `attack_deg + domain.min_spin_loft_deg` and at most `domain.dyn_loft_deg[1]`. A club that is `null` or not listed has `kappa` 0. |
 | `spin_class` | Club id to spin class (`driver`, `wood`). The driver takes its own k line and spin law, a `wood` club the iron spin law times `spin_f_wood`, and every club not listed the iron laws. |
-| `domain` | Ranges `deliver` accepts, each `[lo, hi]` inclusive: `club_speed_mph`, `attack_deg`, `path_deg`, `face_deg`, `dyn_loft_deg`, `swing_plane_deg` (open interval). `min_spin_loft_deg` is a number: `dyn_loft_deg - attack_deg` must be at least that. |
+| `domain` | Ranges `deliver` accepts, each `[lo, hi]` inclusive: `club_speed_mph`, `attack_deg`, `path_deg`, `face_deg`, `dyn_loft_deg`, `swing_plane_deg` (open interval). `min_spin_loft_deg` is a number: `dyn_loft_deg - attack_deg` must be at least that. `min_effective_loft_deg` is a number (1): the effective loft is never below it (with `attack_deg + min_spin_loft_deg`, the larger of the two). |
 | `classify` | Thresholds: `start_straight_deg`, `axis_straight_deg`, `curve_hook_frac`, `on_target_frac`, `on_line_yd`. |
 | `swing_plane_default_deg` | Default swing plane for the hold-swing-direction toggle. |
 
@@ -397,11 +397,18 @@ def build_model():
             "kappa": dict(data.KAPPA),
             "loft_per_attack": data.LOFT_PER_ATTACK,
             "loft_per_attack_clubs": list(data.LOFT_FOLLOWS_ATTACK_CLUBS),
+            "loft_follow_deloft_linear": data.LOFT_FOLLOW_DELOFT_LINEAR,
+            "loft_follow_deloft_max": data.LOFT_FOLLOW_DELOFT_MAX,
             "driver_natural_slope": data.DRIVER_NATURAL_SLOPE,
             "loft_follows_attack": "MODELED. For the clubs in loft_per_attack_clubs, loft_for_attack(club, player, "
-                                   "attack) = clamp(preset dyn_loft_deg + loft_per_attack * (attack - preset "
-                                   "attack_deg), attack + domain.min_spin_loft_deg, domain.dyn_loft_deg[1]): hitting up "
-                                   "adds loft, so spin loft and spin rise, smash falls and the shot flies shorter. The "
+                                   "attack) = clamp_loft(preset dyn_loft_deg + change), change = raw when raw >= 0 and "
+                                   "-(lin + (max - lin) * (1 - exp(-(d - lin) / (max - lin)))) for d = -raw > lin "
+                                   "(else -d), raw = loft_per_attack * (attack - preset attack_deg), lin = "
+                                   "loft_follow_deloft_linear, max = loft_follow_deloft_max: hitting up adds loft, so spin "
+                                   "loft and spin rise, smash falls and the shot flies shorter, and the loft taken off "
+                                   "below the preset attack is limited. clamp_loft(dl, attack) = min(max(dl, "
+                                   "max(attack + domain.min_spin_loft_deg, domain.min_effective_loft_deg)), "
+                                   "domain.dyn_loft_deg[1]). The "
                                    "driver keeps optimal_loft(preset club speed, attack) (ideals.json driver grids). "
                                    "driver_natural_slope (1.0, the arc value) is for the page's information only: the "
                                    "driver toggle uses the chart's optimal loft, not this slope.",

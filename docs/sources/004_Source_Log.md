@@ -452,7 +452,7 @@ Two flags. (1) The workbook's separate "Cd-Cl" sheet also holds an unlabeled col
 
 ---
 
-## Anchor 8 — Standard lie angle by club (task 004-physics, face-to-loft coupling)
+## Anchor 8: Standard lie angle by club (task 004-physics, face-to-loft coupling)
 
 **Status: ANCHORED as a static spec, added 2026-09-29 for the face-to-loft coupling.** Rotating the head about the shaft to close or open the face changes loft by cot(lie angle) per degree of face rotation (docs/sources/004_Physics_Research.md, Topic 1). The model needs one lie angle per club. Published lie is the static angle at address at standard length, not the dynamic lie at impact (TrackMan's dynamic lie article was not readable, see the research file). The rotation-about-the-shaft assumption, with no shaft lean, is MODELED.
 
@@ -472,7 +472,7 @@ Two flags. (1) The workbook's separate "Cd-Cl" sheet also holds an unlabeled col
 
 ---
 
-## Anchor 9 — Iron carry, launch and spin by attack angle (Foresight 7 iron chart)
+## Anchor 9: Iron carry, launch and spin by attack angle (Foresight 7 iron chart)
 
 **Status: PARTIAL, added 2026-09-29 for the loft-follows-attack coupling.** One manufacturer chart for one club (a 7 iron). The method is unknown: the page does not say who or what swung the club, how the attack angle was set or the club's loft (the file name mentions Gene Parente, named elsewhere as the Golf Laboratories robot operator, so a robot is likely and unconfirmed). Not peer reviewed.
 
@@ -490,7 +490,7 @@ Carry by attack angle (-6, -4, -2, 0, +2): at 100 mph 203.5, 200.1, 195.4, 188.4
 
 Reading (DERIVED, docs/sources/004_Physics_Research.md, 13.1): launch rises 10 to 12 degrees from -6 to +2 attack, more than one degree of loft per degree of attack would give (about 8), so dynamic loft rose about 1.25 to 1.7 degrees per degree of attack (median about 1.4), and the spin rise at 90 and 100 mph implies about 1.5.
 
-## Anchor 10 — Dynamic loft against attack angle within a player (Suzuki et al. 2021)
+## Anchor 10: Dynamic loft against attack angle within a player (Suzuki et al. 2021)
 
 **Status: ANCHORED for the driver off a tee, added 2026-09-29.** Peer reviewed, open access. 42 professionals and 25 amateurs hit their own drivers off a flat tee toward a fairway rising or falling 5 degrees, told to swing in their usual way.
 
@@ -503,7 +503,7 @@ Reading (DERIVED, docs/sources/004_Physics_Research.md, 13.1): launch rises 10 t
 
 Spin loft stayed within 0.5 degree in both groups, so the coupling ran close to the arc value of 1.0 for a driver off a tee. Amateurs delivered 2.4 to 3.2 degrees more spin loft than professionals in the same condition.
 
-## Anchor 11 — TrackMan rule for dynamic loft from static loft and attack angle
+## Anchor 11: TrackMan rule for dynamic loft from static loft and attack angle
 
 **Status: ANCHORED as a statement, added 2026-09-29.** TrackMan, "Data parameter sheet, Release 3.1" ([PDF hosted by Hank Haney Golf](https://hankhaney.com/app/uploads/2019/01/TrackmanTERMS.pdf)), retrieved 2026-09-29, read RAW: dynamic loft equals static loft plus attack angle, adjusted for the bent shaft, with a typical adjustment of +2 degrees for a driver. TrackMan's Dynamic Loft and Attack Angle pages (RAW, same date) say dynamic loft depends on attack angle, shaft bend, the release, whether the face is open or closed to path and strike location, and that slower golfers should take care not to hit too far down with irons because it costs distance. No coefficient is printed for irons. Arc geometry (docs/sources/004_Physics_Research.md, 13.1, DERIVED) gives 1.0 degree of dynamic loft per degree of attack angle for a club that turns with its velocity vector.
 

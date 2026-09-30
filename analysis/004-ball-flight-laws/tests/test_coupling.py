@@ -34,7 +34,7 @@ def test_kappa_is_cot_of_the_lie_angle_for_every_club():
     assert set(data.KAPPA) == set(data.LIE_DEG) == set(data.PGA)
     for club, lie in data.LIE_DEG.items():
         assert data.KAPPA[club] == pytest.approx(1.0 / math.tan(math.radians(lie)), rel=1e-12)
-        assert 0.45 < data.KAPPA[club] < 0.7  # cot(56 to 64 deg), below the 0.6 shaft-lean-free roll ceiling plus a margin
+        assert 0.45 < data.KAPPA[club] < 0.7  # cot(56 to 64 deg): 0.49 (PW) to 0.66 (3-wood); the driver's is 0.613
 
 
 def test_lie_angles_follow_the_spec_sheets():
@@ -79,6 +79,17 @@ def test_effective_loft_is_held_to_the_spin_loft_floor_and_the_domain():
     assert ln.dyn_loft_deg == pytest.approx(6.0 + floor)
     top = launch.deliver(95.0, 0.0, -15.0, 15.0, 60.0, "pw")
     assert top.dyn_loft_deg == data.DOMAIN["dyn_loft_deg"][1]
+
+
+def test_effective_loft_is_never_negative():
+    """A steep attack with a big closed face used to deliver -3.0 deg (3-wood, attack -10, path -8,
+    face -15). The floor is max(attack + 1, 1.0)."""
+    ln = launch.deliver(90.0, -10.0, -8.0, -15.0, 2.0, "3w")  # 2 - 0.66 * 7 = -2.6 before the floor
+    assert ln.dyn_loft_deg == data.DOMAIN["min_effective_loft_deg"] == 1.0
+    ln = launch.deliver(90.0, -10.0, 0.0, -15.0, 5.0, "3w")
+    assert ln.dyn_loft_deg >= 1.0
+    assert launch.clamp_loft(-3.0, -10.0) == 1.0 and launch.clamp_loft(3.0, 5.0) == 6.0 and launch.clamp_loft(70.0, 0.0) == 65.0
+    assert launch.effective_loft(2.0, -8.0, -15.0, -10.0, "3w") == 1.0
 
 
 def test_the_input_check_still_uses_the_input_loft():

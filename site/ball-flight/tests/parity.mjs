@@ -366,6 +366,11 @@ for (const v of golden.loft_for_attack_vectors) {
   const pr = model.preset("7i", "pga");
   near("loftForAttack", "slope is loft_per_attack", model.loftForAttack("7i", "pga", pr.attack + 2) - model.loftForAttack("7i", "pga", pr.attack), 2 * m, 1e-9);
   near("loftForAttack", "preset attack gives the preset loft", model.loftForAttack("7i", "pga", pr.attack), pr.dynLoft, 1e-9);
+  const w3 = model.preset("3w", "pga");
+  near("loftForAttack", "deloft is limited to the maximum", w3.dynLoft - model.loftForAttack("3w", "pga", -10),
+    json.model.coupling.loft_follow_deloft_max, 0.7);
+  exact("loftForAttack", "deloft below the max", w3.dynLoft - model.loftForAttack("3w", "pga", -10) < json.model.coupling.loft_follow_deloft_max, true);
+  near("loftForAttack", "slope inside the linear zone", w3.dynLoft - model.loftForAttack("3w", "pga", w3.attack - 1), m, 1e-9);
   near("loftForAttack", "driver uses the chart", model.loftForAttack("driver", "pga", 3), model.optimalLoft(model.preset("driver", "pga").clubSpeed, 3).dynLoft, 1e-12);
   exact("loftForAttack", "driver natural slope exported", json.model.coupling.driver_natural_slope, 1);
   throwsWith("invalid input", "loftForAttack attack NaN", () => model.loftForAttack("7i", "pga", NaN), "attack");
@@ -394,6 +399,8 @@ for (const v of golden.loft_for_attack_vectors) {
   exact("coupling", "draw flies lower, with less spin and more total", draw.flight.maxHeight < fade.flight.maxHeight &&
     draw.launch.spinRpm < fade.launch.spinRpm && draw.total > fade.total, true);
   exact("coupling", "loft floor", model.deliver(95, 6, 15, -15, 8, "driver").dynLoftDeg, 6 + json.model.domain.min_spin_loft_deg);
+  exact("coupling", "effective loft is never negative", model.deliver(90, -10, -8, -15, 2, "3w").dynLoftDeg, json.model.domain.min_effective_loft_deg);
+  near("coupling", "effectiveLoft floor", model.effectiveLoft(2, -8, -15, -10, "3w"), 1, 0);
   exact("coupling", "metricValue is the effective loft", model.metricValue("dyn_loft_deg", draw), draw.launch.dynLoftDeg);
   exact("coupling", "metricValue input loft", model.metricValue("dyn_loft_input_deg", draw), pr.dynLoft);
 }

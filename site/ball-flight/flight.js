@@ -214,7 +214,8 @@ const REQUIRED_KEYS = [
     ...["k0", "k1", "k_sl_lo", "k_sl_hi", "k0_driver", "k1_driver", "k_sl_lo_driver", "k_sl_hi_driver", "smash_a",
       "smash_b", "smash_c", "smash_cap", "smash_floor", "spin_a", "spin_b", "spin_f_wood", "spin_a_driver",
       "spin_b_driver", "axis_c0", "axis_c1", "axis_sl_lo", "axis_sl_hi"].map((k) => "launch_model." + k),
-    "coupling.kappa", "coupling.loft_per_attack", "coupling.driver_natural_slope",
+    "coupling.kappa", "coupling.loft_per_attack", "coupling.loft_follow_deloft_linear",
+    "coupling.loft_follow_deloft_max", "coupling.driver_natural_slope",
     "spin_class", ...["club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg", "swing_plane_deg",
       "min_spin_loft_deg"].map((k) => "domain." + k),
     ...["start_straight_deg", "axis_straight_deg", "curve_hook_frac", "on_target_frac", "on_line_yd"].map(
@@ -364,6 +365,8 @@ export function createModel(json) {
   const ROLL = M.roll;
   const KAPPA = M.coupling.kappa;
   const LOFT_PER_ATTACK = M.coupling.loft_per_attack;
+  const DELOFT_LINEAR = M.coupling.loft_follow_deloft_linear;
+  const DELOFT_MAX = M.coupling.loft_follow_deloft_max;
   const DRIVER_IDEAL = PRE.driver_ideal;
   const TOL = IDL.tolerances;
   const FROZEN_DOMAIN = deepFreeze(clone(DOMAIN)); // what model.domain exposes
@@ -689,12 +692,18 @@ export function createModel(json) {
   }
 
   /**
-   * launch.py effective_loft: dynLoft + kappa(club) * (face - path), held to attack plus the
-   * domain's minimum spin loft at the low end and to the domain's largest dynamic loft at the top.
+   * launch.py clamp_loft: the one clamp on an effective dynamic loft. At least attack + the domain's
+   * minimum spin loft and at least the domain's minimum effective loft (never a negative loft), at
+   * most the domain's largest dynamic loft.
    */
+  function clampLoft(dl, attack) {
+    const low = Math.max(attack + DOMAIN.min_spin_loft_deg, DOMAIN.min_effective_loft_deg);
+    return Math.min(Math.max(dl, low), DOMAIN.dyn_loft_deg[1]);
+  }
+
+  /** launch.py effective_loft: dynLoft + kappa(club) * (face - path), through clampLoft. */
   function effectiveLoft(dynLoft, path, face, attack, club) {
-    const dl = dynLoft + couplingKappa(club) * (face - path);
-    return Math.min(Math.max(dl, attack + DOMAIN.min_spin_loft_deg), DOMAIN.dyn_loft_deg[1]);
+    return clampLoft(dynLoft + couplingKappa(club) * (face - path), attack);
   }
 
   function launchVector(path, attack, face, dynLoft, club) {
@@ -874,8 +883,9 @@ export function createModel(json) {
   /**
    * presets.loft_for_attack: the input dynamic loft when the loft follows the attack angle (MODELED).
    * Hybrids, fairway woods, irons and wedges: preset dynLoft + coupling.loft_per_attack * (attack -
-   * preset attack), so hitting up adds loft. The driver: optimalLoft at the preset club speed. Held to
-   * at least attack + the domain's spin loft floor and at most the domain's largest dynamic loft.
+   * preset attack), so hitting up adds loft. Below the preset attack the loft taken off follows the slope
+   * for the first 3 degrees and rolls off to at most 5 (followedChange). The driver: optimalLoft at the
+   * preset club speed. Through clampLoft, so it is always a loft deliver() accepts.
    * Throws ValueError for an unknown club or player, or an attack outside the domain.
    */
   function loftForAttack(club, player, attack) {
@@ -887,8 +897,22 @@ export function createModel(json) {
     }
     const dl = club === "driver"
       ? optimalLoft(p.clubSpeed, attack).dynLoft
-      : p.dynLoft + LOFT_PER_ATTACK * (attack - p.attack);
-    return Math.min(Math.max(dl, attack + DOMAIN.min_spin_loft_deg), DOMAIN.dyn_loft_deg[1]);
+      : p.dynLoft + followedChange(LOFT_PER_ATTACK * (attack - p.attack));
+    return clampLoft(dl, attack);
+  }
+
+  /**
+   * presets._followed_change: loft change for a raw change of m * (attack - preset attack). Upward it
+   * is the raw change. Downward it follows the slope for the first DELOFT_LINEAR degrees of deloft,
+   * then rolls off exponentially to DELOFT_MAX (value and slope continuous at the join).
+   */
+  function followedChange(raw) {
+    if (raw >= 0.0) return raw;
+    let deloft = -raw;
+    if (deloft > DELOFT_LINEAR) {
+      deloft = DELOFT_LINEAR + (DELOFT_MAX - DELOFT_LINEAR) * (1.0 - Math.exp(-(deloft - DELOFT_LINEAR) / (DELOFT_MAX - DELOFT_LINEAR)));
+    }
+    return -deloft;
   }
 
   /**

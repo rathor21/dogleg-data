@@ -26,8 +26,8 @@ Model:
      gives kappa 0), so it is the upper end of what the geometry allows. Every
      step below uses the effective loft. At face = path the two lofts are equal.
      A club that is not named has kappa 0. The effective loft is held to at least
-     attack + data.DOMAIN["min_spin_loft_deg"] and at most the domain's largest
-     dynamic loft.
+     max(attack + data.DOMAIN["min_spin_loft_deg"], data.DOMAIN["min_effective_loft_deg"])
+     and at most the domain's largest dynamic loft (clamp_loft).
   1. Club direction d from path and attack angle. Face normal n from face angle
      and effective dynamic loft (azimuth = face, elevation = effective dynamic
      loft). Spin loft is the 3D angle between d and n. It equals dynamic loft
@@ -109,12 +109,18 @@ def coupling_kappa(club=None):
     return data.KAPPA.get(club, 0.0)
 
 
+def clamp_loft(dyn_loft_deg, attack_deg):
+    """The one clamp on an effective dynamic loft: at least attack + data.DOMAIN
+    ["min_spin_loft_deg"] (the D-plane needs a spin loft) and at least
+    data.DOMAIN["min_effective_loft_deg"] (never a negative loft), at most the
+    domain's largest dynamic loft."""
+    low = max(attack_deg + data.DOMAIN["min_spin_loft_deg"], data.DOMAIN["min_effective_loft_deg"])
+    return min(max(dyn_loft_deg, low), data.DOMAIN["dyn_loft_deg"][1])
+
+
 def effective_loft(dyn_loft_deg, path_deg, face_deg, attack_deg, club=None):
-    """Effective dynamic loft: dyn_loft + kappa(club) * (face - path), held to
-    attack + data.DOMAIN["min_spin_loft_deg"] at the low end (the D-plane needs a
-    spin loft) and to the domain's largest dynamic loft at the high end."""
-    dl = dyn_loft_deg + coupling_kappa(club) * (face_deg - path_deg)
-    return min(max(dl, attack_deg + data.DOMAIN["min_spin_loft_deg"]), data.DOMAIN["dyn_loft_deg"][1])
+    """Effective dynamic loft: dyn_loft + kappa(club) * (face - path), through clamp_loft."""
+    return clamp_loft(dyn_loft_deg + coupling_kappa(club) * (face_deg - path_deg), attack_deg)
 
 
 def club_direction(path_deg, attack_deg):

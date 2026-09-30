@@ -65,8 +65,71 @@ def test_every_result_is_a_loft_deliver_accepts(club, player):
     for a in (lo, -6.0, 0.0, 6.0, hi):
         dl = presets.loft_for_attack(club, player, a)
         assert dl - a >= data.DOMAIN["min_spin_loft_deg"] - 1e-12
+        assert dl >= data.DOMAIN["min_effective_loft_deg"]
         assert dl <= data.DOMAIN["dyn_loft_deg"][1]
         presets.fly(presets.preset(club, player), attack=a, dyn_loft=dl)  # deliver does not raise
+
+
+@pytest.mark.parametrize("player", presets.PLAYERS)
+@pytest.mark.parametrize("club", FOLLOWERS)
+def test_the_deloft_is_limited_below_the_preset_attack(club, player):
+    """A golfer can only lean the shaft so far: never more than 5 degrees off the preset loft,
+    and exactly the 1.4 slope for the first 3 degrees of deloft."""
+    p = presets.preset(club, player)
+    top, lin = data.LOFT_FOLLOW_DELOFT_MAX, data.LOFT_FOLLOW_DELOFT_LINEAR
+    for a in (-10.0, -8.0, -6.0, -4.0, p["attack"] - 1.0):
+        dl = presets.loft_for_attack(club, player, a)
+        assert p["dyn_loft"] - dl <= top + 1e-9
+    a = p["attack"] - lin / 1.4  # exactly `lin` degrees of deloft
+    assert presets.loft_for_attack(club, player, a) == pytest.approx(p["dyn_loft"] - lin)
+    a = p["attack"] - 0.5 * lin / 1.4
+    assert presets.loft_for_attack(club, player, a) == pytest.approx(p["dyn_loft"] - 0.5 * lin)
+    assert presets.loft_for_attack(club, player, -10.0) > p["dyn_loft"] - top - 1e-9
+
+
+@pytest.mark.parametrize("player", presets.PLAYERS)
+@pytest.mark.parametrize("club", FOLLOWERS)
+def test_the_followed_loft_is_continuous_and_rises_with_attack(club, player):
+    """No kink the user notices: the loft rises with attack, its step per half degree never passes
+    the 1.4 slope, and the change in that step is small (the roll-off is smooth)."""
+    attacks = [a / 2.0 for a in range(-20, 21)]
+    loft = [presets.loft_for_attack(club, player, a) for a in attacks]
+    steps = [b - a for a, b in zip(loft, loft[1:])]
+    assert all(s > 0.0 for s in steps)
+    assert max(steps) <= 0.7 + 1e-9
+    kinks = [abs(b - a) for a, b in zip(steps, steps[1:])]
+    assert max(kinks) < 0.25, max(kinks)
+
+
+@pytest.mark.parametrize("player", presets.PLAYERS)
+@pytest.mark.parametrize("club", FOLLOWERS)
+def test_steep_attack_never_grounds_the_ball(club, player):
+    """The loft-follow default must not cliff: across attack -10 to +10 the ball launches at
+    least 3 degrees, peaks at least 8 yd high and carries."""
+    p = presets.preset(club, player)
+    for i in range(-20, 21):
+        a = i / 2.0
+        ln, f = presets.fly(p, attack=a, dyn_loft=presets.loft_for_attack(club, player, a))
+        assert ln.launch_deg >= 3.0, (club, player, a, ln.launch_deg)
+        assert f.max_height_yd >= 8.0, (club, player, a, f.max_height_yd)
+        assert f.carry_yd > 50.0, (club, player, a, f.carry_yd)
+
+
+@pytest.mark.parametrize("player", presets.PLAYERS)
+@pytest.mark.parametrize("club", IRONS)
+def test_iron_carry_falls_from_the_preset_attack_up_to_plus_10(club, player):
+    """Monotone, with one recorded exception: the 3 and 4 iron for every player sit near their carry
+    peak and gain under a yard in the first 2 to 3 degrees above the preset before falling."""
+    p = presets.preset(club, player)
+    attacks = [p["attack"] + i * (10.0 - p["attack"]) / 20.0 for i in range(21)]
+    carry = [presets.fly(p, attack=a, dyn_loft=presets.loft_for_attack(club, player, a))[1].carry_yd for a in attacks]
+    if club in ("3i", "4i") and max(carry) > carry[0]:
+        assert max(carry) - carry[0] < 1.0
+        assert carry[-1] < carry[0]
+        tail = carry[carry.index(max(carry)):]
+        assert all(b < a for a, b in zip(tail, tail[1:]))
+    else:
+        assert all(b < a for a, b in zip(carry, carry[1:])), (club, player)
 
 
 def test_bad_inputs_raise():
@@ -106,13 +169,14 @@ def test_hitting_up_shortens_tour_irons_from_the_preset_attack_to_plus_3(club, p
 @pytest.mark.parametrize("player", presets.PLAYERS)
 @pytest.mark.parametrize("club", FOLLOWERS)
 def test_total_falls_and_smash_falls_and_spin_rises_with_attack(club, player):
-    attacks = [-8.0, -6.0, -4.0, -2.0, 0.0, 2.0, 4.0]
-    rows = _walk(club, player, attacks)
-    # Total falls from the preset attack up. Far below it a slow player's delofted wood or hybrid
-    # launches too low and loses total from the other side (the 3-wood peaks between -6 and -4).
+    """From 2 degrees below the preset attack (where the loft still follows the slope exactly) up to +4:
+    hitting up adds spin loft, so smash falls, spin and launch rise, and total falls. Far below the
+    preset the deloft is limited (a golfer can only lean the shaft so far), spin loft then grows with
+    a steeper attack and smash falls from that side too."""
     p = presets.preset(club, player)
-    up = _walk(club, player, [p["attack"] + i * (4.0 - p["attack"]) / 6 for i in range(7)])
-    assert all(b[1] < a[1] for a, b in zip(up, up[1:])), "total"
+    attacks = [p["attack"] - 2.0 + i * (4.0 - p["attack"] + 2.0) / 6 for i in range(7)]
+    rows = _walk(club, player, attacks)
+    assert all(b[1] < a[1] for a, b in zip(rows[1:], rows[2:])), "total"  # total peaks near the preset
     assert all(b[2] < a[2] for a, b in zip(rows, rows[1:])), "smash"
     assert all(b[3] > a[3] for a, b in zip(rows, rows[1:])), "spin"
     assert all(b[4] > a[4] for a, b in zip(rows, rows[1:])), "launch"

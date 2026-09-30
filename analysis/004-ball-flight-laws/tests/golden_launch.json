@@ -23,6 +23,7 @@
    65.0
   ],
   "min_spin_loft_deg": 1.0,
+  "min_effective_loft_deg": 1.0,
   "swing_plane_deg": [
    20.0,
    80.0
@@ -1313,14 +1314,14 @@
    "launch": {
     "ball_speed_mph": 119.2,
     "smash": 1.49,
-    "launch_deg": -2.0090110049124053,
+    "launch_deg": -1.2087820990484222,
     "launch_dir_deg": 0.0,
-    "spin_rpm": 1871.085535721921,
+    "spin_rpm": 2118.7920252435624,
     "spin_axis_deg": 0.0,
-    "spin_loft_deg": 10.0,
+    "spin_loft_deg": 11.0,
     "face_to_path_deg": 0.0,
     "dyn_loft_input_deg": 0.0,
-    "dyn_loft_deg": 0.0
+    "dyn_loft_deg": 1.0
    },
    "flight": {
     "carry_yd": 0.0,
@@ -1328,10 +1329,10 @@
     "curve_yd": -0.0,
     "max_height_yd": 0.0,
     "apex_x_yd": 0.0,
-    "land_angle_deg": 2.0090110049124053,
+    "land_angle_deg": 1.2087820990484224,
     "flight_time_s": 0.0,
-    "land_speed_mph": 119.19999999999999,
-    "land_spin_rpm": 1871.085535721921
+    "land_speed_mph": 119.2,
+    "land_spin_rpm": 2118.7920252435624
    }
   },
   {

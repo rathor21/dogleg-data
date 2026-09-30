@@ -448,16 +448,17 @@ ROLL_CAP_FRAC = 0.3592  # MODELED, 1.1 x 0.3265
 #       axis_c1 is 0 and axis_c0 is one constant, 0.9986, fitted to minimize the
 #       largest normalized error over the eight Anchor 5(b) face-to-path
 #       examples flown through flight.simulate with the coupling on (worst 0.90
-#       of tolerance, 1.2 yd of 4 on the PGA 6 iron at -5, rms 0.56, all eight
+#       of tolerance, 3.6 yd of 4 on the PGA 6 iron at -5, rms 0.56, all eight
 #       inside). With the coupling a closed face flies longer and curves more
 #       than an open one, TrackMan's examples curve about the same per degree
 #       either way, and the earlier line in spin loft (1.2177 - 0.008835 SL, which
 #       fitted the symmetric model) leaves one example outside once the coupling is
 #       on: the least-squares refit of that line has a worst error of 1.07 (PGA 6
 #       iron, -5). c near 1 also agrees with Tuxen's rules of thumb (axis is
-#       4 times face-to-path for a driver, 2 times for a 6 iron). axis_sl_lo and
-#       axis_sl_hi are the examples' spin lofts with the coupling (10.5 to 29.4),
-#       kept so the shape of the dict does not change. Each example takes a spin
+#       4 times face-to-path for a driver, 2 times for a 6 iron). axis_c1 (0) and
+#       axis_sl_lo and axis_sl_hi (the examples' spin lofts with the coupling, 10.5 to
+#       29.4) are INFORMATIONAL ONLY: with c1 = 0 the scale does not depend on spin loft,
+#       and they are kept so the shape of the dict does not change. Each example takes a spin
 #       trim from its own 2019 row: 2019 spin over model spin at path 0 and face
 #       0, held fixed as the face opens.
 #
@@ -600,9 +601,24 @@ KAPPA = {club: 1.0 / tan(radians(lie)) for club, lie in LIE_DEG.items()}
 # attack angle as separate inputs) stays.
 # ---------------------------------------------------------------------------
 
+#
+# Steep attack. The 1.4 slope is evidence for attack from -6 to +2 (the Foresight
+# chart), and hits a cliff if it runs on below the preset attack: at attack -9 a
+# 3-wood would deliver 3 degrees of loft and fly 6 yd high, at -10 it would hit the
+# ground. A golfer can only lean the shaft and de-loft so far, so below the preset
+# attack the loft taken off follows the 1.4 slope for the first LOFT_FOLLOW_DELOFT_LINEAR
+# degrees of deloft and then rolls off smoothly (an exponential, so the slope and the
+# value are continuous) to a limit of LOFT_FOLLOW_DELOFT_MAX degrees below the preset
+# loft. MODELED: the 3 and 5 degrees are design choices. Three degrees is the deloft
+# the Foresight chart itself reaches for the 7 iron (attack -6 against a preset of
+# -3.9), and 5 degrees is about the shaft lean TrackMan coaches quote for an iron (4 to
+# 8, a search snippet, not used as a value). Above the preset attack the slope runs on
+# (hitting up adds loft, capped by the domain). Nothing above +2 has evidence.
 LOFT_PER_ATTACK = 1.4  # MODELED, degrees of dynamic loft per degree of attack angle
+LOFT_FOLLOW_DELOFT_LINEAR = 3.0  # MODELED, degrees of deloft that follow the slope exactly
+LOFT_FOLLOW_DELOFT_MAX = 5.0  # MODELED, the most loft taken off the preset loft
 LOFT_FOLLOWS_ATTACK_CLUBS = ("3w", "5w", "hybrid", "3i", "4i", "5i", "6i", "7i", "8i", "9i", "pw")
-DRIVER_NATURAL_SLOPE = 1.0  # arc geometry, Anchor 11: information for the UI, the driver toggle uses optimal_loft
+DRIVER_NATURAL_SLOPE = 1.0  # INFORMATIONAL ONLY (no model code reads it): arc geometry, Anchor 11. The driver toggle uses optimal_loft.
 
 DOMAIN = {
     "club_speed_mph": (40.0, 140.0),
@@ -611,6 +627,10 @@ DOMAIN = {
     "face_deg": (-15.0, 15.0),
     "dyn_loft_deg": (0.0, 65.0),
     "min_spin_loft_deg": 1.0,
+    # MODELED floor on the effective dynamic loft (the loft after the face-to-loft coupling and the
+    # loft-follows-attack rule): at least 1 degree, so a steep attack with a closed face never
+    # delivers a negative loft. launch.clamp_loft applies max(attack + min_spin_loft_deg, this).
+    "min_effective_loft_deg": 1.0,
     "swing_plane_deg": (20.0, 80.0),
 }
 
