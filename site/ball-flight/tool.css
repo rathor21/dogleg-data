@@ -404,6 +404,7 @@ svg.pv{display:block;max-width:100%;}
 .pv-head.target{fill:var(--ink-soft);}
 .pv-face{stroke:var(--clay-text);stroke-width:6;stroke-linecap:round;}
 .pv-leader{stroke:var(--clay-text);stroke-width:1;}
+.pv-ref{stroke:var(--muted);stroke-width:3;stroke-linecap:round;stroke-dasharray:1 5;opacity:.8;}
 .pv-shaft{stroke:var(--muted);stroke-width:2.5;stroke-dasharray:2 5;stroke-linecap:round;}
 .pv-text{font-family:var(--mono);font-size:12px;fill:var(--ink-soft);paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round;}
 .pv-text.muted{fill:var(--muted);}

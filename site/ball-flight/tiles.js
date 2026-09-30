@@ -23,6 +23,16 @@ export function configureTiles({ onLineYd }) {
   if (Number.isFinite(onLineYd)) ON_LINE_YD = onLineYd;
 }
 const dirWord = (v) => (v > 0 ? "right" : "left");
+
+/** "face 3.0° closed to path takes 1.5° off", or "adds 1.8°", when the face has moved the effective loft off the slider's. */
+export function loftNote(effective, entry) {
+  if (!entry || entry.input === undefined) return "";
+  const delta = effective - entry.input;
+  if (Math.abs(delta) < 0.05) return "";
+  const f2p = entry.faceToPathRh;
+  const rel = f2p < 0 ? "closed" : "open";
+  return `face ${Math.abs(f2p).toFixed(1)}\u00B0 ${rel} to path ${delta < 0 ? "takes" : "adds"} ${Math.abs(delta).toFixed(1)}\u00B0${delta < 0 ? " off" : ""}`;
+}
 const isZero = (v, tol) => Math.abs(v) < tol;
 
 // words(rh, disp) returns the plain-language word under the value.
@@ -48,8 +58,11 @@ export const METRICS = {
       hints: (h) => (h === "l" ? [MINUS + " open", "+ closed"] : [MINUS + " closed", "+ open"]) } },
   face_to_path_deg: { label: "Face to path", unit: DEG, dec: 1, signed: true, lateral: true,
     words: (rh) => (isZero(rh, 0.05) ? "square to path" : rh > 0 ? "open to path" : "closed to path") },
+  // The tile shows the EFFECTIVE loft (what TrackMan would measure). The slider sets the loft with the face
+  // square to the path, and closing or opening the face against the path moves the effective loft off it.
   dyn_loft_deg: { label: "Dynamic loft", unit: DEG, dec: 1,
-    slider: { stateKey: "dynLoft", step: 0.5, dom: "dyn_loft_deg", advanced: true } },
+    words: (rh, d, e) => loftNote(d, e),
+    slider: { stateKey: "dynLoft", step: 0.5, dom: "dyn_loft_deg", advanced: true, label: "Dynamic loft (face square to path)" } },
   spin_loft_deg: { label: "Spin loft", unit: DEG, dec: 1 },
   ball_speed_mph: { label: "Ball speed", unit: "mph", dec: 1 },
   smash: { label: "Smash factor", unit: "", dec: 2 },
@@ -232,7 +245,7 @@ export function createTile(metric, prefix, extraClass) {
     update(entry, rawBand, hand, exception) {
       const value = entry.disp;
       vEl.textContent = fmt(value, m.dec, m.signed, m.grouped);
-      wordEl.textContent = m.words ? m.words(entry.rh, entry.disp) : "";
+      wordEl.textContent = m.words ? m.words(entry.rh, entry.disp, entry) : "";
       const band = m.noBand || !rawBand ? null : displayBand(metric, rawBand, hand);
       if (!band) {
         el.classList.remove("in", "out");
