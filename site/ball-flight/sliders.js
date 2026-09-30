@@ -110,6 +110,11 @@ export function createSliders({ model, store, containers, hooks }) {
     <p class="follow-note" id="follow-note"></p>
     <p class="follow-hint" id="follow-hint" hidden></p>`;
   sliders.attack_deg.wrap.appendChild(follow);
+  // A launch monitor reports the effective loft. Typing that reading into the slider would count the face's share twice.
+  const loftHint = document.createElement("p");
+  loftHint.className = "follow-hint loft-hint";
+  loftHint.hidden = true;
+  sliders.dyn_loft_deg.wrap.appendChild(loftHint);
   const followBox = follow.querySelector("input");
   const followNote = follow.querySelector("#follow-note");
   const followHint = follow.querySelector("#follow-hint");
@@ -141,6 +146,11 @@ export function createSliders({ model, store, containers, hooks }) {
         api.val.append(w);
       }
       api.input.setAttribute("aria-valuetext", word ? `${text}, ${word}` : text);
+      if (metric === "dyn_loft_deg") {
+        const off = Math.abs(entry.faceToPathRh) >= 0.05;
+        loftHint.hidden = !off;
+        if (off) loftHint.textContent = `TrackMan shows the effective loft: ${fmt(entry.disp, 1)}${DEG} here. Enter the loft you would have with the face square to the path.`;
+      }
       const b = c.bands[metric];
       if (b) {
         const span = api.hi - api.lo;
@@ -162,6 +172,7 @@ export function createSliders({ model, store, containers, hooks }) {
   const perAttack = model.data.model.coupling.loft_per_attack;
 
   /** Keep the loft switch and its notes current. The switch shows for every club. */
+  const MODELED = ' <span class="badge-modeled">modeled</span>';
   function renderFollow() {
     follow.hidden = false;
     const driver = state.club === "driver";
@@ -177,10 +188,10 @@ export function createSliders({ model, store, containers, hooks }) {
           ? `, and you added ${fmt(off, 1, true)}${DEG}.`
           : `; this delivery sits ${fmt(Math.abs(off), 1)}${DEG} ${off > 0 ? "above" : "below"} it.`;
       }
-      followNote.textContent = `Loft ${fmt(state.dynLoft, 1)}${DEG} now. ${chartTxt}${tail}`;
+      followNote.innerHTML = `${`Loft ${fmt(state.dynLoft, 1)}${DEG} now. ${chartTxt}${tail}`}${MODELED}`;
     } else if (state.loftFollows) {
       const mine = state.loftOffsetIsMine && Math.abs(state.loftOffset) >= 0.05 ? ` You added ${fmt(state.loftOffset, 1, true)}${DEG}.` : "";
-      followNote.textContent = `Loft follows attack: ${perAttack}${DEG} per degree, hitting up adds loft.${mine}`;
+      followNote.innerHTML = `${`Loft follows attack: ${perAttack}${DEG} per degree, hitting up adds loft.${mine}`}${MODELED}`;
     } else {
       followNote.textContent = `Loft is fixed at ${fmt(state.dynLoft, 1)}${DEG}.`;
     }

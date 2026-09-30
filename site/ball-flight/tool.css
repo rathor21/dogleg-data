@@ -618,6 +618,7 @@ body.presenting .slider-head .val .w{display:none;}
 body.presenting .sliders{align-items:flex-start;}
 body.presenting #hit-btn-2,body.presenting #exit-present,body.presenting #reset-btn,body.presenting #avg-btn{display:inline-flex;}
 body.presenting .follow-note,body.presenting .follow-hint{display:none;}
+@media (max-width:499px){body.presenting .loft-follow{display:none;}}
 body.presenting .range-loading{font-size:1.1rem;}
 
 @media (prefers-reduced-motion:reduce){

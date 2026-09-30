@@ -328,7 +328,7 @@ export function createViews({ root, onLineYd = 0.5 }) {
     label(g2, 6, sy0 + 20, `attack ${f1(atk)}${DEG}`, "ink strong");
     label(g2, W - 6, sy0 + 20, `loft ${loft.toFixed(1)}${DEG}`, "clay strong", "end");
     if (moved) label(g2, W - 6, sy0 + 35, `set ${inputLoft.toFixed(1)}${DEG}`, "muted", "end");
-    const slText = `spin loft ${spinLoft.toFixed(1)}${DEG}`, slNote = `(loft ${MINUS} attack)`;
+    const slText = `spin loft ${spinLoft.toFixed(1)}${DEG}`, slNote = "(3D)";
     if ((slText.length + slNote.length + 1) * 7.3 > W - 10) {
       label(g2, W / 2, H - 20, slText, "ink strong", "middle");
       label(g2, W / 2, H - 6, slNote, "muted", "middle");
