@@ -17,6 +17,17 @@ Each fact below carries the way it was obtained.
 
 Pages that refused a fetch were not worked around: MDPI (Access Denied), IOP Science (Radware captcha), Canadian Science Publishing, Springer, Taylor and Francis, Academia.edu and ScienceDirect (Cloudflare challenge), ResearchGate (access restricted), GolfWRX (Cloudflare block), Golf Digest (Access Denied), the TrackMan support center (Cloudflare challenge), Yumpu (page holds a table of contents and no text). The Internet Archive CDX index was offline at the time of the last query.
 
+## Status of the model against this audit
+
+The verdicts in the table below are as written on 2026-09-29, before any code changed. Since then:
+
+- Topics 1 and 13 (face-to-loft coupling, loft follows attack angle): implemented 2026-09-29 (ADR 0004 addenda 3 and 4).
+- Topic 5 (attack angle moves the path): the lab's path-follows-attack switch, on by default, holds the swing direction on a per-club swing plane (ADR 0004 addendum 5, source log Anchor 12), after a reviewer made the point that a vertical change in the attack angle tilts the arc and shifts the horizontal path.
+- Topic 6 (lie at impact): a `lie_deg` input, an exact rotation of the face normal about the target line (addendum 5, Anchor 14).
+- Topic 7 (strike location): `strike_toe_mm` and `strike_up_mm` inputs with the horizontal gear effect from Tuxen's four rows, the vertical gear effect at Tutelman's ratio on the driver and fairway woods, TrackMan's bulge and roll numbers, and a modeled smash loss (addendum 5, Anchor 13).
+- Topic 8 (measurement references): named in the lab's footer and the article's Conventions note (addendum 5).
+- Topics 2 (draw against fade distance) followed from topic 1. Topics 9 (extreme spin loft) and 11 (bounce and roll) are still as the table says.
+
 ## Summary of findings
 
 | # | Topic | Best evidence found | Model captures it? |

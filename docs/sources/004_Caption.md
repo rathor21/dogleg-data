@@ -1,6 +1,6 @@
 # 004 Caption -- number-by-number ledger (issue #30, task 004.11)
 
-Every number in `site/ball-flight/index.html` (the article at `/ball-flight/`), with its source. History, oldest first, all 2026-09-29: (1) first written at commit 5e0d46b. (2) Refreshed against commit 8a0b302, which includes 1da750e (driver launch and spin calibrated to the TrackMan 2010 chart, ADR 0004 decision 3c, and c linear in spin loft, decision 4). (3) Refreshed against commit 2c9244e, which holds the flight and roll recalibration to the 2010 chart (ADR 0004 addendum 1), the hit-up driver ideal (addendum 2) and the three-source launch and spin bands. That refresh moved 26 fallbacks, removed `pga-drv-gap` and `pga-drv-gap-pct` (the PGA driver carry miss is gone), and added the driver keys in Chapter 3 and Chapter 4. A later scope-note pass added the `slow-*` keys and `cx-spin` after the roll cap. (4) Refreshed on branch 004-physics against commit cc5bf6a (ADR 0004 addenda 3 and 4: the face-to-loft coupling through the lie angle and loft-follows-attack for the other clubs). That refresh moved 23 fallbacks, removed `ex-pct-max` and `ex-pct-yd` (the largest gap and the largest percentage gap are now the same example), and added the `kappa-*`, `cp-*`, `df-*` and `ir-*` keys. (5) Physics review fixes on the same branch added `hook-peak-*` and `t1-*` and rewrote the Chapter 2 carry-ordering wording.
+Every number in `site/ball-flight/index.html` (the article at `/ball-flight/`), with its source. History, oldest first, all 2026-09-29: (1) first written at commit 5e0d46b. (2) Refreshed against commit 8a0b302, which includes 1da750e (driver launch and spin calibrated to the TrackMan 2010 chart, ADR 0004 decision 3c, and c linear in spin loft, decision 4). (3) Refreshed against commit 2c9244e, which holds the flight and roll recalibration to the 2010 chart (ADR 0004 addendum 1), the hit-up driver ideal (addendum 2) and the three-source launch and spin bands. That refresh moved 26 fallbacks, removed `pga-drv-gap` and `pga-drv-gap-pct` (the PGA driver carry miss is gone), and added the driver keys in Chapter 3 and Chapter 4. A later scope-note pass added the `slow-*` keys and `cx-spin` after the roll cap. (4) Refreshed on branch 004-physics against commit cc5bf6a (ADR 0004 addenda 3 and 4: the face-to-loft coupling through the lie angle and loft-follows-attack for the other clubs). That refresh moved 23 fallbacks, removed `ex-pct-max` and `ex-pct-yd` (the largest gap and the largest percentage gap are now the same example), and added the `kappa-*`, `cp-*`, `df-*` and `ir-*` keys. (5) Physics review fixes on the same branch added `hook-peak-*` and `t1-*` and rewrote the Chapter 2 carry-ordering wording. (6) 2026-10-05, branch claude/nifty-fermi-o8nw8b (ADR 0004 addendum 5: path follows attack on a per-club swing plane, lie at impact, strike location): added the `plane-7i`, `per-deg-7i`, `couple-path-7i`, `couple-path-pw`, `lie-*`, `gear-coef`, `heel-*`, `high-*`, `center-*` and `smash-loss-10` keys. No earlier fallback moved: a center strike at the address lie is the old model to the last digit.
 
 Three kinds of number appear in the article:
 
@@ -113,6 +113,31 @@ The published draw-and-fade numbers in the prose (draw 10.5 degrees and 2,643 rp
 | `couple-start` | Start direction of that shot (degrees) | 0.6 | launch.launchDirDeg |
 | `couple-launch` | Launch of that shot (degrees) | 8.0 | launch.launchDeg |
 | `couple-spin` | Spin of that shot (rpm) | 2,950 | launch.spinRpm |
+
+Chapter 3, the swing arc by club, lie at impact and strike location (ADR 0004 addendum 5, task 004-physics-2). `swingArcByClub`, `lieExample` and `strikeExamples` in `article-data.js`. All MODELED except `gear-coef` (derived from Tuxen's four published rows, Anchor 13) and `smash-loss-10` (a modeled constant).
+
+| Key (`data-num`) | Number in prose | Value now | Computed as |
+|---|---|---|---|
+| `plane-7i` | Swing plane, Tour 7-iron (degrees) | 60.5 | `model.swingPlaneFor("7i")`: 60 at the 6-iron (Tuxen's example, Anchor 12) plus the lie-ladder step |
+| `per-deg-7i` | Path added per degree of down attack, 7-iron (degrees) | 0.57 | tan(90 - plane) |
+| `couple-path-7i` | Path after steepening the Tour 7-iron by 4 degrees, swing direction held (degrees right) | 2.3 | `swingPath` on the 7-iron plane |
+| `couple-path-pw` | Same for the Tour PW (degrees right) | 2.2 | `swingPath` on the PW plane (61.5) |
+| `lie-per-deg-7i` | Face change per degree of lie, Tour 7-iron (degrees) | 0.43 | `launch.faceDeg` at lie +1: atan(tan(23.35 deg) sin(1 deg)) |
+| `lie-face-7i` | Face with the toe 2 degrees down, Tour 7-iron (degrees closed) | 0.9 | `launch.faceDeg` at lie -2 |
+| `lie-curve-7i` | Curve of that shot (yd left) | 3.2 | `flight.curve` |
+| `lie-side-7i` | Where that shot finishes (yd left) | 5.1 | `flight.side` |
+| `gear-coef` | Gear-effect sidespin per mm of offset per mph of ball speed (rpm) | 0.47 | `model.json` `strike.gear_h_rpm_per_mm_mph` (Anchor 13 Source 1, four rows) |
+| `heel-face-drv` | Face at the impact point, half-inch heel strike, Tour driver at spin trim 1.0 (degrees closed) | 2.5 | `launch.faceDeg`: bulge 0.2 deg per mm times 12.7 mm |
+| `heel-gear-drv` | Fade sidespin the gear effect adds (rpm) | 989 | `launch.gearSideRpm` |
+| `heel-start-drv` | Start direction of that shot (degrees left) | 2.1 | `launch.launchDirDeg` |
+| `heel-curve-drv` | Curve of that shot (yd right) | 16 | `flight.curve` |
+| `heel-carry-loss-drv` | Carry lost against the center strike (yd) | 11 | `flight.carry`, center minus heel |
+| `center-launch-drv` | Launch, center strike, Tour driver at spin trim 1.0 (degrees) | 10.4 | `launch.launchDeg` |
+| `high-launch-drv` | Launch, 10 mm high strike (degrees) | 12.1 | `launch.launchDeg` (roll adds 2 degrees of loft) |
+| `center-spin-drv` | Spin, center strike (rpm) | 3,436 | `launch.spinRpm` |
+| `high-spin-drv` | Spin, 10 mm high strike (rpm) | 2,478 | `launch.spinRpm` (vertical gear effect) |
+| `high-carry-gain-drv` | Carry change for the high strike (yd) | −2 | `flight.carry`, high minus center |
+| `smash-loss-10` | Ball speed lost at 10 mm off center (percent) | 2 | `model.json` `strike.smash_loss_per_mm2` x 100 |
 
 Chapter 3, irons and loft from attack angle (ADR 0004 addendum 4). The Tour 7-iron with `model.loftForAttack` setting the loft (preset loft plus 1.4 degrees per degree of attack from the preset attack, floor attack plus 1.0). All MODELED except `ir-chart-slope`, which is published.
 

@@ -245,6 +245,46 @@ export function couplingShot(model, steeper = 4) {
 }
 
 /**
+ * Chapter 3, the swing arc by club. The path shift for 4 degrees of steepening with the swing direction held,
+ * on each club's plane (model.swingPlaneFor), from the Tour preset with path 0 and face 0.
+ */
+export function swingArcByClub(model, steeper = 4) {
+  return ["driver", "7i", "pw"].map((club) => {
+    const p = model.preset(club, "pga");
+    const plane = model.swingPlaneFor(club);
+    const hsp = model.swingDirection(p.path, p.attack, plane);
+    const path = model.swingPath(hsp, p.attack - steeper, plane);
+    return { club, plane, perDegree: Math.tan((90 - plane) * Math.PI / 180), pathShift: path - p.path };
+  });
+}
+
+/**
+ * Chapter 3, lie at impact. The Tour 7 iron with the toe 2 degrees down (an upright lie) and nothing else
+ * changed: the face closes, the ball starts left and draws. Also the face change per degree of lie.
+ */
+export function lieExample(model, lie = -2) {
+  const p = model.preset("7i", "pga");
+  const s = model.shot({ ...p, lie });
+  const one = model.deliver(p.clubSpeed, p.attack, 0, 0, p.dynLoft, "7i", { spinTrim: p.spinTrim, lie: 1 });
+  return { lie, perDegree: one.faceDeg, shot: s, face: s.launch.faceDeg };
+}
+
+/**
+ * Chapter 3, strike location. The Tour driver struck half an inch toward the heel (TrackMan's own example
+ * size) and 10 mm above center, each against the center strike, and the gear coefficient.
+ */
+export function strikeExamples(model) {
+  // Spin trim 1.0, the chart's own strike: the Tour trim already stands for the Tour's above-center
+  // strike, and the strike sliders are offsets from a group's typical strike.
+  const p = { ...model.preset("driver", "pga"), spinTrim: 1.0 };
+  const center = model.shot(p);
+  const heel = model.shot({ ...p, strikeToe: -12.7 });
+  const high = model.shot({ ...p, strikeUp: 10 });
+  const gear = model.data.model.strike;
+  return { center, heel, high, gearCoef: gear.gear_h_rpm_per_mm_mph, smashLoss10: gear.smash_loss_per_mm2 * 100 * 100 };
+}
+
+/**
  * Chapter 4. Driver launch and spin, each group's published average against TrackMan's 2010 carry chart,
  * PING's 2019 chart and TrackMan's 2010 total-distance chart. Chart lookups use the group's published club
  * speed (TrackMan), published ball speed (PING) and published attack angle. The band is the lab's rule

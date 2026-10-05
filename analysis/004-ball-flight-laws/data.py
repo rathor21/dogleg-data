@@ -179,8 +179,9 @@ AMATEUR_ANCHORS = {
 }
 
 # Anchor 5(c) Source 2 and Anchor 3: swing plane of the Combine average golfer
-# with a driver, 49.0 deg (TrackMan puts a driver between 45 and 50). Used only
-# by launch.swing_path for the "hold swing direction" toggle.
+# with a driver, 49.0 deg (TrackMan puts a driver between 45 and 50). The
+# driver's entry in SWING_PLANE_BY_CLUB below, and the default plane of
+# launch.swing_path.
 SWING_PLANE_DEG = 49.0
 
 # ---------------------------------------------------------------------------
@@ -620,6 +621,114 @@ LOFT_FOLLOW_DELOFT_MAX = 5.0  # MODELED, the most loft taken off the preset loft
 LOFT_FOLLOWS_ATTACK_CLUBS = ("3w", "5w", "hybrid", "3i", "4i", "5i", "6i", "7i", "8i", "9i", "pw")
 DRIVER_NATURAL_SLOPE = 1.0  # INFORMATIONAL ONLY (no model code reads it): arc geometry, Anchor 11. The driver toggle uses optimal_loft.
 
+# ---------------------------------------------------------------------------
+# Swing plane by club (task 004-physics-2, Anchor 12). The club meets the ball
+# on the way down or up a tilted arc, so a change of attack angle with the
+# swing direction held moves the horizontal club path (the D-plane effect an
+# instructor named in review: a vertical change tilts the arc and shifts the
+# path). The relation is
+#   path = swing direction - attack * tan(90 - plane)      (launch.swing_path)
+# and its size is set by the vertical swing plane, which differs by club.
+# Two anchored values: the driver at 49.0 (SWING_PLANE_DEG, the Combine average
+# golfer, measured) and the 6 iron at 60.0 (Tuxen's worked example, Anchor 12
+# Source 1: attack -5 on a 60 degree plane gives path +2.5). Every other club is
+# MODELED from those two. Irons and the PW track the lie-angle ladder, one degree
+# of plane per degree of lie above or below the 6 iron (Anchor 8 lies), so the
+# plane steepens 0.5 per iron: 3i 58.5, 4i 59.0, 5i 59.5, 6i 60.0, 7i 60.5,
+# 8i 61.0, 9i 61.5, PW 61.5. The fairway woods and the hybrid sit on a line from
+# the driver to the 3 iron by ladder position: 3w 51.375, 5w 53.75, hybrid 56.125.
+# Tuxen's 8 or 9 iron example on a 57 degree plane (Anchor 12 Source 1) and
+# TrackMan's 45 to 50 for a driver bracket the table. The plane sets tan(90 -
+# plane): 0.869 for the driver, 0.577 for the 6 iron, 0.541 for the PW, so a
+# degree of down attack moves a driver's path 0.87 degree right and a wedge's
+# 0.54, with the swing direction held.
+# ---------------------------------------------------------------------------
+
+_IRON_PLANE_AT_6I = 60.0  # Anchor 12 Source 1, Tuxen's 6 iron example
+_WOOD_LADDER = ("driver", "3w", "5w", "hybrid", "3i")  # the line from the driver to the 3 iron
+SWING_PLANE_BY_CLUB = {}
+for _club in ("3i", "4i", "5i", "6i", "7i", "8i", "9i", "pw"):
+    SWING_PLANE_BY_CLUB[_club] = _IRON_PLANE_AT_6I + (LIE_DEG[_club] - LIE_DEG["6i"])
+for _i, _club in enumerate(_WOOD_LADDER[:-1]):
+    _t = _i / (len(_WOOD_LADDER) - 1)
+    SWING_PLANE_BY_CLUB[_club] = SWING_PLANE_DEG + _t * (SWING_PLANE_BY_CLUB["3i"] - SWING_PLANE_DEG)
+del _club, _i, _t
+
+# ---------------------------------------------------------------------------
+# Lie at impact (task 004-physics-2, Anchor 14). A change of lie is a rotation
+# of the head about the target line: the toe rises or dips. For a face of loft
+# L a lie change of delta moves the face angle by atan(tan L * sin delta), about
+# delta * tan(L): 0.19 degree per degree for a driver, 0.67 for a 7 iron, 1.04
+# for a PW (DERIVED geometry, docs/sources/004_Physics_Research.md Topic 6).
+# Toe up (a flat lie) opens the face, toe down (upright, heel dug in) closes it.
+# Retail and coaching pages agree on the direction and the club ordering and
+# print no measured coefficient. launch.deliver takes lie_deg, positive toe up,
+# as the change from the club's address lie, and rotates the face normal
+# exactly, so the loft moves a little too (under 0.03 degree per degree at a
+# square face). The domain below is a MODELED design choice.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Strike location (task 004-physics-2, Anchor 13). Where the ball meets the
+# face, in mm from the face center: strike_toe_mm positive toward the toe,
+# strike_up_mm positive above center. Four effects, each with its source.
+#
+# 1. Horizontal gear effect. A heel or toe strike turns the head about its
+#    center of gravity, and friction turns the ball the other way, like meshing
+#    gears. Tuxen (Anchor 13 Source 1) gives the spin axis it adds at four
+#    strikes, driver and 6 iron, and says the sidespin in rpm is about the same
+#    across the set for the same offset. GEAR_EXAMPLES holds the rows. Turned
+#    into sidespin with the 2019 rows' ball speed and spin (the rows TrackMan's
+#    examples of that era run from, data.SUPERSEDED_2019), the four give 0.475,
+#    0.461, 0.482 and 0.474 rpm per mm of offset per mph of ball speed (DERIVED,
+#    tests/test_strike.py recomputes them). GEAR_H_RPM_PER_MM_MPH is their mean.
+#    Tutelman's analytic driver model (Anchor 13 Source 3) gives 16.4 rpm per
+#    inch per mph, 0.65 per mm, the same order. A toe strike adds draw spin, a
+#    heel strike fade spin, and the added spin is a vector sum with the D-plane
+#    spin, so both the spin rate and the spin axis move.
+# 2. Vertical gear effect. A strike above center takes backspin off, one below
+#    adds it, for a head whose center of gravity sits well behind the face
+#    (driver and fairway woods). Tutelman (Source 3) puts it at 1.5 to 2 times
+#    the horizontal effect for the same offset; GEAR_V_RATIO takes the middle.
+#    Irons and hybrids keep their center of gravity near the face and get none
+#    (Source 3). MODELED floor: the backspin never falls below
+#    GEAR_BACKSPIN_FLOOR_FRAC of the D-plane backspin.
+# 3. Bulge and roll. A driver face curves heel to toe (bulge) and top to sole
+#    (roll). TrackMan (Anchor 13 Source 2): on a standard driver a 10 mm toe
+#    impact makes the face 2 degrees more open at the impact point, and a 10 mm
+#    low impact makes dynamic loft 2 degrees lower. The fairway woods take the
+#    driver's radius (MODELED extension); the hybrid and the irons are flat.
+# 4. Smash loss. An off-center strike loses ball speed. Tuxen (Anchor 13 Source
+#    1) calls a half-thin hit the gap between 1.48 and 1.45 (2 percent);
+#    TrackMan's 10 Fundamentals (Source 4) show 92 mph off center giving 129 mph
+#    of ball speed (1.40) against 88 mph at center giving 132 (1.50), at an
+#    unstated offset; the Cross and Nathan effective-mass relation (Source 5)
+#    gives 1.3 percent at 12.7 mm from the moment of inertia alone. MODELED:
+#    smash falls by SMASH_LOSS_PER_MM2 times the squared distance from center,
+#    2 percent at 10 mm, 3.2 at 12.7 mm, 8 at 20 mm, 12.5 at the domain corner.
+#
+# Each preset's spin_trim stands for where its player group strikes the ball on
+# average, so the strike inputs are offsets from that typical strike, and 0 is
+# the preset's own strike.
+# ---------------------------------------------------------------------------
+
+# (club, offset in mm toward the toe, spin axis deg) as Tuxen printed them (0.14
+# in is one dimple, 0.5 in is half an inch; converted to mm here, 25.4 mm per inch).
+GEAR_EXAMPLES = (
+    ("driver", -0.14 * 25.4, 6.0),  # one dimple toward the heel: 10 yd right at 250
+    ("driver", -0.5 * 25.4, 20.0),  # half an inch toward the heel: 35 yd right at 250
+    ("6i", 0.14 * 25.4, -2.0),  # one dimple toward the toe: 2.5 yd left at 170
+    ("6i", 0.5 * 25.4, -7.0),  # half an inch toward the toe: 8 yd left at 170
+)
+GEAR_H_RPM_PER_MM_MPH = 0.473  # DERIVED mean of the four rows above
+GEAR_V_RATIO = 1.75  # vertical over horizontal gear spin, Tutelman 1.5 to 2 (MODELED middle)
+GEAR_V_CLUBS = ("driver", "3w", "5w")  # center of gravity well behind the face
+GEAR_BACKSPIN_FLOOR_FRAC = 0.25  # MODELED
+BULGE_DEG_PER_MM = 0.2  # TrackMan: 10 mm toe strike, face 2 deg more open at the impact point
+ROLL_DEG_PER_MM = 0.2  # TrackMan: 10 mm low strike, dynamic loft 2 deg lower
+BULGE_ROLL_CLUBS = ("driver", "3w", "5w")  # fairway woods MODELED
+SMASH_LOSS_PER_MM2 = 0.0002  # MODELED, fraction of smash per mm squared
+
 DOMAIN = {
     "club_speed_mph": (40.0, 140.0),
     "attack_deg": (-10.0, 10.0),
@@ -632,6 +741,12 @@ DOMAIN = {
     # delivers a negative loft. launch.clamp_loft applies max(attack + min_spin_loft_deg, this).
     "min_effective_loft_deg": 1.0,
     "swing_plane_deg": (20.0, 80.0),
+    # MODELED ranges for the lie at impact and the strike location (task 004-physics-2).
+    # +-10 degrees of lie covers a badly fitted club or a heel dug in; +-20 mm toe to heel
+    # and +-15 mm up and down cover a driver face (about 110 by 60 mm) short of its edges.
+    "lie_deg": (-10.0, 10.0),
+    "strike_toe_mm": (-20.0, 20.0),
+    "strike_up_mm": (-15.0, 15.0),
 }
 
 # ---------------------------------------------------------------------------

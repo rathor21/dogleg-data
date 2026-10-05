@@ -94,7 +94,8 @@ function doesNotThrow(name, where, fn) {
 const LAUNCH_KEYS = {
   ball_speed_mph: "ballSpeedMph", smash: "smash", launch_deg: "launchDeg", launch_dir_deg: "launchDirDeg",
   spin_rpm: "spinRpm", spin_axis_deg: "spinAxisDeg", spin_loft_deg: "spinLoftDeg", face_to_path_deg: "faceToPathDeg",
-  dyn_loft_input_deg: "dynLoftInputDeg", dyn_loft_deg: "dynLoftDeg",
+  dyn_loft_input_deg: "dynLoftInputDeg", dyn_loft_deg: "dynLoftDeg", face_input_deg: "faceInputDeg", face_deg: "faceDeg",
+  gear_side_rpm: "gearSideRpm", gear_back_rpm: "gearBackRpm",
 };
 const FLIGHT_KEYS = {
   carry_yd: ["carry", 0.01], side_yd: ["side", 0.01], curve_yd: ["curve", 0.01],
@@ -122,11 +123,12 @@ function compareClassification(catName, id, got, exp, finishTol) {
 
 /** A golden delivery record as the delivery object shot() takes. */
 const fromGolden = (d) => ({ clubSpeed: d.club_speed_mph, attack: d.attack_deg, path: d.path_deg, face: d.face_deg,
-  dynLoft: d.dyn_loft_deg, club: d.club, spinTrim: d.spin_trim });
+  dynLoft: d.dyn_loft_deg, club: d.club, spinTrim: d.spin_trim, lie: d.lie_deg || 0, strikeToe: d.strike_toe_mm || 0, strikeUp: d.strike_up_mm || 0 });
 
-/** deliver, simulate, roll and classify from a golden or window delivery record. */
+/** deliver, simulate, roll and classify from a golden or window delivery record (lie and strike 0 when absent). */
 function run(d, club, spinTrim, dt) {
-  const ln = model.deliver(d.club_speed_mph, d.attack_deg, d.path_deg, d.face_deg, d.dyn_loft_deg, club, { spinTrim });
+  const ln = model.deliver(d.club_speed_mph, d.attack_deg, d.path_deg, d.face_deg, d.dyn_loft_deg, club,
+    { spinTrim, lie: d.lie_deg || 0, strikeToe: d.strike_toe_mm || 0, strikeUp: d.strike_up_mm || 0 });
   const f = model.simulate(ln.ballSpeedMph, ln.launchDeg, ln.launchDirDeg, ln.spinRpm, ln.spinAxisDeg, dt ? { dt } : undefined);
   f.total = model.roll(f);
   // classify() rejects a carry of zero or less. The golden fixture has null there.
@@ -322,6 +324,38 @@ throwsWith("invalid input", "preset player", () => model.preset("7i", "scratch")
 throwsWith("invalid input", "preset club", () => model.preset("2i", "pga"), "club");
 throwsWith("invalid input", "swingPath plane", () => model.swingPath(0, -3, 20), "plane_deg");
 throwsWith("invalid input", "swingPath NaN", () => model.swingPath(NaN, -3), "swing_dir_deg");
+throwsWith("invalid input", "swingDirection plane", () => model.swingDirection(0, -3, 80), "plane_deg");
+throwsWith("invalid input", "swingDirection NaN", () => model.swingDirection(0, NaN), "attack_deg");
+throwsWith("invalid input", "swingPlaneFor club", () => model.swingPlaneFor("2i"), "club");
+for (const [name, key, v] of [["lie_deg", "lie", 10.5], ["lie_deg", "lie", NaN], ["strike_toe_mm", "strikeToe", -20.5],
+  ["strike_toe_mm", "strikeToe", Infinity], ["strike_up_mm", "strikeUp", 15.5], ["strike_up_mm", "strikeUp", NaN]]) {
+  throwsWith("invalid input", `${name} ${v}`, () => model.deliver(...base, { [key]: v }), name);
+}
+doesNotThrow("domain edges", "lie and strike corners", () => model.deliver(...base, { lie: -10, strikeToe: 20, strikeUp: -15 }));
+// swing arc: swingDirection inverts swingPath on every club's plane, and the table holds the two anchors
+for (const club of json.presets.clubs.map((x) => x.id)) {
+  const plane = model.swingPlaneFor(club);
+  near("swing arc", `${club} plane in domain`, plane, Math.min(Math.max(plane, DOM.swing_plane_deg[0] + 0.001), DOM.swing_plane_deg[1] - 0.001), 0);
+  for (const [path, attack] of [[-6, -8], [0, 0], [3.5, 2.5], [12, -4]]) {
+    near("swing arc", `${club} (${path}, ${attack})`, model.swingPath(model.swingDirection(path, attack, plane), attack, plane), path, 1e-12);
+  }
+}
+exact("swing arc", "driver plane is the default", model.swingPlaneFor("driver"), model.swingPlaneFor(null));
+exact("swing arc", "driver plane 49", model.swingPlaneFor("driver"), 49);
+exact("swing arc", "6 iron plane 60", model.swingPlaneFor("6i"), 60);
+near("swing arc", "Tuxen 45 deg plane", model.swingPath(0, -5, 45), 5, 1e-12);
+// strike: a center strike is the plain delivery, a lie of 0 too
+{
+  const plain = model.deliver(...base);
+  const same = model.deliver(...base, { lie: 0, strikeToe: 0, strikeUp: 0 });
+  for (const k of Object.keys(plain)) exact("strike", `center strike ${k}`, same[k], plain[k]);
+  const toe = model.deliver(...base, { strikeToe: 8 });
+  exact("strike", "toe strike draws", toe.spinAxisDeg < 0 && toe.gearSideRpm < 0, true);
+  const up = model.deliver(115, -0.9, 0, 0, 12.7, "driver", { strikeUp: 10 });
+  exact("strike", "high driver strike sheds spin", up.gearBackRpm < 0 && up.dynLoftDeg > 14.6, true);
+  const lie = model.deliver(...base, { lie: 3 });
+  exact("strike", "toe up opens the face", lie.faceDeg > 0.5 && lie.faceInputDeg === 0, true);
+}
 throwsWith("invalid input", "classify NaN", () => model.classify(0, NaN, 0, 0, 200), "spin_axis_deg");
 throwsWith("invalid input", "classify carry 0", () => model.classify(0, 0, 0, 0, 0), "carry_yd");
 

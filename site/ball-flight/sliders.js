@@ -26,7 +26,7 @@ export function createSliders({ model, store, containers, hooks }) {
     const label = cfg.label || m.label;
     const id = "sl-" + key;
     const [lo, hi] = model.domain[cfg.dom];
-    const unitWord = m.unit === DEG ? " degrees" : " mph";
+    const unitWord = m.unit === DEG ? " degrees" : " " + m.unit;
     const wrap = document.createElement("div");
     wrap.className = "slider";
     wrap.innerHTML = `
@@ -100,16 +100,25 @@ export function createSliders({ model, store, containers, hooks }) {
     build(metric, METRICS[metric].slider.advanced ? containers.adv : containers.main);
   }
 
-  // The switch that lets the dynamic loft follow the attack angle, for every club. It sits
-  // under the attack slider, where the golfer is looking when it matters.
+  // The switches that let the dynamic loft and the club path follow the attack angle, for every
+  // club. They sit under the attack slider, where the golfer is looking when it matters.
   const follow = document.createElement("div");
   follow.className = "loft-follow";
   follow.hidden = true;
   follow.innerHTML = `
     <label class="check"><input type="checkbox" id="loft-follow"> <span>Loft follows attack angle</span></label>
     <p class="follow-note" id="follow-note"></p>
-    <p class="follow-hint" id="follow-hint" hidden></p>`;
+    <p class="follow-hint" id="follow-hint" hidden></p>
+    <label class="check"><input type="checkbox" id="path-follow"> <span>Path follows attack angle</span></label>
+    <p class="follow-note" id="path-note"></p>`;
   sliders.attack_deg.wrap.appendChild(follow);
+  const pathBox = follow.querySelector("#path-follow");
+  const pathNote = follow.querySelector("#path-note");
+  pathBox.addEventListener("change", () => {
+    store.setPathFollows(pathBox.checked);
+    hooks.live();
+    hooks.commitNow();
+  });
   // A launch monitor reports the effective loft. Typing that reading into the slider would count the face's share twice.
   const loftHint = document.createElement("p");
   loftHint.className = "follow-hint loft-hint";
@@ -200,6 +209,24 @@ export function createSliders({ model, store, containers, hooks }) {
     if (driver && state.loftFollows && chart.speedClamped) notes.push("Club speed is outside the chart (75 to 120 mph), so the loft is held at the chart's edge.");
     followHint.hidden = notes.length === 0;
     followHint.textContent = notes.join(" ");
+    renderPathFollow();
+  }
+
+  /** The path switch's note: the held swing direction and the club's plane, or the path as fixed. */
+  function renderPathFollow() {
+    pathBox.checked = state.pathFollows;
+    const plane = store.swingPlane();
+    const perDeg = Math.tan((90 - plane) * Math.PI / 180);
+    if (state.pathFollows) {
+      const sign = state.hand === "l" ? -1 : 1;
+      const dir = sign * state.swingDir;
+      const dirTxt = Math.abs(dir) < 0.05 ? "down the target line" : `${fmt(dir, 1, true)}${DEG}`;
+      // Hitting down moves the path right for a right-hander and left for a lefty.
+      const way = state.hand === "l" ? "left" : "right";
+      pathNote.innerHTML = `Swing direction held ${dirTxt} on a ${fmt(plane, 1)}${DEG} plane: each degree of down attack moves the path ${perDeg.toFixed(2)}${DEG} ${way}.${MODELED}`;
+    } else {
+      pathNote.textContent = `Path is fixed at ${fmt(state.path, 1, true)}${DEG}. Swing plane ${fmt(plane, 1)}${DEG} for this club.`;
+    }
   }
 
   return { render(c, hand) { renderMain(c, hand); renderFollow(); }, sliders };

@@ -11,7 +11,7 @@
  */
 import {
   faceShare, startDirection, shotAt, exampleCheck, publishedRatio, attackSweep, couplingShot,
-  driverWindows, nineWindows, coachingExample, chartGains, driverIdeals, idealTotalReversal, couplingDemo, drawFadeCheck, ironFlip, hookPeak, TRACKMAN_TOTAL_2010, OPTIMIZER_DEFAULT_DRIVER,
+  driverWindows, nineWindows, coachingExample, chartGains, driverIdeals, idealTotalReversal, couplingDemo, drawFadeCheck, ironFlip, hookPeak, swingArcByClub, lieExample, strikeExamples, TRACKMAN_TOTAL_2010, OPTIMIZER_DEFAULT_DRIVER,
 } from "./article-data.js";
 
 const MINUS = "−";
@@ -110,6 +110,32 @@ export function computeNumbers(model) {
   put("couple-start", "Start direction of that shot (degrees)", "launch.launchDirDeg", Math.abs(cp2.shot.launch.launchDirDeg).toFixed(1));
   put("couple-launch", "Launch of that shot (degrees)", "launch.launchDeg", cp2.shot.launch.launchDeg.toFixed(1));
   put("couple-spin", "Spin of that shot (rpm)", "launch.spinRpm", grp(cp2.shot.launch.spinRpm));
+  // Chapter 3, the swing arc by club (ADR 0004 addendum 5)
+  const arc = Object.fromEntries(swingArcByClub(model).map((r) => [r.club, r]));
+  put("plane-7i", "Swing plane, 7-iron (degrees, MODELED from the 6-iron example)", "model.swingPlaneFor", arc["7i"].plane.toFixed(1));
+  put("per-deg-7i", "Path added per degree of down attack, 7-iron (degrees)", "tan(90 - plane)", arc["7i"].perDegree.toFixed(2));
+  put("couple-path-7i", "Path after steepening the Tour 7-iron by 4 degrees, swing direction held (degrees right)", "swingPath", abs1(arc["7i"].pathShift));
+  put("couple-path-pw", "Same for the Tour PW (degrees right)", "swingPath", abs1(arc.pw.pathShift));
+  // Chapter 3, lie at impact
+  const le = lieExample(model);
+  put("lie-per-deg-7i", "Face change per degree of lie, Tour 7-iron (degrees)", "launch.faceDeg at lie +1", le.perDegree.toFixed(2));
+  put("lie-face-7i", "Face angle with the toe 2 degrees down, Tour 7-iron (degrees closed)", "launch.faceDeg", abs1(le.face));
+  put("lie-side-7i", "Where that shot finishes (yd left)", "flight.side", abs1(le.shot.flight.side));
+  put("lie-curve-7i", "Curve of that shot (yd left)", "flight.curve", abs1(le.shot.flight.curve));
+  // Chapter 3, strike location
+  const st = strikeExamples(model);
+  put("gear-coef", "Gear-effect sidespin per mm of offset per mph of ball speed (rpm)", "model.json strike.gear_h_rpm_per_mm_mph", st.gearCoef.toFixed(2));
+  put("heel-face-drv", "Face at the impact point for a half-inch heel strike, Tour driver (degrees closed)", "launch.faceDeg (bulge)", abs1(st.heel.launch.faceDeg));
+  put("heel-gear-drv", "Fade sidespin the gear effect adds for that strike (rpm)", "launch.gearSideRpm", grp(st.heel.launch.gearSideRpm));
+  put("heel-start-drv", "Start direction of that shot (degrees left)", "launch.launchDirDeg", abs1(st.heel.launch.launchDirDeg));
+  put("heel-curve-drv", "Curve of that shot (yd right)", "flight.curve", Math.abs(st.heel.flight.curve).toFixed(0));
+  put("heel-carry-loss-drv", "Carry lost against the center strike (yd)", "flight.carry", (st.center.flight.carry - st.heel.flight.carry).toFixed(0));
+  put("high-launch-drv", "Launch for a strike 10 mm above center, Tour driver (degrees)", "launch.launchDeg", st.high.launch.launchDeg.toFixed(1));
+  put("center-launch-drv", "Launch for the center strike (degrees)", "launch.launchDeg", st.center.launch.launchDeg.toFixed(1));
+  put("high-spin-drv", "Spin for the 10 mm high strike (rpm)", "launch.spinRpm", grp(st.high.launch.spinRpm));
+  put("center-spin-drv", "Spin for the center strike (rpm)", "launch.spinRpm", grp(st.center.launch.spinRpm));
+  put("high-carry-gain-drv", "Carry change for the 10 mm high strike (yd, positive is longer)", "flight.carry", signed1(st.high.flight.carry - st.center.flight.carry).replace(/\.\d$/, ""));
+  put("smash-loss-10", "Ball speed lost at 10 mm off center (percent)", "model.json strike.smash_loss_per_mm2 x 100", st.smashLoss10.toFixed(0));
 
   // Chapter 3, the iron flip
   const irf = ironFlip(model);

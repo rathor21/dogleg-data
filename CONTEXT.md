@@ -45,3 +45,19 @@ The tilt of the ball's spin axis from horizontal, in degrees, positive curving r
 ## Window
 
 One of the nine trajectories of the nine-windows drill: low, mid or high height crossed with draw, straight or fade. A window's recipe (path, face, attack angle, dynamic loft) is MODELED output. The drill is Tiger Woods's. The numbers are not his.
+
+## Swing direction
+
+The horizontal direction of the plane the club head swings on, in degrees, right positive. Club path is the swing direction minus the attack angle times the tangent of 90 minus the vertical swing plane: a vertical change in the attack angle tilts the arc and shifts the path. The lab's "path follows attack angle" switch holds the swing direction while the attack angle moves. The swing plane is a per-club number, anchored at the driver and the 6 iron and MODELED elsewhere.
+
+## Lie at impact
+
+The change in the club's lie angle at impact from its address lie, in degrees, positive toe up. A rotation of the head about the target line: toe up opens the face by about the tangent of the loft per degree and toe down closes it. Geometry, not a fitted number. The lab's face angle tile shows the face after the lie tilt, the slider the face before it.
+
+## Strike location
+
+Where the ball meets the face, in millimeters from the face center, toward the toe and upward. It drives the gear effect, the bulge and roll of a wood face, and the ball speed loss. A preset is a center strike, and its spin trim stands for its player group's typical strike, so the lab's strike sliders are offsets from that strike.
+
+## Gear effect
+
+The spin an off-center strike adds because the head turns about its center of gravity and friction turns the ball the other way. Horizontal: a toe strike adds draw spin and a heel strike fade spin, on every club. Vertical: a strike above center takes backspin off a driver or fairway wood, below center adds it. The added spin is a vector sum with the D-plane spin, so the spin rate and the spin axis both move.

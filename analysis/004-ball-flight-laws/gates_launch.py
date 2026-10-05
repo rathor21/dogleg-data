@@ -279,6 +279,31 @@ def golden_cases():
         for f2p in (-5.0, 5.0):
             args = (90.0, attack, 0.0, f2p, attack + data.DOMAIN["min_spin_loft_deg"], "7i")
             cases.append((f"minloft_attack{attack:+.0f}_f2p{f2p:+.0f}", args, {}))
+    # Lie at impact and strike location (task 004-physics-2): toe up and toe down, heel and toe
+    # strikes on a driver (bulge and the vertical gear effect) and a 6 iron (flat face), high and
+    # low strikes, and the domain corners with everything on at once.
+    pd = presets.preset("driver", "pga")
+    drv = (pd["club_speed"], pd["attack"], 0.0, 0.0, pd["dyn_loft"], "driver")
+    p6 = presets.preset("6i", "pga")
+    six = (p6["club_speed"], p6["attack"], 0.0, 0.0, p6["dyn_loft"], "6i")
+    extras = (
+        ("lie_toe_up_7i", (p7["club_speed"], p7["attack"], 0.0, 0.0, p7["dyn_loft"], "7i"), {"lie_deg": 4.0}),
+        ("lie_toe_down_pw", (84.0, -4.7, 2.0, 1.0, 33.813, "pw"), {"lie_deg": -4.0}),
+        ("lie_toe_down_driver", drv, {"lie_deg": -6.0, "spin_trim": pd["spin_trim"]}),
+        ("strike_heel_driver", drv, {"strike_toe_mm": -12.7, "spin_trim": pd["spin_trim"]}),
+        ("strike_toe_driver", drv, {"strike_toe_mm": 3.556, "spin_trim": pd["spin_trim"]}),
+        ("strike_toe_6i", six, {"strike_toe_mm": 12.7, "spin_trim": p6["spin_trim"]}),
+        ("strike_high_driver", drv, {"strike_up_mm": 10.0, "spin_trim": pd["spin_trim"]}),
+        ("strike_low_heel_driver", drv, {"strike_toe_mm": -8.0, "strike_up_mm": -8.0, "spin_trim": pd["spin_trim"]}),
+        ("strike_high_3w", (110.0, -2.3, -3.0, 1.0, 12.4, "3w"), {"strike_up_mm": 15.0, "strike_toe_mm": -20.0}),
+        ("corner_all_max", (140.0, 10.0, 15.0, 15.0, 65.0, "driver"),
+         {"lie_deg": 10.0, "strike_toe_mm": 20.0, "strike_up_mm": 15.0}),
+        ("corner_all_min", (40.0, -10.0, -15.0, -15.0, 0.0, "3w"),
+         {"lie_deg": -10.0, "strike_toe_mm": -20.0, "strike_up_mm": -15.0}),
+        ("lie_strike_mixed_hybrid", (102.0, -2.4, 4.0, -2.0, 18.0, "hybrid"),
+         {"lie_deg": 3.0, "strike_toe_mm": 6.0, "strike_up_mm": -4.0}),
+    )
+    cases.extend(extras)
     return cases
 
 

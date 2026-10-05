@@ -30,6 +30,10 @@
  *                                       -> kOf, smashOf, spinOf, axisScale (the driver has its own k line
  *                                          and spin law; k_of and spin_of take the club)
  *                swing_path()           -> model.swingPath
+ *                swing_direction()      -> model.swingDirection
+ *                swing_plane_for()      -> model.swingPlaneFor
+ *                tilt_about_target_line(), bulge_roll(), gear_effect(), smash_strike_factor()
+ *                                       -> internal helpers of deliver (gearEffect is exported)
  *                _no_negative_zero()    -> noNegZero
  *   classify.py  classify()             -> model.classify (with startOf, shapeOf, nameOf, finishText)
  *   presets.py   preset(), scale_speed()-> model.preset, model.scaleSpeed (values read from presets.json)
@@ -49,8 +53,11 @@
  *   launch_dir_deg launchDirDeg, spin_rpm spinRpm, spin_axis_deg spinAxisDeg,
  *   spin_loft_deg spinLoftDeg, face_to_path_deg faceToPathDeg,
  *   dyn_loft_input_deg dynLoftInputDeg (the delivery's loft, face square to the path),
- *   dyn_loft_deg dynLoftDeg (the EFFECTIVE loft after the face-to-loft coupling, the loft
- *   TrackMan would measure; metricValue("dyn_loft_deg") reads this one).
+ *   dyn_loft_deg dynLoftDeg (the EFFECTIVE loft after the face-to-loft coupling, roll and lie,
+ *   the loft TrackMan would measure; metricValue("dyn_loft_deg") reads this one),
+ *   face_input_deg faceInputDeg (the delivery's face), face_deg faceDeg (the EFFECTIVE face at
+ *   the impact point after bulge and the lie tilt; metricValue("face_deg") reads this one),
+ *   gear_side_rpm gearSideRpm, gear_back_rpm gearBackRpm (spin the strike's gear effect added).
  * simulate() returns a Flight object:
  *   t, x, y, z (Float64Array, x/y/z in yards, y positive right),
  *   carry_yd carry, side_yd side, curve_yd curve, max_height_yd maxHeight,
@@ -60,7 +67,9 @@
  *   start, shape, name, worked_back workedBack, finish_yd finishYd,
  *   finish_text finishText.
  * A delivery object (input to shot and clampToDomain, output of preset) is:
- *   clubSpeed, attack, path, face, dynLoft, club, spinTrim.
+ *   clubSpeed, attack, path, face, dynLoft, club, spinTrim, and optionally lie (lie change at
+ *   impact, degrees, positive toe up), strikeToe (mm toward the toe) and strikeUp (mm above the
+ *   face center), each 0 when absent.
  * preset() also returns source, modeled, note, atPreset (the launch and
  * flight summaries exactly as export.py wrote them, in Python snake_case) and
  * ideal: the ideal delivery at the preset club speed, {clubSpeed, attack, dynLoft,
@@ -169,10 +178,16 @@ export const METRIC_FIELDS = deepFreeze({
   club_speed_mph: ["delivery", "clubSpeed"],
   attack_deg: ["delivery", "attack"],
   path_deg: ["delivery", "path"],
-  face_deg: ["delivery", "face"],
+  face_input_deg: ["delivery", "face"], // the slider: face before bulge and the lie tilt
+  face_deg: ["launch", "faceDeg"], // the EFFECTIVE face at the impact point, what TrackMan would measure
   dyn_loft_input_deg: ["delivery", "dynLoft"], // the slider: loft with the face square to the path
   dyn_loft_deg: ["launch", "dynLoftDeg"], // the EFFECTIVE loft, what TrackMan would measure
   spin_trim: ["delivery", "spinTrim"],
+  lie_deg: ["delivery", "lie"],
+  strike_toe_mm: ["delivery", "strikeToe"],
+  strike_up_mm: ["delivery", "strikeUp"],
+  gear_side_rpm: ["launch", "gearSideRpm"],
+  gear_back_rpm: ["launch", "gearBackRpm"],
   face_to_path_deg: ["launch", "faceToPathDeg"],
   spin_loft_deg: ["launch", "spinLoftDeg"],
   ball_speed_mph: ["launch", "ballSpeedMph"],
@@ -216,11 +231,13 @@ const REQUIRED_KEYS = [
       "spin_b_driver", "axis_c0", "axis_c1", "axis_sl_lo", "axis_sl_hi"].map((k) => "launch_model." + k),
     "coupling.kappa", "coupling.loft_per_attack", "coupling.loft_follow_deloft_linear",
     "coupling.loft_follow_deloft_max", "coupling.driver_natural_slope",
+    ...["gear_h_rpm_per_mm_mph", "gear_v_ratio", "gear_v_clubs", "gear_backspin_floor_frac", "bulge_deg_per_mm",
+      "roll_deg_per_mm", "bulge_roll_clubs", "smash_loss_per_mm2"].map((k) => "strike." + k),
     "spin_class", ...["club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg", "swing_plane_deg",
-      "min_spin_loft_deg"].map((k) => "domain." + k),
+      "min_spin_loft_deg", "lie_deg", "strike_toe_mm", "strike_up_mm"].map((k) => "domain." + k),
     ...["start_straight_deg", "axis_straight_deg", "curve_hook_frac", "on_target_frac", "on_line_yd"].map(
       (k) => "classify." + k),
-    "swing_plane_default_deg"].map((k) => "model." + k),
+    "swing_plane_default_deg", "swing_plane_by_club"].map((k) => "model." + k),
   "presets.clubs", "presets.players", "presets.presets", "presets.driver_ideal",
   "ideals.tolerances", "ideals.bands", "ideals.sources", "ideals.metrics", "ideals.driver.trackman_carry_2010",
   "ideals.driver.ping_2019", "ideals.driver.trackman_total_2010", "ideals.driver.default_attack_deg",
@@ -261,6 +278,23 @@ function faceNormal(faceDeg, dynLoftDeg) {
   const f = faceDeg * RAD;
   const l = dynLoftDeg * RAD;
   return [Math.cos(l) * Math.cos(f), Math.cos(l) * Math.sin(f), Math.sin(l)];
+}
+
+/**
+ * launch.py tilt_about_target_line: rotate a face normal about the target line (x) for a lie
+ * change of lieDeg, positive toe up. A right-handed golfer's toe points to -y, so toe up is a
+ * rotation by -lieDeg about +x: it turns a square face open (+y).
+ */
+function tiltAboutTargetLine(n, lieDeg) {
+  const t = -lieDeg * RAD;
+  const c = Math.cos(t);
+  const s = Math.sin(t);
+  return [n[0], n[1] * c - n[2] * s, n[1] * s + n[2] * c];
+}
+
+/** launch.py normal_angles: [face angle deg, loft deg] of a face normal. */
+function normalAngles(n) {
+  return [Math.atan2(n[1], n[0]) * DEG, Math.atan2(n[2], Math.sqrt(n[0] * n[0] + n[1] * n[1])) * DEG];
 }
 
 /** Unit vector along (1 - k) d + k n. */
@@ -367,6 +401,8 @@ export function createModel(json) {
   const LOFT_PER_ATTACK = M.coupling.loft_per_attack;
   const DELOFT_LINEAR = M.coupling.loft_follow_deloft_linear;
   const DELOFT_MAX = M.coupling.loft_follow_deloft_max;
+  const STRIKE = M.strike;
+  const SWING_PLANE_BY_CLUB = M.swing_plane_by_club;
   const DRIVER_IDEAL = PRE.driver_ideal;
   const TOL = IDL.tolerances;
   const FROZEN_DOMAIN = deepFreeze(clone(DOMAIN)); // what model.domain exposes
@@ -667,12 +703,15 @@ export function createModel(json) {
     }
   }
 
-  function checkDelivery(clubSpeed, attack, path, face, dynLoft, club, spinTrim) {
+  function checkDelivery(clubSpeed, attack, path, face, dynLoft, club, spinTrim, lie, strikeToe, strikeUp) {
     checkRange("club_speed_mph", clubSpeed, "club_speed_mph");
     checkRange("attack_deg", attack, "attack_deg");
     checkRange("path_deg", path, "path_deg");
     checkRange("face_deg", face, "face_deg");
     checkRange("dyn_loft_deg", dynLoft, "dyn_loft_deg");
+    checkRange("lie_deg", lie, "lie_deg");
+    checkRange("strike_toe_mm", strikeToe, "strike_toe_mm");
+    checkRange("strike_up_mm", strikeUp, "strike_up_mm");
     const floor = DOMAIN.min_spin_loft_deg;
     if (dynLoft - attack < floor) {
       throw new ValueError(
@@ -719,39 +758,104 @@ export function createModel(json) {
   }
 
   /**
+   * launch.py bulge_roll: [face change deg, loft change deg] at the impact point from a curved
+   * face, for the clubs in strike.bulge_roll_clubs (driver and fairway woods), else 0.
+   */
+  function bulgeRoll(club, strikeToe, strikeUp) {
+    if (club === null || club === undefined || !STRIKE.bulge_roll_clubs.includes(club)) return [0.0, 0.0];
+    return [STRIKE.bulge_deg_per_mm * strikeToe, STRIKE.roll_deg_per_mm * strikeUp];
+  }
+
+  /**
+   * launch.py impact_normal: the face normal at the impact point (effective loft, then bulge and
+   * roll, then the lie tilt) as [n, face deg, loft deg]. With no lie change the angles are the
+   * sums themselves, so a square face keeps its loft to the last digit.
+   */
+  function impactNormal(path, attack, face, dynLoft, club, lie, strikeToe, strikeUp) {
+    const dlEff = effectiveLoft(dynLoft, path, face, attack, club);
+    const [df, dl] = bulgeRoll(club, strikeToe, strikeUp);
+    let faceAt = face + df;
+    let loftAt = clampLoft(dlEff + dl, attack);
+    let n = faceNormal(faceAt, loftAt);
+    if (lie === 0.0) return [n, faceAt, loftAt];
+    n = tiltAboutTargetLine(n, lie);
+    [faceAt, loftAt] = normalAngles(n);
+    return [n, faceAt, loftAt];
+  }
+
+  /** launch.py smash_strike_factor: 1 - strike.smash_loss_per_mm2 * (distance from the face center)^2. */
+  function smashStrikeFactor(strikeToe, strikeUp) {
+    return 1.0 - STRIKE.smash_loss_per_mm2 * (strikeToe * strikeToe + strikeUp * strikeUp);
+  }
+
+  /**
+   * launch.py gear_effect: add the gear-effect spin of an off-center strike to the D-plane spin.
+   * Returns {spinRpm, axisDeg, gearSideRpm, gearBackRpm}. Toe strikes add draw sidespin (left),
+   * heel strikes fade sidespin; above center on a driver or fairway wood takes backspin off.
+   */
+  function gearEffect(spinRpm, axisDeg, ballSpeed, club, strikeToe, strikeUp) {
+    const a = axisDeg * RAD;
+    const back0 = spinRpm * Math.cos(a);
+    const side0 = spinRpm * Math.sin(a);
+    const gearSide = -STRIKE.gear_h_rpm_per_mm_mph * ballSpeed * strikeToe;
+    let gearBack = 0.0;
+    if (club !== null && club !== undefined && STRIKE.gear_v_clubs.includes(club)) {
+      gearBack = -STRIKE.gear_v_ratio * STRIKE.gear_h_rpm_per_mm_mph * ballSpeed * strikeUp;
+    }
+    const back = Math.max(back0 + gearBack, STRIKE.gear_backspin_floor_frac * back0);
+    const side = side0 + gearSide;
+    return { spinRpm: Math.sqrt(back * back + side * side), axisDeg: Math.atan2(side, back) * DEG, gearSideRpm: gearSide, gearBackRpm: back - back0 };
+  }
+
+  /**
    * launch.py deliver. Club delivery to launch conditions. `club` picks the
-   * driver line and spin law, the wood factor, or the iron laws. opts.spinTrim multiplies spin_rpm and nothing else.
+   * driver line and spin law, the wood factor, or the iron laws, the coupling kappa, the bulge
+   * and roll and the vertical gear effect. opts.spinTrim multiplies the D-plane spin and nothing
+   * else; opts.lie (degrees, positive toe up), opts.strikeToe and opts.strikeUp (mm) default to 0.
    */
   function deliver(clubSpeed, attack, path, face, dynLoft, club, opts) {
     const spinTrim = opts && opts.spinTrim !== undefined ? opts.spinTrim : 1.0;
-    checkDelivery(clubSpeed, attack, path, face, dynLoft, club, spinTrim);
-    const dlEff = effectiveLoft(dynLoft, path, face, attack, club);
+    const lie = opts && opts.lie !== undefined ? opts.lie : 0.0;
+    const strikeToe = opts && opts.strikeToe !== undefined ? opts.strikeToe : 0.0;
+    const strikeUp = opts && opts.strikeUp !== undefined ? opts.strikeUp : 0.0;
+    checkDelivery(clubSpeed, attack, path, face, dynLoft, club, spinTrim, lie, strikeToe, strikeUp);
     const d = clubDirection(path, attack);
-    const n = faceNormal(face, dlEff);
+    const [n, faceEff, dlEff] = impactNormal(path, attack, face, dynLoft, club, lie, strikeToe, strikeUp);
     const sl = angleBetween(d, n);
     const u = blend(d, n, kOf(sl, club));
     const launchDeg = Math.atan2(u[2], Math.sqrt(u[0] * u[0] + u[1] * u[1])) * DEG;
     const launchDir = Math.atan2(u[1], u[0]) * DEG;
-    const smash = smashOf(sl);
+    const smash = smashOf(sl) * smashStrikeFactor(strikeToe, strikeUp);
     const ball = smash * clubSpeed;
-    const spin = spinOf(ball, sl, club) * spinTrim;
-    const axis = axisScale(sl) * dplaneTiltDeg(d, n);
+    const spin0 = spinOf(ball, sl, club) * spinTrim;
+    const axis0 = axisScale(sl) * dplaneTiltDeg(d, n);
+    const g = gearEffect(spin0, axis0, ball, club, strikeToe, strikeUp);
     return {
       ballSpeedMph: noNegZero(ball),
       smash: noNegZero(smash),
       launchDeg: noNegZero(launchDeg),
       launchDirDeg: noNegZero(launchDir),
-      spinRpm: noNegZero(spin),
-      spinAxisDeg: noNegZero(axis),
+      spinRpm: noNegZero(g.spinRpm),
+      spinAxisDeg: noNegZero(g.axisDeg),
       spinLoftDeg: noNegZero(sl),
-      faceToPathDeg: noNegZero(face - path),
+      faceToPathDeg: noNegZero(faceEff - path),
       dynLoftInputDeg: noNegZero(dynLoft),
       dynLoftDeg: noNegZero(dlEff),
+      faceInputDeg: noNegZero(face),
+      faceDeg: noNegZero(faceEff),
+      gearSideRpm: noNegZero(g.gearSideRpm),
+      gearBackRpm: noNegZero(g.gearBackRpm),
     };
   }
 
-  /** launch.py swing_path: club path with the swing direction held (forum formula). */
-  function swingPath(swingDir, attack, plane) {
+  /** launch.py swing_plane_for: the vertical swing plane per club, the driver's default for null. */
+  function swingPlaneFor(club) {
+    if (club === null || club === undefined) return SWING_PLANE_DEFAULT;
+    checkClub(club);
+    return SWING_PLANE_BY_CLUB[club];
+  }
+
+  function checkArc(swingDir, attack, plane) {
     const pl = plane === undefined || plane === null ? SWING_PLANE_DEFAULT : plane;
     const items = [["swing_dir_deg", swingDir], ["attack_deg", attack], ["plane_deg", pl]];
     for (const [name, value] of items) {
@@ -762,7 +866,19 @@ export function createModel(json) {
     if (!(lo < pl && pl < hi)) {
       throw new ValueError(`plane_deg must be between ${pyG(lo)} and ${pyG(hi)} (exclusive), got ${pyRepr(pl)}`);
     }
+    return pl;
+  }
+
+  /** launch.py swing_path: club path with the swing direction held (forum formula, checked against Tuxen's examples). */
+  function swingPath(swingDir, attack, plane) {
+    const pl = checkArc(swingDir, attack, plane);
     return noNegZero(swingDir - attack * Math.tan((90.0 - pl) * RAD));
+  }
+
+  /** launch.py swing_direction: the swing direction that gives this path at this attack angle, the inverse of swingPath. */
+  function swingDirection(path, attack, plane) {
+    const pl = checkArc(path, attack, plane);
+    return noNegZero(path + attack * Math.tan((90.0 - pl) * RAD));
   }
 
   /**
@@ -781,6 +897,12 @@ export function createModel(json) {
     const out = { ...delivery };
     for (const [key, dom] of keys) {
       const v = out[key];
+      if (!isFiniteNumber(v)) throw new ValueError(`${dom} must be finite, got ${pyRepr(v)}`);
+      out[key] = Math.min(Math.max(v, DOMAIN[dom][0]), DOMAIN[dom][1]);
+    }
+    // The lie and strike inputs are optional: absent means 0, present is clamped like the rest.
+    for (const [key, dom] of [["lie", "lie_deg"], ["strikeToe", "strike_toe_mm"], ["strikeUp", "strike_up_mm"]]) {
+      const v = out[key] === undefined || out[key] === null ? 0.0 : out[key];
       if (!isFiniteNumber(v)) throw new ValueError(`${dom} must be finite, got ${pyRepr(v)}`);
       out[key] = Math.min(Math.max(v, DOMAIN[dom][0]), DOMAIN[dom][1]);
     }
@@ -951,7 +1073,7 @@ export function createModel(json) {
     }
     const launch = deliver(
       delivery.clubSpeed, delivery.attack, delivery.path, delivery.face, delivery.dynLoft, delivery.club,
-      { spinTrim: delivery.spinTrim === undefined ? 1.0 : delivery.spinTrim }
+      { spinTrim: delivery.spinTrim === undefined ? 1.0 : delivery.spinTrim, lie: delivery.lie, strikeToe: delivery.strikeToe, strikeUp: delivery.strikeUp }
     );
     const flight = simulate(launch.ballSpeedMph, launch.launchDeg, launch.launchDirDeg, launch.spinRpm, launch.spinAxisDeg, opts);
     const total = roll(flight);
@@ -1156,6 +1278,9 @@ export function createModel(json) {
     classify,
     launchVector,
     swingPath,
+    swingDirection,
+    swingPlaneFor,
+    gearEffect,
     preset,
     scaleSpeed,
     couplingKappa,

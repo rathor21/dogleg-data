@@ -251,6 +251,9 @@ def test_golden_covers_the_launch_cases(golden):
         assert [d[k] for k in ("club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg")] \
             == pytest.approx(b["args"][:5], rel=1e-8, abs=1e-8), c["id"]
         assert d["club"] == b["args"][5] and d["spin_trim"] == pytest.approx(b["kwargs"].get("spin_trim", 1.0), rel=1e-8)
+        for k in ("lie_deg", "strike_toe_mm", "strike_up_mm"):
+            assert d[k] == pytest.approx(b["kwargs"].get(k, 0.0), rel=1e-8, abs=1e-8), (c["id"], k)
+    assert sum(1 for c in golden["cases"] if any(c["delivery"][k] for k in ("lie_deg", "strike_toe_mm", "strike_up_mm"))) == 12
     assert golden["dt"] == base["dt"]
     assert sum(1 for c in golden["cases"] if "trajectory" in c) == 12
     assert {c["id"] for c in golden["cases"] if "trajectory" in c} == set(export.TRAJECTORY_CASES)
@@ -259,10 +262,12 @@ def test_golden_covers_the_launch_cases(golden):
 def test_golden_round_trips_against_the_live_model(golden):
     for case in golden["cases"]:
         d = case["delivery"]
-        assert set(d) == {"club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg", "club", "spin_trim"}
+        assert set(d) == {"club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg", "club", "spin_trim",
+                          "lie_deg", "strike_toe_mm", "strike_up_mm"}
         # from the stored (rounded) delivery, the way the JS port will
         ln = launch.deliver(d["club_speed_mph"], d["attack_deg"], d["path_deg"], d["face_deg"], d["dyn_loft_deg"],
-                            d["club"], spin_trim=d["spin_trim"])
+                            d["club"], spin_trim=d["spin_trim"], lie_deg=d["lie_deg"], strike_toe_mm=d["strike_toe_mm"],
+                            strike_up_mm=d["strike_up_mm"])
         f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg, dt=golden["dt"])
         for k, v in case["launch"].items():
             assert getattr(ln, k) == pytest.approx(v, rel=REL, abs=REL), (case["id"], k)
@@ -272,7 +277,7 @@ def test_golden_round_trips_against_the_live_model(golden):
             live = flight.roll(f) if k == "total_yd" else getattr(f, k)
             assert live == pytest.approx(v, rel=REL, abs=REL), (case["id"], k)
         if f.carry_yd <= 0.0:
-            assert case["classification"] is None and case["id"] == "edge_loft_zero"
+            assert case["classification"] is None and case["id"] in ("edge_loft_zero", "corner_all_min")
             continue
         cls = classify.classify(ln.launch_dir_deg, ln.spin_axis_deg, f.curve_yd, f.side_yd, f.carry_yd)
         stored = case["classification"]
