@@ -794,7 +794,7 @@ def test_golden_vectors_match_the_model():
     assert recorded["dt"] == gl.GOLDEN_DT
     cases = gl.golden_cases()
     assert [c["id"] for c in recorded["cases"]] == [c[0] for c in cases]
-    assert 36 <= len(cases) <= 44 and len({c[0] for c in cases}) == len(cases)
+    assert 48 <= len(cases) <= 60 and len({c[0] for c in cases}) == len(cases)
     for rec, case in zip(recorded["cases"], cases):
         live = gl.golden_entry(*case)
         assert rec["args"] == live["args"], rec["id"]

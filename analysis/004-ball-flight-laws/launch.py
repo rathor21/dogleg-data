@@ -1,14 +1,16 @@
 """Delivery to launch for release 004: club delivery in, ball launch out.
 
     deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg,
-            club=None, *, params=None, spin_trim=1.0) -> Launch
+            club=None, *, params=None, spin_trim=1.0,
+            lie_deg=0.0, strike_toe_mm=0.0, strike_up_mm=0.0) -> Launch
 
 feeds flight.simulate(ball_speed_mph, launch_deg, launch_dir_deg, spin_rpm,
 spin_axis_deg). Everything here is a MODELED approximation of the D-plane,
 fitted to the published tables (see data.LAUNCH_MODEL and calibrate_launch.py).
 
-This module is the JS port surface: deliver, its helpers, swing_path and
-Launch. Fitting and table-building helpers live in launch_tools.py.
+This module is the JS port surface: deliver, its helpers, swing_path,
+swing_direction, swing_plane_for and Launch. Fitting and table-building helpers
+live in launch_tools.py.
 
 Frame and signs (TrackMan, right-handed golfer): x downrange, y right, z up.
 Angles are positive right, positive path is in-to-out, positive face is open to
@@ -28,25 +30,55 @@ Model:
      A club that is not named has kappa 0. The effective loft is held to at least
      max(attack + data.DOMAIN["min_spin_loft_deg"], data.DOMAIN["min_effective_loft_deg"])
      and at most the domain's largest dynamic loft (clamp_loft).
+  0a. Bulge and roll (strike location, data.BULGE_DEG_PER_MM, ROLL_DEG_PER_MM,
+     BULGE_ROLL_CLUBS). On a driver or fairway wood the face at the impact
+     point turns open toward the toe and gains loft toward the crown:
+         face_at_impact = face + bulge * strike_toe_mm
+         loft_at_impact = clamp_loft(dyn_loft_effective + roll * strike_up_mm)
+     Flat faces (hybrid, irons, wedges) change nothing.
+  0b. Lie at impact (lie_deg, positive toe up). The face normal built from
+     face_at_impact and loft_at_impact is rotated about the target line by the
+     lie change (tilt_about_target_line), which opens the face when the toe is
+     up and closes it when the toe is down, by about tan(loft) per degree. The
+     Launch reports the face angle after both steps as face_deg (what TrackMan
+     reads at the impact point) and the argument as face_input_deg; its
+     face_to_path_deg is face_deg - path, and its dyn_loft_deg is the loft of
+     the final normal.
   1. Club direction d from path and attack angle. Face normal n from face angle
      and effective dynamic loft (azimuth = face, elevation = effective dynamic
-     loft). Spin loft is the 3D angle between d and n. It equals dynamic loft
-     minus attack angle when path, face and their difference are all zero.
+     loft), then steps 0a and 0b. Spin loft is the 3D angle between d and n. It
+     equals dynamic loft minus attack angle when path, face and their
+     difference are all zero.
   2. Launch vector u = normalize((1 - k) d + k n), with k linear in spin loft
      (one line for the driver, one for every other club).
      Launch angle and launch direction both come from u. u lies in the plane of d
      and n, so that plane is the D-plane and its normal is the spin axis.
   3. Smash factor and spin rate are functions of spin loft (and ball speed).
      The driver has its own spin law, the 3-wood and 5-wood a factor on the
-     iron law.
+     iron law. An off-center strike takes smash off: smash times
+     (1 - data.SMASH_LOSS_PER_MM2 * (toe^2 + up^2)) (smash_strike_factor).
   4. Spin axis is the tilt of the D-plane normal times c(spin loft), linear. The
      scale is calibrated so face-to-path maps to TrackMan's published
      curvature (see calibrate_launch.py and ADR 0004).
+  5. Gear effect (strike location). The D-plane spin is split into backspin and
+     sidespin. A toe strike adds draw sidespin and a heel strike fade sidespin,
+     data.GEAR_H_RPM_PER_MM_MPH * ball speed * strike_toe_mm (Tuxen's rows). On
+     a driver or fairway wood (data.GEAR_V_CLUBS) a strike above center takes
+     backspin off and one below adds it, GEAR_V_RATIO times the horizontal
+     coefficient, with the backspin floored at GEAR_BACKSPIN_FLOOR_FRAC of the
+     D-plane backspin. The Launch's spin_rpm and spin_axis_deg are the vector
+     sum (gear_effect), and gear_side_rpm and gear_back_rpm report the parts
+     the strike added.
+
+Swing arc. swing_path(swing_dir, attack, plane) gives the path with the swing
+direction held, swing_direction(path, attack, plane) inverts it, and
+swing_plane_for(club) is the vertical plane per club (data.SWING_PLANE_BY_CLUB).
 
 Input contract. deliver raises ValueError, naming the argument, on a non-finite
-value, a value outside data.DOMAIN, dynamic loft minus attack angle under
-data.DOMAIN["min_spin_loft_deg"], a spin_trim that is not positive, or a club
-that is not None or a key of data.PGA. Outputs never carry a negative zero.
+value, a value outside data.DOMAIN (lie_deg, strike_toe_mm and strike_up_mm
+included), dynamic loft minus attack angle under data.DOMAIN["min_spin_loft_deg"],
+a spin_trim that is not positive, or a club that is not None or a key of
+data.PGA. Outputs never carry a negative zero.
 """
 
 from dataclasses import dataclass
@@ -66,7 +98,11 @@ class Launch:
     spin_loft_deg: float
     face_to_path_deg: float
     dyn_loft_input_deg: float  # the argument: loft with the face square to the path
-    dyn_loft_deg: float  # effective loft after the face-to-loft coupling, as TrackMan would measure it
+    dyn_loft_deg: float  # effective loft after the face-to-loft coupling, roll and lie, as TrackMan would measure it
+    face_input_deg: float  # the argument: face angle before bulge and the lie tilt
+    face_deg: float  # face angle at the impact point after bulge and the lie tilt, as TrackMan would measure it
+    gear_side_rpm: float  # sidespin the horizontal gear effect added, positive curves right (heel strike)
+    gear_back_rpm: float  # backspin the vertical gear effect added, negative for a strike above center
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +167,68 @@ def club_direction(path_deg, attack_deg):
 def face_normal(face_deg, dyn_loft_deg):
     f, l = radians(face_deg), radians(dyn_loft_deg)
     return (cos(l) * cos(f), cos(l) * sin(f), sin(l))
+
+
+def tilt_about_target_line(n, lie_deg):
+    """Rotate a face normal about the target line (x) for a lie change of lie_deg,
+    positive toe up. A right-handed golfer's toe points to -y, so toe up is a
+    rotation by -lie_deg about +x: it turns a square face open (+y)."""
+    t = radians(-lie_deg)
+    c, s = cos(t), sin(t)
+    return (n[0], n[1] * c - n[2] * s, n[1] * s + n[2] * c)
+
+
+def normal_angles(n):
+    """(face angle deg, loft deg) of a face normal: azimuth from atan2 and elevation."""
+    return degrees(atan2(n[1], n[0])), degrees(atan2(n[2], sqrt(n[0] * n[0] + n[1] * n[1])))
+
+
+def bulge_roll(club, strike_toe_mm, strike_up_mm):
+    """(face change deg, loft change deg) at the impact point from a curved face:
+    data.BULGE_DEG_PER_MM per mm toward the toe (more open) and data.ROLL_DEG_PER_MM
+    per mm above center (more loft) for the clubs in data.BULGE_ROLL_CLUBS, else 0."""
+    if club not in data.BULGE_ROLL_CLUBS:
+        return 0.0, 0.0
+    return data.BULGE_DEG_PER_MM * strike_toe_mm, data.ROLL_DEG_PER_MM * strike_up_mm
+
+
+def impact_normal(path_deg, attack_deg, face_deg, dyn_loft_deg, club=None, lie_deg=0.0, strike_toe_mm=0.0, strike_up_mm=0.0):
+    """The face normal at the impact point: effective loft (face-to-loft coupling),
+    then bulge and roll, then the lie tilt. Returns (n, face deg, loft deg) with
+    the angles of n. With no lie change the angles are the sums themselves, so a
+    square face keeps its loft to the last digit; a lie change reads them back
+    from the rotated normal."""
+    dl_eff = effective_loft(dyn_loft_deg, path_deg, face_deg, attack_deg, club)
+    df, dl = bulge_roll(club, strike_toe_mm, strike_up_mm)
+    face_at, loft_at = face_deg + df, clamp_loft(dl_eff + dl, attack_deg)
+    n = face_normal(face_at, loft_at)
+    if lie_deg == 0.0:
+        return n, face_at, loft_at
+    n = tilt_about_target_line(n, lie_deg)
+    face_at, loft_at = normal_angles(n)
+    return n, face_at, loft_at
+
+
+def smash_strike_factor(strike_toe_mm, strike_up_mm):
+    """1 - data.SMASH_LOSS_PER_MM2 * (distance from the face center)^2, MODELED."""
+    return 1.0 - data.SMASH_LOSS_PER_MM2 * (strike_toe_mm * strike_toe_mm + strike_up_mm * strike_up_mm)
+
+
+def gear_effect(spin_rpm, axis_deg, ball_speed_mph, club, strike_toe_mm, strike_up_mm):
+    """Add the gear-effect spin of an off-center strike to the D-plane spin.
+    Returns (spin_rpm, axis_deg, gear_side_rpm, gear_back_rpm). Toe strikes add
+    draw sidespin (negative, left), heel strikes fade sidespin; a strike above
+    center on a driver or fairway wood takes backspin off, below adds it."""
+    a = radians(axis_deg)
+    back0 = spin_rpm * cos(a)
+    side0 = spin_rpm * sin(a)
+    gear_side = -data.GEAR_H_RPM_PER_MM_MPH * ball_speed_mph * strike_toe_mm
+    gear_back = 0.0
+    if club in data.GEAR_V_CLUBS:
+        gear_back = -data.GEAR_V_RATIO * data.GEAR_H_RPM_PER_MM_MPH * ball_speed_mph * strike_up_mm
+    back = max(back0 + gear_back, data.GEAR_BACKSPIN_FLOOR_FRAC * back0)
+    side = side0 + gear_side
+    return sqrt(back * back + side * side), degrees(atan2(side, back)), gear_side, back - back0
 
 
 def blend(d, n, k):
@@ -256,13 +354,17 @@ def check_club(club):
         raise ValueError(f"club must be None or one of {tuple(data.PGA)}, got {club!r}")
 
 
-def check_delivery(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=None, spin_trim=1.0):
+def check_delivery(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=None, spin_trim=1.0,
+                   lie_deg=0.0, strike_toe_mm=0.0, strike_up_mm=0.0):
     """Raise ValueError, naming the argument, for anything deliver rejects."""
     _check_range("club_speed_mph", club_speed_mph, "club_speed_mph")
     _check_range("attack_deg", attack_deg, "attack_deg")
     _check_range("path_deg", path_deg, "path_deg")
     _check_range("face_deg", face_deg, "face_deg")
     _check_range("dyn_loft_deg", dyn_loft_deg, "dyn_loft_deg")
+    _check_range("lie_deg", lie_deg, "lie_deg")
+    _check_range("strike_toe_mm", strike_toe_mm, "strike_toe_mm")
+    _check_range("strike_up_mm", strike_up_mm, "strike_up_mm")
     floor = data.DOMAIN["min_spin_loft_deg"]
     if dyn_loft_deg - attack_deg < floor:
         raise ValueError(
@@ -273,26 +375,32 @@ def check_delivery(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg,
     check_club(club)
 
 
-def deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=None, *, params=None, spin_trim=1.0):
+def deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=None, *, params=None, spin_trim=1.0,
+            lie_deg=0.0, strike_toe_mm=0.0, strike_up_mm=0.0):
     """Club delivery to launch conditions. `club` picks the spin class factor
-    (driver, fairway woods, everything else) and the coupling kappa. `dyn_loft_deg`
-    is the input loft, the loft with the face square to the path, and the Launch
-    returns both it and the effective loft. `spin_trim` multiplies spin_rpm
-    and nothing else: a preset-level correction (presets.preset returns one)
-    that stands for where on the face a player group strikes the ball."""
-    check_delivery(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club, spin_trim)
+    (driver, fairway woods, everything else), the coupling kappa, the bulge and
+    roll and the vertical gear effect. `dyn_loft_deg` is the input loft, the loft
+    with the face square to the path, and `face_deg` the face angle before
+    bulge and the lie tilt; the Launch returns both inputs and both effective
+    values. `spin_trim` multiplies the D-plane spin and nothing else: a
+    preset-level correction (presets.preset returns one) that stands for where
+    on the face a player group strikes the ball. `lie_deg` is the lie change at
+    impact, positive toe up. `strike_toe_mm` and `strike_up_mm` are the strike's
+    offset from the face center, toward the toe and upward."""
+    check_delivery(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club, spin_trim,
+                   lie_deg, strike_toe_mm, strike_up_mm)
     m = _params(params)
-    dl_eff = effective_loft(dyn_loft_deg, path_deg, face_deg, attack_deg, club)
     d = club_direction(path_deg, attack_deg)
-    n = face_normal(face_deg, dl_eff)
+    n, face_eff, dl_eff = impact_normal(path_deg, attack_deg, face_deg, dyn_loft_deg, club, lie_deg, strike_toe_mm, strike_up_mm)
     sl = _angle_between(d, n)
     u = blend(d, n, k_of(sl, club, params=m))
     launch_deg = degrees(atan2(u[2], sqrt(u[0] * u[0] + u[1] * u[1])))
     launch_dir = degrees(atan2(u[1], u[0]))
-    smash = smash_of(sl, m)
+    smash = smash_of(sl, m) * smash_strike_factor(strike_toe_mm, strike_up_mm)
     ball = smash * club_speed_mph
     spin = spin_of(ball, sl, club, params=m) * spin_trim
     axis = axis_scale(sl, m) * dplane_tilt_deg(d, n)
+    spin, axis, gear_side, gear_back = gear_effect(spin, axis, ball, club, strike_toe_mm, strike_up_mm)
     return Launch(
         ball_speed_mph=_no_negative_zero(ball),
         smash=_no_negative_zero(smash),
@@ -301,22 +409,26 @@ def deliver(club_speed_mph, attack_deg, path_deg, face_deg, dyn_loft_deg, club=N
         spin_rpm=_no_negative_zero(spin),
         spin_axis_deg=_no_negative_zero(axis),
         spin_loft_deg=_no_negative_zero(sl),
-        face_to_path_deg=_no_negative_zero(face_deg - path_deg),
+        face_to_path_deg=_no_negative_zero(face_eff - path_deg),
         dyn_loft_input_deg=_no_negative_zero(dyn_loft_deg),
         dyn_loft_deg=_no_negative_zero(dl_eff),
+        face_input_deg=_no_negative_zero(face_deg),
+        face_deg=_no_negative_zero(face_eff),
+        gear_side_rpm=_no_negative_zero(gear_side),
+        gear_back_rpm=_no_negative_zero(gear_back),
     )
 
 
-def swing_path(swing_dir_deg, attack_deg, plane_deg=None):
-    """Club path with the swing direction held: CP = HSP - AA * tan(90 - VSP).
+def swing_plane_for(club=None):
+    """Vertical swing plane for a club (data.SWING_PLANE_BY_CLUB), the driver's
+    data.SWING_PLANE_DEG for None. Raises ValueError for an unknown club."""
+    if club is None:
+        return data.SWING_PLANE_DEG
+    check_club(club)
+    return data.SWING_PLANE_BY_CLUB[club]
 
-    FORUM FORMULA (Anchor 5(c) Source 2, Brian Manzella Golf forum, poster
-    cwdlaw223, 2011), not TrackMan's. TrackMan says only that vertical swing
-    plane, swing direction and attack angle combine to give path. Hitting down
-    (AA < 0) moves path right, the same direction TrackMan's statement implies.
-    plane_deg defaults to the Combine average golfer's driver swing plane
-    (data.SWING_PLANE_DEG) and must lie inside data.DOMAIN["swing_plane_deg"], ends excluded.
-    """
+
+def _check_arc(swing_dir_deg, attack_deg, plane_deg):
     plane = data.SWING_PLANE_DEG if plane_deg is None else plane_deg
     for name, value in (("swing_dir_deg", swing_dir_deg), ("attack_deg", attack_deg), ("plane_deg", plane)):
         if not isfinite(value):
@@ -324,4 +436,28 @@ def swing_path(swing_dir_deg, attack_deg, plane_deg=None):
     lo, hi = data.DOMAIN["swing_plane_deg"]
     if not lo < plane < hi:
         raise ValueError(f"plane_deg must be between {lo:g} and {hi:g} (exclusive), got {plane!r}")
+    return plane
+
+
+def swing_path(swing_dir_deg, attack_deg, plane_deg=None):
+    """Club path with the swing direction held: CP = HSP - AA * tan(90 - VSP).
+
+    FORUM FORMULA (Anchor 5(c) Source 2, Brian Manzella Golf forum, poster
+    cwdlaw223, 2011), checked against Tuxen's worked examples (Anchor 12) and
+    the arc geometry (docs/sources/004_Physics_Research.md, Topic 5). TrackMan
+    says only that vertical swing plane, swing direction and attack angle combine
+    to give path. Hitting down (AA < 0) moves path right, the same direction
+    TrackMan's statement implies. plane_deg defaults to the Combine average
+    golfer's driver swing plane (data.SWING_PLANE_DEG); pass swing_plane_for(club)
+    for another club. It must lie inside data.DOMAIN["swing_plane_deg"], ends excluded.
+    """
+    plane = _check_arc(swing_dir_deg, attack_deg, plane_deg)
     return _no_negative_zero(swing_dir_deg - attack_deg * tan(radians(90.0 - plane)))
+
+
+def swing_direction(path_deg, attack_deg, plane_deg=None):
+    """The swing direction that gives this path at this attack angle on this
+    plane: HSP = CP + AA * tan(90 - VSP), the inverse of swing_path. The lab
+    holds it while the attack angle moves. Same checks and default as swing_path."""
+    plane = _check_arc(path_deg, attack_deg, plane_deg)
+    return _no_negative_zero(path_deg + attack_deg * tan(radians(90.0 - plane)))

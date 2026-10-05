@@ -267,6 +267,15 @@ export function createViews({ root, onLineYd = 0.5 }) {
     const heel = c.hand === "l" ? 1 : -1;
     add(g1, "line", { x1: cx + tdir[0] * heel * 26, y1: cy + tdir[1] * heel * 26, x2: cx + tdir[0] * heel * 80, y2: cy + tdir[1] * heel * 80 }, "pv-shaft");
     add(g1, "line", { x1: cx - tdir[0] * 30, y1: cy - tdir[1] * 30, x2: cx + tdir[0] * 30, y2: cy + tdir[1] * 30 }, "pv-face");
+    // The strike point along the face: the toe is away from the golfer. 30 px of half face stands for about 50 mm.
+    const strikeToe = v.strike_toe_mm ? v.strike_toe_mm.disp : 0;
+    const strikeUp = v.strike_up_mm ? v.strike_up_mm.disp : 0;
+    const lie = v.lie_deg ? v.lie_deg.disp : 0;
+    const struck = Math.abs(strikeToe) >= 0.5 || Math.abs(strikeUp) >= 0.5;
+    if (struck) {
+      const off = -heel * strikeToe * 0.6;
+      add(g1, "circle", { cx: cx + tdir[0] * off, cy: cy + tdir[1] * off, r: 3.2 }, "pv-strike");
+    }
     label(g1, cx + tdir[0] * heel * 80 + (heel > 0 ? -2 : 2), cy + tdir[1] * heel * 80 - 8, "golfer", "muted", heel > 0 ? "end" : "start");
     // face normal arrow
     add(g1, "line", { x1: cx, y1: cy, x2: cx + nd[0] * L * 0.92, y2: cy + nd[1] * L * 0.92 }, "pv-arrow face");
@@ -275,6 +284,12 @@ export function createViews({ root, onLineYd = 0.5 }) {
     // Labels in a short key at the left, colored like the arrows, so they never collide.
     label(g1, 6, 34, `path ${f1(pathD)}${DEG}`, "ink strong");
     label(g1, 6, 50, `face ${f1(faceD)}${DEG}`, "clay strong");
+    // Lie and strike, when set, in the same key.
+    const extras = [];
+    if (Math.abs(lie) >= 0.05) extras.push(`lie ${Math.abs(lie).toFixed(1)}${DEG} toe ${lie > 0 ? "up" : "down"}`);
+    if (Math.abs(strikeToe) >= 0.5) extras.push(`${Math.abs(Math.round(strikeToe))} mm ${strikeToe > 0 ? "toe" : "heel"}`);
+    if (Math.abs(strikeUp) >= 0.5) extras.push(`${Math.abs(Math.round(strikeUp))} mm ${strikeUp > 0 ? "high" : "low"}`);
+    extras.forEach((t, i) => label(g1, 6, 66 + 14 * i, t, "muted"));
     const cl = c.classification;
     const closed = f2pRh < -0.05, open = f2pRh > 0.05;
     const rel = Math.abs(f2pRh) < 0.05 ? "square to path" : `${Math.abs(f2pDisp).toFixed(1)}${DEG} ${closed ? "closed" : "open"} to path`;
@@ -322,6 +337,11 @@ export function createViews({ root, onLineYd = 0.5 }) {
     // face: tilted back by the effective dynamic loft
     const fd = [Math.sin(loft * RAD), Math.cos(loft * RAD)];
     add(g2, "line", { x1: sx0 - fd[0] * 38, y1: sy0 - fd[1] * 38, x2: sx0 + fd[0] * 30, y2: sy0 + fd[1] * 30 }, "pv-face");
+    // The strike point up or down the face: 38 px of the upper half stands for about 30 mm.
+    if (struck) {
+      const offUp = -strikeUp * 1.1;
+      add(g2, "circle", { cx: sx0 + fd[0] * offUp, cy: sy0 + fd[1] * offUp, r: 3.2 }, "pv-strike");
+    }
     const nv = [Math.cos(loft * RAD), -Math.sin(loft * RAD)];
     add(g2, "line", { x1: sx0, y1: sy0, x2: sx0 + nv[0] * R2 * 1.05, y2: sy0 + nv[1] * R2 * 1.05 }, "pv-arrow face");
     arrowHead(g2, sx0 + nv[0] * R2 * 1.05, sy0 + nv[1] * R2 * 1.05, Math.atan2(nv[1], nv[0]), 8, "pv-head face");
@@ -336,7 +356,8 @@ export function createViews({ root, onLineYd = 0.5 }) {
     } else {
       label(g2, W / 2, H - 6, `${slText} ${slNote}`, "ink strong", "middle");
     }
-    svg.setAttribute("aria-label", `Impact diagram. Club path ${f1(pathD)} degrees, face angle ${f1(faceD)} degrees, face ${rel}${verb ? ", so the ball " + verb : ""}. Attack angle ${f1(atk)} degrees, dynamic loft ${loft.toFixed(1)} degrees, spin loft ${spinLoft.toFixed(1)} degrees.`);
+    const extraText = extras.length ? ` ${extras.map((t) => t.replace(DEG, " degrees")).join(", ")}.` : "";
+    svg.setAttribute("aria-label", `Impact diagram. Club path ${f1(pathD)} degrees, face angle ${f1(faceD)} degrees, face ${rel}${verb ? ", so the ball " + verb : ""}. Attack angle ${f1(atk)} degrees, dynamic loft ${loft.toFixed(1)} degrees, spin loft ${spinLoft.toFixed(1)} degrees.${extraText}`);
   }
 
   function redraw() {

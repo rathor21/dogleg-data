@@ -37,6 +37,18 @@ export function loftNote(effective, entry) {
 }
 const isZero = (v, tol) => Math.abs(v) < tol;
 
+/** "lie 3.0° toe up opens 1.3°", "heel strike bulge closes 2.5°", or both, when the lie or the strike moved the face off the slider's. */
+export function faceNote(effective, entry) {
+  if (!entry || entry.input === undefined) return "";
+  const delta = effective - entry.input;
+  if (Math.abs(delta) < 0.05) return "";
+  const causes = [];
+  if (Math.abs(entry.lie || 0) >= 0.05) causes.push(`lie ${Math.abs(entry.lie).toFixed(1)}\u00B0 toe ${entry.lie > 0 ? "up" : "down"}`);
+  if (Math.abs(entry.strikeToe || 0) >= 0.5) causes.push(`${entry.strikeToe > 0 ? "toe" : "heel"} strike bulge`);
+  const open = delta > 0 ? (entry.hand === "l" ? "closes" : "opens") : (entry.hand === "l" ? "opens" : "closes");
+  return `${causes.join(" and ") || "lie and strike"} ${open} ${Math.abs(delta).toFixed(1)}\u00B0`;
+}
+
 // words(rh, disp) returns the plain-language word under the value.
 // rh is the right-handed-frame value (the frame the model runs in), disp is the
 // value shown. Path, face and face to path read the same for both hands through
@@ -54,8 +66,10 @@ export const METRICS = {
     words: (rh) => (isZero(rh, 0.05) ? "square to target" : rh > 0 ? "in-to-out" : "out-to-in"),
     slider: { stateKey: "path", step: 0.5, dom: "path_deg", zero: true,
       hints: (h) => (h === "l" ? [MINUS + " in-to-out", "+ out-to-in"] : [MINUS + " out-to-in", "+ in-to-out"]) } },
+  // The tile shows the EFFECTIVE face at the impact point (what TrackMan would measure). The slider sets the
+  // face before the lie tilt and the bulge of an off-center strike move it.
   face_deg: { label: "Face angle", unit: DEG, dec: 1, signed: true, lateral: true,
-    words: (rh) => (isZero(rh, 0.05) ? "square to target" : rh > 0 ? "open to target" : "closed to target"),
+    words: (rh, d, e) => faceNote(d, e) || (isZero(rh, 0.05) ? "square to target" : rh > 0 ? "open to target" : "closed to target"),
     slider: { stateKey: "face", step: 0.5, dom: "face_deg", zero: true, label: "Face angle (to target)",
       hints: (h) => (h === "l" ? [MINUS + " open", "+ closed"] : [MINUS + " closed", "+ open"]) } },
   face_to_path_deg: { label: "Face to path", unit: DEG, dec: 1, signed: true, lateral: true,
@@ -65,6 +79,22 @@ export const METRICS = {
   dyn_loft_deg: { label: "Dynamic loft", unit: DEG, dec: 1,
     words: (rh, d, e) => loftNote(d, e),
     slider: { stateKey: "dynLoft", step: 0.5, dom: "dyn_loft_deg", advanced: true, label: "Dynamic loft (face square to path)" } },
+  // Lie at impact and strike location (advanced sliders). The toe is the toe for both hands, so none is lateral.
+  lie_deg: { label: "Lie at impact", unit: DEG, dec: 1, signed: true,
+    words: (rh) => (isZero(rh, 0.05) ? "as addressed" : rh > 0 ? "toe up, opens the face" : "toe down, closes the face"),
+    noBandText: "The change of lie at impact from the club's address lie, positive toe up. A toe-up (flat) lie opens the face by about the tangent of the loft per degree and a toe-down (upright) lie closes it, so a wedge moves most and a driver least. Geometry, no ideal band: 0 is the address lie.",
+    slider: { stateKey: "lie", step: 0.5, dom: "lie_deg", zero: true, advanced: true, label: "Lie at impact",
+      hints: () => [MINUS + " toe down", "+ toe up"] } },
+  strike_toe_mm: { label: "Strike, heel to toe", unit: "mm", dec: 0, signed: true,
+    words: (rh) => (isZero(rh, 0.5) ? "center of the face" : rh > 0 ? "toward the toe, draw spin" : "toward the heel, fade spin"),
+    noBandText: "Where the ball met the face, mm from center toward the toe. Gear effect: a toe strike adds draw spin and a heel strike fade spin (about 0.47 rpm per mm per mph of ball speed, from TrackMan's published examples). On a driver or fairway wood the bulge of the face also opens the face at a toe strike and closes it at a heel strike, 2 degrees per 10 mm. Any strike off center costs ball speed. Modeled; 0 is the player group's own typical strike.",
+    slider: { stateKey: "strikeToe", step: 1, dom: "strike_toe_mm", zero: true, advanced: true, label: "Strike, heel to toe",
+      hints: () => [MINUS + " heel", "+ toe"] } },
+  strike_up_mm: { label: "Strike, high or low", unit: "mm", dec: 0, signed: true,
+    words: (rh) => (isZero(rh, 0.5) ? "center of the face" : rh > 0 ? "above center, less spin" : "below center, more spin"),
+    noBandText: "Where the ball met the face, mm above center. On a driver or fairway wood the roll of the face adds loft above center (2 degrees per 10 mm) and the vertical gear effect takes backspin off, so a high strike launches higher with less spin; a low strike does the reverse. Irons and hybrids have a flat face and their center of gravity near it, so only the ball speed loss applies. Modeled; 0 is the player group's own typical strike.",
+    slider: { stateKey: "strikeUp", step: 1, dom: "strike_up_mm", zero: true, advanced: true, label: "Strike, high or low",
+      hints: () => [MINUS + " low", "+ high"] } },
   spin_loft_deg: { label: "Spin loft", unit: DEG, dec: 1 },
   ball_speed_mph: { label: "Ball speed", unit: "mph", dec: 1 },
   smash: { label: "Smash factor", unit: "", dec: 2 },
@@ -74,6 +104,12 @@ export const METRICS = {
   spin_rpm: { label: "Spin rate", unit: "rpm", dec: 0, grouped: true },
   spin_axis_deg: { label: "Spin axis", unit: DEG, dec: 1, signed: true, lateral: true,
     words: (rh, d) => (isZero(d, 0.05) ? "no side spin" : `tilts ${dirWord(d)}`) },
+  gear_side_rpm: { label: "Gear effect, side", unit: "rpm", dec: 0, signed: true, lateral: true, grouped: true,
+    words: (rh, d) => (isZero(d, 0.5) ? "center strike" : `${d > 0 ? "fade" : "draw"} spin from the strike`),
+    noBandText: "Sidespin the horizontal gear effect added for a heel or toe strike, positive curving right. It is added as a vector to the spin the D-plane gives, so the spin rate and the spin axis both move. Modeled on TrackMan's published gear-effect examples." },
+  gear_back_rpm: { label: "Gear effect, back", unit: "rpm", dec: 0, signed: true, grouped: true,
+    words: (rh) => (isZero(rh, 0.5) ? "center strike" : rh > 0 ? "more backspin, low strike" : "less backspin, high strike"),
+    noBandText: "Backspin the vertical gear effect added for a strike above or below center on a driver or fairway wood, negative above center. Irons and hybrids get none. Modeled, 1.75 times the horizontal gear effect for the same offset." },
   max_height_yd: { label: "Height", unit: "ft", dec: 0 }, // value and band are converted to feet by state.compute
   land_angle_deg: { label: "Land angle", unit: DEG, dec: 1 },
   carry_yd: { label: "Carry", unit: "yd", dec: 0 },
@@ -86,13 +122,13 @@ export const METRICS = {
 };
 
 /** Slider metrics in the order the sliders appear. */
-export const SLIDER_METRICS = ["club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg"];
+export const SLIDER_METRICS = ["club_speed_mph", "attack_deg", "path_deg", "face_deg", "dyn_loft_deg", "lie_deg", "strike_toe_mm", "strike_up_mm"];
 
 export const TILE_GROUPS = [
   { id: "club", name: "Club", note: "What you set with the sliders, plus face to path and spin loft.",
-    items: ["club_speed_mph", "attack_deg", "path_deg", "face_deg", "face_to_path_deg", "dyn_loft_deg", "spin_loft_deg"] },
+    items: ["club_speed_mph", "attack_deg", "path_deg", "face_deg", "face_to_path_deg", "dyn_loft_deg", "spin_loft_deg", "lie_deg", "strike_toe_mm", "strike_up_mm"] },
   { id: "ball", name: "Ball", note: "Dogleg Data model output.",
-    items: ["ball_speed_mph", "smash", "launch_deg", "launch_dir_deg", "spin_rpm", "spin_axis_deg"] },
+    items: ["ball_speed_mph", "smash", "launch_deg", "launch_dir_deg", "spin_rpm", "spin_axis_deg", "gear_side_rpm", "gear_back_rpm"] },
   { id: "flight", name: "Flight", note: "Dogleg Data model output.",
     items: ["max_height_yd", "land_angle_deg", "carry_yd", "side_yd", "curve_yd", "total_yd"] },
 ];
@@ -258,7 +294,7 @@ export function createTile(metric, prefix, extraClass) {
         capEl.hidden = true;
         badge.hidden = false;
         el.setAttribute("aria-label", `${m.label} ${vEl.textContent} ${m.unit}, modeled`);
-        srcEl.textContent = "Total is the carry plus a roll that the Dogleg Data model estimates from the landing angle and speed. It is a modeled number.";
+        srcEl.textContent = m.noBandText || "Total is the carry plus a roll that the Dogleg Data model estimates from the landing angle and speed. It is a modeled number.";
         info.title = srcEl.textContent;
         return;
       }

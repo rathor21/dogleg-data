@@ -509,6 +509,42 @@ Spin loft stayed within 0.5 degree in both groups, so the coupling ran close to 
 
 ---
 
+## Anchor 12: Vertical swing plane by club (task 004-physics-2, path follows attack angle)
+
+**Status: two values ANCHORED, the rest MODELED, added 2026-10-05.** The club path moves with the attack angle when the swing direction is held, by tan(90 - vertical swing plane) per degree (Anchor 5(c) Source 2 for the formula, and the geometry in docs/sources/004_Physics_Research.md Topic 5). The model needs a plane per club.
+
+**Source 1 (primary, worked examples):** Fredrik Tuxen, TrackMan News #4 (January 2009) and #5 (July 2009), "The Secret of the Straight Shot" I and II, read from the Internet Archive ([#4](http://web.archive.org/web/20130803015048/http://trackman.dk:80/getmedia/55e8af48-81db-4fee-9fa0-0e763e9ac9a5/TMNewsJan2009.aspx), [#5](http://web.archive.org/web/20130826173544/http://trackman.dk:80/getmedia/2f6c5cdc-e153-466c-9e1a-f8b612947435/TMNewsJul2009_1.aspx)), retrieved 2026-09-29 for the physics research file (S1 and S2 there). Read: RAW (PDF text). Horizontal swing plane 0, attack -5, vertical plane 45 gives a path near +5. An 8 or 9 iron with attack -5 and vertical plane 57 gives about +3. Driver, attack +2, plane 45, swing direction 0 gives path -2, and swing direction +2 gives path 0. 6 iron, attack -5, plane 60, swing direction 0 gives +2.5, and swing direction -2.5 gives path 0. Tuxen's rule of thumb: the driver needs swing direction equal to attack angle for zero path, irons need half of it. Check of the formula against these (DERIVED): 5 tan(45) = 5.0 (published 5), 5 tan(33) = 3.2 (published 3), 5 tan(30) = 2.9 (published 2.5, rounded by his rule of thumb).
+
+**Source 2 (primary, measured average):** TrackMan Combine averages (Anchor 3 Source 1), driver swing plane 49.0 for the average male golfer (48.1 to 49.4 across the male columns, 46.8 to 48.4 female), and TrackMan's Swing Plane page (Anchor 5(c) Source 1): a driver sits between 45 and 50.
+
+**Choice for the model (MODELED mapping, `data.SWING_PLANE_BY_CLUB`):** driver 49.0 (Source 2, measured), 6 iron 60.0 (Source 1, the example). Irons and the PW follow the Anchor 8 lie ladder one for one from the 6 iron: 3i 58.5, 4i 59.0, 5i 59.5, 7i 60.5, 8i 61.0, 9i 61.5, PW 61.5. The fairway woods and the hybrid sit on a straight line from the driver to the 3 iron by ladder position: 3w 51.375, 5w 53.75, hybrid 56.125. Tuxen's 8 or 9 iron example at 57 sits below the table's 61 to 61.5, so the iron planes may run a degree or two steep. No source measures a plane per club for the Tour tables.
+
+## Anchor 13: Gear effect, bulge and roll, smash loss (task 004-physics-2, strike location)
+
+**Status: PARTIAL, added 2026-10-05.** One primary table for the horizontal gear effect, TrackMan's two bulge and roll numbers, and a modeled smash loss between three published points. Details and the derivations in docs/sources/004_Physics_Research.md Topic 7.
+
+**Source 1 (primary):** Tuxen, TrackMan News #5 (July 2009), Anchor 12 Source 1, RAW. Spin axis from an off-center strike with face 0 and path 0, typical MOI and center of gravity assumed by TrackMan: driver one dimple (0.14 in) toward the heel +6 degrees (10 yd right at 250), half an inch toward the heel +20 (35 yd right at 250); 6 iron one dimple toward the toe -2 (2.5 yd left at 170), half an inch toward the toe -7 (8 yd left at 170). Gear-effect sidespin is about the same in rpm across the set for the same offset. Bulge closes the face on a heel strike, starts the ball left and tilts the D-plane toward a draw, which offsets the gear-effect fade. A half-thin hit is the gap between smash 1.48 and 1.45 (TrackMan News #4). DERIVED for the model: read as sidespin over the 2019 rows' backspin (the rows TrackMan's examples of that era run from, `data.SUPERSEDED_2019`: driver 167 mph and 2,686 rpm, 6 iron 127 mph and 6,231 rpm) and divided by ball speed and offset in mm, the four rows give 0.475, 0.461, 0.482 and 0.474 rpm per mm per mph; `data.GEAR_H_RPM_PER_MM_MPH` = 0.473 is their mean, and `data.GEAR_EXAMPLES` holds the rows.
+
+**Source 2 (primary):** TrackMan, ["Understanding Club Data in Golf"](https://www.trackman.com/blog/club-data-definitions) (2017-08-21), Anchor 5(c) Source 3, RAW. On a standard driver a 10 mm toe impact makes the face angle 2 degrees more open at the impact point, and a 10 mm low impact makes dynamic loft 2 degrees lower. The driver's center of gravity sits 25 to 50 mm behind the face. Also the measurement references: club speed, attack angle and path at the geometric center of the head, face angle and dynamic loft at the impact point, and for a driver the center-face path about 3 degrees more outside-in and the center-face attack angle about 1 degree higher than at the center of gravity. Model: `data.BULGE_DEG_PER_MM` and `data.ROLL_DEG_PER_MM` = 0.2 for the driver, extended to the fairway woods (MODELED); the hybrid and irons are flat.
+
+**Source 3 (secondary, analytic model):** Dave Tutelman, ["All about Gear Effect"](https://www.tutelman.com/golf/ballflight/gearEffect.php) (2009), RAW. Horizontal gear spin s = 58,830 Vb C x / Ih rpm (ball speed mph, center of gravity depth and offset in inches, head MOI in g cm^2), about 16.4 Vb x for a typical driver (0.65 per mm, the same order as Source 1). Vertical gear spin about 25 Vb y, 1.5 to 2 times the horizontal effect for the same miss, up to 1,500 to 3,000 rpm at extreme face heights; irons have little gear spin because the center of gravity is near the face. Model: `data.GEAR_V_RATIO` = 1.75 for the driver and fairway woods (`data.GEAR_V_CLUBS`), none for the hybrid and irons, with the backspin floored at a quarter of the D-plane backspin (MODELED).
+
+**Source 4 (primary, one example):** TrackMan, "10 Fundamentals" ([PDF hosted by Troxhammar GK](https://www.troxhammargk.se/media/t4dn2xcy/trackman-s-10-fundamentals.pdf)), RAW: 92 mph of club speed off center gave 129 mph of ball speed and 196 yd (smash 1.40), 88 mph at center gave 132 mph and 204 yd (1.50). The offset is not stated.
+
+**Source 5 (peer reviewed):** Cross and Nathan, ["Performance versus moment of inertia of sporting implements"](https://baseball.physics.illinois.edu/jwuk_jst_88_web.pdf), Sports Technology 2:7 (2009), RAW. Effective mass 1/Me = 1/M + b^2/Icm for an impact b from the center of gravity, apparent restitution e_A = (e Me - m)/(Me + m). DERIVED here with M 200 g, Icm 4,500 g cm^2, e 0.83 and the ball's 45.93 g: smash 1.488 at center, 1.469 at half an inch (1.3 percent), 1.415 at 25 mm. Model: `data.SMASH_LOSS_PER_MM2` = 0.0002 (MODELED), 2 percent at 10 mm between the MOI loss alone and Sources 1 and 4.
+
+## Anchor 14: Lie at impact (task 004-physics-2)
+
+**Status: DERIVED geometry, direction confirmed by secondary sources, added 2026-10-05.** A change of lie is a rotation of the head about the target line. For a face of loft L a lie change of delta moves the face angle by atan(tan L sin delta), about delta tan L: 0.19 degree per degree for a driver (10.5 deg of loft), 0.36 at 20, 0.67 at 34, 1.04 at 46, 1.60 at 58, and the loft by under 0.03 degree per degree at a square face (docs/sources/004_Physics_Research.md Topic 6). Toe up (a flat lie) opens the face, toe down (upright) closes it.
+
+**Source 1 (secondary, retailer):** Golf Club Brokers, ["Lie Angle Explained"](https://www.golfclubbrokers.com/blog/lie-angle-explained), RAW, no citations. Too upright sends the ball left, higher lofts amplify the deviation, wedges are the most sensitive and drivers the least, and a 2 degree lie error moves a shot 8 to 10 yd at typical iron distances. The direction and the ordering match the derivation; the model gives 5.1 yd for the Tour 7 iron at 2 degrees, so the size does not match without an extra effect such as a strike that moves toward the heel.
+
+**Source 2 (search results, not used as values):** TrackMan's dynamic lie parameter (the shaft angle to the horizon at impact) and Wishon's one-to-one lie-to-face relation with 4 yd per degree at 150 yd. The TrackMan support page and the GolfWRX articles were blocked.
+
+**Model:** `launch.deliver(..., lie_deg=)`, positive toe up, domain -10 to +10 (MODELED range), an exact rotation of the face normal about the target line after the face-to-loft coupling, bulge and roll. No fitted number.
+
+---
+
 ## Gaps and what the model must assume
 
 **Confirmed gaps.**

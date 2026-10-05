@@ -43,6 +43,9 @@ export function createWindows({ model, store, range, hooks }) {
       face: sign * d.face_deg + 0,
       dynLoft: d.dyn_loft_deg,
       spinTrim: w.spin_trim,
+      lie: 0, // a recipe is a center strike at the address lie
+      strikeToe: 0,
+      strikeUp: 0,
     };
   }
 
@@ -50,6 +53,7 @@ export function createWindows({ model, store, range, hooks }) {
     store.switchClub("7i");
     Object.assign(state, delivery(key));
     store.syncLoftOffset(); // the recipe's loft is the starting point for following attack
+    store.syncSwingDir(); // and its path and attack are the held swing direction
     store.selectWindow(key);
   }
 

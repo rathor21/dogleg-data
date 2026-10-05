@@ -63,16 +63,26 @@ same script from its `SCHEMA` block, so it always matches the export.
 - **Units.** Speeds mph, angles degrees, spin rpm, distances and heights yards,
   time seconds. `model.json` constants named `_kg`, `_m`, `_ms`, `_pa_s` are SI.
 - **Vocabulary.** One name per quantity in every file.
-  - Delivery: `club_speed_mph`, `attack_deg`, `path_deg`, `face_deg`,
-    `dyn_loft_deg` (the loft with the face square to the path, the slider),
-    `spin_trim` (multiplier on spin, 1.0 when absent).
+  - Delivery: `club_speed_mph`, `attack_deg`, `path_deg`, `face_deg` (the face
+    angle before bulge and the lie tilt, the slider), `dyn_loft_deg` (the loft
+    with the face square to the path, the slider), `spin_trim` (multiplier on
+    spin, 1.0 when absent), and in `golden.json` also `lie_deg` (lie change at
+    impact, positive toe up), `strike_toe_mm` (strike offset toward the toe) and
+    `strike_up_mm` (offset above the face center), each 0 when absent. A preset
+    or a window is a center strike at the address lie.
   - Launch: `ball_speed_mph`, `smash`, `launch_deg`, `launch_dir_deg`,
     `spin_rpm`, `spin_axis_deg`, `spin_loft_deg`, `face_to_path_deg`,
     `dyn_loft_input_deg` (the delivery's loft) and `dyn_loft_deg` (the EFFECTIVE
-    loft, `dyn_loft_input_deg + kappa * face_to_path_deg`, what TrackMan would
-    measure). In a launch record `dyn_loft_deg` is the effective loft. In a
-    delivery, a preset or a window's `delivery` it is the input loft. The
-    `dyn_loft_deg` band and tile compare the effective loft.
+    loft, `dyn_loft_input_deg + kappa * (face_input_deg - path_deg)` plus the
+    roll and lie geometry, what TrackMan would measure), `face_input_deg` (the
+    delivery's face) and `face_deg` (the EFFECTIVE face at the impact point
+    after bulge and the lie tilt, what TrackMan would measure;
+    `face_to_path_deg = face_deg - path_deg`), `gear_side_rpm` (sidespin the
+    horizontal gear effect added, positive curves right) and `gear_back_rpm`
+    (backspin the vertical gear effect added, negative above center). In a
+    launch record `dyn_loft_deg` and `face_deg` are the effective values. In a
+    delivery, a preset or a window's `delivery` they are the input values. The
+    `dyn_loft_deg` and `face_deg` bands and tiles compare the effective values.
   - Flight: `carry_yd`, `side_yd`, `curve_yd`, `max_height_yd`, `apex_x_yd`,
     `land_angle_deg`, `flight_time_s`, `land_speed_mph`, `total_yd`, and in
     `golden.json` also `land_spin_rpm` (spin left at landing, which the roll uses).
@@ -111,9 +121,12 @@ Everything the port needs to recompute a shot.
 | `launch_model` | `k0 k1 k_sl_lo k_sl_hi` (iron, hybrid and wood k line), `k0_driver k1_driver k_sl_lo_driver k_sl_hi_driver` (the driver's k line and its range), `smash_a smash_b smash_c smash_cap smash_floor`, `spin_a spin_b spin_f_wood` (iron spin law and the 3-wood and 5-wood factor), `spin_a_driver spin_b_driver` (the driver's spin law), `axis_c0 axis_c1 axis_sl_lo axis_sl_hi` (spin axis scale, linear in spin loft between the two bounds; `axis_c1` is 0, so the scale is the constant `axis_c0`). |
 | `coupling` | Face-to-loft coupling, MODELED: `form` (text), `lie_deg` and `kappa` (each `{club id: number}`, `kappa = cot(lie_deg)`). Also the loft-follows-attack rule: `loft_per_attack` (1.4, degrees of dynamic loft per degree of attack angle), `loft_per_attack_clubs` (hybrid, both fairway woods, irons and wedges), `loft_follow_deloft_linear` (3) and `loft_follow_deloft_max` (5, degrees of loft taken off below the preset attack), `driver_natural_slope` (1.0, information only) and `loft_follows_attack` (text). `dyn_loft_deg` (effective) `= dyn_loft_input_deg + kappa[club] * (face_deg - path_deg)`, then held to at least `attack_deg + domain.min_spin_loft_deg` and at most `domain.dyn_loft_deg[1]`. A club that is `null` or not listed has `kappa` 0. |
 | `spin_class` | Club id to spin class (`driver`, `wood`). The driver takes its own k line and spin law, a `wood` club the iron spin law times `spin_f_wood`, and every club not listed the iron laws. |
-| `domain` | Ranges `deliver` accepts, each `[lo, hi]` inclusive: `club_speed_mph`, `attack_deg`, `path_deg`, `face_deg`, `dyn_loft_deg`, `swing_plane_deg` (open interval). `min_spin_loft_deg` is a number: `dyn_loft_deg - attack_deg` must be at least that. `min_effective_loft_deg` is a number (1): the effective loft is never below it (with `attack_deg + min_spin_loft_deg`, the larger of the two). |
+| `lie` | Lie at impact, geometry (no fitted number): `form` (text). `deliver` rotates the face normal about the target line by `lie_deg`, positive toe up, after the coupling, bulge and roll; toe up opens the face by about `tan(loft)` per degree. |
+| `strike` | Strike location, MODELED on published rows: `gear_h_rpm_per_mm_mph` (sidespin per mm of toe offset per mph of ball speed, a toe strike adds draw spin), `gear_examples` (Tuxen's four rows it was derived from: `[club, toe_mm, spin_axis_deg]`), `gear_v_ratio` (vertical over horizontal gear spin), `gear_v_clubs` (clubs with a vertical gear effect), `gear_backspin_floor_frac`, `bulge_deg_per_mm`, `roll_deg_per_mm`, `bulge_roll_clubs`, `smash_loss_per_mm2`, `form` (text). |
+| `domain` | Ranges `deliver` accepts, each `[lo, hi]` inclusive: `club_speed_mph`, `attack_deg`, `path_deg`, `face_deg`, `dyn_loft_deg`, `lie_deg`, `strike_toe_mm`, `strike_up_mm`, `swing_plane_deg` (open interval). `min_spin_loft_deg` is a number: `dyn_loft_deg - attack_deg` must be at least that. `min_effective_loft_deg` is a number (1): the effective loft is never below it (with `attack_deg + min_spin_loft_deg`, the larger of the two). |
 | `classify` | Thresholds: `start_straight_deg`, `axis_straight_deg`, `curve_hook_frac`, `on_target_frac`, `on_line_yd`. |
-| `swing_plane_default_deg` | Default swing plane for the hold-swing-direction toggle. |
+| `swing_plane_default_deg` | The driver's swing plane (TrackMan Combine average golfer, 49), the default of `swing_path` and `swing_direction`. |
+| `swing_plane_by_club` | `{club id: degrees}`, the vertical swing plane per club for the path-follows-attack switch: `path = swing_direction - attack_deg * tan(90 - plane)`. Driver 49 (measured) and 6 iron 60 (Tuxen's example) anchor it; the rest is MODELED (`swing_plane_note`). |
 
 `classify` rules, in order:
 1. `start`: `pull` if `launch_dir_deg < -start_straight_deg`, `push` if
@@ -274,14 +287,16 @@ The JS parity fixture. Rounded to 9 significant digits.
 | `note` | Text. |
 | `sig_digits` | 9. |
 | `dt` | Time step used for every case, 0.01. |
-| `cases` | 40 cases, see below. |
+| `cases` | 52 cases, see below. |
 | `classify_vectors` | 560 `{args: [launch_dir_deg, spin_axis_deg, curve_yd, side_yd, carry_yd], result: classification}` on a 200 yd carry. |
 | `loft_for_attack_vectors` | 252 `{args: [club id, player id, attack_deg], result: input dyn_loft_deg}`: every club and player at attack -10, -6, -3, 0, 3, 6 and 10. |
 | `optimal_loft_vectors` | 72 `{args: [club_speed_mph, attack_deg], result: {dyn_loft_deg, carry_loft_deg, total_loft_deg, extrapolated, speed_clamped}}`: club speeds 60 to 135 and attack angles -8 to +10, inside, on and outside the charts. |
 | `windows_pga_7i` | `windows_pga_7i["{height}_{shape}"]`, the PGA 7-iron windows in the `windows.json` window format. |
 
 Case: `id`, `delivery` (`club_speed_mph`, `attack_deg`, `path_deg`, `face_deg`,
-`dyn_loft_deg`, `club`, `spin_trim`), `launch` (launch fields from `deliver`),
+`dyn_loft_deg`, `club`, `spin_trim`, `lie_deg`, `strike_toe_mm`, `strike_up_mm`;
+the last three are 0 for every case but the twelve `lie_*`, `strike_*` and
+`corner_*` cases), `launch` (launch fields from `deliver`),
 `flight` (flight fields from `simulate` at `dt`, plus `land_spin_rpm` and `total_yd`),
 `classification` (or `null` when `carry_yd` is 0), and for 12 cases `trajectory`:
 `stride` (10), `indices` (step numbers 0, 10, 20 and the final landing step),
@@ -413,10 +428,41 @@ def build_model():
                                    "driver_natural_slope (1.0, the arc value) is for the page's information only: the "
                                    "driver toggle uses the chart's optimal loft, not this slope.",
         },
+        "lie": {
+            "form": "n = tilt_about_target_line(face_normal(face_deg + bulge, loft_effective + roll), lie_deg): a "
+                    "rotation about the target line by -lie_deg (positive toe up), so toe up opens the face by about "
+                    "tan(loft) per degree and toe down closes it. Geometry, no fitted number (docs/sources/"
+                    "004_Physics_Research.md Topic 6). face_deg in a launch record is the face of the rotated normal.",
+        },
+        "strike": {
+            "gear_h_rpm_per_mm_mph": data.GEAR_H_RPM_PER_MM_MPH,
+            "gear_examples": [list(row) for row in data.GEAR_EXAMPLES],
+            "gear_v_ratio": data.GEAR_V_RATIO,
+            "gear_v_clubs": list(data.GEAR_V_CLUBS),
+            "gear_backspin_floor_frac": data.GEAR_BACKSPIN_FLOOR_FRAC,
+            "bulge_deg_per_mm": data.BULGE_DEG_PER_MM,
+            "roll_deg_per_mm": data.ROLL_DEG_PER_MM,
+            "bulge_roll_clubs": list(data.BULGE_ROLL_CLUBS),
+            "smash_loss_per_mm2": data.SMASH_LOSS_PER_MM2,
+            "form": "face_at_impact = face_deg + bulge_deg_per_mm * strike_toe_mm and loft_at_impact = clamp_loft("
+                    "loft_effective + roll_deg_per_mm * strike_up_mm) for bulge_roll_clubs; smash = smash_of(spin "
+                    "loft) * (1 - smash_loss_per_mm2 * (strike_toe_mm^2 + strike_up_mm^2)); gear_side_rpm = "
+                    "-gear_h_rpm_per_mm_mph * ball_speed_mph * strike_toe_mm; gear_back_rpm = -gear_v_ratio * "
+                    "gear_h_rpm_per_mm_mph * ball_speed_mph * strike_up_mm for gear_v_clubs (else 0), with the "
+                    "backspin floored at gear_backspin_floor_frac of the D-plane backspin; spin_rpm and "
+                    "spin_axis_deg are the vector sum of the D-plane spin (backspin spin cos(axis), sidespin spin "
+                    "sin(axis)) and the gear spin. MODELED on Tuxen's gear rows, TrackMan's bulge and roll numbers "
+                    "and Tutelman's vertical ratio (ADR 0004 addendum 5).",
+        },
         "spin_class": dict(launch.SPIN_CLASS),
         "domain": {k: list(v) if isinstance(v, tuple) else v for k, v in data.DOMAIN.items()},
         "classify": dict(data.CLASSIFY),
         "swing_plane_default_deg": data.SWING_PLANE_DEG,
+        "swing_plane_by_club": {club: data.SWING_PLANE_BY_CLUB[club] for club in presets.CLUBS},
+        "swing_plane_note": "path = swing_direction - attack_deg * tan(90 - plane). Driver 49.0 is the TrackMan "
+                            "Combine average golfer (measured) and the 6 iron 60.0 is Tuxen's worked example; irons "
+                            "and the PW follow the lie ladder one for one from the 6 iron, and the fairway woods and "
+                            "hybrid sit on a line from the driver to the 3 iron (MODELED, ADR 0004 addendum 5).",
     }
 
 
@@ -679,13 +725,17 @@ def build_golden(all_windows):
     cases = []
     for case in base["cases"]:
         speed, attack, path, face, dyn_loft, club = case["args"]
-        trim = case["kwargs"].get("spin_trim", 1.0)
-        ln = launch.deliver(speed, attack, path, face, dyn_loft, club, spin_trim=trim)
+        kw = case["kwargs"]
+        trim = kw.get("spin_trim", 1.0)
+        lie, toe, up = kw.get("lie_deg", 0.0), kw.get("strike_toe_mm", 0.0), kw.get("strike_up_mm", 0.0)
+        ln = launch.deliver(speed, attack, path, face, dyn_loft, club, spin_trim=trim, lie_deg=lie,
+                            strike_toe_mm=toe, strike_up_mm=up)
         f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg, dt=base["dt"])
         entry = {
             "id": case["id"],
             "delivery": {"club_speed_mph": speed, "attack_deg": attack, "path_deg": path, "face_deg": face,
-                         "dyn_loft_deg": dyn_loft, "club": club, "spin_trim": trim},
+                         "dyn_loft_deg": dyn_loft, "club": club, "spin_trim": trim, "lie_deg": lie,
+                         "strike_toe_mm": toe, "strike_up_mm": up},
             "launch": case["launch"],
             "flight": dict(case["flight"], total_yd=flight.roll(f)),
             # classify() raises for a carry of zero (edge_loft_zero launches downward), so the fixture holds null.

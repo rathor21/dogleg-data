@@ -129,6 +129,10 @@ def solve_window(club, player, height, shape):
             "face_to_path_deg": ln.face_to_path_deg,
             "dyn_loft_input_deg": ln.dyn_loft_input_deg,
             "dyn_loft_deg": ln.dyn_loft_deg,
+            "face_input_deg": ln.face_input_deg,
+            "face_deg": ln.face_deg,
+            "gear_side_rpm": ln.gear_side_rpm,
+            "gear_back_rpm": ln.gear_back_rpm,
         },
         "flight": {
             "carry_yd": f.carry_yd,

@@ -15,7 +15,8 @@ export const snap = (v, step) => round3(Math.round(v / step) * step);
 
 const GROUP_DEFAULT_CLUB = { driver: "driver", wood: "3w", long_iron: "5i", short_iron: "7i", wedge: "pw" };
 // URL key to state key. Short keys keep shared links readable.
-const NUM_KEYS = { s: "clubSpeed", a: "attack", pa: "path", f: "face", l: "dynLoft" };
+const NUM_KEYS = { s: "clubSpeed", a: "attack", pa: "path", f: "face", l: "dynLoft", li: "lie", sx: "strikeToe", sy: "strikeUp" };
+const EXTRA_KEYS = ["lie", "strikeToe", "strikeUp"]; // 0 for a preset, a window or a plain link
 const MODES = ["e", "w", "c"]; // explore, 9 windows, compare
 export const WINDOW_HEIGHTS = ["high", "mid", "low"];
 export const WINDOW_SHAPES = ["draw", "straight", "fade"];
@@ -27,7 +28,11 @@ export function createStore(model) {
   const playerIds = model.players.map((p) => p.id);
   // loftFollows and loftOffset are the driver's "loft follows attack angle" switch and the
   // manual loft the golfer added on top of the chart loft. Other clubs ignore both.
-  const state = { club: "7i", player: "pga", hand: "r", clubSpeed: 0, attack: 0, path: 0, face: 0, dynLoft: 0, spinTrim: 1, mode: "e", window: null, loftFollows: true, loftOffset: 0, loftOffsetIsMine: false };
+  // pathFollows is the "path follows attack angle" switch: the swing direction (swingDir, held in
+  // the right-handed model frame) stays where it is and the path moves with the attack angle
+  // along the club's swing plane. lie is the lie change at impact (degrees, positive toe up),
+  // strikeToe and strikeUp the strike's offset from the face center in mm.
+  const state = { club: "7i", player: "pga", hand: "r", clubSpeed: 0, attack: 0, path: 0, face: 0, dynLoft: 0, spinTrim: 1, lie: 0, strikeToe: 0, strikeUp: 0, mode: "e", window: null, loftFollows: true, loftOffset: 0, loftOffsetIsMine: false, pathFollows: true, swingDir: 0 };
   const lastClubInGroup = { ...GROUP_DEFAULT_CLUB };
 
   const groupOf = (club = state.club) => clubById[club].group;
@@ -58,10 +63,40 @@ export function createStore(model) {
     state.dynLoft = round3(clamp(chartLoft().dynLoft + state.loftOffset, LOFT_LO, LOFT_HI));
   }
 
-  /** Call after a slider moves. The loft slider sets the offset. Attack and club speed pull the loft along. */
+  const signOf = (st = state) => (st.hand === "l" ? -1 : 1);
+  const [PATH_LO, PATH_HI] = model.domain.path_deg;
+  /** The club's vertical swing plane (model.swingPlaneFor), the lever between attack angle and path. */
+  const swingPlane = (st = state) => model.swingPlaneFor(st.club);
+
+  /** Read the swing direction off the current path and attack angle, so following holds it from here. */
+  function syncSwingDir() {
+    state.swingDir = round3(model.swingDirection(signOf() * state.path, state.attack, swingPlane()));
+  }
+
+  /** With the switch on: the path is where the held swing direction puts it at this attack angle. */
+  function followPath() {
+    if (!state.pathFollows) return;
+    const rh = clamp(model.swingPath(state.swingDir, state.attack, swingPlane()), PATH_LO, PATH_HI);
+    state.path = round3(signOf() * rh);
+  }
+
+  /** Turning it on holds the swing direction from the current path and attack. Turning it off leaves the path where it is. */
+  function setPathFollows(on) {
+    state.pathFollows = !!on;
+    if (on) syncSwingDir();
+  }
+
+  /** The path the held swing direction would give at another attack angle (display frame), for notes. */
+  function pathAtAttack(attack) {
+    return round3(signOf() * clamp(model.swingPath(state.swingDir, attack, swingPlane()), PATH_LO, PATH_HI));
+  }
+
+  /** Call after a slider moves. The loft slider sets the offset, the path slider the swing direction. Attack pulls both along. */
   function afterSliderChange(key) {
     if (key === "dynLoft") syncLoftOffset(true);
-    else if (key === "attack" || key === "clubSpeed") followLoft();
+    else if (key === "path") syncSwingDir();
+    else if (key === "attack") { followPath(); followLoft(); }
+    else if (key === "clubSpeed") followLoft();
   }
 
   /** Turning it on returns the loft to the chart loft for this speed and attack. Turning it off leaves the loft where it is. */
@@ -83,6 +118,8 @@ export function createStore(model) {
   function loadIdeal() {
     const d = applyBase(false); // idealDelivery(club, player) at the preset club speed, path and face included
     state.loftFollows = true;
+    state.pathFollows = true;
+    syncSwingDir();
     return d;
   }
 
@@ -101,7 +138,9 @@ export function createStore(model) {
     if (!keepLateral) {
       state.path = d.path + 0;
       state.face = d.face + 0;
+      for (const k of EXTRA_KEYS) state[k] = 0; // a preset is a center strike at the address lie
     }
+    syncSwingDir(); // the attack angle moved, so the held direction is re-read from the path that stays
     return d;
   }
 
@@ -117,6 +156,7 @@ export function createStore(model) {
   function loadAverage() {
     applyPreset(false);
     state.loftFollows = true;
+    state.pathFollows = true;
     syncLoftOffset(); // the average's loft sits where it sits; following moves it from there
   }
 
@@ -130,7 +170,9 @@ export function createStore(model) {
     if (!keepLateral) {
       state.path = p.path + 0;
       state.face = p.face + 0;
+      for (const k of EXTRA_KEYS) state[k] = 0;
     }
+    syncSwingDir();
     return p;
   }
 
@@ -175,6 +217,8 @@ export function createStore(model) {
     if (WINDOW_KEYS.includes(win)) out.window = win;
     const lf = (get("lf") || "").toLowerCase();
     if (lf === "1" || lf === "0") out.loftFollows = lf === "1";
+    const pf = (get("pf") || "").toLowerCase();
+    if (pf === "1" || pf === "0") out.pathFollows = pf === "1";
     for (const [k, key] of Object.entries(NUM_KEYS)) {
       const raw = get(k);
       if (raw === null) continue;
@@ -199,12 +243,14 @@ export function createStore(model) {
     if (state.mode === "w") state.club = "7i";
     applyBase(false);
     if (p.loftFollows !== undefined) state.loftFollows = p.loftFollows;
+    if (p.pathFollows !== undefined) state.pathFollows = p.pathFollows;
     selectWindow(state.mode === "w" && p.window ? p.window : null);
     if (state.window && afterPreset) afterPreset(state.window);
     Object.assign(state, p.nums);
     // A link that names speed or attack but no loft gets the followed loft for them.
     if (p.nums.dynLoft === undefined && state.loftFollows && !state.window) state.dynLoft = round3(clamp(chartLoft().dynLoft, LOFT_LO, LOFT_HI));
     syncLoftOffset();
+    syncSwingDir(); // the link's path and attack are the held direction, whatever it was when the link was copied
     lastClubInGroup[groupOf()] = state.club;
   }
 
@@ -216,6 +262,9 @@ export function createStore(model) {
       s: r2(st.clubSpeed), a: r2(st.attack), pa: r2(st.path), f: r2(st.face), l: r2(st.dynLoft),
     });
     q.set("lf", st.loftFollows ? "1" : "0");
+    q.set("pf", st.pathFollows ? "1" : "0");
+    // The lie and strike keys only appear when they are set, so an ordinary link stays short.
+    for (const [k, key] of Object.entries(NUM_KEYS)) if (EXTRA_KEYS.includes(key) && Math.abs(st[key]) >= 0.005) q.set(k, r2(st[key]));
     if (st.mode === "w" && st.window) q.set("w", st.window.replace(/_/g, "-"));
     return location.pathname + "?" + q.toString();
   }
@@ -227,9 +276,11 @@ export function createStore(model) {
    */
   function compute(st = state) {
     const sign = st.hand === "l" ? -1 : 1;
+    // The lie (toe up or down) and the strike (toe or heel, high or low) read the same for both hands:
+    // the toe is the toe, so nothing of theirs is mirrored.
     const d = model.clampToDomain({
       clubSpeed: st.clubSpeed, attack: st.attack, path: sign * st.path, face: sign * st.face,
-      dynLoft: st.dynLoft, club: st.club, spinTrim: st.spinTrim,
+      dynLoft: st.dynLoft, club: st.club, spinTrim: st.spinTrim, lie: st.lie, strikeToe: st.strikeToe, strikeUp: st.strikeUp,
     });
     const norm = {
       clubSpeed: round3(d.clubSpeed),
@@ -237,6 +288,9 @@ export function createStore(model) {
       dynLoft: round3(d.dynLoft),
       path: round3(sign * d.path),
       face: round3(sign * d.face),
+      lie: round3(d.lie),
+      strikeToe: round3(d.strikeToe),
+      strikeUp: round3(d.strikeUp),
     };
     const s = model.shot(d);
     let bands = model.idealBands(st.club, st.player, d.clubSpeed, d.attack);
@@ -254,6 +308,10 @@ export function createStore(model) {
     // The Dynamic loft tile shows the effective loft. These let it say how the face moved it off the slider's loft.
     values.dyn_loft_deg.input = s.launch.dynLoftInputDeg;
     values.dyn_loft_deg.faceToPathRh = s.launch.faceToPathDeg;
+    // The Face angle tile shows the effective face at the impact point. These let it say how the lie and the strike moved it.
+    values.face_deg.input = sign * s.launch.faceInputDeg + 0;
+    values.face_deg.lie = d.lie;
+    values.face_deg.strikeToe = d.strikeToe;
     const f = s.flight;
     const n = f.x.length;
     const y = new Float64Array(n);
@@ -265,5 +323,5 @@ export function createStore(model) {
     return { norm, s, bands, values, rangeShot, group: groupOf(st.club) };
   }
 
-  return { state, lastClubInGroup, clubById, groupOf, applyPreset, applyBase, syncLoftOffset, loadIdeal, loadAverage, averageDiffers, afterSliderChange, setLoftFollows, followLoft, chartLoft, switchClub, selectWindow, snapshot, parseQuery, loadFromSearch, buildUrl, compute };
+  return { state, lastClubInGroup, clubById, groupOf, applyPreset, applyBase, syncLoftOffset, loadIdeal, loadAverage, averageDiffers, afterSliderChange, setLoftFollows, followLoft, chartLoft, setPathFollows, syncSwingDir, followPath, pathAtAttack, swingPlane, switchClub, selectWindow, snapshot, parseQuery, loadFromSearch, buildUrl, compute };
 }

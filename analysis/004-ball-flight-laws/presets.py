@@ -223,20 +223,23 @@ def scale_speed(preset_dict, club_speed):
     return out
 
 
-_FLY_KEYS = ("club_speed", "attack", "path", "face", "dyn_loft", "spin_trim")
+_FLY_KEYS = ("club_speed", "attack", "path", "face", "dyn_loft", "spin_trim", "lie", "strike_toe", "strike_up")
 
 
 def fly(preset_dict, **overrides):
     """(Launch, Flight) for a preset delivery: launch.deliver then flight.simulate.
 
     overrides replace preset keys (club_speed, attack, path, face, dyn_loft,
-    spin_trim) for this call only, for example fly(p, path=5.0, face=2.0). An
-    unknown key raises ValueError. deliver's input contract applies."""
+    spin_trim) for this call only, for example fly(p, path=5.0, face=2.0), or add
+    a lie at impact and a strike location (lie, strike_toe, strike_up, each 0 when
+    absent: a preset is a center strike at the address lie). An unknown key
+    raises ValueError. deliver's input contract applies."""
     unknown = sorted(set(overrides) - set(_FLY_KEYS))
     if unknown:
         raise ValueError(f"unknown override {unknown}, expected some of {_FLY_KEYS}")
     q = dict(preset_dict, **overrides)
     ln = launch.deliver(q["club_speed"], q["attack"], q["path"], q["face"], q["dyn_loft"], q["club"],
-                        spin_trim=q["spin_trim"])
+                        spin_trim=q["spin_trim"], lie_deg=q.get("lie", 0.0),
+                        strike_toe_mm=q.get("strike_toe", 0.0), strike_up_mm=q.get("strike_up", 0.0))
     f = flight.simulate(ln.ball_speed_mph, ln.launch_deg, ln.launch_dir_deg, ln.spin_rpm, ln.spin_axis_deg)
     return ln, f
